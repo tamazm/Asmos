@@ -1,0 +1,181 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum PlanTier {
+  FREE
+  STARTER
+  GROWTH
+  SCALE
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum CampaignType {
+  WHEEL
+  SCRATCH_CARD
+  FORM
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+}
+
+enum RewardType {
+  COUPON
+  DISCOUNT_PERCENT
+  DISCOUNT_FIXED
+  FREE_SHIPPING
+}
+
+enum CampaignEventType {
+  IMPRESSION
+  INTERACTION
+  SUBMISSION
+  GIFT_CLAIMED
+}
+
+// A customer business — the tenant boundary for every other model.
+model Account {
+  id        String   @id @default(cuid())
+  name      String
+  industry  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  planTier           PlanTier           @default(FREE)
+  subscriptionStatus SubscriptionStatus @default(TRIALING)
+  stripeCustomerId   String?            @unique
+
+  users      User[]
+  websites   Website[]
+  campaigns  Campaign[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  accountId    String
+  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  clerkUserId  String   @unique
+  email        String
+  name         String?
+  role         UserRole @default(MEMBER)
+  createdAt    DateTime @default(now())
+
+  @@index([accountId])
+}
+
+// A site the customer has installed the widget on.
+model Website {
+  id               String    @id @default(cuid())
+  accountId        String
+  account          Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  url              String
+  installVerified  Boolean   @default(false)
+  installVerifiedAt DateTime?
+  createdAt        DateTime  @default(now())
+
+  campaigns Campaign[]
+
+  @@index([accountId])
+}
+
+model Campaign {
+  id        String         @id @default(cuid())
+  accountId String
+  account   Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  websiteId String
+  website   Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  name   String
+  type   CampaignType
+  status CampaignStatus @default(DRAFT)
+
+  // Popup builder output: design, form fields, targeting/trigger rules.
+  // Kept as JSON in Phase 1 rather than normalized tables — no querying
+  // needs beyond "load config for this campaign" until the A/B test/bandit
+  // phases need to compare structured fields across variants.
+  design    Json?
+  formFields Json?
+  targeting Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rewards RewardRule[]
+  leads   Lead[]
+  events  CampaignEvent[]
+
+  @@index([accountId])
+  @@index([websiteId])
+}
+
+model RewardRule {
+  id         String     @id @default(cuid())
+  campaignId String
+  campaign   Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  label       String
+  type        RewardType
+  couponCode  String?
+  // Win probability weight for game-based popups (wheel/scratch card); ignored for plain forms.
+  weight      Int        @default(1)
+
+  createdAt DateTime @default(now())
+
+  @@index([campaignId])
+}
+
+// A captured name/email/phone submission from the widget.
+model Lead {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name  String?
+  email String?
+  phone String?
+
+  consentGiven Boolean  @default(false)
+  consentAt    DateTime?
+
+  rewardClaimedCode String?
+
+  createdAt DateTime @default(now())
+
+  @@index([campaignId])
+}
+
+// Simple counters for the Phase 1 analytics dashboard (impressions, conversions,
+// emails captured). Full clickstream/behavioral event storage is Phase 2 (ClickHouse),
+// not this table.
+model CampaignEvent {
+  id         String            @id @default(cuid())
+  campaignId String
+  campaign   Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  type       CampaignEventType
+  createdAt  DateTime          @default(now())
+
+  @@index([campaignId, type, createdAt])
+}
