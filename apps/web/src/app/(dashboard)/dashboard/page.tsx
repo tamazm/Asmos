@@ -18,30 +18,34 @@ export default async function DashboardHomePage() {
   const campaigns = await prisma.campaign.findMany({
     where: { accountId: account.id },
     orderBy: { createdAt: "desc" },
-    include: { events: true },
+    include: { variants: { include: { events: true } } },
   });
 
   const activeCount = campaigns.filter((c) => c.status === "ACTIVE").length;
-  const impressions = campaigns.reduce(
-    (sum, c) => sum + c.events.filter((e) => e.type === "IMPRESSION").length,
+  const campaignEvents = campaigns.map((c) => c.variants.flatMap((v) => v.events));
+  const impressions = campaignEvents.reduce(
+    (sum, events) => sum + events.filter((e) => e.type === "IMPRESSION").length,
     0,
   );
-  const submissions = campaigns.reduce(
-    (sum, c) => sum + c.events.filter((e) => e.type === "SUBMISSION").length,
+  const submissions = campaignEvents.reduce(
+    (sum, events) => sum + events.filter((e) => e.type === "SUBMISSION").length,
     0,
   );
   const emailsCaptured = await prisma.lead.count({
-    where: { campaign: { accountId: account.id }, email: { not: null } },
+    where: { variant: { campaign: { accountId: account.id } }, email: { not: null } },
   });
   const conversionRate = impressions > 0 ? (submissions / impressions) * 100 : 0;
 
-  const rows: CampaignRow[] = campaigns.slice(0, 5).map((campaign) => ({
-    id: campaign.id,
-    name: campaign.name,
-    status: campaign.status,
-    impressions: campaign.events.filter((e) => e.type === "IMPRESSION").length,
-    conversions: campaign.events.filter((e) => e.type === "SUBMISSION").length,
-  }));
+  const rows: CampaignRow[] = campaigns.slice(0, 5).map((campaign) => {
+    const events = campaign.variants.flatMap((v) => v.events);
+    return {
+      id: campaign.id,
+      name: campaign.name,
+      status: campaign.status,
+      impressions: events.filter((e) => e.type === "IMPRESSION").length,
+      conversions: events.filter((e) => e.type === "SUBMISSION").length,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">

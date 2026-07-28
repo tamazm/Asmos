@@ -9,33 +9,33 @@ export async function OPTIONS() {
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
-    campaignId?: string;
+    variantId?: string;
     name?: string;
     email?: string;
     phone?: string;
     consentGiven?: boolean;
   };
 
-  if (!body.campaignId) {
-    return corsJson({ error: "campaignId is required" }, { status: 400 });
+  if (!body.variantId) {
+    return corsJson({ error: "variantId is required" }, { status: 400 });
   }
 
-  const campaign = await prisma.campaign.findUnique({
-    where: { id: body.campaignId },
-    include: { rewards: true, account: true },
+  const variant = await prisma.variant.findUnique({
+    where: { id: body.variantId },
+    include: { rewards: true, campaign: { include: { account: true } } },
   });
-  if (!campaign) {
-    return corsJson({ error: "Unknown campaign" }, { status: 404 });
+  if (!variant) {
+    return corsJson({ error: "Unknown variant" }, { status: 404 });
   }
 
-  const reward = pickWeightedReward(campaign.rewards);
+  const reward = pickWeightedReward(variant.rewards);
   const couponCode = reward
     ? reward.couponCode ?? (reward.type === "COUPON" ? generateCouponCode() : null)
     : null;
 
   await prisma.lead.create({
     data: {
-      campaignId: campaign.id,
+      variantId: variant.id,
       name: body.name || null,
       email: body.email || null,
       phone: body.phone || null,
@@ -46,11 +46,11 @@ export async function POST(request: Request) {
   });
 
   await prisma.campaignEvent.create({
-    data: { campaignId: campaign.id, type: "SUBMISSION" },
+    data: { variantId: variant.id, type: "SUBMISSION" },
   });
   if (reward) {
     await prisma.campaignEvent.create({
-      data: { campaignId: campaign.id, type: "GIFT_CLAIMED" },
+      data: { variantId: variant.id, type: "GIFT_CLAIMED" },
     });
   }
 
@@ -60,7 +60,7 @@ export async function POST(request: Request) {
         to: body.email,
         rewardLabel: reward.label,
         couponCode,
-        brandName: campaign.account.name,
+        brandName: variant.campaign.account.name,
       });
     } catch {
       // Non-fatal: the reward still shows in the widget response even if email delivery fails.

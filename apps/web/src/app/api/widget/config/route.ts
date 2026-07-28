@@ -14,31 +14,56 @@ export async function GET(request: Request) {
 
   const website = await prisma.website.findFirst({
     where: { url: normalizeHost(site) },
+    include: {
+      account: {
+        select: {
+          consentGdprEnabled: true,
+          consentCcpaEnabled: true,
+          consentBannerText: true,
+        },
+      },
+    },
   });
   if (!website) {
-    return corsJson({ campaign: null });
+    return corsJson({ campaign: null, consent: null });
   }
+
+  const consent = {
+    required: website.account.consentGdprEnabled || website.account.consentCcpaEnabled,
+    bannerText: website.account.consentBannerText,
+  };
 
   const campaign = await prisma.campaign.findFirst({
     where: { websiteId: website.id, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
     include: {
-      rewards: { select: { id: true, label: true, type: true } },
+      variants: {
+        include: {
+          rewards: { select: { id: true, label: true, type: true } },
+        },
+      },
     },
   });
 
-  if (!campaign) {
-    return corsJson({ campaign: null });
+  if (!campaign || campaign.variants.length === 0) {
+    return corsJson({ campaign: null, consent });
   }
 
   return corsJson({
     campaign: {
       id: campaign.id,
       type: campaign.type,
-      design: campaign.design,
-      formFields: campaign.formFields,
-      targeting: campaign.targeting,
-      rewards: campaign.rewards,
+      forcedVariantId: campaign.winningVariantId,
+      variants: campaign.variants.map((variant) => ({
+        id: variant.id,
+        name: variant.name,
+        trafficPercent: variant.trafficPercent,
+        design: variant.design,
+        formFields: variant.formFields,
+        targeting: variant.targeting,
+        rewards: variant.rewards,
+      })),
     },
+    consent,
   });
 }

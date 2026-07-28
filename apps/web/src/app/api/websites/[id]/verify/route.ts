@@ -2,20 +2,22 @@ import { auth } from "@clerk/nextjs/server";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 
-export async function POST() {
+export async function POST(
+  _request: Request,
+  ctx: RouteContext<"/api/websites/[id]/verify">,
+) {
   const { userId } = await auth();
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const { id } = await ctx.params;
   const account = await getOrCreateAccount();
   const website = await prisma.website.findFirst({
-    where: { accountId: account.id },
-    orderBy: { createdAt: "asc" },
+    where: { id, accountId: account.id },
   });
-
   if (!website) {
-    return Response.json({ error: "No website connected yet" }, { status: 400 });
+    return Response.json({ error: "Website not found" }, { status: 404 });
   }
 
   let verified = false;

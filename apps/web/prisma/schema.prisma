@@ -61,8 +61,15 @@ model Account {
   id        String   @id @default(cuid())
   name      String
   industry  String?
+  brandColor String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  consentGdprEnabled Boolean @default(true)
+  consentCcpaEnabled Boolean @default(true)
+  consentBannerText  String? @db.Text
+
+  onboardingCompletedAt DateTime?
 
   planTier           PlanTier           @default(FREE)
   subscriptionStatus SubscriptionStatus @default(TRIALING)
@@ -71,6 +78,7 @@ model Account {
   users      User[]
   websites   Website[]
   campaigns  Campaign[]
+  invites    Invite[]
 }
 
 model User {
@@ -82,6 +90,27 @@ model User {
   name         String?
   role         UserRole @default(MEMBER)
   createdAt    DateTime @default(now())
+
+  @@index([accountId])
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+// A pending teammate invite — becomes a User once the invitee signs up and accepts.
+model Invite {
+  id        String       @id @default(cuid())
+  accountId String
+  account   Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  email     String
+  role      UserRole     @default(MEMBER)
+  token     String       @unique
+  status    InviteStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  acceptedAt DateTime?
 
   @@index([accountId])
 }
@@ -112,29 +141,57 @@ model Campaign {
   type   CampaignType
   status CampaignStatus @default(DRAFT)
 
-  // Popup builder output: design, form fields, targeting/trigger rules.
-  // Kept as JSON in Phase 1 rather than normalized tables — no querying
-  // needs beyond "load config for this campaign" until the A/B test/bandit
-  // phases need to compare structured fields across variants.
-  design    Json?
-  formFields Json?
-  targeting Json?
+  // Set once a customer manually declares a winner (Phase 3 A/B test flow).
+  // When set, the widget always serves this variant regardless of trafficPercent splits.
+  winningVariantId String?  @unique
+  winningVariant   Variant? @relation("CampaignWinner", fields: [winningVariantId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  rewards RewardRule[]
-  leads   Lead[]
-  events  CampaignEvent[]
+  variants Variant[] @relation("CampaignVariants")
+  insights CampaignInsight[]
 
   @@index([accountId])
   @@index([websiteId])
 }
 
-model RewardRule {
-  id         String     @id @default(cuid())
+// One design/copy/offer to test within a campaign. A campaign always has at least
+// one variant (created as "Control" at publish time); additional variants turn it
+// into an A/B test — see Variant Manager / Test Results pages.
+model Variant {
+  id         String   @id @default(cuid())
   campaignId String
-  campaign   Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign   Campaign @relation("CampaignVariants", fields: [campaignId], references: [id], onDelete: Cascade)
+
+  name           String
+  // Fixed-split traffic allocation across a campaign's variants (Phase 3 — no bandit yet).
+  trafficPercent Int     @default(100)
+  isControl      Boolean @default(false)
+
+  // Popup builder output: design, form fields, targeting/trigger rules.
+  // Kept as JSON rather than normalized tables — no querying needs beyond
+  // "load config for this variant" until the bandit phase needs to compare
+  // structured fields across variants.
+  design     Json?
+  formFields Json?
+  targeting  Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rewards      RewardRule[]
+  leads        Lead[]
+  events       CampaignEvent[]
+  wonCampaign  Campaign?       @relation("CampaignWinner")
+
+  @@index([campaignId])
+}
+
+model RewardRule {
+  id        String  @id @default(cuid())
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   label       String
   type        RewardType
@@ -144,14 +201,14 @@ model RewardRule {
 
   createdAt DateTime @default(now())
 
-  @@index([campaignId])
+  @@index([variantId])
 }
 
 // A captured name/email/phone submission from the widget.
 model Lead {
-  id         String   @id @default(cuid())
-  campaignId String
-  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  variantId String
+  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   name  String?
   email String?
@@ -164,18 +221,35 @@ model Lead {
 
   createdAt DateTime @default(now())
 
-  @@index([campaignId])
+  @@index([variantId])
 }
 
 // Simple counters for the Phase 1 analytics dashboard (impressions, conversions,
 // emails captured). Full clickstream/behavioral event storage is Phase 2 (ClickHouse),
 // not this table.
 model CampaignEvent {
-  id         String            @id @default(cuid())
-  campaignId String
-  campaign   Campaign          @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  type       CampaignEventType
-  createdAt  DateTime          @default(now())
+  id        String            @id @default(cuid())
+  variantId String
+  variant   Variant           @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  type      CampaignEventType
+  createdAt DateTime          @default(now())
 
-  @@index([campaignId, type, createdAt])
+  @@index([variantId, type, createdAt])
+}
+
+// Periodic AI-generated performance review for a campaign (Phase 6 — see
+// lib/insights.ts and /api/cron/insights). Distinct from the bandit's live
+// traffic reallocation: this is the slow, explanatory layer that reads the
+// bandit's results and occasionally proposes a new variant to test.
+model CampaignInsight {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  summary          String  @db.Text
+  suggestedVariant Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([campaignId, createdAt])
 }

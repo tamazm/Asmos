@@ -31,18 +31,26 @@ export async function POST(request: Request) {
       name: campaign.name,
       type: campaign.type,
       status: "ACTIVE",
-      design: campaign.design,
-      formFields: campaign.formFields,
-      targeting: campaign.targeting,
-      rewards: {
-        create: campaign.rewards.map((reward) => ({
-          label: reward.label,
-          type: reward.type,
-          couponCode: reward.couponCode,
-          weight: reward.weight,
-        })),
+      variants: {
+        create: {
+          name: "Control",
+          isControl: true,
+          trafficPercent: 100,
+          design: campaign.design,
+          formFields: campaign.formFields,
+          targeting: campaign.targeting,
+          rewards: {
+            create: campaign.rewards.map((reward) => ({
+              label: reward.label,
+              type: reward.type,
+              couponCode: reward.couponCode,
+              weight: reward.weight,
+            })),
+          },
+        },
       },
     },
+    include: { variants: true },
   });
 
   return Response.json({ campaign: created });
@@ -59,7 +67,7 @@ export async function GET() {
     where: { accountId: account.id },
     orderBy: { createdAt: "desc" },
     include: {
-      _count: { select: { leads: true } },
+      variants: { include: { _count: { select: { leads: true } } } },
     },
   });
 

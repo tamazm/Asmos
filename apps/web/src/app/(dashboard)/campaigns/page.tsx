@@ -4,12 +4,14 @@ import { DataTable } from "@/components/ui/DataTable";
 import { Badge } from "@/components/ui/Badge";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
+import { CampaignRowActions } from "./CampaignRowActions";
 
 type CampaignRow = {
   id: string;
   name: string;
   type: string;
   status: string;
+  variantCount: number;
   impressions: number;
   conversions: number;
 };
@@ -19,17 +21,21 @@ export default async function CampaignsListPage() {
   const campaigns = await prisma.campaign.findMany({
     where: { accountId: account.id },
     orderBy: { createdAt: "desc" },
-    include: { events: true },
+    include: { variants: { include: { events: true } } },
   });
 
-  const rows: CampaignRow[] = campaigns.map((campaign) => ({
-    id: campaign.id,
-    name: campaign.name,
-    type: campaign.type,
-    status: campaign.status,
-    impressions: campaign.events.filter((e) => e.type === "IMPRESSION").length,
-    conversions: campaign.events.filter((e) => e.type === "SUBMISSION").length,
-  }));
+  const rows: CampaignRow[] = campaigns.map((campaign) => {
+    const events = campaign.variants.flatMap((v) => v.events);
+    return {
+      id: campaign.id,
+      name: campaign.name,
+      type: campaign.type,
+      status: campaign.status,
+      variantCount: campaign.variants.length,
+      impressions: events.filter((e) => e.type === "IMPRESSION").length,
+      conversions: events.filter((e) => e.type === "SUBMISSION").length,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,7 +55,14 @@ export default async function CampaignsListPage() {
         rows={rows}
         emptyMessage="No campaigns yet — create your first popup to get started."
         columns={[
-          { header: "Name", render: (row) => row.name },
+          {
+            header: "Name",
+            render: (row) => (
+              <Link href={`/campaigns/${row.id}`} className="hover:underline">
+                {row.name}
+              </Link>
+            ),
+          },
           { header: "Type", render: (row) => row.type },
           {
             header: "Status",
@@ -59,8 +72,23 @@ export default async function CampaignsListPage() {
               </Badge>
             ),
           },
+          {
+            header: "Variants",
+            render: (row) =>
+              row.variantCount > 1 ? (
+                <Badge variant="neutral">{row.variantCount} variants</Badge>
+              ) : (
+                "1"
+              ),
+          },
           { header: "Impressions", render: (row) => row.impressions.toLocaleString() },
           { header: "Conversions", render: (row) => row.conversions.toLocaleString() },
+          {
+            header: "",
+            render: (row) => (
+              <CampaignRowActions campaignId={row.id} status={row.status} />
+            ),
+          },
         ]}
       />
     </div>

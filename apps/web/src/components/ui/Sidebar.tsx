@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
+import { Logo } from "./Logo";
+import { CalloutCard } from "./CalloutCard";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -18,14 +20,7 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-56 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
-      <div className="mb-6 flex items-center gap-2 px-2">
-        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--color-primary)] text-sm font-bold text-white">
-          A
-        </span>
-        <span className="text-lg font-semibold text-[color:var(--color-text-primary)]">
-          asmos
-        </span>
-      </div>
+      <Logo className="mb-6 px-2" />
       <nav className="flex flex-col gap-1">
         {NAV_ITEMS.map((item) => {
           const active =
@@ -46,6 +41,27 @@ export function Sidebar() {
           );
         })}
       </nav>
+
+      <div className="mt-auto flex flex-col gap-3 pt-4">
+        <CalloutCard
+          icon={<span aria-hidden="true">✨</span>}
+          title="AI is optimizing"
+          message="Asmos is allocating traffic to the best performing variants."
+          action={
+            <Link
+              href="/campaigns"
+              className="text-xs font-medium text-[color:var(--color-primary)] hover:underline"
+            >
+              Learn more
+            </Link>
+          }
+        />
+        <CalloutCard
+          icon={<span aria-hidden="true">🎧</span>}
+          title="Need help?"
+          message="Contact support"
+        />
+      </div>
     </aside>
   );
 }

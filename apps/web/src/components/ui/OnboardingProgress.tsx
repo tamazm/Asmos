@@ -5,8 +5,6 @@ import { cn } from "@/lib/cn";
 
 const STEPS = [
   { href: "/onboarding", label: "Welcome" },
-  { href: "/onboarding/connect-website", label: "Connect Website" },
-  { href: "/onboarding/verify", label: "Verify Install" },
   { href: "/onboarding/business-profile", label: "Business Profile" },
   { href: "/onboarding/consent", label: "Consent Setup" },
 ];

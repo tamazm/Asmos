@@ -1,17 +1,11 @@
 import Link from "next/link";
+import { Logo } from "@/components/ui/Logo";
 
 export default function LandingPage() {
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex items-center justify-between border-b border-[color:var(--color-border)] px-6 py-4">
-        <div className="flex items-center gap-2">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[color:var(--color-primary)] text-sm font-bold text-white">
-            A
-          </span>
-          <span className="text-lg font-semibold text-[color:var(--color-text-primary)]">
-            asmos
-          </span>
-        </div>
+        <Logo />
         <div className="flex items-center gap-4 text-sm font-medium">
           <Link href="/sign-in" className="text-[color:var(--color-text-secondary)]">
             Log in

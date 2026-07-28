@@ -1,14 +1,39 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 
 export default function ConsentSetupPage() {
+  const router = useRouter();
   const [gdpr, setGdpr] = useState(true);
   const [ccpa, setCcpa] = useState(true);
   const [bannerText, setBannerText] = useState(
     "We use cookies to personalize your experience. By continuing, you agree to our use of cookies.",
   );
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleFinish() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/onboarding/consent", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gdpr, ccpa, bannerText }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? "Could not save consent settings");
+      }
+      router.push("/dashboard");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -54,11 +79,15 @@ export default function ConsentSetupPage() {
         />
       </div>
 
+      {error && <p className="text-sm text-red-500">{error}</p>}
+
       <div className="flex justify-between">
         <Button href="/onboarding/business-profile" variant="secondary">
           Back
         </Button>
-        <Button href="/dashboard">Finish Setup</Button>
+        <Button onClick={handleFinish} className={saving ? "opacity-60" : ""}>
+          {saving ? "Saving…" : "Finish Setup"}
+        </Button>
       </div>
     </div>
   );

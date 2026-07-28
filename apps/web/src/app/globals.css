@@ -2,23 +2,26 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #111827;
+  --foreground: #0d0d10;
 
-  --color-primary: #6366f1;
-  --color-primary-dark: #4f46e5;
-  --color-primary-light: #eef2ff;
+  /* Asmos Blue — see public/assets/asmos-brand-colors.webp */
+  --color-primary: #165dff;
+  --color-primary-dark: #124fd9;
+  --color-primary-light: #ecf2ff;
 
   --color-success: #22c55e;
   --color-success-bg: #dcfce7;
 
   --color-neutral-badge: #f3f4f6;
 
-  --color-text-primary: #111827;
+  /* Ink / Graphite */
+  --color-text-primary: #0d0d10;
   --color-text-secondary: #6b7280;
 
   --color-border: #e5e7eb;
   --color-surface: #ffffff;
-  --color-surface-sunken: #f9fafb;
+  /* Mist */
+  --color-surface-sunken: #f3f4f6;
 }
 
 @theme inline {

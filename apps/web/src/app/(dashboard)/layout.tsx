@@ -1,6 +1,8 @@
 import { UserButton } from "@clerk/nextjs";
 import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/ui/Sidebar";
+import { getOrCreateAccount } from "@/lib/account";
 
 export default async function DashboardLayout({
   children,
@@ -8,6 +10,11 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   await auth.protect();
+
+  const account = await getOrCreateAccount();
+  if (!account.onboardingCompletedAt) {
+    redirect("/onboarding");
+  }
 
   return (
     <div className="flex h-screen">

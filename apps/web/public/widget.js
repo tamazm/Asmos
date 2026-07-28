@@ -15,17 +15,51 @@
     }).catch(function () {});
   }
 
-  function trackEvent(campaignId, type) {
-    post("/api/widget/events", { campaignId: campaignId, type: type });
+  function trackEvent(variantId, type) {
+    post("/api/widget/events", { variantId: variantId, type: type });
   }
 
-  function hasConsent() {
-    return localStorage.getItem(CONSENT_KEY) === "accepted";
+  function pickVariant(campaign) {
+    if (campaign.forcedVariantId) {
+      for (var f = 0; f < campaign.variants.length; f++) {
+        if (campaign.variants[f].id === campaign.forcedVariantId) return campaign.variants[f];
+      }
+    }
+
+    var storageKey = "asmos_variant_" + campaign.id;
+    var storedId = localStorage.getItem(storageKey);
+    if (storedId) {
+      for (var s = 0; s < campaign.variants.length; s++) {
+        if (campaign.variants[s].id === storedId) return campaign.variants[s];
+      }
+    }
+
+    var total = campaign.variants.reduce(function (sum, v) {
+      return sum + Math.max(v.trafficPercent, 0);
+    }, 0);
+    var roll = Math.random() * (total || campaign.variants.length);
+    var chosen = campaign.variants[0];
+    for (var i = 0; i < campaign.variants.length; i++) {
+      var weight = total > 0 ? Math.max(campaign.variants[i].trafficPercent, 0) : 1;
+      roll -= weight;
+      if (roll <= 0) {
+        chosen = campaign.variants[i];
+        break;
+      }
+    }
+
+    localStorage.setItem(storageKey, chosen.id);
+    return chosen;
   }
 
-  function showConsentBanner(onAccept) {
+  function showConsentBanner(consent, onAccept) {
     if (localStorage.getItem(CONSENT_KEY)) {
       if (localStorage.getItem(CONSENT_KEY) === "accepted") onAccept();
+      return;
+    }
+
+    if (consent && consent.required === false) {
+      onAccept();
       return;
     }
 
@@ -37,6 +71,7 @@
 
     var text = document.createElement("span");
     text.textContent =
+      (consent && consent.bannerText) ||
       "We use cookies to personalize your experience and show relevant offers.";
     banner.appendChild(text);
 
@@ -80,7 +115,7 @@
     return "text";
   }
 
-  function showPopup(campaign) {
+  function showPopup(campaign, variant) {
     var sessionKey = "asmos_shown_" + campaign.id;
     if (sessionStorage.getItem(sessionKey)) return;
     sessionStorage.setItem(sessionKey, "1");
@@ -107,23 +142,23 @@
     card.appendChild(close);
 
     var headline = document.createElement("h2");
-    headline.textContent = campaign.design.headline;
+    headline.textContent = variant.design.headline;
     headline.style.cssText =
-      "margin:0 0 8px;font-size:20px;font-weight:700;color:" + campaign.design.primaryColor + ";";
+      "margin:0 0 8px;font-size:20px;font-weight:700;color:" + variant.design.primaryColor + ";";
     card.appendChild(headline);
 
     var body = document.createElement("p");
-    body.textContent = campaign.design.body;
+    body.textContent = variant.design.body;
     body.style.cssText = "margin:0 0 16px;font-size:14px;color:#4b5563;";
     card.appendChild(body);
 
     if (
       (campaign.type === "WHEEL" || campaign.type === "SCRATCH_CARD") &&
-      campaign.rewards.length > 0
+      variant.rewards.length > 0
     ) {
       var teaser = document.createElement("p");
       teaser.textContent =
-        "Up for grabs: " + campaign.rewards.map(function (r) { return r.label; }).join(" · ");
+        "Up for grabs: " + variant.rewards.map(function (r) { return r.label; }).join(" · ");
       teaser.style.cssText = "margin:0 0 16px;font-size:12px;color:#6b7280;font-style:italic;";
       card.appendChild(teaser);
     }
@@ -133,7 +168,7 @@
 
     var inputs = {};
     var interacted = false;
-    campaign.formFields.forEach(function (field) {
+    variant.formFields.forEach(function (field) {
       var input = document.createElement("input");
       input.type = fieldType(field);
       input.placeholder = fieldLabel(field);
@@ -143,7 +178,7 @@
       input.addEventListener("focus", function () {
         if (!interacted) {
           interacted = true;
-          trackEvent(campaign.id, "INTERACTION");
+          trackEvent(variant.id, "INTERACTION");
         }
       });
       inputs[field] = input;
@@ -156,10 +191,10 @@
 
     var submit = document.createElement("button");
     submit.type = "submit";
-    submit.textContent = campaign.design.ctaText;
+    submit.textContent = variant.design.ctaText;
     submit.style.cssText =
       "margin-top:4px;padding:10px 16px;border:none;border-radius:8px;color:#fff;" +
-      "font-size:14px;font-weight:600;cursor:pointer;background:" + campaign.design.primaryColor + ";";
+      "font-size:14px;font-weight:600;cursor:pointer;background:" + variant.design.primaryColor + ";";
     form.appendChild(submit);
 
     form.addEventListener("submit", function (e) {
@@ -167,7 +202,7 @@
       submit.disabled = true;
       submit.textContent = "Submitting…";
 
-      var payload = { campaignId: campaign.id, consentGiven: true };
+      var payload = { variantId: variant.id, consentGiven: true };
       Object.keys(inputs).forEach(function (field) {
         payload[field] = inputs[field].value;
       });
@@ -187,7 +222,7 @@
           var thanks = document.createElement("h2");
           thanks.textContent = data.reward ? "You're in!" : "Thanks!";
           thanks.style.cssText =
-            "margin:0 0 8px;font-size:20px;font-weight:700;color:" + campaign.design.primaryColor + ";";
+            "margin:0 0 8px;font-size:20px;font-weight:700;color:" + variant.design.primaryColor + ";";
           card.appendChild(thanks);
           if (data.reward) {
             var rewardText = document.createElement("p");
@@ -207,25 +242,25 @@
           errorMsg.textContent = "Something went wrong — please try again.";
           errorMsg.style.display = "block";
           submit.disabled = false;
-          submit.textContent = campaign.design.ctaText;
+          submit.textContent = variant.design.ctaText;
         });
     });
 
     card.appendChild(form);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
-    trackEvent(campaign.id, "IMPRESSION");
+    trackEvent(variant.id, "IMPRESSION");
   }
 
-  function scheduleTrigger(campaign) {
-    var targeting = campaign.targeting || {};
+  function scheduleTrigger(campaign, variant) {
+    var targeting = variant.targeting || {};
     var trigger = targeting.trigger || "time_delay";
 
     if (trigger === "exit_intent") {
       document.addEventListener("mouseleave", function handler(e) {
         if (e.clientY <= 0) {
           document.removeEventListener("mouseleave", handler);
-          showPopup(campaign);
+          showPopup(campaign, variant);
         }
       });
     } else if (trigger === "scroll_depth") {
@@ -234,27 +269,25 @@
         var full = document.documentElement.scrollHeight;
         if (full > 0 && scrolled / full >= 0.5) {
           window.removeEventListener("scroll", handler);
-          showPopup(campaign);
+          showPopup(campaign, variant);
         }
       });
     } else {
       var delay = (targeting.delaySeconds || 5) * 1000;
       setTimeout(function () {
-        showPopup(campaign);
+        showPopup(campaign, variant);
       }, delay);
     }
   }
 
-  function init() {
-    fetch(apiBase + "/api/widget/config?site=" + encodeURIComponent(site))
-      .then(function (res) {
-        return res.json();
-      })
-      .then(function (data) {
-        if (data.campaign) scheduleTrigger(data.campaign);
-      })
-      .catch(function () {});
-  }
-
-  showConsentBanner(init);
+  fetch(apiBase + "/api/widget/config?site=" + encodeURIComponent(site))
+    .then(function (res) {
+      return res.json();
+    })
+    .then(function (data) {
+      showConsentBanner(data.consent, function () {
+        if (data.campaign) scheduleTrigger(data.campaign, pickVariant(data.campaign));
+      });
+    })
+    .catch(function () {});
 })();
