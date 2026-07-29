@@ -41,6 +41,34 @@ export function VariantManager({
   // manual editing would just get overwritten on the next impression.
   const banditActive = !hasWinner && variants.length > 1;
 
+  // Empty state
+  if (variants.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] py-16 text-center">
+        <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--color-surface-sunken)]">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="6" width="18" height="13" rx="2" stroke="#9CA3AF" strokeWidth="1.5" />
+            <path d="M3 10h18" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M8 14h3m5 0h-2" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+        </div>
+        <p className="text-sm font-medium text-[color:var(--color-text-primary)]">No variants yet</p>
+        <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+          Add a variant to start A/B testing this campaign.
+        </p>
+        <div className="mt-4">
+          <Button
+            variant="secondary"
+            onClick={addVariant}
+            className={busy === "new" ? "opacity-60" : ""}
+          >
+            {busy === "new" ? "Adding..." : "Add variant"}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   function startEdit(variant: VariantStat) {
     setEditingId(variant.id);
     setDraft(variant);
@@ -142,7 +170,23 @@ export function VariantManager({
 
   return (
     <div className="flex flex-col gap-4">
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
+      {banditActive && (
+        <div className="flex items-start gap-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 py-3">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="mt-0.5 shrink-0 text-[color:var(--color-primary)]">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
+            <path d="M12 8v4m0 4h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+          </svg>
+          <p className="text-sm text-[color:var(--color-text-secondary)]">
+            Traffic is auto-managed by the bandit algorithm. Percentages adjust automatically after each impression based on variant performance.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
         {ranked.map((variant, index) => {
@@ -228,31 +272,31 @@ export function VariantManager({
                   value={draft.name ?? ""}
                   onChange={(e) => setDraft({ ...draft, name: e.target.value })}
                   placeholder="Variant name"
-                  className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                  className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
                 />
                 <input
                   value={draft.headline ?? ""}
                   onChange={(e) => setDraft({ ...draft, headline: e.target.value })}
                   placeholder="Headline"
-                  className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                  className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
                 />
                 <textarea
                   value={draft.body ?? ""}
                   onChange={(e) => setDraft({ ...draft, body: e.target.value })}
                   placeholder="Body"
                   rows={2}
-                  className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                  className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
                 />
                 <input
                   value={draft.ctaText ?? ""}
                   onChange={(e) => setDraft({ ...draft, ctaText: e.target.value })}
                   placeholder="CTA text"
-                  className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                  className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
                 />
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={draft.primaryColor ?? "#6366f1"}
+                    value={draft.primaryColor ?? "#165DFF"}
                     onChange={(e) => setDraft({ ...draft, primaryColor: e.target.value })}
                     className="h-9 w-9 cursor-pointer rounded border border-[color:var(--color-border)]"
                   />

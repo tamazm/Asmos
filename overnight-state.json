@@ -8,47 +8,54 @@
     "posthogHost": "https://eu.posthog.com"
   },
   "status": "running",
-  "currentTask": "T01",
+  "currentTask": "T00",
   "completedTasks": [],
   "skippedTasks": [],
   "blockers": [],
-  "lastTickAt": "2026-07-29T21:07:00Z",
-  "tickCount": 1,
+  "lastTickAt": "2026-07-29T22:09:36.429Z",
+  "tickCount": 2,
   "tasks": [
+    {
+      "id": "T00",
+      "title": "Quality pass on T01-T07 (fast-built tasks)",
+      "priority": 0,
+      "description": "Re-audit and improve the 7 tasks built in the first rapid tick. For each committed file: read it, compare against the relevant roadmap screenshot using the image tool, check PRODUCT.md anti-patterns strictly, fix rough edges, missing empty/loading/error states, shallow implementations. Files to audit: PostHog provider + analytics.ts, widget JS, onboarding pages, campaign wizard, campaign detail tabs, leads page, analytics page. Do NOT rewrite from scratch. Improve what is there. Commit fixes per component.",
+      "status": "in_progress"
+    },
     {
       "id": "T01",
       "title": "PostHog analytics integration",
       "priority": 1,
       "description": "Install posthog-js, add PostHogProvider to layout, instrument key events: page_view (auto), campaign_created, popup_shown, email_captured, variant_winner_declared, onboarding_step_completed, analyze_started, analyze_completed",
-      "status": "in_progress"
+      "status": "done"
     },
     {
       "id": "T02",
       "title": "Widget embed script",
       "priority": 2,
       "description": "Build /public/widget/asmos-widget.js — self-contained JS snippet that merchants paste into their site. Loads from our domain, connects via accountId+campaignId params, shows popup based on targeting rules, fires IMPRESSION/SUBMISSION events back to /api/widget/events. Include install snippet UI in onboarding/connect-store page.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T03",
       "title": "Onboarding flow completeness",
       "priority": 3,
       "description": "Audit all onboarding steps against roadmap (steps 1-15). Fix: install verification page (ping check), business-profile pre-fill from analyze result, connect-store shows actual embed snippet with copy button, consent/compliance step. Make sure sessionStorage asmos_analyze_result flows through signup into onboarding pre-fill.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T04",
       "title": "Popup builder — campaign type selection + builder pages",
       "priority": 4,
       "description": "Build /campaigns/new as a multi-step wizard: (1) type selection (spin wheel / scratch card / plain form), (2) design editor with live preview, (3) form fields config, (4) targeting & triggers (exit intent, time delay, URL rules, device), (5) review & publish. Reference screenshots 09-15.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T05",
       "title": "Campaign detail + variant manager",
       "priority": 5,
       "description": "Build /campaigns/[id] with tabs: Overview, Variants, Analytics, Settings. Variant manager: create variant, set traffic split, see per-variant stats. Reference screenshots 17-19.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T06",
@@ -62,35 +69,35 @@
       "title": "Leads page",
       "priority": 7,
       "description": "Build /leads — filterable table of all captured leads (name, email, phone, campaign, date). CSV export via /api/leads/export. Reference screenshot for leads section.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T08",
       "title": "Analytics page",
       "priority": 8,
       "description": "Build /analytics — site-wide metrics: impressions over time, conversion rate trend, top campaigns, device breakdown. Charts using a lightweight library (recharts already in package.json probably, else add). Reference screenshot 20.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T09",
       "title": "Integrations page",
       "priority": 9,
       "description": "Build /integrations — connect Klaviyo, Mailchimp, Shopify. For now: UI showing connected/disconnected state with connect button, placeholder OAuth flow with helpful status messages. Reference screenshot 13.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T10",
       "title": "Settings page",
       "priority": 10,
       "description": "Build /settings — tabs: Account (name, email), Team (invite by email using existing /api/invites), Billing (placeholder plan card), Brand (colors, logo upload), Notifications (toggle preferences). Reference screenshot 22.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T11",
       "title": "Billing page placeholder",
       "priority": 11,
       "description": "Build /settings/billing or /billing — plan tiers display, current plan, usage meters (campaigns, impressions this month vs limit). No Stripe integration, clear 'upgrade' CTA placeholder.",
-      "status": "pending"
+      "status": "done"
     },
     {
       "id": "T12",

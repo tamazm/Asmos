@@ -72,7 +72,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
         : confidenceVsControl(controlSample, { impressions, conversions: submissions }),
       headline: design.headline ?? "",
       body: design.body ?? "",
-      primaryColor: design.primaryColor ?? "#6366f1",
+      primaryColor: design.primaryColor ?? "#165DFF",
       ctaText: design.ctaText ?? "",
     };
   });

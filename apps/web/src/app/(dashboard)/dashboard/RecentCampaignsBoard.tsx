@@ -117,13 +117,18 @@ function BracketRow({ rank, variant }: { rank: number; variant: VariantStat }) {
       }`}
     >
       <span
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
           isLeader
             ? "bg-[color:var(--color-primary)] text-white"
             : "bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)]"
         }`}
       >
-        {isLeader ? "🏆" : `#${rank}`}
+        {isLeader ? (
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-label="Top variant">
+            <path d="M6 9H3l1 4h2M18 9h3l-1 4h-2M12 18v3m-4 0h8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M6 3h12v9a6 6 0 01-12 0V3z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : `#${rank}`}
       </span>
 
       <div className="min-w-0 flex-1">

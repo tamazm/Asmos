@@ -38,7 +38,7 @@ export default function ConsentSetupPage() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 animate-page-enter">
       <div>
         <h1 className="text-xl font-semibold text-[color:var(--color-text-primary)]">
           Consent & compliance
@@ -77,18 +77,22 @@ export default function ConsentSetupPage() {
           value={bannerText}
           onChange={(e) => setBannerText(e.target.value)}
           rows={3}
-          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
         />
       </div>
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
 
       <div className="flex justify-between">
         <Button href="/onboarding/business-profile" variant="secondary">
           Back
         </Button>
         <Button onClick={handleFinish} className={saving ? "opacity-60" : ""}>
-          {saving ? "Saving…" : "Finish Setup"}
+          {saving ? "Saving..." : "Continue"}
         </Button>
       </div>
     </div>

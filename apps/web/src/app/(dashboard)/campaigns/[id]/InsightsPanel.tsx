@@ -79,18 +79,32 @@ export function InsightsPanel({
 
   return (
     <div className="flex flex-col gap-4">
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2.5">
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm text-[color:var(--color-text-secondary)]">
-          Generated automatically every two weeks. The bandit already reallocates traffic live —
+          Generated automatically every two weeks. The bandit already reallocates traffic live -
           these reports explain why, and occasionally propose a new variant to test.
         </p>
         <Button
           onClick={generate}
           className={`w-fit shrink-0 ${busy === "generate" ? "opacity-60" : ""}`}
         >
-          {busy === "generate" ? "Generating…" : "Generate report now"}
+          {busy === "generate" ? (
+            <span className="flex items-center gap-2">
+              <span
+                className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white"
+                aria-hidden="true"
+              />
+              Generating...
+            </span>
+          ) : (
+            "Generate report now"
+          )}
         </Button>
       </div>
 

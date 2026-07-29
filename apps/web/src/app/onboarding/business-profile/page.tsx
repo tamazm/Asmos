@@ -13,12 +13,72 @@ interface AnalyzeResult {
 }
 
 const INDUSTRIES = [
-  { value: "Ecommerce / Retail", icon: "🛒", label: "Ecommerce / Retail" },
-  { value: "SaaS / Software", icon: "💻", label: "SaaS / Software" },
-  { value: "Health & Wellness", icon: "🌿", label: "Health & Wellness" },
-  { value: "Education", icon: "📚", label: "Education" },
-  { value: "Food & Beverage", icon: "☕", label: "Food & Beverage" },
-  { value: "Other", icon: "✦", label: "Other" },
+  {
+    value: "Ecommerce / Retail",
+    label: "Ecommerce / Retail",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M16 10a4 4 0 01-8 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    value: "SaaS / Software",
+    label: "SaaS / Software",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M7 8l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <line x1="13" y1="13" x2="17" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    value: "Health & Wellness",
+    label: "Health & Wellness",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    value: "Education",
+    label: "Education",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
+    value: "Food & Beverage",
+    label: "Food & Beverage",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M18 8h1a4 4 0 010 8h-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <line x1="6" y1="1" x2="6" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="10" y1="1" x2="10" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="14" y1="1" x2="14" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
+  {
+    value: "Other",
+    label: "Other",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
+        <circle cx="12" cy="8" r="1" fill="currentColor" />
+        <line x1="12" y1="12" x2="12" y2="16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      </svg>
+    ),
+  },
 ];
 
 const PRESET_COLORS = [
@@ -118,7 +178,7 @@ export default function BusinessProfilePage() {
                 ].join(" ")}
                 aria-pressed={active}
               >
-                <span className="text-2xl leading-none" role="img" aria-hidden="true">
+                <span className={active ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text-secondary)]"}>
                   {opt.icon}
                 </span>
                 <span className="leading-tight">{opt.label}</span>

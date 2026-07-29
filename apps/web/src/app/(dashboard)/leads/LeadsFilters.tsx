@@ -23,8 +23,6 @@ export function LeadsFilters({ campaigns }: { campaigns: CampaignOption[] }) {
   const from = searchParams.get("from") ?? "";
   const to = searchParams.get("to") ?? "";
 
-  const exportParams = new URLSearchParams(searchParams.toString());
-
   return (
     <div className="flex flex-wrap items-end gap-3">
       <div>
@@ -34,7 +32,7 @@ export function LeadsFilters({ campaigns }: { campaigns: CampaignOption[] }) {
         <select
           value={campaignId}
           onChange={(e) => updateParam("campaignId", e.target.value)}
-          className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+          className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
         >
           <option value="">All campaigns</option>
           {campaigns.map((c) => (
@@ -53,7 +51,7 @@ export function LeadsFilters({ campaigns }: { campaigns: CampaignOption[] }) {
           type="date"
           value={from}
           onChange={(e) => updateParam("from", e.target.value)}
-          className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+          className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
         />
       </div>
 
@@ -65,16 +63,9 @@ export function LeadsFilters({ campaigns }: { campaigns: CampaignOption[] }) {
           type="date"
           value={to}
           onChange={(e) => updateParam("to", e.target.value)}
-          className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+          className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
         />
       </div>
-
-      <a
-        href={`/api/leads/export?${exportParams.toString()}`}
-        className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)]"
-      >
-        Export CSV
-      </a>
     </div>
   );
 }
