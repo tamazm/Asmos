@@ -8,15 +8,17 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { industry, brandColor } = (await request.json()) as {
+  const { industry, brandColor, name } = (await request.json()) as {
     industry?: string;
     brandColor?: string;
+    name?: string;
   };
 
   const account = await getOrCreateAccount();
   const updated = await prisma.account.update({
     where: { id: account.id },
     data: {
+      ...(name?.trim() ? { name: name.trim() } : {}),
       industry: industry?.trim() || null,
       brandColor: brandColor?.trim() || null,
     },

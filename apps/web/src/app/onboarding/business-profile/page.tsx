@@ -9,6 +9,7 @@ interface AnalyzeResult {
   storeName?: string;
   industry?: string;
   brandColor?: string;
+  storeUrl?: string;
 }
 
 const INDUSTRIES = [
@@ -29,6 +30,7 @@ export default function BusinessProfilePage() {
   const router = useRouter();
   const [industry, setIndustry] = useState(INDUSTRIES[0].value);
   const [brandColor, setBrandColor] = useState("#165DFF");
+  const [businessName, setBusinessName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,6 +42,7 @@ export default function BusinessProfilePage() {
         const data: AnalyzeResult = JSON.parse(raw);
         if (data.industry) setIndustry(data.industry);
         if (data.brandColor) setBrandColor(data.brandColor);
+        if (data.storeName) setBusinessName(data.storeName);
       }
     } catch {
       // ignore
@@ -53,7 +56,7 @@ export default function BusinessProfilePage() {
       const res = await fetch("/api/onboarding/business-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ industry, brandColor }),
+        body: JSON.stringify({ industry, brandColor, name: businessName || undefined }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -77,6 +80,21 @@ export default function BusinessProfilePage() {
         <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
           This sets your popup theme and tailors suggestions to your industry.
         </p>
+      </div>
+
+      {/* Business name */}
+      <div>
+        <label htmlFor="business-name" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+          Business name
+        </label>
+        <input
+          id="business-name"
+          type="text"
+          value={businessName}
+          onChange={(e) => setBusinessName(e.target.value)}
+          placeholder="Your store or company name"
+          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
+        />
       </div>
 
       {/* Industry selector — visual cards */}
