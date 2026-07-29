@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { confidenceVsControl } from "@/lib/stats";
 import { VariantManager, type VariantStat } from "./VariantManager";
 import { InsightsPanel, type InsightRow } from "./InsightsPanel";
+import { AnalyticsTab } from "./AnalyticsTab";
 // Dummy-data tabs, disabled until real bandit/performance data backs them —
 // see mockBracketData.ts.
 // import { KnockoutBracket } from "./KnockoutBracket";
@@ -118,6 +119,11 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
           //   label: "Knockout Bracket",
           //   content: <KnockoutBracket />,
           // },
+          {
+            key: "analytics",
+            label: "Analytics",
+            content: <AnalyticsTab variants={variantStats} />,
+          },
           {
             key: "variants",
             label: "Variants",
