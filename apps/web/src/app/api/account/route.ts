@@ -2,6 +2,21 @@ import { auth } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 
+export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const account = await getOrCreateAccount();
+  return Response.json({
+    id: account.id,
+    name: account.name,
+    industry: account.industry,
+    brandColor: account.brandColor,
+    websites: account.websites,
+  });
+}
+
 export async function PATCH(request: Request) {
   const { userId } = await auth();
   if (!userId) {
