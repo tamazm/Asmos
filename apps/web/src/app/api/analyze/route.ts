@@ -112,11 +112,93 @@ export async function GET(req: NextRequest) {
     industry = "Ecommerce / Retail";
   }
 
+  // ── Conversion score heuristics ────────────────────────────────────────────
+  const checks = {
+    hasPopup:
+      lowerHtml.includes("popup") ||
+      lowerHtml.includes("klaviyo") ||
+      lowerHtml.includes("mailchimp") ||
+      lowerHtml.includes("omnisend") ||
+      lowerHtml.includes("privy") ||
+      lowerHtml.includes("justuno") ||
+      lowerHtml.includes("wheelio") ||
+      lowerHtml.includes("spin-to-win"),
+    hasExitIntent:
+      lowerHtml.includes("exit intent") ||
+      lowerHtml.includes("exit-intent") ||
+      lowerHtml.includes("exitintent"),
+    hasEmailCapture:
+      lowerHtml.includes("subscribe") ||
+      lowerHtml.includes("newsletter") ||
+      lowerHtml.includes("email signup") ||
+      lowerHtml.includes("join our list") ||
+      lowerHtml.includes("get 10%") ||
+      lowerHtml.includes("get 15%") ||
+      lowerHtml.includes("first order"),
+    hasSocialProof:
+      lowerHtml.includes("review") ||
+      lowerHtml.includes("testimonial") ||
+      lowerHtml.includes("trustpilot") ||
+      lowerHtml.includes("yotpo") ||
+      lowerHtml.includes("stamped") ||
+      lowerHtml.includes("loox") ||
+      lowerHtml.includes("stars"),
+    hasUrgency:
+      lowerHtml.includes("limited time") ||
+      lowerHtml.includes("today only") ||
+      lowerHtml.includes("ends soon") ||
+      lowerHtml.includes("countdown") ||
+      lowerHtml.includes("only \d+ left") ||
+      lowerHtml.includes("low stock"),
+    hasABTest:
+      lowerHtml.includes("a/b test") ||
+      lowerHtml.includes("optimize") ||
+      lowerHtml.includes("google optimize") ||
+      lowerHtml.includes("vwo") ||
+      lowerHtml.includes("optimizely"),
+  };
+
+  // Score: each check is worth points
+  const scoreMap = {
+    hasPopup: 20,
+    hasEmailCapture: 20,
+    hasSocialProof: 15,
+    hasExitIntent: 15,
+    hasUrgency: 15,
+    hasABTest: 15,
+  };
+
+  let rawScore = 0;
+  for (const [key, points] of Object.entries(scoreMap)) {
+    if (checks[key as keyof typeof checks]) rawScore += points;
+  }
+
+  // Letter grade (American school system)
+  let grade: string;
+  let gradeLabel: string;
+  if (rawScore >= 90) { grade = "A+"; gradeLabel = "Outstanding"; }
+  else if (rawScore >= 85) { grade = "A"; gradeLabel = "Excellent"; }
+  else if (rawScore >= 80) { grade = "A-"; gradeLabel = "Very strong"; }
+  else if (rawScore >= 77) { grade = "B+"; gradeLabel = "Above average"; }
+  else if (rawScore >= 73) { grade = "B"; gradeLabel = "Good"; }
+  else if (rawScore >= 70) { grade = "B-"; gradeLabel = "Decent"; }
+  else if (rawScore >= 67) { grade = "C+"; gradeLabel = "Room to improve"; }
+  else if (rawScore >= 63) { grade = "C"; gradeLabel = "Average"; }
+  else if (rawScore >= 60) { grade = "C-"; gradeLabel = "Below average"; }
+  else if (rawScore >= 57) { grade = "D+"; gradeLabel = "Weak"; }
+  else if (rawScore >= 53) { grade = "D"; gradeLabel = "Poor"; }
+  else if (rawScore >= 50) { grade = "D-"; gradeLabel = "Very poor"; }
+  else { grade = "F"; gradeLabel = "Missing key tools"; }
+
   return NextResponse.json({
     storeName,
     industry,
     brandColor,
     description,
     logoUrl,
+    score: rawScore,
+    grade,
+    gradeLabel,
+    checks,
   });
 }

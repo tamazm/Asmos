@@ -1,0 +1,164 @@
+The ideal first-screen experience
+
+The homepage hero could be built around one primary action:
+
+Enter your store URL
+
+Headline:
+
+See the popup Asmos would build for your store.
+
+Subheadline:
+
+Paste your Shopify store URL. Asmos will analyze your brand and create a conversion-ready popup.
+
+Input:
+
+yourstore.com
+
+Button:
+
+Analyze my store
+
+Underneath:
+
+No credit card required. Takes approximately 60 seconds.
+
+This is much stronger than immediately presenting:
+
+Create your account.
+
+The user is not yet emotionally invested in creating an Asmos account. They are interested in seeing what Asmos can do with their store.
+
+Where the signup wall should appear
+
+The signup request should appear after the user has already received some visible progress.
+
+For example:
+
+Analysis complete
+We detected your industry, brand style, current offer and 14 relevant popup patterns.
+
+Then show part of the result:
+
+Industry: Skincare
+Brand style: Minimal and premium
+Primary colors: cream, black and pale green
+Current offer: 10% first-order discount
+Recommended layout: half-screen image popup
+
+Blur or lock the generated popup preview.
+
+Then:
+
+Create your free account to view your generated popup and continue editing it.
+
+That creates a much more natural reason to register.
+
+Important distinction: connect versus analyze
+
+You should separate these actions:
+
+Analyze store
+
+Only requires a public URL. Asmos can inspect publicly accessible information.
+
+Connect store
+
+Requires Shopify authorization and allows Asmos to:
+
+Publish the popup
+Install tracking
+Read approved Shopify data
+Attribute conversions and revenue
+Create or validate discounts
+Run experiments
+
+This means the user gets value before granting permissions.
+
+What should happen before signup
+
+Before signup, Asmos can safely show:
+
+Analysis progress
+Detected industry
+Brand colors
+General visual style
+Existing popup detection
+Recommended popup type
+Partial or blurred generated preview
+
+It should not allow:
+
+Full popup editing
+Saving the project
+Connecting integrations
+Publishing
+Starting experiments
+Accessing detailed benchmark data
+What happens when the user leaves
+
+Because the user has not yet registered, you could preserve the anonymous analysis for a limited period using a browser session.
+
+When they return:
+
+Continue analyzing store.com
+
+This reduces the feeling that their initial work disappeared.
+
+Personalization should become shorter
+
+Because Asmos has already analyzed the store, the personalization page should not ask questions such as:
+
+What industry are you in?
+What colors do you use?
+What is your brand style?
+What products do you sell?
+
+Asmos should infer those.
+
+Personalization should only ask things like:
+
+What is your role?
+What is your main conversion goal?
+How much monthly traffic does your store receive?
+Do you currently use a popup tool?
+How autonomous should Asmos be?
+Which email or SMS platform do you use?
+
+Even some of these can be detected later.
+
+Potential risk with URL-first onboarding
+
+The main problem is that people may enter:
+
+Stores they do not own
+Competitor websites
+Non-Shopify websites
+Invalid URLs
+Password-protected stores
+Websites blocking crawlers
+
+That is not necessarily bad. Competitor analysis can create interest. But publishing and deeper analysis must require ownership verification.
+
+You should clearly label the first stage:
+
+Public website analysis
+
+Then require store authorization before using private data or installing anything.
+
+Final recommendation
+
+Use this sequence:
+
+URL → visible analysis → partial result → signup → connect store → generated popup
+
+This is better than:
+
+Signup → questions → connect store → wait for analysis
+
+The URL-first version gives the user an immediate reason to continue. They are no longer merely considering Asmos; they are waiting to see the result of an analysis they already started.
+
+The main product principle should be:
+
+Ask users to create an account only after Asmos has started doing useful work for them.

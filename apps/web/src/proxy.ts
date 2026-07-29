@@ -1,4 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+
+const isMockAuth = process.env.MOCK_AUTH === "true";
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
@@ -10,11 +13,15 @@ const isProtectedRoute = createRouteMatcher([
   "/settings(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    await auth.protect();
-  }
-});
+export default isMockAuth
+  ? function proxy() {
+      return NextResponse.next();
+    }
+  : clerkMiddleware(async (auth, req) => {
+      if (isProtectedRoute(req)) {
+        await auth.protect();
+      }
+    });
 
 export const config = {
   matcher: [
