@@ -1,6 +1,7 @@
 import { UserButton } from "@/components/ui/MockUserButton";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/ui/Sidebar";
+import { NotificationBell } from "@/components/ui/NotificationBell";
 import { getOrCreateAccount } from "@/lib/account";
 import { authProtect } from "@/lib/auth-adapter";
 
@@ -24,6 +25,7 @@ export default async function DashboardLayout({
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6">
           <div />
           <div className="flex items-center gap-3">
+            <NotificationBell />
             <UserButton />
           </div>
         </header>

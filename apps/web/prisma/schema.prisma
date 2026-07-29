@@ -79,6 +79,7 @@ model Account {
   websites   Website[]
   campaigns  Campaign[]
   invites    Invite[]
+  notifications Notification[]
 }
 
 model User {
@@ -252,4 +253,18 @@ model CampaignInsight {
   createdAt DateTime @default(now())
 
   @@index([campaignId, createdAt])
+}
+
+// In-app notification bell items
+model Notification {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  title     String
+  body      String   @db.Text
+  href      String?  // optional deep-link
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([accountId, createdAt])
 }
