@@ -1,7 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
 import { Logo } from "@/components/ui/Logo";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const { userId } = await auth();
+  if (userId) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="flex flex-1 flex-col">
       <header className="flex items-center justify-between border-b border-[color:var(--color-border)] px-6 py-4">
