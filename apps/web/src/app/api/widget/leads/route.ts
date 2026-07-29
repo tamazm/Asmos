@@ -1,7 +1,9 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { corsJson, corsPreflight } from "@/lib/cors";
 import { pickWeightedReward, generateCouponCode } from "@/lib/reward";
 import { sendRewardEmail } from "@/lib/email";
+import { recomputeCampaignAllocation } from "@/lib/bandit";
 
 export async function OPTIONS() {
   return corsPreflight();
@@ -53,6 +55,16 @@ export async function POST(request: Request) {
       data: { variantId: variant.id, type: "GIFT_CLAIMED" },
     });
   }
+
+  // A conversion is exactly the signal the bandit needs to react to — don't
+  // wait for the next impression to pick it up (see lib/bandit.ts).
+  after(async () => {
+    try {
+      await recomputeCampaignAllocation(variant.id);
+    } catch (err) {
+      console.error("[bandit] allocation recompute failed", err);
+    }
+  });
 
   if (reward && body.email) {
     try {
