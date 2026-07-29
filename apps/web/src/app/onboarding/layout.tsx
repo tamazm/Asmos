@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { authProtect } from "@/lib/auth-adapter";
 import { OnboardingProgress } from "@/components/ui/OnboardingProgress";
 import { Logo } from "@/components/ui/Logo";
 
@@ -7,7 +7,7 @@ export default async function OnboardingLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await auth.protect();
+  await authProtect();
 
   return (
     <div className="flex min-h-screen flex-col items-center bg-[color:var(--color-surface-sunken)] px-6 py-12">

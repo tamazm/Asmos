@@ -1,0 +1,24 @@
+| Step | Page                             | Purpose                                                                                                                                |
+| ---: | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+|    1 | **Store URL Entry**              | Let users begin by submitting their Shopify store URL. This is the first commitment and the clearest demonstration of what Asmos does. |
+|    2 | **Live Store Analysis**          | Immediately begin analyzing the store’s colors, products, tone, offers, current popups and overall visual style.                       |
+|    3 | **Analysis Preview**             | Show a limited preview of what Asmos found, such as the detected industry, brand colors and current signup offer.                      |
+|    4 | **Signup / Login**               | Ask the user to create an account to unlock the complete analysis and continue generating the popup.                                   |
+|    5 | **Personalization**              | Collect only information Asmos cannot confidently infer from the store.                                                                |
+|    6 | **Connect Store**                | Install the Shopify app or verify ownership so Asmos can publish, track and attribute results.                                         |
+|    7 | **Analysis Results**             | Present the complete brand and store analysis and allow the user to correct anything.                                                  |
+|    8 | **Conversion Goal**              | Define what the popup should achieve.                                                                                                  |
+|    9 | **Offer Selection**              | Select the incentive or value exchange.                                                                                                |
+|   10 | **Audience and Trigger**         | Define who should see the popup and when it should appear.                                                                             |
+|   11 | **Initial Popup Generation**     | Generate the first design based on the store and selected campaign settings.                                                           |
+|   12 | **Popup Preview and AI Editing** | Let users preview desktop and mobile versions and request changes through AI chat.                                                     |
+|   13 | **Integrations**                 | Connect Klaviyo, Mailchimp, Omnisend or another destination for captured leads.                                                        |
+|   14 | **Testing Strategy**             | Select or approve the number of variants, traffic allocation and autonomy level.                                                       |
+|   15 | **Launch Confirmation**          | Review the complete configuration before publishing.                                                                                   |
+|   16 | **Main Dashboard**               | Show overall performance, active experiments, leads and current winners.                                                               |
+|   17 | **Experiment Overview**          | Show the status and performance of one autonomous experiment.                                                                          |
+|   18 | **Variant Knockout Library**     | Visualize active, eliminated and winning variants using the knockout bracket system.                                                   |
+|   19 | **Variant Details**              | Explain the design, changes, traffic, conversion rate and probability of winning for one variant.                                      |
+|   20 | **Analytics and AI Learnings**   | Combine performance analytics with explanations of what Asmos learned.                                                                 |
+|   21 | **Billing**                      | Manage subscription, usage, visitor limits and invoices.                                                                               |
+|   22 | **Settings**                     | Manage workspace, brand, autonomy, notifications, team and account preferences.                                                        |

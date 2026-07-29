@@ -13,19 +13,17 @@ export default async function DashboardHomePage() {
   });
 
   const activeCount = campaigns.filter((c) => c.status === "ACTIVE").length;
-  const campaignEvents = campaigns.map((c) => c.variants.flatMap((v) => v.events));
-  const impressions = campaignEvents.reduce(
-    (sum, events) => sum + events.filter((e) => e.type === "IMPRESSION").length,
-    0,
-  );
-  const submissions = campaignEvents.reduce(
-    (sum, events) => sum + events.filter((e) => e.type === "SUBMISSION").length,
-    0,
-  );
+  const allEvents = campaigns.flatMap((c) => c.variants.flatMap((v) => v.events));
+  const impressions = allEvents.filter((e) => e.type === "IMPRESSION").length;
+  const submissions = allEvents.filter((e) => e.type === "SUBMISSION").length;
   const emailsCaptured = await prisma.lead.count({
-    where: { variant: { campaign: { accountId: account.id } }, email: { not: null } },
+    where: {
+      variant: { campaign: { accountId: account.id } },
+      email: { not: null },
+    },
   });
-  const conversionRate = impressions > 0 ? (submissions / impressions) * 100 : 0;
+  const conversionRate =
+    impressions > 0 ? ((submissions / impressions) * 100).toFixed(1) : "0.0";
 
   const rows: RecentCampaignRow[] = campaigns.slice(0, 5).map((campaign) => {
     const events = campaign.variants.flatMap((v) => v.events);
@@ -53,15 +51,32 @@ export default async function DashboardHomePage() {
     };
   });
 
-  return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title="Dashboard" />
+  const STATS = [
+    { label: "Active campaigns", value: activeCount.toString() },
+    { label: "Impressions (total)", value: impressions.toLocaleString() },
+    { label: "Emails captured", value: emailsCaptured.toLocaleString() },
+    { label: "Conversion rate", value: `${conversionRate}%` },
+  ];
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Active Campaigns" value={activeCount.toLocaleString()} />
-        <StatCard label="Impressions" value={impressions.toLocaleString()} />
-        <StatCard label="Emails Captured" value={emailsCaptured.toLocaleString()} />
-        <StatCard label="Conversion Rate" value={`${conversionRate.toFixed(1)}%`} />
+  return (
+    <div className="animate-page-enter space-y-6">
+      {/* Page heading */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
+            Dashboard
+          </h1>
+          <p className="mt-0.5 text-sm text-[color:var(--color-text-secondary)]">
+            Your campaigns, captures, and conversions at a glance.
+          </p>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {STATS.map((stat) => (
+          <StatCard key={stat.label} label={stat.label} value={stat.value} />
+        ))}
       </div>
 
       <RecentCampaignsBoard rows={rows} />

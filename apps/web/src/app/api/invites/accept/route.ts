@@ -1,4 +1,4 @@
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(request: Request) {

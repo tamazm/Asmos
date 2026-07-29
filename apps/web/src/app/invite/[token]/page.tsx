@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/Button";

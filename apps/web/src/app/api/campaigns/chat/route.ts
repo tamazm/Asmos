@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth-adapter";
 import type Anthropic from "@anthropic-ai/sdk";
 import type { Content } from "@google/genai";
 import { anthropic } from "@/lib/anthropic";

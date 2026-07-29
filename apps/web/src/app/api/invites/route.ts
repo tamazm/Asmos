@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { sendInviteEmail } from "@/lib/email";
