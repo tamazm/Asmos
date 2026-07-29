@@ -39,7 +39,7 @@ export default async function LandingPage() {
       </header>
 
       {/* Hero */}
-      <section className="relative flex flex-col items-center justify-center px-6 py-20 text-center">
+      <section className="relative flex flex-col items-center justify-center px-4 sm:px-6 py-20 text-center">
         {/* Ambient glow behind content */}
         <div
           aria-hidden="true"
@@ -61,7 +61,7 @@ export default async function LandingPage() {
           </div>
 
           <h1
-            className="mb-4 text-4xl font-bold tracking-tight text-[color:var(--color-text-primary)] sm:text-5xl animate-page-enter-delay-1"
+            className="mb-4 text-4xl font-bold tracking-tight text-[color:var(--color-text-primary)] md:text-5xl animate-page-enter-delay-1"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
             See the popup Asmos would build for your store.
@@ -78,13 +78,13 @@ export default async function LandingPage() {
           <HomepageForm />
 
           <p className="mt-4 text-xs text-[color:var(--color-text-secondary)] animate-page-enter-delay-3">
-            No credit card required. Takes approximately 60 seconds.
+            Takes approximately 60 seconds.
           </p>
         </div>
       </section>
 
       {/* Trust strip */}
-      <div className="border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-6 py-4">
+      <div className="border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 sm:px-6 py-4">
         <p className="text-center text-xs text-[color:var(--color-text-secondary)] font-medium tracking-wide">
           No credit card required &nbsp;&middot;&nbsp; Free to start
           &nbsp;&middot;&nbsp; 2-minute setup
@@ -92,7 +92,7 @@ export default async function LandingPage() {
       </div>
 
       {/* How it works */}
-      <section className="px-6 py-20 bg-[color:var(--color-surface)]">
+      <section className="px-4 sm:px-6 py-20 bg-[color:var(--color-surface)]">
         <div className="max-w-3xl mx-auto">
           <h2
             className="text-2xl font-semibold tracking-tight text-[color:var(--color-text-primary)] text-center mb-14 animate-page-enter"
@@ -148,7 +148,7 @@ export default async function LandingPage() {
       </section>
 
       {/* Pricing */}
-      <section className="px-6 py-20 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
+      <section className="px-4 sm:px-6 py-20 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
         <div className="max-w-4xl mx-auto">
           <h2
             className="text-2xl font-semibold tracking-tight text-[color:var(--color-text-primary)] text-center mb-3 animate-page-enter"
@@ -258,7 +258,7 @@ export default async function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-8">
+      <footer className="border-t border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 sm:px-6 py-8">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[color:var(--color-text-secondary)]">
           <p>&copy; 2026 Asmos</p>
           <nav className="flex items-center gap-5">

@@ -48,12 +48,12 @@ export function HomepageForm() {
             onChange={(e) => setUrl(e.target.value)}
             placeholder="yourstore.com"
             autoFocus
-            className="w-full rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 shadow-sm h-12"
+            className="w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 shadow-sm h-12"
           />
         </div>
         <button
           type="submit"
-          className="shrink-0 rounded-xl bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98] h-12 whitespace-nowrap shadow-sm"
+          className="shrink-0 rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98] h-12 whitespace-nowrap shadow-sm"
         >
           Analyze my store
         </button>
