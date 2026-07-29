@@ -134,66 +134,95 @@ export function VariantManager({
     }
   }
 
+  // Ranked by actual performance, not creation order — position on the page
+  // is the primary signal for "which variant is doing better," so the best
+  // performer is always first regardless of how it was set up.
+  const ranked = [...variants].sort((a, b) => b.conversionRate - a.conversionRate);
+  const maxRate = Math.max(...ranked.map((v) => v.conversionRate), 0.0001);
+
   return (
     <div className="flex flex-col gap-4">
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {variants.map((variant) => (
-          <div
-            key={variant.id}
-            className="flex flex-col gap-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-[color:var(--color-text-primary)]">
-                  {variant.name}
-                </p>
-                {variant.isControl && <Badge variant="neutral">Control</Badge>}
-                {variant.isWinner && <Badge variant="success">Winner</Badge>}
-              </div>
-              <span className="text-xs text-[color:var(--color-text-secondary)]">
-                {variant.trafficPercent}% traffic{banditActive ? " · auto" : ""}
-              </span>
-            </div>
+      <div className="flex flex-col gap-3">
+        {ranked.map((variant, index) => {
+          const rank = index + 1;
+          const barPercent = (variant.conversionRate / maxRate) * 100;
+          const rateSizeClass =
+            rank === 1 ? "text-3xl" : rank === 2 ? "text-2xl" : "text-lg";
 
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div>
-                <p className="text-lg font-bold text-[color:var(--color-text-primary)]">
-                  {variant.impressions.toLocaleString()}
-                </p>
-                <p className="text-xs text-[color:var(--color-text-secondary)]">Impressions</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-[color:var(--color-text-primary)]">
-                  {variant.submissions.toLocaleString()}
-                </p>
-                <p className="text-xs text-[color:var(--color-text-secondary)]">Submissions</p>
-              </div>
-              <div>
-                <p className="text-lg font-bold text-[color:var(--color-text-primary)]">
-                  {variant.conversionRate.toFixed(1)}%
-                </p>
-                <p className="text-xs text-[color:var(--color-text-secondary)]">Conv. rate</p>
-              </div>
-            </div>
+          return (
+            <div
+              key={variant.id}
+              className="flex flex-col gap-4 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <span
+                    className="pt-1 font-mono text-sm text-[color:var(--color-text-secondary)]"
+                    style={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {String(rank).padStart(2, "0")}
+                  </span>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-[color:var(--color-text-primary)]">
+                        {variant.name}
+                      </p>
+                      {variant.isControl && <Badge variant="neutral">Control</Badge>}
+                      {variant.isWinner && <Badge variant="success">Winner</Badge>}
+                    </div>
+                    <p className="text-xs text-[color:var(--color-text-secondary)]">
+                      {variant.trafficPercent}% traffic{banditActive ? " · auto" : ""}
+                    </p>
+                  </div>
+                </div>
 
-            {!variant.isControl && (
-              <div>
-                <p className="mb-1 text-xs text-[color:var(--color-text-secondary)]">
-                  Confidence vs. control
-                </p>
-                {variant.confidenceVsControl === null ? (
-                  <p className="text-xs text-[color:var(--color-text-secondary)]">
-                    Not enough data yet
+                <div className="shrink-0 text-right">
+                  <p
+                    className={`font-semibold text-[color:var(--color-text-primary)] ${rateSizeClass}`}
+                    style={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {variant.conversionRate.toFixed(1)}%
                   </p>
-                ) : (
-                  <ConfidenceBar percent={variant.confidenceVsControl} />
-                )}
+                  <p className="text-xs text-[color:var(--color-text-secondary)]">
+                    conversion rate
+                  </p>
+                </div>
               </div>
-            )}
 
-            {editingId === variant.id ? (
+              <div className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
+                <div
+                  className="h-full rounded-full bg-[color:var(--color-primary)] transition-[width]"
+                  style={{ width: `${barPercent}%` }}
+                />
+              </div>
+
+              <div className="flex items-center justify-between text-xs text-[color:var(--color-text-secondary)]">
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {variant.impressions.toLocaleString()} impressions
+                </span>
+                <span style={{ fontVariantNumeric: "tabular-nums" }}>
+                  {variant.submissions.toLocaleString()} conversions
+                </span>
+              </div>
+
+              {!variant.isControl && (
+                <div>
+                  <p className="mb-1 text-xs text-[color:var(--color-text-secondary)]">
+                    Confidence vs. control
+                  </p>
+                  {variant.confidenceVsControl === null ? (
+                    <p className="text-xs text-[color:var(--color-text-secondary)]">
+                      Not enough data yet
+                    </p>
+                  ) : (
+                    <ConfidenceBar percent={variant.confidenceVsControl} />
+                  )}
+                </div>
+              )}
+
+              {editingId === variant.id ? (
               <div className="flex flex-col gap-2 border-t border-[color:var(--color-border)] pt-3">
                 <input
                   value={draft.name ?? ""}
@@ -274,8 +303,9 @@ export function VariantManager({
                 )}
               </div>
             )}
-          </div>
-        ))}
+            </div>
+          );
+        })}
       </div>
 
       {variants.length < 5 && (
