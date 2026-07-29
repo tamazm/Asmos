@@ -27,7 +27,7 @@ export default function ConsentSetupPage() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Could not save consent settings");
       }
-      router.push("/dashboard");
+      router.push("/onboarding/connect-store");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
