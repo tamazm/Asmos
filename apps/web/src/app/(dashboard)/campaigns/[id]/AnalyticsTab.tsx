@@ -8,7 +8,7 @@ function ConversionBar({ value, max }: { value: number; max: number }) {
   return (
     <div className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
       <div
-        className="h-full rounded-full bg-[color:var(--color-primary)] transition-all duration-500"
+        className="h-full rounded-full bg-[color:var(--color-primary)] transition-[width] duration-500"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -81,7 +81,7 @@ export function AnalyticsTab({ variants }: { variants: VariantStat[] }) {
           {variants.map((v, i) => (
             <div
               key={v.id}
-              className="h-full transition-all duration-500"
+              className="h-full transition-[width] duration-500"
               style={{
                 width: `${v.trafficPercent}%`,
                 backgroundColor: VARIANT_COLORS[i % VARIANT_COLORS.length],
@@ -117,7 +117,7 @@ export function AnalyticsTab({ variants }: { variants: VariantStat[] }) {
               </div>
               <div className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
                 <div
-                  className="h-full rounded-full transition-all duration-500"
+                  className="h-full rounded-full transition-[width] duration-500"
                   style={{
                     width: `${maxImpressions > 0 ? (v.impressions / maxImpressions) * 100 : 0}%`,
                     backgroundColor: VARIANT_COLORS[i % VARIANT_COLORS.length],

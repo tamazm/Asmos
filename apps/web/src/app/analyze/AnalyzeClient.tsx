@@ -153,7 +153,7 @@ export function AnalyzeClient() {
             {/* Progress bar */}
             <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
               <div
-                className="h-full rounded-full bg-[color:var(--color-primary)] transition-all duration-300 ease-out"
+                className="h-full rounded-full bg-[color:var(--color-primary)] transition-[width] duration-300 ease-out"
                 style={{ width: `${progress}%` }}
                 aria-valuenow={Math.round(progress)}
                 aria-valuemin={0}

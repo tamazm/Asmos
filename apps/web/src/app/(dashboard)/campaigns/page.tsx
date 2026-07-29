@@ -53,7 +53,7 @@ export default async function CampaignsListPage() {
 
       <DataTable<CampaignRow>
         rows={rows}
-        emptyMessage="No campaigns yet — create your first popup to get started."
+        emptyMessage="No campaigns yet. Create your first popup to get started."
         columns={[
           {
             header: "Name",

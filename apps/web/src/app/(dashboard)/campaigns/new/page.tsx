@@ -169,7 +169,7 @@ function Step1TypeSelect({ state, update }: { state: WizardState; update: (s: Pa
               type="button"
               onClick={() => update({ type: opt.value })}
               className={cn(
-                "flex flex-col items-start gap-3 rounded-2xl border p-5 text-left transition-all duration-150 cursor-pointer",
+                "flex flex-col items-start gap-3 rounded-2xl border p-5 text-left transition-colors duration-150 cursor-pointer",
                 active
                   ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] shadow-sm"
                   : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] hover:border-[color:var(--color-primary)]/40",
@@ -363,7 +363,7 @@ function Step3FormFields({ state, update }: { state: WizardState; update: (s: Pa
             <label
               key={f}
               className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-all duration-150",
+                "flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors duration-150",
                 checked ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/40",
               )}
             >
@@ -425,7 +425,7 @@ function Step4Targeting({ state, update }: { state: WizardState; update: (s: Par
               <label
                 key={t.value}
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-all duration-150",
+                  "flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors duration-150",
                   active ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/40",
                 )}
               >
@@ -472,7 +472,7 @@ function Step4Targeting({ state, update }: { state: WizardState; update: (s: Par
               type="button"
               onClick={() => updateTarget({ device: d.value })}
               className={cn(
-                "rounded-lg border px-4 py-2 text-sm font-medium transition-all duration-150 cursor-pointer",
+                "rounded-lg border px-4 py-2 text-sm font-medium transition-colors duration-150 cursor-pointer",
                 state.targeting.device === d.value
                   ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
                   : "border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/40",

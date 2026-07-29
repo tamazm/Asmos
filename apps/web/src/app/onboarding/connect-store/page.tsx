@@ -123,7 +123,7 @@ export default function ConnectStorePage() {
             aria-selected={tab === t.id}
             onClick={() => setTab(t.id)}
             className={[
-              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-all duration-150 cursor-pointer",
+              "flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer",
               tab === t.id
                 ? "bg-[color:var(--color-surface)] text-[color:var(--color-text-primary)] shadow-sm"
                 : "text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]",
@@ -143,7 +143,7 @@ export default function ConnectStorePage() {
           <button
             onClick={copySnippet}
             className={[
-              "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-all duration-150 cursor-pointer",
+              "flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-medium transition-colors duration-150 cursor-pointer",
               copied
                 ? "bg-[color:var(--color-success-bg)] text-[color:var(--color-success)]"
                 : "bg-[color:var(--color-surface-sunken)] text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]",

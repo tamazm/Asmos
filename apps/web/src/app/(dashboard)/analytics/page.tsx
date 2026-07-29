@@ -26,7 +26,7 @@ function BarRow({ label, value, max, color, sub }: { label: string; value: numbe
         <span className="shrink-0 tabular-nums text-sm font-semibold text-[color:var(--color-text-primary)]">{value.toLocaleString()}</span>
       </div>
       <div className="h-2 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
+        <div className="h-full rounded-full transition-[width] duration-500" style={{ width: `${pct}%`, backgroundColor: color }} />
       </div>
       {sub && <p className="mt-0.5 text-xs text-[color:var(--color-text-secondary)]">{sub}</p>}
     </div>

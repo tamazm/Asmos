@@ -171,7 +171,7 @@ export default function BusinessProfilePage() {
                 type="button"
                 onClick={() => setIndustry(opt.value)}
                 className={[
-                  "flex flex-col items-center gap-2 rounded-xl border p-4 text-center text-sm font-medium transition-all duration-150 cursor-pointer",
+                  "flex flex-col items-center gap-2 rounded-xl border p-4 text-center text-sm font-medium transition-colors duration-150 cursor-pointer",
                   active
                     ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)] shadow-sm"
                     : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/40 hover:bg-[color:var(--color-primary-light)]/30",
@@ -214,7 +214,7 @@ export default function BusinessProfilePage() {
               type="button"
               onClick={() => setBrandColor(c)}
               className={[
-                "h-8 w-8 rounded-lg border-2 transition-all duration-100 cursor-pointer",
+                "h-8 w-8 rounded-lg border-2 transition-colors duration-100 cursor-pointer",
                 brandColor.toLowerCase() === c.toLowerCase()
                   ? "border-[color:var(--color-primary)] scale-110 shadow-sm"
                   : "border-transparent hover:scale-105",

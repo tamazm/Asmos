@@ -110,7 +110,7 @@ export function InsightsPanel({
 
       {insights.length === 0 && (
         <p className="text-sm text-[color:var(--color-text-secondary)]">
-          No reports yet — generate one once the campaign has some traffic.
+          No reports yet. Generate one once the campaign has some traffic.
         </p>
       )}
 

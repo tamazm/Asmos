@@ -163,7 +163,7 @@ export function AccountSettingsForm({
           <span className="text-sm text-[color:var(--color-success)]">Saved</span>
         )}
         {status === "error" && (
-          <span className="text-sm text-red-500">Could not save — try again.</span>
+          <span className="text-sm text-red-500">Could not save. Try again.</span>
         )}
       </div>
     </div>

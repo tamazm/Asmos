@@ -46,7 +46,7 @@ export function RecentCampaignsBoard({ rows }: { rows: RecentCampaignRow[] }) {
           <div className="w-1/2 shrink-0 pr-3">
             <DataTable<RecentCampaignRow>
               rows={rows}
-              emptyMessage="No campaigns yet — create your first popup to get started."
+              emptyMessage="No campaigns yet. Create your first popup to get started."
               onRowClick={(row) => setSelectedId(row.id)}
               columns={[
                 { header: "Name", render: (row) => row.name },
