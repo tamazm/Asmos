@@ -85,13 +85,14 @@ export function InsightsPanel({
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-[color:var(--color-text-secondary)]">
-          Generated automatically every two weeks. The bandit already reallocates traffic live -
-          these reports explain why, and occasionally propose a new variant to test.
+          Generated automatically every two weeks. The bandit already reallocates traffic live.
+          These reports explain why, and occasionally propose a new variant to test.
         </p>
         <Button
           onClick={generate}
+          disabled={busy === "generate"}
           className={`w-fit shrink-0 ${busy === "generate" ? "opacity-60" : ""}`}
         >
           {busy === "generate" ? (

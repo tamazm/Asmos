@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import { Badge } from "@/components/ui/Badge";
@@ -146,17 +147,17 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
             label: "Insights",
             content: (
               <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-[color:var(--color-text-secondary)]">
                     Recent insights. For the full history and deeper analysis, open the dedicated
                     insights page.
                   </p>
-                  <a
+                  <Link
                     href={`/campaigns/${campaign.id}/insights`}
                     className="inline-flex items-center justify-center rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-primary)] transition-colors duration-150 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.98] shrink-0"
                   >
                     View all insights
-                  </a>
+                  </Link>
                 </div>
                 <InsightsPanel campaignId={campaign.id} insights={insightRows} />
               </div>

@@ -8,7 +8,7 @@ export default function CampaignInsightsLoading() {
       </div>
 
       {/* Campaign context bar skeleton */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-3">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-3">
         <div className="h-4 w-36 animate-pulse rounded-md bg-[color:var(--color-surface-sunken)]" />
         <div className="h-4 w-20 animate-pulse rounded-md bg-[color:var(--color-surface-sunken)]" />
         <div className="h-4 w-24 animate-pulse rounded-md bg-[color:var(--color-surface-sunken)]" />

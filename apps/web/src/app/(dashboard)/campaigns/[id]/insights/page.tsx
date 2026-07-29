@@ -56,7 +56,7 @@ export default async function CampaignInsightsPage(props: {
 
       {/* Campaign context bar — compact, not a stat grid */}
       <div
-        className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-3"
+        className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-3"
         aria-label="Campaign summary"
       >
         <span className="text-sm font-semibold text-[color:var(--color-text-primary)]">
@@ -75,8 +75,8 @@ export default async function CampaignInsightsPage(props: {
         </h2>
         <p className="text-sm text-[color:var(--color-text-secondary)]">
           Plain-English explanations of why variants are winning or losing, plus occasional
-          suggestions for new variants to test. The bandit already reallocates traffic live --
-          these reports explain the pattern.
+          suggestions for new variants to test. The bandit already reallocates traffic live.
+          These reports explain the pattern.
         </p>
       </div>
 
