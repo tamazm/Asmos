@@ -1,17 +1,8 @@
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
-import { DataTable } from "@/components/ui/DataTable";
-import { Badge } from "@/components/ui/Badge";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-
-type CampaignRow = {
-  id: string;
-  name: string;
-  status: string;
-  impressions: number;
-  conversions: number;
-};
+import { RecentCampaignsBoard, type RecentCampaignRow } from "./RecentCampaignsBoard";
 
 export default async function DashboardHomePage() {
   const account = await getOrCreateAccount();
@@ -36,14 +27,29 @@ export default async function DashboardHomePage() {
   });
   const conversionRate = impressions > 0 ? (submissions / impressions) * 100 : 0;
 
-  const rows: CampaignRow[] = campaigns.slice(0, 5).map((campaign) => {
+  const rows: RecentCampaignRow[] = campaigns.slice(0, 5).map((campaign) => {
     const events = campaign.variants.flatMap((v) => v.events);
+    const variants = campaign.variants.map((variant) => {
+      const variantImpressions = variant.events.filter((e) => e.type === "IMPRESSION").length;
+      const variantSubmissions = variant.events.filter((e) => e.type === "SUBMISSION").length;
+      return {
+        id: variant.id,
+        name: variant.name,
+        isControl: variant.isControl,
+        isWinner: campaign.winningVariantId === variant.id,
+        trafficPercent: variant.trafficPercent,
+        impressions: variantImpressions,
+        submissions: variantSubmissions,
+        conversionRate: variantImpressions > 0 ? (variantSubmissions / variantImpressions) * 100 : 0,
+      };
+    });
     return {
       id: campaign.id,
       name: campaign.name,
       status: campaign.status,
       impressions: events.filter((e) => e.type === "IMPRESSION").length,
       conversions: events.filter((e) => e.type === "SUBMISSION").length,
+      variants,
     };
   });
 
@@ -58,28 +64,7 @@ export default async function DashboardHomePage() {
         <StatCard label="Conversion Rate" value={`${conversionRate.toFixed(1)}%`} />
       </div>
 
-      <div>
-        <h2 className="mb-3 text-sm font-medium text-[color:var(--color-text-secondary)]">
-          Recent Campaigns
-        </h2>
-        <DataTable<CampaignRow>
-          rows={rows}
-          emptyMessage="No campaigns yet — create your first popup to get started."
-          columns={[
-            { header: "Name", render: (row) => row.name },
-            {
-              header: "Status",
-              render: (row) => (
-                <Badge variant={row.status === "ACTIVE" ? "success" : "neutral"}>
-                  {row.status}
-                </Badge>
-              ),
-            },
-            { header: "Impressions", render: (row) => row.impressions.toLocaleString() },
-            { header: "Conversions", render: (row) => row.conversions.toLocaleString() },
-          ]}
-        />
-      </div>
+      <RecentCampaignsBoard rows={rows} />
     </div>
   );
 }

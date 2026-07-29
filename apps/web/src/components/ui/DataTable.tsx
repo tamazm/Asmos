@@ -7,10 +7,12 @@ export function DataTable<T extends { id: string }>({
   columns,
   rows,
   emptyMessage = "Nothing here yet.",
+  onRowClick,
 }: {
   columns: Column<T>[];
   rows: T[];
   emptyMessage?: string;
+  onRowClick?: (row: T) => void;
 }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
@@ -38,7 +40,10 @@ export function DataTable<T extends { id: string }>({
             rows.map((row) => (
               <tr
                 key={row.id}
-                className="border-b border-[color:var(--color-border)] last:border-0"
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                className={`border-b border-[color:var(--color-border)] last:border-0 ${
+                  onRowClick ? "cursor-pointer hover:bg-[color:var(--color-surface-sunken)]" : ""
+                }`}
               >
                 {columns.map((col) => (
                   <td key={col.header} className="px-4 py-3">
