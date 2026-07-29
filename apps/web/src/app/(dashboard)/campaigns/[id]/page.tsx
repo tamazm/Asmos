@@ -144,7 +144,23 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
           {
             key: "insights",
             label: "Insights",
-            content: <InsightsPanel campaignId={campaign.id} insights={insightRows} />,
+            content: (
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-[color:var(--color-text-secondary)]">
+                    Recent insights. For the full history and deeper analysis, open the dedicated
+                    insights page.
+                  </p>
+                  <a
+                    href={`/campaigns/${campaign.id}/insights`}
+                    className="inline-flex items-center justify-center rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-primary)] transition-colors duration-150 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.98] shrink-0"
+                  >
+                    View all insights
+                  </a>
+                </div>
+                <InsightsPanel campaignId={campaign.id} insights={insightRows} />
+              </div>
+            ),
           },
           {
             key: "settings",
