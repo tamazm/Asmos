@@ -19,6 +19,12 @@ const MIN_FLOOR_PERCENT = 5;
 
 const MONTE_CARLO_SAMPLES = 4000;
 
+// Recomputing is a groupBy + a few row updates — cheap once, but a hot
+// campaign can generate thousands of impressions a minute in production.
+// Cap reallocation frequency instead of running it on every single event;
+// "near real-time" doesn't require literally every event.
+const RECOMPUTE_THROTTLE_MS = 30_000;
+
 // Marsaglia & Tsang's method (shape >= 1), boosted via Gamma(a) =
 // Gamma(a+1) * U^(1/a) for shape < 1.
 function sampleGamma(shape: number): number {
@@ -122,10 +128,16 @@ export async function recomputeCampaignAllocation(variantId: string) {
     where: { id: variant.campaignId },
     select: {
       winningVariantId: true,
-      variants: { select: { id: true, trafficPercent: true } },
+      variants: { select: { id: true, trafficPercent: true, updatedAt: true } },
     },
   });
   if (!campaign || campaign.winningVariantId || campaign.variants.length < 2) return;
+
+  const lastRecomputed = campaign.variants.reduce(
+    (latest, v) => (v.updatedAt > latest ? v.updatedAt : latest),
+    new Date(0),
+  );
+  if (Date.now() - lastRecomputed.getTime() < RECOMPUTE_THROTTLE_MS) return;
 
   const counts = await prisma.campaignEvent.groupBy({
     by: ["variantId", "type"],

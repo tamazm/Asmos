@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { corsJson, corsPreflight } from "@/lib/cors";
 import { recomputeCampaignAllocation } from "@/lib/bandit";
@@ -23,9 +24,17 @@ export async function POST(request: Request) {
   });
 
   // Only these two event types feed the bandit — skip the recompute query on
-  // INTERACTION/GIFT_CLAIMED writes.
+  // INTERACTION/GIFT_CLAIMED writes. Deferred via after() so a slow/failed
+  // reallocation never delays or breaks the widget's event ack, and keeps
+  // running after the response is sent instead of racing the function exit.
   if (type === "IMPRESSION" || type === "SUBMISSION") {
-    await recomputeCampaignAllocation(variantId);
+    after(async () => {
+      try {
+        await recomputeCampaignAllocation(variantId);
+      } catch (err) {
+        console.error("[bandit] allocation recompute failed", err);
+      }
+    });
   }
 
   return corsJson({ ok: true });

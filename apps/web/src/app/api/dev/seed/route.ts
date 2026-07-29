@@ -31,7 +31,17 @@ function randomLead() {
   return { name: `${first} ${initial}.`, email };
 }
 
+function blockInProduction() {
+  if (process.env.NODE_ENV === "production") {
+    return Response.json({ error: "Not found" }, { status: 404 });
+  }
+  return null;
+}
+
 export async function POST() {
+  const blocked = blockInProduction();
+  if (blocked) return blocked;
+
   const account = await prisma.account.findFirst({ orderBy: { createdAt: "asc" } });
   if (!account) {
     return Response.json({ error: "No account found — sign in once first." }, { status: 400 });
@@ -258,6 +268,9 @@ export async function POST() {
 }
 
 export async function DELETE() {
+  const blocked = blockInProduction();
+  if (blocked) return blocked;
+
   const account = await prisma.account.findFirst({ orderBy: { createdAt: "asc" } });
   if (!account) {
     return Response.json({ error: "No account found" }, { status: 400 });

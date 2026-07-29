@@ -104,6 +104,12 @@ export async function generateCampaignInsight(
 ): Promise<InsightResult> {
   if (MOCK_MODE) return mockInsight(stats);
   if (HAS_ANTHROPIC_KEY) return claudeInsight(stats);
+
+  // The Gemini path is a temporary local-testing fallback — never let it
+  // substitute for Claude silently in production.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Campaign insights are not configured (missing ANTHROPIC_API_KEY).");
+  }
   return geminiInsight(stats);
 }
 
