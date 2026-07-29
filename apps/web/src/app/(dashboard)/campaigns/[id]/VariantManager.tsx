@@ -144,7 +144,7 @@ export function VariantManager({
     <div className="flex flex-col gap-4">
       {error && <p className="text-sm text-red-500">{error}</p>}
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
         {ranked.map((variant, index) => {
           const rank = index + 1;
           const barPercent = (variant.conversionRate / maxRate) * 100;
@@ -154,7 +154,7 @@ export function VariantManager({
           return (
             <div
               key={variant.id}
-              className="flex flex-col gap-4 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5"
+              className="flex min-w-0 flex-1 flex-col gap-4 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">
