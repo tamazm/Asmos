@@ -1,7 +1,7 @@
 {
   "meta": {
     "startedAt": "2026-07-29T21:06:41Z",
-    "deadlineAt": "2026-07-30T05:06:41Z",
+    "deadlineAt": "2026-07-30T06:06:41Z",
     "branch": "v12-supercharge",
     "model": "bedrock/global.anthropic.claude-sonnet-4-6",
     "posthogKey": "REDACTED",
