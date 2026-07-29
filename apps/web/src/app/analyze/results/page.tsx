@@ -34,13 +34,13 @@ const INDUSTRIES = [
   "Other",
 ];
 
-const CHECK_LABELS: Record<keyof AnalyzeResult["checks"], { label: string; points: number }> = {
-  hasPopup:        { label: "Popup / opt-in tool",       points: 20 },
-  hasEmailCapture: { label: "Email capture offer",        points: 20 },
-  hasSocialProof:  { label: "Social proof & reviews",     points: 15 },
-  hasExitIntent:   { label: "Exit-intent recovery",       points: 15 },
-  hasUrgency:      { label: "Urgency / scarcity signals", points: 15 },
-  hasABTest:       { label: "A/B testing",                points: 15 },
+const CHECK_LABELS: Record<keyof AnalyzeResult["checks"], { label: string; description: string }> = {
+  hasPopup:        { label: "Popup / opt-in tool",       description: "Captures visitors before they leave" },
+  hasEmailCapture: { label: "Email capture offer",        description: "Discount or lead magnet to collect emails" },
+  hasSocialProof:  { label: "Social proof & reviews",     description: "Reviews, ratings, or trust signals" },
+  hasExitIntent:   { label: "Exit-intent recovery",       description: "Catches visitors about to bounce" },
+  hasUrgency:      { label: "Urgency / scarcity signals", description: "Limited time or low stock messaging" },
+  hasABTest:       { label: "A/B testing",                description: "Testing what converts best" },
 };
 
 function gradeColor(grade: string) {
@@ -134,10 +134,8 @@ export default function AnalyzeResultsPage() {
   }
 
   const failedChecks = Object.entries(result.checks ?? {}).filter(([, v]) => !v);
-  const missedPoints = failedChecks.reduce(
-    (sum, [k]) => sum + (CHECK_LABELS[k as keyof typeof CHECK_LABELS]?.points ?? 0),
-    0
-  );
+  const passedCount = Object.values(result.checks ?? {}).filter(Boolean).length;
+  const totalCount = Object.keys(CHECK_LABELS).length;
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[color:var(--color-surface)]">
@@ -186,32 +184,31 @@ export default function AnalyzeResultsPage() {
 
             {/* Check breakdown */}
             <div className="mt-5 space-y-2">
-              {Object.entries(CHECK_LABELS).map(([key, { label, points }]) => {
+              {Object.entries(CHECK_LABELS).map(([key, { label, description }]) => {
                 const passed = result.checks?.[key as keyof typeof result.checks] ?? false;
                 return (
-                  <div key={key} className="flex items-center justify-between text-sm">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-base leading-none ${passed ? "text-emerald-500" : "text-red-400"}`}>
-                        {passed ? "✓" : "✗"}
-                      </span>
-                      <span className={passed ? "text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)] line-through"}>
+                  <div key={key} className="flex items-start gap-3 text-sm">
+                    <span className={`mt-0.5 text-base leading-none flex-shrink-0 ${passed ? "text-emerald-500" : "text-red-400"}`}>
+                      {passed ? "✓" : "✗"}
+                    </span>
+                    <div>
+                      <span className={`font-medium ${passed ? "text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]"}` }>
                         {label}
                       </span>
+                      {!passed && (
+                        <p className="text-xs text-[color:var(--color-text-secondary)] mt-0.5">{description}</p>
+                      )}
                     </div>
-                    <span className={`tabular-nums text-xs font-semibold ${passed ? "text-emerald-600" : "text-red-400"}`}>
-                      {passed ? `+${points}` : `−${points}`}
-                    </span>
                   </div>
                 );
               })}
             </div>
 
-            {/* Missed points message */}
-            {missedPoints > 0 && (
+            {/* Summary message */}
+            {failedChecks.length > 0 && (
               <p className="mt-4 text-sm font-medium text-[color:var(--color-text-secondary)]">
-                You&apos;re leaving{" "}
-                <span className="font-bold text-[color:var(--color-text-primary)]">{missedPoints} points</span>{" "}
-                — and likely thousands in revenue — on the table.
+                <span className="font-bold text-[color:var(--color-text-primary)]">{passedCount} of {totalCount}</span>{" "}
+                conversion tools detected. {failedChecks.length === 1 ? "1 gap" : `${failedChecks.length} gaps`} found — each one is lost revenue.
               </p>
             )}
           </div>
