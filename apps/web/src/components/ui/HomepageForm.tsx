@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { analyzeStarted } from "@/lib/analytics";
 
 export function HomepageForm() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export function HomepageForm() {
       setError("That doesn't look like a valid URL.");
       return;
     }
+    analyzeStarted(normalized);
     router.push(`/analyze?url=${encodeURIComponent(normalized)}`);
   }
 

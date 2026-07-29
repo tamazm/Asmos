@@ -1,0 +1,124 @@
+{
+  "meta": {
+    "startedAt": "2026-07-29T21:06:41Z",
+    "deadlineAt": "2026-07-30T05:06:41Z",
+    "branch": "v12-supercharge",
+    "model": "bedrock/global.anthropic.claude-sonnet-4-6",
+    "posthogKey": "REDACTED",
+    "posthogHost": "https://eu.posthog.com"
+  },
+  "status": "running",
+  "currentTask": "T01",
+  "completedTasks": [],
+  "skippedTasks": [],
+  "blockers": [],
+  "lastTickAt": "2026-07-29T21:07:00Z",
+  "tickCount": 1,
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "PostHog analytics integration",
+      "priority": 1,
+      "description": "Install posthog-js, add PostHogProvider to layout, instrument key events: page_view (auto), campaign_created, popup_shown, email_captured, variant_winner_declared, onboarding_step_completed, analyze_started, analyze_completed",
+      "status": "in_progress"
+    },
+    {
+      "id": "T02",
+      "title": "Widget embed script",
+      "priority": 2,
+      "description": "Build /public/widget/asmos-widget.js — self-contained JS snippet that merchants paste into their site. Loads from our domain, connects via accountId+campaignId params, shows popup based on targeting rules, fires IMPRESSION/SUBMISSION events back to /api/widget/events. Include install snippet UI in onboarding/connect-store page.",
+      "status": "pending"
+    },
+    {
+      "id": "T03",
+      "title": "Onboarding flow completeness",
+      "priority": 3,
+      "description": "Audit all onboarding steps against roadmap (steps 1-15). Fix: install verification page (ping check), business-profile pre-fill from analyze result, connect-store shows actual embed snippet with copy button, consent/compliance step. Make sure sessionStorage asmos_analyze_result flows through signup into onboarding pre-fill.",
+      "status": "pending"
+    },
+    {
+      "id": "T04",
+      "title": "Popup builder — campaign type selection + builder pages",
+      "priority": 4,
+      "description": "Build /campaigns/new as a multi-step wizard: (1) type selection (spin wheel / scratch card / plain form), (2) design editor with live preview, (3) form fields config, (4) targeting & triggers (exit intent, time delay, URL rules, device), (5) review & publish. Reference screenshots 09-15.",
+      "status": "pending"
+    },
+    {
+      "id": "T05",
+      "title": "Campaign detail + variant manager",
+      "priority": 5,
+      "description": "Build /campaigns/[id] with tabs: Overview, Variants, Analytics, Settings. Variant manager: create variant, set traffic split, see per-variant stats. Reference screenshots 17-19.",
+      "status": "pending"
+    },
+    {
+      "id": "T06",
+      "title": "AI insights page",
+      "priority": 6,
+      "description": "Build /campaigns/[id]/insights — plain-English AI explanation of why variants are winning/losing, suggested next variants. Wire to existing /api/campaigns/[id]/insights route. Reference screenshot 20.",
+      "status": "pending"
+    },
+    {
+      "id": "T07",
+      "title": "Leads page",
+      "priority": 7,
+      "description": "Build /leads — filterable table of all captured leads (name, email, phone, campaign, date). CSV export via /api/leads/export. Reference screenshot for leads section.",
+      "status": "pending"
+    },
+    {
+      "id": "T08",
+      "title": "Analytics page",
+      "priority": 8,
+      "description": "Build /analytics — site-wide metrics: impressions over time, conversion rate trend, top campaigns, device breakdown. Charts using a lightweight library (recharts already in package.json probably, else add). Reference screenshot 20.",
+      "status": "pending"
+    },
+    {
+      "id": "T09",
+      "title": "Integrations page",
+      "priority": 9,
+      "description": "Build /integrations — connect Klaviyo, Mailchimp, Shopify. For now: UI showing connected/disconnected state with connect button, placeholder OAuth flow with helpful status messages. Reference screenshot 13.",
+      "status": "pending"
+    },
+    {
+      "id": "T10",
+      "title": "Settings page",
+      "priority": 10,
+      "description": "Build /settings — tabs: Account (name, email), Team (invite by email using existing /api/invites), Billing (placeholder plan card), Brand (colors, logo upload), Notifications (toggle preferences). Reference screenshot 22.",
+      "status": "pending"
+    },
+    {
+      "id": "T11",
+      "title": "Billing page placeholder",
+      "priority": 11,
+      "description": "Build /settings/billing or /billing — plan tiers display, current plan, usage meters (campaigns, impressions this month vs limit). No Stripe integration, clear 'upgrade' CTA placeholder.",
+      "status": "pending"
+    },
+    {
+      "id": "T12",
+      "title": "Notifications system",
+      "priority": 12,
+      "description": "Build in-app notification bell in header — show alerts like 'Variant B is winning', 'Install snippet not detected'. Store in DB notifications table (add migration). Mark read on click.",
+      "status": "pending"
+    },
+    {
+      "id": "T13",
+      "title": "Landing page polish",
+      "priority": 13,
+      "description": "Improve / — ensure URL-first flow is polished, hero copy matches roadmap vision, trust signals, pricing section placeholder, how-it-works section. Reference mvp core flow.txt.",
+      "status": "pending"
+    },
+    {
+      "id": "T14",
+      "title": "Design system audit + polish",
+      "priority": 14,
+      "description": "Audit all pages against PRODUCT.md anti-patterns. Fix any gradient text, purple, em dashes, hero-metric cards. Ensure spacing, typography, motion all feel premium. Add subtle page-enter animations everywhere missing.",
+      "status": "pending"
+    },
+    {
+      "id": "T15",
+      "title": "Error states + empty states",
+      "priority": 15,
+      "description": "Add proper empty states to: campaigns list (no campaigns), leads (no leads), analytics (no data). Add error boundaries to dashboard route. 404 page polish.",
+      "status": "pending"
+    }
+  ]
+}

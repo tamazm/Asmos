@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { onboardingStepCompleted } from "@/lib/analytics";
 
 export default function ConsentSetupPage() {
   const router = useRouter();
@@ -27,6 +28,7 @@ export default function ConsentSetupPage() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Could not save consent settings");
       }
+      onboardingStepCompleted(3, "consent");
       router.push("/onboarding/connect-store");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");

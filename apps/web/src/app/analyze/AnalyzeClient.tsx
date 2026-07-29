@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import { analyzeCompleted } from "@/lib/analytics";
 
 const STEPS = [
   "Fetching pages...",
@@ -59,6 +60,12 @@ export function AnalyzeClient() {
           "asmos_analyze_result",
           JSON.stringify({ ...data, storeUrl: url })
         );
+
+        analyzeCompleted({
+          storeUrl: url,
+          storeName: data.storeName,
+          industry: data.industry,
+        });
 
         setTimeout(() => router.push("/analyze/results"), 600);
       })

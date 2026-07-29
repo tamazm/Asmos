@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type Anthropic from "@anthropic-ai/sdk";
+import { campaignCreated } from "@/lib/analytics";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -82,6 +83,12 @@ export default function NewCampaignPage() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Publish failed");
       }
+      const created = await res.json().catch(() => ({}));
+      campaignCreated({
+        campaignId: created.id ?? "unknown",
+        campaignType: draft.type ?? "FORM",
+        name: draft.name ?? "Untitled",
+      });
       router.push("/campaigns");
     } catch (e) {
       setPublishError(e instanceof Error ? e.message : "Something went wrong");

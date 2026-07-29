@@ -1,0 +1,61 @@
+import posthog from "posthog-js";
+
+/**
+ * Centralised analytics event helpers.
+ * Import capture() for custom events, or use the named helpers for
+ * standardised event names / properties.
+ */
+
+export function capture(event: string, props?: Record<string, unknown>) {
+  if (typeof window === "undefined") return;
+  posthog.capture(event, props);
+}
+
+// ---- Named event helpers ----
+
+export function analyzeStarted(storeUrl: string) {
+  capture("analyze_started", { store_url: storeUrl });
+}
+
+export function analyzeCompleted(props: {
+  storeUrl: string;
+  storeName?: string;
+  industry?: string;
+}) {
+  capture("analyze_completed", props);
+}
+
+export function onboardingStepCompleted(step: number, stepName: string) {
+  capture("onboarding_step_completed", { step, step_name: stepName });
+}
+
+export function campaignCreated(props: {
+  campaignId: string;
+  campaignType: string;
+  name: string;
+}) {
+  capture("campaign_created", props);
+}
+
+export function popupShown(props: {
+  campaignId: string;
+  variantId?: string;
+  page?: string;
+}) {
+  capture("popup_shown", props);
+}
+
+export function emailCaptured(props: {
+  campaignId: string;
+  variantId?: string;
+}) {
+  capture("email_captured", props);
+}
+
+export function variantWinnerDeclared(props: {
+  campaignId: string;
+  variantId: string;
+  conversionRate: number;
+}) {
+  capture("variant_winner_declared", props);
+}

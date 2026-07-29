@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { onboardingStepCompleted } from "@/lib/analytics";
 
 interface AnalyzeResult {
   storeName?: string;
@@ -58,6 +59,7 @@ export default function BusinessProfilePage() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? "Could not save business profile");
       }
+      onboardingStepCompleted(2, "business-profile");
       router.push("/onboarding/consent");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
