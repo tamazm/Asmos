@@ -154,16 +154,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // The Gemini path is a temporary local-testing fallback (see lib/gemini.ts)
-  // — never let it substitute for Claude silently in production. Fail loud
-  // instead of quietly serving Gemini-generated campaigns to real customers.
-  if (process.env.NODE_ENV === "production" && !HAS_ANTHROPIC_KEY) {
-    return Response.json(
-      { error: "Campaign generation is not configured (missing ANTHROPIC_API_KEY)." },
-      { status: 500 },
-    );
-  }
-
   const { history, userMessage } = (await request.json()) as {
     history?: unknown[];
     userMessage?: string;
