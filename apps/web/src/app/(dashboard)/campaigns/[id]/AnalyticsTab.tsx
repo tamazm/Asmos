@@ -38,7 +38,7 @@ export function AnalyticsTab({ variants }: { variants: VariantStat[] }) {
           },
           { label: "Variants running", value: variants.length.toString() },
         ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
+          <div key={s.label} className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
             <p className="text-xs text-[color:var(--color-text-secondary)]">{s.label}</p>
             <p className="mt-1 text-xl font-bold tabular-nums text-[color:var(--color-text-primary)]">{s.value}</p>
           </div>

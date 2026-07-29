@@ -176,7 +176,7 @@ export default function AnalyzeResultsPage() {
                 </p>
                 <p className={`text-sm font-medium mt-0.5 ${gradeColor(result.grade)}`}>
                   {result.gradeLabel ?? ""}
-                  {" — "}
+                  {" · "}
                   <span className="tabular-nums">{result.score ?? 0}/100</span>
                 </p>
               </div>
@@ -208,7 +208,7 @@ export default function AnalyzeResultsPage() {
             {failedChecks.length > 0 && (
               <p className="mt-4 text-sm font-medium text-[color:var(--color-text-secondary)]">
                 <span className="font-bold text-[color:var(--color-text-primary)]">{passedCount} of {totalCount}</span>{" "}
-                conversion tools detected. {failedChecks.length === 1 ? "1 gap" : `${failedChecks.length} gaps`} found — each one is lost revenue.
+                conversion tools detected. {failedChecks.length === 1 ? "1 gap" : `${failedChecks.length} gaps`} found. Each one is lost revenue.
               </p>
             )}
           </div>
@@ -217,7 +217,7 @@ export default function AnalyzeResultsPage() {
           {!emailSubmitted ? (
             <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-sm">
               <h2 className="text-lg font-bold text-[color:var(--color-text-primary)]">
-                See exactly what to fix — free
+                See exactly what to fix, free
               </h2>
               <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
                 Enter your email and we&apos;ll show you a step-by-step plan to bring your score to an A+.
@@ -240,7 +240,7 @@ export default function AnalyzeResultsPage() {
                   disabled={submitting}
                   className="w-full rounded-xl bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98] disabled:opacity-60"
                 >
-                  {submitting ? "One moment..." : "Show me how to fix it — it's free"}
+                  {submitting ? "One moment..." : "Show me how to fix it, free"}
                 </button>
                 <p className="text-center text-xs text-[color:var(--color-text-secondary)]">
                   No spam. Unsubscribe any time.
@@ -321,7 +321,7 @@ export default function AnalyzeResultsPage() {
                 onClick={handleConfirm}
                 className="mt-6 w-full rounded-xl bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98]"
               >
-                Start fixing my score — it&apos;s free
+                Start fixing my score, free
               </button>
               <p className="mt-2 text-center text-xs text-[color:var(--color-text-secondary)]">
                 Free to start. No credit card required.

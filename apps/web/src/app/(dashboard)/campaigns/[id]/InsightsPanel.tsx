@@ -118,7 +118,7 @@ export function InsightsPanel({
         {insights.map((insight) => (
           <div
             key={insight.id}
-            className="flex flex-col gap-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5"
+            className="flex flex-col gap-3 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5"
           >
             <span className="text-xs text-[color:var(--color-text-secondary)]">
               {new Date(insight.createdAt).toLocaleString()}

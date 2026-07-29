@@ -171,7 +171,7 @@ export default function BusinessProfilePage() {
                 type="button"
                 onClick={() => setIndustry(opt.value)}
                 className={[
-                  "flex flex-col items-center gap-2 rounded-xl border p-4 text-center text-sm font-medium transition-colors duration-150 cursor-pointer",
+                  "flex flex-col items-center gap-2 rounded-2xl border p-4 text-center text-sm font-medium transition-colors duration-150 cursor-pointer",
                   active
                     ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)] shadow-sm"
                     : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/40 hover:bg-[color:var(--color-primary-light)]/30",

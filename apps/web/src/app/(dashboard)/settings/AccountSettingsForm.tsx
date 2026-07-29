@@ -65,7 +65,7 @@ export function AccountSettingsForm({
   }
 
   return (
-    <div className="flex flex-col gap-5 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+    <div className="flex flex-col gap-5 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
       <h2 className="text-sm font-medium text-[color:var(--color-text-primary)]">
         Business profile
       </h2>

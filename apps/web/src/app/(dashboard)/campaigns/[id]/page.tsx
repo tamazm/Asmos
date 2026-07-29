@@ -150,7 +150,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
             key: "settings",
             label: "Settings",
             content: (
-              <div className="flex flex-col gap-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+              <div className="flex flex-col gap-3 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-[color:var(--color-text-primary)]">

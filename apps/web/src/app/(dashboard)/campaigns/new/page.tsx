@@ -298,7 +298,7 @@ function Step2Design({ state, update }: { state: WizardState; update: (s: Partia
         </div>
 
         {(state.type === "WHEEL" || state.type === "SCRATCH_CARD") && (
-          <div className="flex flex-col gap-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4">
+          <div className="flex flex-col gap-3 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4">
             <p className="text-sm font-medium text-[color:var(--color-text-primary)]">Reward</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -363,7 +363,7 @@ function Step3FormFields({ state, update }: { state: WizardState; update: (s: Pa
             <label
               key={f}
               className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors duration-150",
+                "flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition-colors duration-150",
                 checked ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/40",
               )}
             >
@@ -425,7 +425,7 @@ function Step4Targeting({ state, update }: { state: WizardState; update: (s: Par
               <label
                 key={t.value}
                 className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-xl border p-4 transition-colors duration-150",
+                  "flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition-colors duration-150",
                   active ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/40",
                 )}
               >
@@ -549,7 +549,7 @@ function Step5Review({ state }: { state: WizardState }) {
         <ReviewRow label="CTA" value={state.design.ctaText} />
       </div>
 
-      <div className="flex items-center gap-3 rounded-xl border border-[color:var(--color-success-bg)] bg-[color:var(--color-success-bg)] px-4 py-3">
+      <div className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-success-bg)] bg-[color:var(--color-success-bg)] px-4 py-3">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M3 8l3.5 3.5L13 4.5" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

@@ -12,7 +12,7 @@ export function CalloutCard({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3">
+    <div className="flex flex-col gap-2 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-3">
       <div className="flex items-start gap-2">
         <span className="mt-0.5 shrink-0 text-[color:var(--color-primary)]">{icon}</span>
         <div>

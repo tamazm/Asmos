@@ -66,7 +66,7 @@ export function RecentCampaignsBoard({ rows }: { rows: RecentCampaignRow[] }) {
 
           <div className="w-1/2 shrink-0 pl-3">
             {selected && (
-              <div className="flex flex-col gap-4 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
+              <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
                 <div className="flex items-center gap-3">
                   <button
                     type="button"

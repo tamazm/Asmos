@@ -116,7 +116,7 @@ export function Sidebar() {
 
       {/* Footer hint */}
       <div className="px-4 py-4 border-t border-[color:var(--color-border)]">
-        <div className="rounded-xl bg-[color:var(--color-primary-light)] p-3">
+        <div className="rounded-2xl bg-[color:var(--color-primary-light)] p-3">
           <p className="text-xs font-medium text-[color:var(--color-primary)] mb-1">
             AI is optimizing
           </p>

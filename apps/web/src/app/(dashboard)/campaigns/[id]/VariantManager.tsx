@@ -177,7 +177,7 @@ export function VariantManager({
       )}
 
       {banditActive && (
-        <div className="flex items-start gap-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 py-3">
+        <div className="flex items-start gap-3 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 py-3">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="mt-0.5 shrink-0 text-[color:var(--color-primary)]">
             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
             <path d="M12 8v4m0 4h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -198,7 +198,7 @@ export function VariantManager({
           return (
             <div
               key={variant.id}
-              className="flex min-w-0 flex-1 flex-col gap-4 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5"
+              className="flex min-w-0 flex-1 flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5"
             >
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3">

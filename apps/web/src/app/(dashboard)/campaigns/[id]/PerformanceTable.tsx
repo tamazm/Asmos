@@ -28,6 +28,7 @@ export function PerformanceTable() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search variants..."
+            aria-label="Search variants"
             className="w-56 rounded-lg border border-[color:var(--color-border)] px-3 py-1.5 text-sm outline-none focus:border-[color:var(--color-primary)]"
           />
           <button
@@ -41,7 +42,7 @@ export function PerformanceTable() {
             aria-label="Export"
             className="rounded-lg border border-[color:var(--color-border)] px-3 py-1.5 text-sm text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)]"
           >
-            ⭳
+            Export
           </button>
         </div>
       </div>
