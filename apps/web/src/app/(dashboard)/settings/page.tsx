@@ -6,6 +6,7 @@ import { AccountSettingsForm } from "./AccountSettingsForm";
 import { WebsiteManagement } from "./WebsiteManagement";
 import { TeamManagement } from "./TeamManagement";
 import { SettingsTabs } from "./SettingsTabs";
+import { AutonomySettings } from "./AutonomySettings";
 
 export default async function SettingsPage() {
   const account = await getOrCreateAccount();
@@ -136,6 +137,7 @@ export default async function SettingsPage() {
           { key: "account", label: "Account", content: accountTab },
           { key: "team", label: "Team", content: teamTab },
           { key: "billing", label: "Billing", content: billingTab },
+          { key: "autonomy", label: "Autonomy", content: <AutonomySettings /> },
           { key: "notifications", label: "Notifications", content: notificationsTab },
         ]}
       />
