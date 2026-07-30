@@ -54,6 +54,7 @@ enum CampaignEventType {
   INTERACTION
   SUBMISSION
   GIFT_CLAIMED
+  DISMISSED
 }
 
 // A customer business — the tenant boundary for every other model.
@@ -70,6 +71,10 @@ model Account {
   consentBannerText  String? @db.Text
 
   onboardingCompletedAt DateTime?
+
+  webhookUrl     String?  // outbound webhook endpoint
+  webhookSecret  String?  // HMAC-SHA256 signing secret (customer sets this, we sign with it)
+  webhookEnabled Boolean  @default(false)
 
   planTier           PlanTier           @default(FREE)
   subscriptionStatus SubscriptionStatus @default(TRIALING)
