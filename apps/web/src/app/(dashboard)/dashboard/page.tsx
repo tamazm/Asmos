@@ -80,9 +80,8 @@ export default async function DashboardHomePage() {
         ))}
       </div>
 
-      <RecentCampaignsBoard rows={rows} />
-
-      {campaigns.length === 0 && (
+      {campaigns.length === 0 ? (
+        /* ── Designed empty state ── */
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] py-20 text-center">
           {/* Double-Bezel icon */}
           <div className="mb-5 rounded-[1.125rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5">
@@ -106,6 +105,8 @@ export default async function DashboardHomePage() {
             Create campaign
           </Link>
         </div>
+      ) : (
+        <RecentCampaignsBoard rows={rows} />
       )}
     </div>
   );

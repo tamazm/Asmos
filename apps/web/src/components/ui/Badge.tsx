@@ -1,10 +1,12 @@
 import { cn } from "@/lib/cn";
 
-type BadgeVariant = "success" | "neutral";
+type BadgeVariant = "success" | "neutral" | "warning" | "error";
 
 const variantClasses: Record<BadgeVariant, string> = {
   success: "bg-[color:var(--color-success-bg)] text-[color:var(--color-success)]",
   neutral: "bg-[color:var(--color-neutral-badge)] text-[color:var(--color-text-secondary)]",
+  warning: "bg-amber-50 text-amber-700",
+  error: "bg-red-50 text-red-600",
 };
 
 export function Badge({
@@ -24,7 +26,7 @@ export function Badge({
         className,
       )}
     >
-      {variant === "success" && (
+      {(variant === "success" || variant === "warning" || variant === "error") && (
         <span className="h-1.5 w-1.5 rounded-full bg-current" />
       )}
       {children}
