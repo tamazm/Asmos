@@ -55,42 +55,42 @@ const CHECK_META: CheckMeta[] = [
   {
     key: "popup",
     label: "Popup campaign",
-    missingHeadline: "No popup — you're gifting revenue to your competitors",
+    missingHeadline: "No popup: you are gifting revenue to your competitors",
     missingBody: "Every visitor who leaves without subscribing is gone. Stores with a high-converting popup capture 4–8% of cold traffic. Without one, that email list stays empty.",
     foundLabel: "Running a popup",
   },
   {
     key: "emailCapture",
     label: "Email capture offer",
-    missingHeadline: "No offer to capture emails — cold traffic disappears",
+    missingHeadline: "No offer to capture emails: cold traffic disappears",
     missingBody: "A discount or lead magnet is the difference between a one-time visitor and a customer you can reach 10 times. Without it you're paying for traffic you can only use once.",
     foundLabel: "Email capture active",
   },
   {
     key: "socialProof",
     label: "Social proof",
-    missingHeadline: "No reviews visible — visitors don't trust you yet",
+    missingHeadline: "No reviews visible: visitors have no reason to trust you yet",
     missingBody: "93% of shoppers read reviews before buying. If a visitor can't see that other people love your product, they'll find a store where they can.",
     foundLabel: "Reviews present",
   },
   {
     key: "urgency",
     label: "Urgency signals",
-    missingHeadline: "No urgency — shoppers will 'come back later' and never do",
+    missingHeadline: "No urgency: shoppers say they will come back later and never do",
     missingBody: "Without a reason to buy now, people bookmark and forget. A countdown, low-stock badge, or time-limited offer can double your conversion rate on the same traffic.",
     foundLabel: "Urgency messaging detected",
   },
   {
     key: "exitIntent",
     label: "Exit-intent recovery",
-    missingHeadline: "No exit recovery — 70% of your visitors walk out the door",
+    missingHeadline: "No exit recovery: 70% of your visitors walk out the door",
     missingBody: "The moment someone moves to close the tab is your last chance. An exit-intent popup with the right offer recovers 5–15% of abandoning visitors. Right now that revenue is gone.",
     foundLabel: "Exit-intent active",
   },
   {
     key: "stickyBar",
     label: "Announcement bar",
-    missingHeadline: "No sticky bar — your best offer is invisible on scroll",
+    missingHeadline: "No sticky bar: your best offer disappears when visitors scroll",
     missingBody: "A persistent top bar keeps your shipping offer or discount in front of visitors the entire time they're on your site. Without it, your offer disappears the moment they scroll.",
     foundLabel: "Announcement bar visible",
   },
@@ -507,7 +507,7 @@ export default function AnalyzeResultsPage() {
           <div className="fade-up-3 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-5">
             <p className="text-sm font-bold text-blue-900 mb-1">No popup detected on {result.storeName}</p>
             <p className="text-xs text-blue-700 mb-4 leading-relaxed">
-              Asmos builds high-converting popups for you in minutes — no design skills, no developers. Try a different URL or build your first popup free.
+              Asmos builds high-converting popups for you in minutes. No design skills needed. Try a different URL or build your first popup free.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
@@ -540,7 +540,7 @@ export default function AnalyzeResultsPage() {
               </div>
               <p className="text-base font-bold text-gray-900">Check your inbox</p>
               <p className="mt-1.5 text-sm text-gray-500 leading-relaxed max-w-xs mx-auto">
-                Your CRO report is on its way. In the meantime, fix {failedCount > 0 ? `your ${failedCount} missing tool${failedCount > 1 ? "s" : ""}` : "your store"} right now — it takes minutes.
+                Your CRO report is on its way. In the meantime, fix {failedCount > 0 ? `your ${failedCount} missing tool${failedCount > 1 ? "s" : ""}` : "your store"} right now. It takes minutes.
               </p>
               <button
                 onClick={() => router.push("/sign-up")}
@@ -560,7 +560,7 @@ export default function AnalyzeResultsPage() {
               </p>
               <p className="mt-1.5 text-sm text-gray-500 leading-relaxed">
                 {failedCount > 0
-                  ? "Enter your email — we'll send you a step-by-step fix for every gap above. Asmos builds the tools for you, no code needed."
+                  ? "Enter your email and we will send you a step-by-step fix for every gap above. Asmos builds the tools for you, no code needed."
                   : "Enter your email to see where you can push your score to 100."}
               </p>
               <form onSubmit={handleEmailSubmit} className="mt-4 flex flex-col gap-3">
