@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -23,16 +23,13 @@ interface AnalyzeResult {
   topIssue: string;
   verdict: string;
   screenshotBase64?: string | null;
-  analysisSource?: "anthropic" | "gemini" | "heuristic";
-  // AI shape
+  analysisSource?: "bedrock" | "anthropic" | "gemini" | "heuristic";
   popup?: CheckItem;
   emailCapture?: CheckItem;
   socialProof?: CheckItem;
   urgency?: CheckItem;
   exitIntent?: CheckItem;
   stickyBar?: CheckItem;
-  liveChat?: CheckItem;
-  // legacy heuristic shape
   checks?: {
     hasPopup: boolean;
     hasExitIntent: boolean;
@@ -43,77 +40,103 @@ interface AnalyzeResult {
   };
 }
 
-const INDUSTRIES = [
-  "Ecommerce / Retail",
-  "SaaS / Software",
-  "Health & Wellness",
-  "Education",
-  "Food & Beverage",
-  "Other",
-];
-
+// What Asmos can actually fix — no live chat, no A/B test infra
 interface CheckMeta {
+  key: keyof AnalyzeResult | string;
   label: string;
-  description: string;
-  key: keyof AnalyzeResult;
-  emptyLabel: string;
+  // shown when missing — written to make user feel the pain and only Asmos can fix it
+  missingHeadline: string;
+  missingBody: string;
+  // shown when present
+  foundLabel: string;
 }
 
 const CHECK_META: CheckMeta[] = [
-  { key: "popup",        label: "Popup / opt-in",          description: "Captures visitors with an offer before they leave",        emptyLabel: "No popup detected — you're losing email subscribers" },
-  { key: "emailCapture", label: "Email capture offer",      description: "Discount or lead magnet to collect emails",               emptyLabel: "No email capture — visitors leave with no way to re-engage" },
-  { key: "socialProof",  label: "Social proof & reviews",   description: "Reviews, ratings, or trust signals that build confidence", emptyLabel: "No social proof — cold traffic won't convert without trust" },
-  { key: "urgency",      label: "Urgency / scarcity",       description: "Limited time or low stock messaging",                     emptyLabel: "No urgency — shoppers have no reason to buy now vs later" },
-  { key: "exitIntent",   label: "Exit-intent recovery",     description: "Catches visitors about to bounce with a last offer",      emptyLabel: "No exit intent — you're losing 70%+ of abandoning visitors" },
-  { key: "stickyBar",    label: "Sticky announcement bar",  description: "Persistent top bar promoting offers or shipping",         emptyLabel: "No sticky bar — your offer isn't always visible" },
-  { key: "liveChat",     label: "Live chat / support",      description: "Real-time support that removes buying friction",          emptyLabel: "No live chat — questions go unanswered = lost sales" },
+  {
+    key: "popup",
+    label: "Popup campaign",
+    missingHeadline: "No popup — you're gifting revenue to your competitors",
+    missingBody: "Every visitor who leaves without subscribing is gone. Stores with a high-converting popup capture 4–8% of cold traffic. Without one, that email list stays empty.",
+    foundLabel: "Running a popup",
+  },
+  {
+    key: "emailCapture",
+    label: "Email capture offer",
+    missingHeadline: "No offer to capture emails — cold traffic disappears",
+    missingBody: "A discount or lead magnet is the difference between a one-time visitor and a customer you can reach 10 times. Without it you're paying for traffic you can only use once.",
+    foundLabel: "Email capture active",
+  },
+  {
+    key: "socialProof",
+    label: "Social proof",
+    missingHeadline: "No reviews visible — visitors don't trust you yet",
+    missingBody: "93% of shoppers read reviews before buying. If a visitor can't see that other people love your product, they'll find a store where they can.",
+    foundLabel: "Reviews present",
+  },
+  {
+    key: "urgency",
+    label: "Urgency signals",
+    missingHeadline: "No urgency — shoppers will 'come back later' and never do",
+    missingBody: "Without a reason to buy now, people bookmark and forget. A countdown, low-stock badge, or time-limited offer can double your conversion rate on the same traffic.",
+    foundLabel: "Urgency messaging detected",
+  },
+  {
+    key: "exitIntent",
+    label: "Exit-intent recovery",
+    missingHeadline: "No exit recovery — 70% of your visitors walk out the door",
+    missingBody: "The moment someone moves to close the tab is your last chance. An exit-intent popup with the right offer recovers 5–15% of abandoning visitors. Right now that revenue is gone.",
+    foundLabel: "Exit-intent active",
+  },
+  {
+    key: "stickyBar",
+    label: "Announcement bar",
+    missingHeadline: "No sticky bar — your best offer is invisible on scroll",
+    missingBody: "A persistent top bar keeps your shipping offer or discount in front of visitors the entire time they're on your site. Without it, your offer disappears the moment they scroll.",
+    foundLabel: "Announcement bar visible",
+  },
 ];
 
-function gradeColor(grade: string) {
-  if (grade.startsWith("A")) return "text-emerald-600";
-  if (grade.startsWith("B")) return "text-blue-600";
-  if (grade.startsWith("C")) return "text-amber-500";
-  return "text-red-500";
+function getCheck(result: AnalyzeResult, key: string): { found: boolean; description: string } {
+  const val = (result as unknown as Record<string, unknown>)[key];
+  if (val && typeof val === "object" && "found" in (val as object)) {
+    return val as CheckItem;
+  }
+  // Legacy heuristic shape
+  const legacyMap: Record<string, string> = {
+    popup: "hasPopup",
+    emailCapture: "hasEmailCapture",
+    socialProof: "hasSocialProof",
+    urgency: "hasUrgency",
+    exitIntent: "hasExitIntent",
+    stickyBar: "hasStickyBar",
+  };
+  if (result.checks && legacyMap[key]) {
+    const found = (result.checks as Record<string, boolean>)[legacyMap[key]] ?? false;
+    return { found, description: found ? "Detected" : "None detected" };
+  }
+  return { found: false, description: "None detected" };
 }
 
-function gradeBg(grade: string) {
+function gradeTextColor(grade: string) {
+  if (grade.startsWith("A")) return "#059669"; // emerald
+  if (grade.startsWith("B")) return "#2563eb"; // blue
+  if (grade.startsWith("C")) return "#d97706"; // amber
+  return "#dc2626"; // red
+}
+
+function gradeBgClass(grade: string) {
   if (grade.startsWith("A")) return "bg-emerald-50 border-emerald-200";
   if (grade.startsWith("B")) return "bg-blue-50 border-blue-200";
   if (grade.startsWith("C")) return "bg-amber-50 border-amber-200";
   return "bg-red-50 border-red-200";
 }
 
-function getCheckValue(result: AnalyzeResult, key: keyof AnalyzeResult): { found: boolean; description: string } {
-  const val = result[key];
-  if (val && typeof val === "object" && "found" in (val as object)) {
-    return val as CheckItem;
-  }
-  // Legacy heuristic shape
-  const legacyMap: Record<string, keyof NonNullable<AnalyzeResult["checks"]>> = {
-    popup: "hasPopup",
-    emailCapture: "hasEmailCapture",
-    socialProof: "hasSocialProof",
-    urgency: "hasUrgency",
-    exitIntent: "hasExitIntent",
-  };
-  if (result.checks && legacyMap[key as string]) {
-    const found = result.checks[legacyMap[key as string]] ?? false;
-    return { found, description: found ? "Detected" : "None detected" };
-  }
-  return { found: false, description: "None detected" };
-}
-
 export default function AnalyzeResultsPage() {
   const router = useRouter();
   const [result, setResult] = useState<AnalyzeResult | null>(null);
-  const [storeName, setStoreName] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [brandColor, setBrandColor] = useState("#165DFF");
-
   const [email, setEmail] = useState("");
-  const [emailSubmitted, setEmailSubmitted] = useState(false);
+  const [emailState, setEmailState] = useState<"idle" | "submitting" | "sent">("idle");
   const [emailError, setEmailError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("asmos_analyze_result");
@@ -121,204 +144,273 @@ export default function AnalyzeResultsPage() {
     try {
       const data: AnalyzeResult = JSON.parse(raw);
       setResult(data);
-      setStoreName(data.storeName ?? "");
-      setIndustry(data.industry ?? INDUSTRIES[0]);
-      setBrandColor(data.brandColor ?? "#165DFF");
-      if (sessionStorage.getItem("asmos_email_captured")) setEmailSubmitted(true);
+      if (sessionStorage.getItem("asmos_email_captured")) setEmailState("sent");
     } catch { router.replace("/"); }
   }, [router]);
 
-  function validateEmail(val: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
-  }
-
-  async function handleEmailSubmit(e: React.FormEvent) {
+  const handleEmailSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateEmail(email)) { setEmailError("Enter a valid email address."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setEmailError("Enter a valid email address.");
+      return;
+    }
     setEmailError("");
-    setSubmitting(true);
-    sessionStorage.setItem("asmos_email_captured", email);
-    await new Promise((r) => setTimeout(r, 600));
-    setEmailSubmitted(true);
-    setSubmitting(false);
-  }
+    setEmailState("submitting");
 
-  function handleConfirm() {
-    if (!result) return;
-    const updated = { ...result, storeName, industry, brandColor };
-    sessionStorage.setItem("asmos_analyze_result", JSON.stringify(updated));
-    router.push("/sign-up");
-  }
+    // Save email to DB
+    if (result) {
+      fetch("/api/analyze/lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.toLowerCase().trim(),
+          storeUrl: result.storeUrl,
+          storeName: result.storeName,
+          industry: result.industry,
+          score: result.score,
+          grade: result.grade,
+        }),
+      }).catch(() => {}); // fire and forget — don't block UX
+    }
+
+    sessionStorage.setItem("asmos_email_captured", email.toLowerCase().trim());
+    await new Promise(r => setTimeout(r, 700));
+    setEmailState("sent");
+  }, [email, result]);
 
   if (!result) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center bg-[color:var(--color-surface)]">
-        <div className="h-8 w-8 rounded-full border-2 border-[color:var(--color-primary-light)] border-t-[color:var(--color-primary)]" style={{ animation: "spin 0.9s linear infinite" }} aria-label="Loading" />
-        <style jsx global>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <div className="flex min-h-[100dvh] items-center justify-center bg-white">
+        <div className="h-7 w-7 rounded-full border-2 border-blue-100 border-t-blue-600" style={{ animation: "spin 0.8s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
-  const checks = CHECK_META.map((m) => ({ ...m, ...getCheckValue(result, m.key) }));
-  const passedCount = checks.filter((c) => c.found).length;
+  const checks = CHECK_META.map(m => ({ ...m, ...getCheck(result, m.key) }));
+  const passedCount = checks.filter(c => c.found).length;
   const failedCount = checks.length - passedCount;
-  const isAI = result.analysisSource === "anthropic" || result.analysisSource === "gemini";
+  const isAI = result.analysisSource && result.analysisSource !== "heuristic";
+  const gradeColor = gradeTextColor(result.grade);
+  const noPopup = !getCheck(result, "popup").found;
 
   return (
-    <div className="flex min-h-[100dvh] flex-col bg-[color:var(--color-surface)]">
+    <div className="min-h-[100dvh] bg-white">
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fade-up {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .fade-up { animation: fade-up 0.4s ease-out both; }
+        .fade-up-1 { animation: fade-up 0.4s 0.05s ease-out both; }
+        .fade-up-2 { animation: fade-up 0.4s 0.1s ease-out both; }
+        .fade-up-3 { animation: fade-up 0.4s 0.15s ease-out both; }
+        .fade-up-4 { animation: fade-up 0.4s 0.2s ease-out both; }
+      `}</style>
+
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-[color:var(--color-border)] px-6 py-4">
-        <Image src="/assets/asmos-logo-primary-lightbg.webp" alt="Asmos" width={110} height={28} priority className="h-7 w-auto" />
-        <Link href="/sign-in" className="text-sm text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] transition-colors duration-150">
-          Already have an account?
-        </Link>
+      <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-xl items-center justify-between px-5 py-3.5">
+          <Image src="/assets/asmos-logo-primary-lightbg.webp" alt="Asmos" width={88} height={22} priority className="h-5.5 w-auto" />
+          <Link href="/sign-in" className="text-xs font-medium text-gray-400 hover:text-gray-700 transition-colors">
+            Sign in
+          </Link>
+        </div>
       </header>
 
-      <main className="flex flex-1 flex-col items-center px-6 py-12">
-        <div className="w-full max-w-lg animate-page-enter space-y-5">
+      <main className="mx-auto max-w-xl px-5 pb-24 pt-8 space-y-5">
 
-          {/* ── Screenshot preview ── */}
-          {result.screenshotBase64 && (
-            <div className="overflow-hidden rounded-2xl border border-[color:var(--color-border)] shadow-sm">
-              {/* Browser chrome bar */}
-              <div className="flex items-center gap-1.5 border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 py-2.5">
-                <span className="h-3 w-3 rounded-full bg-red-400" />
-                <span className="h-3 w-3 rounded-full bg-amber-400" />
-                <span className="h-3 w-3 rounded-full bg-emerald-400" />
-                <span className="ml-3 flex-1 rounded bg-[color:var(--color-border)] px-3 py-1 text-xs text-[color:var(--color-text-secondary)] truncate">
-                  {result.storeUrl}
+        {/* ── Screenshot card ── */}
+        {result.screenshotBase64 && (
+          <div className="fade-up overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex items-center gap-1.5 border-b border-gray-100 bg-gray-50 px-3.5 py-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-red-300" />
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
+              <span className="ml-2 flex-1 truncate rounded bg-gray-200/70 px-2.5 py-0.5 text-[11px] text-gray-400">
+                {result.storeUrl}
+              </span>
+            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={`data:image/jpeg;base64,${result.screenshotBase64}`}
+              alt="Store screenshot"
+              className="w-full object-cover object-top"
+              style={{ maxHeight: 260 }}
+            />
+            {isAI && (
+              <div className="flex items-center gap-1.5 border-t border-gray-100 bg-gray-50 px-3.5 py-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                <span className="text-[11px] text-gray-400">
+                  Analyzed by AI vision · {result.analysisSource === "bedrock" ? "Claude Haiku" : result.analysisSource === "anthropic" ? "Claude Haiku" : "Gemini Flash"}
                 </span>
               </div>
-              {/* Screenshot */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={`data:image/jpeg;base64,${result.screenshotBase64}`}
-                alt="Website screenshot"
-                className="w-full object-cover"
-                style={{ maxHeight: 280 }}
-              />
-              {isAI && (
-                <div className="flex items-center gap-1.5 border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 py-2">
-                  <span className="inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-                  <span className="text-xs text-[color:var(--color-text-secondary)]">
-                    AI-powered visual analysis via {result.analysisSource === "anthropic" ? "Claude Haiku" : "Gemini Flash"}
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
+            )}
+          </div>
+        )}
 
-          {/* ── Score card ── */}
-          <div className={`rounded-2xl border p-6 shadow-sm ${gradeBg(result.grade)}`}>
-            <div className="flex items-center gap-5">
-              <div className={`text-6xl font-black leading-none tabular-nums ${gradeColor(result.grade)}`}>
+        {/* ── Score hero ── */}
+        <div className={`fade-up-1 rounded-2xl border p-5 ${gradeBgClass(result.grade)}`}>
+          <div className="flex items-start gap-4">
+            {/* Grade */}
+            <div className="flex-shrink-0 w-20 text-center">
+              <div
+                className="text-[56px] font-black leading-none tabular-nums"
+                style={{ color: gradeColor }}
+              >
                 {result.grade}
               </div>
-              <div className="flex-1">
-                <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--color-text-secondary)]">
-                  Conversion score for
-                </p>
-                <p className="text-lg font-bold text-[color:var(--color-text-primary)] leading-tight">
-                  {result.storeName}
-                </p>
-                <p className={`text-sm font-medium mt-0.5 ${gradeColor(result.grade)}`}>
-                  {result.gradeLabel ?? ""}
-                  {" · "}
-                  <span className="tabular-nums">{result.score ?? 0}/100</span>
-                </p>
+              <div className="mt-1 text-xs font-semibold" style={{ color: gradeColor }}>
+                {result.score}/100
               </div>
             </div>
-
-            {/* Verdict */}
-            {result.verdict && (
-              <p className="mt-4 rounded-lg bg-white/60 px-4 py-3 text-sm font-medium text-[color:var(--color-text-primary)] italic">
-                &ldquo;{result.verdict}&rdquo;
+            {/* Store info */}
+            <div className="flex-1 min-w-0 pt-1">
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-0.5">
+                CRO score for
               </p>
-            )}
-
-            {/* Top issue callout */}
-            {result.topIssue && failedCount > 0 && (
-              <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                <span className="mt-0.5 text-base leading-none">⚠️</span>
-                <p className="text-sm text-amber-800">{result.topIssue}</p>
-              </div>
-            )}
-
-            {/* Check breakdown */}
-            <div className="mt-5 space-y-3">
-              {checks.map((c) => (
-                <div key={String(c.key)} className="flex items-start gap-3 text-sm">
-                  <span className={`mt-0.5 text-base leading-none flex-shrink-0 ${c.found ? "text-emerald-500" : "text-red-400"}`}>
-                    {c.found ? "✓" : "✗"}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`font-medium ${c.found ? "text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]"}`}>
-                        {c.label}
-                      </span>
-                      {c.found && c.description && c.description !== "Detected" && c.description !== "None detected" && (
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700 font-medium truncate max-w-[200px]">
-                          {c.description}
-                        </span>
-                      )}
-                    </div>
-                    {!c.found && (
-                      <p className="mt-0.5 text-xs text-red-500 font-medium">{c.emptyLabel}</p>
-                    )}
-                  </div>
-                </div>
-              ))}
+              <p className="text-lg font-bold text-gray-900 leading-tight truncate">
+                {result.storeName}
+              </p>
+              <p className="text-sm text-gray-500 mt-0.5">{result.gradeLabel}</p>
             </div>
-
-            {/* Summary */}
-            <p className="mt-5 text-sm font-medium text-[color:var(--color-text-secondary)]">
-              <span className="font-bold text-[color:var(--color-text-primary)]">{passedCount} of {checks.length}</span>{" "}
-              conversion tools detected.{" "}
-              {failedCount > 0 && (
-                <span className="text-red-500 font-semibold">{failedCount} gap{failedCount !== 1 ? "s" : ""} = lost revenue.</span>
-              )}
-            </p>
           </div>
 
-          {/* ── No popup CTA ── */}
-          {!getCheckValue(result, "popup").found && (
-            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
+          {/* Verdict */}
+          {result.verdict && !result.verdict.includes("HTML signals") && (
+            <p className="mt-4 text-sm font-medium text-gray-700 leading-relaxed border-t border-black/5 pt-4">
+              {result.verdict}
+            </p>
+          )}
+
+          {/* Pass/fail bar */}
+          <div className="mt-4 flex items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/5">
+              <div
+                className="h-full rounded-full transition-all duration-700"
+                style={{
+                  width: `${(passedCount / checks.length) * 100}%`,
+                  backgroundColor: gradeColor,
+                }}
+              />
+            </div>
+            <span className="text-xs font-semibold text-gray-500 tabular-nums flex-shrink-0">
+              {passedCount}/{checks.length} tools
+            </span>
+          </div>
+        </div>
+
+        {/* ── Checks ── */}
+        <div className="fade-up-2 space-y-2.5">
+          {checks.map((c) => (
+            <div
+              key={c.key}
+              className={`rounded-xl border px-4 py-3.5 ${
+                c.found
+                  ? "border-emerald-100 bg-emerald-50/50"
+                  : "border-gray-100 bg-white"
+              }`}
+            >
               <div className="flex items-start gap-3">
-                <span className="text-2xl">🚫</span>
-                <div>
-                  <p className="font-semibold text-[color:var(--color-text-primary)]">No popup detected</p>
-                  <p className="mt-0.5 text-sm text-[color:var(--color-text-secondary)]">
-                    Stores with a popup capture 3–8% of visitors as email subscribers. Without one, that traffic is gone forever.
-                  </p>
-                  <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                    <a
-                      href={result.storeUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] transition-colors duration-150 text-center"
-                    >
-                      Try a different URL
-                    </a>
-                    <button
-                      onClick={() => router.push("/sign-up")}
-                      className="rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150"
-                    >
-                      Build one free with Asmos →
-                    </button>
+                {/* Status icon */}
+                <div className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${c.found ? "bg-emerald-100" : "bg-red-50"}`}>
+                  {c.found ? (
+                    <svg className="h-3 w-3 text-emerald-600" fill="none" viewBox="0 0 12 12">
+                      <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M2 6l2.5 2.5L10 3.5" />
+                    </svg>
+                  ) : (
+                    <svg className="h-3 w-3 text-red-400" fill="none" viewBox="0 0 12 12">
+                      <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" d="M3 3l6 6M9 3l-6 6" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`text-sm font-semibold ${c.found ? "text-gray-700" : "text-gray-900"}`}>
+                      {c.label}
+                    </span>
+                    {c.found && c.description && c.description !== "Detected" && c.description !== "None detected" && c.description !== "Detected via script signals" && (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 truncate max-w-[180px]">
+                        {c.description}
+                      </span>
+                    )}
+                    {c.found && (
+                      <span className="text-xs text-emerald-600 font-medium">{c.foundLabel}</span>
+                    )}
                   </div>
+                  {!c.found && (
+                    <div className="mt-1.5">
+                      <p className="text-sm font-semibold text-red-600 leading-snug">{c.missingHeadline}</p>
+                      <p className="mt-1 text-xs text-gray-500 leading-relaxed">{c.missingBody}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
-          )}
+          ))}
+        </div>
 
-          {/* ── Email gate ── */}
-          {!emailSubmitted ? (
-            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-sm">
-              <h2 className="text-lg font-bold text-[color:var(--color-text-primary)]">
-                See exactly what to fix, free
-              </h2>
-              <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
-                Enter your email and we&apos;ll show you a step-by-step plan to bring your score to an A+. No credit card. No catch.
+        {/* ── No popup CTA block ── */}
+        {noPopup && emailState !== "sent" && (
+          <div className="fade-up-3 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-5">
+            <p className="text-sm font-bold text-blue-900 mb-1">No popup detected on {result.storeName}</p>
+            <p className="text-xs text-blue-700 mb-4 leading-relaxed">
+              Asmos builds high-converting popups for you in minutes — no design skills, no developers. Try a different URL or build your first popup free.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                onClick={() => router.push("/")}
+                className="flex-1 rounded-lg border border-blue-200 bg-white px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-50 transition-colors text-center"
+              >
+                Try a different URL
+              </button>
+              <button
+                onClick={() => router.push("/sign-up")}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors text-center"
+              >
+                Build one free with Asmos
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Email gate / sent state ── */}
+        <div className="fade-up-4">
+          {emailState === "sent" ? (
+            /* ── Post-email: sent confirmation + sign-up CTA ── */
+            <div className="rounded-2xl border border-gray-100 bg-white px-5 py-6 shadow-sm text-center">
+              <div className="mb-3 flex justify-center">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50">
+                  <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 20 20">
+                    <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M4 10l4 4 8-8" />
+                  </svg>
+                </div>
+              </div>
+              <p className="text-base font-bold text-gray-900">Check your inbox</p>
+              <p className="mt-1.5 text-sm text-gray-500 leading-relaxed max-w-xs mx-auto">
+                Your CRO report is on its way. In the meantime, fix {failedCount > 0 ? `your ${failedCount} missing tool${failedCount > 1 ? "s" : ""}` : "your store"} right now — it takes minutes.
+              </p>
+              <button
+                onClick={() => router.push("/sign-up")}
+                className="mt-5 w-full rounded-xl bg-[color:var(--color-primary)] px-6 py-3.5 text-sm font-bold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors active:scale-[0.98]"
+              >
+                Create account to fix it
+              </button>
+              <p className="mt-2 text-[11px] text-gray-400">Free to start. No credit card.</p>
+            </div>
+          ) : (
+            /* ── Email capture form ── */
+            <div className="rounded-2xl border border-gray-100 bg-white px-5 py-6 shadow-sm">
+              <p className="text-base font-bold text-gray-900">
+                {failedCount > 0
+                  ? `You're losing revenue from ${failedCount} gap${failedCount > 1 ? "s" : ""}. Fix them free.`
+                  : "Your store is strong. Make it unbeatable."}
+              </p>
+              <p className="mt-1.5 text-sm text-gray-500 leading-relaxed">
+                {failedCount > 0
+                  ? "Enter your email — we'll send you a step-by-step fix for every gap above. Asmos builds the tools for you, no code needed."
+                  : "Enter your email to see where you can push your score to 100."}
               </p>
               <form onSubmit={handleEmailSubmit} className="mt-4 flex flex-col gap-3">
                 <input
@@ -327,62 +419,23 @@ export default function AnalyzeResultsPage() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="you@yourstore.com"
                   autoFocus
-                  className="w-full rounded-lg border border-[color:var(--color-border)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
+                  disabled={emailState === "submitting"}
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors disabled:opacity-50"
                 />
                 {emailError && <p className="text-xs text-red-500">{emailError}</p>}
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="w-full rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98] disabled:opacity-60"
+                  disabled={emailState === "submitting"}
+                  className="w-full rounded-xl bg-[color:var(--color-primary)] px-6 py-3.5 text-sm font-bold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors active:scale-[0.98] disabled:opacity-60"
                 >
-                  {submitting ? "One moment..." : "Show me how to fix it, free"}
+                  {emailState === "submitting" ? "One moment..." : "Show me how to fix it, free"}
                 </button>
-                <p className="text-center text-xs text-[color:var(--color-text-secondary)]">No spam. Unsubscribe any time.</p>
+                <p className="text-center text-[11px] text-gray-400">No spam. Unsubscribe any time.</p>
               </form>
             </div>
-          ) : (
-            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-sm">
-              <h2 className="text-base font-bold text-[color:var(--color-text-primary)] mb-4">Confirm your store details</h2>
-              <div className="mb-5 flex items-center gap-4">
-                <div className="h-12 w-12 rounded-md flex-shrink-0 shadow-sm border border-black/5" style={{ backgroundColor: brandColor }} />
-                <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Detected brand</p>
-                  <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">{result.storeName}</p>
-                </div>
-              </div>
-              <div className="flex flex-col gap-4">
-                <div>
-                  <label htmlFor="store-name" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">Store name</label>
-                  <input id="store-name" type="text" value={storeName} onChange={(e) => setStoreName(e.target.value)}
-                    className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150" />
-                </div>
-                <div>
-                  <label htmlFor="industry" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">Industry</label>
-                  <select id="industry" value={industry} onChange={(e) => setIndustry(e.target.value)}
-                    className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 bg-[color:var(--color-surface)]">
-                    {INDUSTRIES.map((opt) => <option key={opt} value={opt}>{opt}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="brand-color" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">Brand color</label>
-                  <div className="flex items-center gap-3">
-                    <input id="brand-color" type="color" value={brandColor} onChange={(e) => setBrandColor(e.target.value)}
-                      className="h-10 w-10 cursor-pointer rounded-lg border border-[color:var(--color-border)] p-0.5" />
-                    <div className="flex-1 rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm text-[color:var(--color-text-secondary)] bg-[color:var(--color-surface-sunken)]">
-                      {brandColor}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <button onClick={handleConfirm}
-                className="mt-6 w-full rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98]">
-                Start fixing my score, free
-              </button>
-              <p className="mt-2 text-center text-xs text-[color:var(--color-text-secondary)]">Free to start. No credit card required.</p>
-            </div>
           )}
-
         </div>
+
       </main>
     </div>
   );

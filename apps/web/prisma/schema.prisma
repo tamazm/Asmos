@@ -273,3 +273,18 @@ model Notification {
 
   @@index([accountId, createdAt])
 }
+
+// Pre-signup leads captured from the /analyze CRO scanner
+model AnalyzeLead {
+  id        String   @id @default(cuid())
+  email     String
+  storeUrl  String
+  storeName String?
+  industry  String?
+  score     Int?
+  grade     String?
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([createdAt])
+}

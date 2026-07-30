@@ -6,11 +6,11 @@ import Image from "next/image";
 import { analyzeCompleted } from "@/lib/analytics";
 
 const STEPS = [
-  "Fetching pages...",
-  "Detecting brand colors...",
-  "Identifying industry...",
-  "Reading your content...",
-  "Almost done...",
+  { label: "Rendering your store", sub: "Loading JavaScript and dynamic content" },
+  { label: "Capturing screenshot", sub: "Full viewport at 1280px" },
+  { label: "Detecting conversion tools", sub: "Popups, email capture, social proof" },
+  { label: "Scoring your funnel", sub: "Comparing against top-performing stores" },
+  { label: "Preparing your report", sub: "Almost there" },
 ];
 
 export function AnalyzeClient() {
@@ -23,28 +23,26 @@ export function AnalyzeClient() {
   const [error, setError] = useState<string | null>(null);
   const started = useRef(false);
 
+  // derive hostname for display
+  let displayHost = url;
+  try { displayHost = new URL(url).hostname.replace(/^www\./, ""); } catch {}
+
   useEffect(() => {
     if (started.current) return;
     started.current = true;
 
-    if (!url) {
-      router.replace("/");
-      return;
-    }
+    if (!url) { router.replace("/"); return; }
 
-    // Animate through steps
     const stepInterval = setInterval(() => {
       setStepIndex((i) => Math.min(i + 1, STEPS.length - 1));
-    }, 900);
+    }, 1800);
 
-    // Smooth progress bar
     let prog = 0;
     const progressInterval = setInterval(() => {
-      prog = Math.min(prog + Math.random() * 4, 88);
+      prog = Math.min(prog + Math.random() * 2.5, 88);
       setProgress(prog);
     }, 100);
 
-    // Actual fetch
     fetch(`/api/analyze?url=${encodeURIComponent(url)}`)
       .then((res) => {
         if (!res.ok) throw new Error("Analysis failed");
@@ -67,7 +65,7 @@ export function AnalyzeClient() {
           industry: data.industry,
         });
 
-        setTimeout(() => router.push("/analyze/results"), 600);
+        setTimeout(() => router.push("/analyze/results"), 400);
       })
       .catch((err) => {
         clearInterval(stepInterval);
@@ -82,101 +80,124 @@ export function AnalyzeClient() {
   }, [url, router]);
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface)] px-6">
-      <div className="w-full max-w-md text-center animate-page-enter">
+    <div className="min-h-[100dvh] bg-white flex flex-col items-center justify-center px-6">
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fade-up {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-up { animation: fade-up 0.35s ease-out both; }
+        @keyframes pulse-ring {
+          0%, 100% { transform: scale(1); opacity: 0.15; }
+          50%       { transform: scale(1.15); opacity: 0.06; }
+        }
+      `}</style>
+
+      <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="mb-10 flex justify-center">
+        <div className="mb-12 flex justify-center">
           <Image
             src="/assets/asmos-logo-primary-lightbg.webp"
             alt="Asmos"
-            width={110}
-            height={28}
+            width={96}
+            height={24}
             priority
-            className="h-7 w-auto"
+            className="h-6 w-auto"
           />
         </div>
 
         {error ? (
-          <div className="flex flex-col items-center gap-4">
-            <div className="rounded-2xl border border-red-100 bg-red-50 p-6">
+          <div className="animate-fade-up space-y-4 text-center">
+            <div className="rounded-xl border border-red-100 bg-red-50 px-5 py-4">
               <p className="text-sm font-medium text-red-600">{error}</p>
             </div>
             <button
               onClick={() => router.push("/")}
-              className="rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150"
+              className="rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors"
             >
               Try again
             </button>
           </div>
         ) : (
           <>
-            {/* Scanning animation */}
-            <div className="mb-8 flex justify-center">
-              <div className="relative h-20 w-20">
-                {/* Outer ring */}
+            {/* Scanning orb */}
+            <div className="mb-10 flex justify-center">
+              <div className="relative h-16 w-16">
+                {/* Pulse rings */}
                 <div
-                  className="absolute inset-0 rounded-full border-2 border-[color:var(--color-primary-light)]"
-                  aria-hidden="true"
-                />
-                {/* Spinning arc */}
-                <div
-                  className="absolute inset-0 rounded-full border-2 border-transparent border-t-[color:var(--color-primary)]"
-                  style={{ animation: "spin 0.9s linear infinite" }}
-                  aria-hidden="true"
-                />
-                {/* Inner pulse */}
-                <div
-                  className="absolute inset-3 rounded-full bg-[color:var(--color-primary-light)]"
-                  style={{ animation: "pulse 1.4s ease-in-out infinite" }}
-                  aria-hidden="true"
+                  className="absolute -inset-3 rounded-full bg-[color:var(--color-primary)]"
+                  style={{ animation: "pulse-ring 2s ease-in-out infinite" }}
                 />
                 <div
-                  className="absolute inset-5 rounded-full bg-[color:var(--color-primary)]"
-                  style={{
-                    animation: "pulse 1.4s ease-in-out 0.2s infinite",
-                    opacity: 0.7,
-                  }}
-                  aria-hidden="true"
+                  className="absolute -inset-1.5 rounded-full bg-[color:var(--color-primary)]"
+                  style={{ animation: "pulse-ring 2s ease-in-out 0.4s infinite" }}
                 />
+                {/* Spinner */}
+                <div
+                  className="absolute inset-0 rounded-full border-2 border-[color:var(--color-primary-light)] border-t-[color:var(--color-primary)]"
+                  style={{ animation: "spin 0.8s linear infinite" }}
+                />
+                {/* Center dot */}
+                <div className="absolute inset-[6px] rounded-full bg-[color:var(--color-primary)] opacity-20" />
               </div>
             </div>
 
-            <h2 className="mb-2 text-xl font-semibold text-[color:var(--color-text-primary)]">
-              Analyzing your store
-            </h2>
+            {/* Domain chip */}
+            <div className="mb-8 flex justify-center">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 py-1.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" style={{ animation: "pulse-ring 1.5s ease-in-out infinite" }} />
+                <span className="text-xs font-medium text-[color:var(--color-text-secondary)] truncate max-w-[200px]">{displayHost}</span>
+              </div>
+            </div>
 
-            {/* Truncated URL */}
-            <p className="mb-6 mx-auto max-w-xs truncate text-xs text-[color:var(--color-text-secondary)]">
-              {url}
-            </p>
+            {/* Step list */}
+            <div className="space-y-3 mb-8">
+              {STEPS.map((step, i) => {
+                const done = i < stepIndex;
+                const active = i === stepIndex;
+                return (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3 transition-all duration-300 ${
+                      done ? "opacity-40" : active ? "opacity-100" : "opacity-20"
+                    }`}
+                  >
+                    {/* Icon */}
+                    <div className="flex-shrink-0 h-5 w-5 flex items-center justify-center">
+                      {done ? (
+                        <svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 16 16">
+                          <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M3 8l3.5 3.5L13 4.5" />
+                        </svg>
+                      ) : active ? (
+                        <div className="h-3.5 w-3.5 rounded-full border-2 border-[color:var(--color-primary)] border-t-transparent" style={{ animation: "spin 0.7s linear infinite" }} />
+                      ) : (
+                        <div className="h-2 w-2 rounded-full bg-[color:var(--color-border)]" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-sm font-medium ${active ? "text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]"}`}>
+                        {step.label}
+                      </p>
+                      {active && (
+                        <p className="text-xs text-[color:var(--color-text-secondary)] mt-0.5 animate-fade-up">{step.sub}</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
 
             {/* Progress bar */}
-            <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
+            <div className="h-0.5 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
               <div
                 className="h-full rounded-full bg-[color:var(--color-primary)] transition-[width] duration-300 ease-out"
                 style={{ width: `${progress}%` }}
-                aria-valuenow={Math.round(progress)}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                role="progressbar"
               />
             </div>
-
-            {/* Step label */}
-            <p className="text-sm text-[color:var(--color-text-secondary)]">
-              {STEPS[stepIndex]}
-            </p>
           </>
         )}
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse {
-          0%, 100% { opacity: 0.4; transform: scale(0.95); }
-          50% { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
     </div>
   );
 }

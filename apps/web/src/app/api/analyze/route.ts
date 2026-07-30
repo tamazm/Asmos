@@ -27,6 +27,21 @@ const BEDROCK_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
 const BROWSERLESS_URL = `https://production-sfo.browserless.io/screenshot?token=${BROWSERLESS_TOKEN}`;
 
 // ---------------------------------------------------------------------------
+// HTML entity decoder
+// ---------------------------------------------------------------------------
+function decodeEntities(str: string): string {
+  return str
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/[\u00AE\u2122]/g, "")
+    .trim();
+}
+
+// ---------------------------------------------------------------------------
 // Shared types
 // ---------------------------------------------------------------------------
 interface CheckItem {
@@ -341,8 +356,18 @@ async function heuristicAnalysis(url: string) {
   }
 
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-  const storeName = titleMatch
-    ? titleMatch[1].replace(/\s*[-|].*$/, "").trim()
+  const rawTitle = titleMatch ? titleMatch[1].replace(/\s*[-|:].*$/, "").trim() : "";
+  // Decode HTML entities (e.g. &amp; &#174; &reg;)
+  const storeName = rawTitle
+    ? rawTitle
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/&#\d+;/g, c => String.fromCharCode(parseInt(c.slice(2, -1), 10)))
+        .replace(/®|™/g, "")
+        .trim()
     : (() => {
         try { return new URL(url).hostname.replace(/^www\./, "").replace(/\.[^.]+$/, "").replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase()); }
         catch { return "Your Store"; }
@@ -465,6 +490,7 @@ async function handler(req: NextRequest) {
 
   return NextResponse.json({
     ...aiResult,
+    storeName: decodeEntities(aiResult.storeName ?? ""),
     score: aiResult.overallScore,
     brandColor,
     logoUrl,
