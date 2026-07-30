@@ -274,6 +274,18 @@ export default function AnalyzeResultsPage() {
                 {result.storeName}
               </p>
               <p className="text-sm text-gray-500 mt-0.5">{result.gradeLabel}</p>
+              {/* Brand color swatch */}
+              {result.brandColor && result.brandColor !== "#165DFF" && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div
+                    className="h-4 w-4 rounded-full border border-black/10 flex-shrink-0"
+                    style={{ backgroundColor: result.brandColor }}
+                    title={`Brand color: ${result.brandColor}`}
+                  />
+                  <span className="text-[11px] text-gray-400 font-mono">{result.brandColor}</span>
+                  <span className="text-[11px] text-gray-400">detected</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -354,26 +366,7 @@ export default function AnalyzeResultsPage() {
         {/* ── Blurred popup teaser ── */}
         {(result.screenshotBase64 || result.score != null) && (
           <div className="fade-up-3 relative rounded-2xl overflow-hidden" style={{ isolation: "isolate" }}>
-            {/* Pulsing gradient border */}
-            <style>{`
-              @keyframes pulse-border {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.5; }
-              }
-              .popup-teaser-border {
-                animation: pulse-border 2.5s ease-in-out infinite;
-              }
-            `}</style>
-            <div
-              className="popup-teaser-border absolute inset-0 rounded-2xl pointer-events-none"
-              style={{
-                background: `linear-gradient(135deg, ${result.brandColor ?? "#165DFF"}40, ${result.brandColor ?? "#165DFF"}10, ${result.brandColor ?? "#165DFF"}40)`,
-                padding: "1.5px",
-                zIndex: 0,
-              }}
-            />
-
-            <div className="relative rounded-2xl border border-gray-100 bg-white overflow-hidden" style={{ zIndex: 1 }}>
+            <div className="relative rounded-2xl border border-gray-100 bg-white overflow-hidden">
               {/* Label */}
               <div className="px-4 pt-4 pb-2 flex items-center gap-2">
                 <span
@@ -387,45 +380,82 @@ export default function AnalyzeResultsPage() {
 
               {/* Popup preview (blurred/visible depending on emailState) */}
               <div className="relative mx-4 mb-4">
-                {/* The fake popup UI */}
+                {/* Widget v2-quality popup preview */}
                 <div
-                  className="rounded-xl border border-gray-100 shadow-lg overflow-hidden transition-all duration-700"
+                  className="rounded-[20px] bg-white overflow-hidden transition-all duration-700"
                   style={{
-                    filter: emailState === "sent" ? "none" : "blur(4px)",
+                    filter: emailState === "sent" ? "none" : "blur(5px)",
                     pointerEvents: "none",
                     userSelect: "none",
+                    boxShadow: "0 12px 48px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)",
                   }}
                 >
-                  {/* Popup header bar */}
-                  <div
-                    className="px-5 py-4 text-white"
-                    style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
-                  >
-                    <p className="text-base font-bold leading-snug">
-                      Get 10% off your first order
-                    </p>
-                    <p className="mt-1 text-sm opacity-90">
-                      Join {result.storeName} subscribers and unlock exclusive deals.
-                    </p>
-                  </div>
-                  {/* Popup body */}
-                  <div className="bg-white px-5 py-4 flex flex-col gap-3">
-                    <div className="rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-400">
-                      Enter your email address…
+                  {/* Accent bar */}
+                  <div className="h-1" style={{ backgroundColor: result.brandColor ?? "#165DFF" }} />
+
+                  <div className="px-6 pt-4 pb-5">
+                    {/* Close button */}
+                    <div className="flex justify-end mb-2">
+                      <div className="w-6 h-6 rounded-full bg-[#f3f4f6] flex items-center justify-center">
+                        <svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#6b7280" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                      </div>
                     </div>
+
+                    {/* Brand row */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: result.brandColor ?? "#165DFF" }} />
+                      <span className="text-[10px] font-bold tracking-[0.06em] uppercase" style={{ color: "#9ca3af" }}>
+                        {result.storeName.toUpperCase()}
+                      </span>
+                    </div>
+
+                    {/* Headline */}
+                    <h3 className="text-[18px] font-extrabold leading-snug mb-1.5 tracking-tight" style={{ color: "#0d0d10" }}>
+                      Get 10% off your first order
+                    </h3>
+
+                    {/* Body */}
+                    <p className="text-[13px] leading-relaxed mb-4" style={{ color: "#6b7280" }}>
+                      Join {result.storeName} subscribers and unlock exclusive offers sent just for you.
+                    </p>
+
+                    {/* Input */}
+                    <div className="flex flex-col gap-2 mb-3">
+                      <div
+                        className="w-full border rounded-[10px] px-3 py-2.5 text-[13px]"
+                        style={{ borderColor: "#e5e7eb", background: "#fafafa", color: "#9ca3af" }}
+                      >
+                        Your email address
+                      </div>
+                    </div>
+
+                    {/* CTA button */}
                     <div
-                      className="w-full rounded-lg py-2.5 text-center text-sm font-semibold text-white"
-                      style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
+                      className="w-full rounded-[10px] py-3 text-[13px] font-bold text-center mb-3"
+                      style={{ backgroundColor: result.brandColor ?? "#165DFF", color: "#ffffff" }}
                     >
                       Claim my 10% discount
                     </div>
-                    <p className="text-center text-[10px] text-gray-400">No spam. Unsubscribe any time.</p>
+
+                    {/* Trust row */}
+                    <div className="flex items-center justify-center gap-4 pt-3 flex-wrap" style={{ borderTop: "1px solid #f3f4f6" }}>
+                      {["No spam", "Unsubscribe anytime", "Instant reward"].map((label) => (
+                        <span key={label} className="flex items-center gap-1 text-[10px] whitespace-nowrap" style={{ color: "#9ca3af" }}>
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Dismiss link */}
+                    <p className="text-center text-[11px] mt-2" style={{ color: "#9ca3af" }}>
+                      No thanks, I&apos;ll pay full price
+                    </p>
                   </div>
                 </div>
 
-                {/* Lock overlay — shown when not yet emailed */}
+                {/* Lock overlay */}
                 {emailState !== "sent" && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/70 backdrop-blur-[2px]">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[20px] bg-white/75 backdrop-blur-[2px]">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-900">
                       <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
@@ -443,12 +473,12 @@ export default function AnalyzeResultsPage() {
                       className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
                       style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
                     >
-                      Unlock my popup →
+                      Unlock my popup
                     </button>
                   </div>
                 )}
 
-                {/* Post-email overlay — shown after email submitted */}
+                {/* Post-email state */}
                 {emailState === "sent" && (
                   <div className="mt-3 flex flex-col items-center gap-2 text-center">
                     <p className="text-sm font-semibold text-gray-800">
@@ -459,7 +489,7 @@ export default function AnalyzeResultsPage() {
                       className="w-full rounded-xl py-3 text-sm font-bold text-white transition-colors hover:opacity-90"
                       style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
                     >
-                      Create free account → publish now
+                      Create free account and publish now
                     </button>
                   </div>
                 )}
