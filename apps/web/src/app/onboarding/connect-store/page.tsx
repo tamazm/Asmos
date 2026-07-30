@@ -220,13 +220,23 @@ export default function ConnectStorePage() {
         </div>
       )}
 
-      <div className="flex justify-between gap-3 pt-1">
-        <Button href="/onboarding/consent" variant="secondary">
-          Back
-        </Button>
-        <Button onClick={handleDone}>
-          {verified ? "Go to dashboard" : "I've installed it"}
-        </Button>
+      <div className="flex flex-col gap-3 pt-1">
+        <div className="flex justify-between gap-3">
+          <Button href="/onboarding/consent" variant="secondary">
+            Back
+          </Button>
+          <Button onClick={handleDone}>
+            {verified ? "Go to dashboard" : "I've installed it"}
+          </Button>
+        </div>
+        <button
+          type="button"
+          onClick={() => router.push("/dashboard")}
+          className="w-full rounded-lg py-2.5 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] transition-colors duration-150 text-center"
+          aria-label="Skip installation for now"
+        >
+          Skip for now, go to dashboard
+        </button>
       </div>
     </div>
   );
