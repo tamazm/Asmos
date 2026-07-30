@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const isMock = process.env.NEXT_PUBLIC_MOCK_AUTH === "true";
 
@@ -17,9 +17,7 @@ function MockSignUpForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    // Simulate a short delay
     await new Promise((r) => setTimeout(r, 500));
-    // In mock mode we just navigate to onboarding
     router.push("/onboarding");
   }
 
@@ -73,7 +71,7 @@ function MockSignUpForm() {
         disabled={loading}
         className="mt-1 w-full rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 disabled:opacity-60"
       >
-        {loading ? "Creating account…" : "Create account"}
+        {loading ? "Creating account..." : "Create account"}
       </button>
       <p className="text-center text-[11px] text-[color:var(--color-text-secondary)]">
         By continuing, you agree to our{" "}
@@ -97,6 +95,20 @@ function RealSignUp() {
 }
 
 export default function SignUpPage() {
+  const [storeName, setStoreName] = useState<string | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("asmos_analyze_result");
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.storeName) setStoreName(data.storeName);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6 py-12">
       <div className="w-full max-w-sm animate-page-enter">
@@ -115,10 +127,14 @@ export default function SignUpPage() {
         {/* Heading */}
         <div className="mb-6 text-center animate-page-enter-delay-1">
           <h1 className="text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
-            Create your account
+            {storeName
+              ? `Unlock ${storeName}'s popup`
+              : "Create your account"}
           </h1>
           <p className="mt-1.5 text-sm text-[color:var(--color-text-secondary)]">
-            Free to start. Build your first popup in minutes.
+            {storeName
+              ? "Create a free account to view and publish your generated popup."
+              : "Free to start. Build your first popup in minutes."}
           </p>
         </div>
 

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { onboardingStepCompleted } from "@/lib/analytics";
+import { cn } from "@/lib/cn";
 
 interface AnalyzeResult {
   storeName?: string;
@@ -12,107 +13,144 @@ interface AnalyzeResult {
   storeUrl?: string;
 }
 
+// ─── Option lists ──────────────────────────────────────────────────────────────
+
 const ROLES = [
-  { value: "Store Owner", label: "Store Owner" },
-  { value: "Marketer", label: "Marketer" },
-  { value: "Agency", label: "Agency" },
-  { value: "Developer", label: "Developer" },
-  { value: "Other", label: "Other" },
+  { value: "founder", label: "Founder / Owner" },
+  { value: "marketer", label: "Marketer" },
+  { value: "developer", label: "Developer" },
+  { value: "agency", label: "Agency" },
+  { value: "other", label: "Other" },
 ];
 
 const GOALS = [
-  { value: "Grow email list", label: "Grow email list" },
-  { value: "Increase first purchase", label: "Increase first purchase" },
-  { value: "Reduce cart abandonment", label: "Reduce cart abandonment" },
-  { value: "Increase repeat purchase", label: "Increase repeat purchase" },
+  { value: "email_capture", label: "Email capture" },
+  { value: "discount", label: "Discount offer" },
+  { value: "contest", label: "Contest / giveaway" },
+  { value: "lead_gen", label: "Lead generation" },
 ];
 
-const INDUSTRIES = [
-  {
-    value: "Ecommerce / Retail",
-    label: "Ecommerce / Retail",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <line x1="3" y1="6" x2="21" y2="6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M16 10a4 4 0 01-8 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    value: "SaaS / Software",
-    label: "SaaS / Software",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M7 8l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <line x1="13" y1="13" x2="17" y2="13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    value: "Health & Wellness",
-    label: "Health & Wellness",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    value: "Education",
-    label: "Education",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-  {
-    value: "Food & Beverage",
-    label: "Food & Beverage",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path d="M18 8h1a4 4 0 010 8h-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <line x1="6" y1="1" x2="6" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="10" y1="1" x2="10" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="14" y1="1" x2="14" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    value: "Other",
-    label: "Other",
-    icon: (
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.5" />
-        <circle cx="12" cy="8" r="1" fill="currentColor" />
-        <line x1="12" y1="12" x2="12" y2="16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
+const TRAFFIC_RANGES = [
+  { value: "lt_1k", label: "Less than 1k/mo" },
+  { value: "1k_10k", label: "1k – 10k/mo" },
+  { value: "10k_100k", label: "10k – 100k/mo" },
+  { value: "gt_100k", label: "100k+/mo" },
 ];
 
-const PRESET_COLORS = [
-  "#165DFF", "#6366F1", "#8B5CF6", "#EC4899",
-  "#10B981", "#F97316", "#EAB308", "#0D0D10",
+const EMAIL_PLATFORMS = [
+  { value: "klaviyo", label: "Klaviyo" },
+  { value: "mailchimp", label: "Mailchimp" },
+  { value: "omnisend", label: "Omnisend" },
+  { value: "none", label: "None" },
+  { value: "other", label: "Other" },
 ];
+
+// ─── Pill selector ─────────────────────────────────────────────────────────────
+
+function PillSelector<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  required,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  required?: boolean;
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium text-[color:var(--color-text-primary)]">
+        {label}
+        {required && <span className="ml-1 text-red-500">*</span>}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt) => {
+          const active = value === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange(opt.value as T)}
+              className={cn(
+                "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors duration-150 cursor-pointer",
+                active
+                  ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
+                  : "border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/40",
+              )}
+              aria-pressed={active}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Detected field row ────────────────────────────────────────────────────────
+
+function DetectedField({
+  label,
+  value,
+  onEdit,
+  children,
+}: {
+  label: string;
+  value: React.ReactNode;
+  onEdit: () => void;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div>
+      <p className="mb-1.5 text-sm font-medium text-[color:var(--color-text-primary)]">{label}</p>
+      <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+        <svg className="h-4 w-4 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 16 16">
+          <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M2 8l3.5 3.5L14 3.5" />
+        </svg>
+        <span className="flex-1 text-sm font-medium text-emerald-800">{value}</span>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="text-[11px] font-medium text-emerald-600 hover:text-emerald-800 transition-colors underline-offset-2 hover:underline flex-shrink-0"
+          aria-label={`Edit ${label}`}
+        >
+          Edit
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BusinessProfilePage() {
   const router = useRouter();
   const [analyzeData, setAnalyzeData] = useState<AnalyzeResult | null>(null);
-  const [industry, setIndustry] = useState(INDUSTRIES[0].value);
+
+  // Detected (prefilled) state
+  const [industry, setIndustry] = useState("Ecommerce / Retail");
   const [brandColor, setBrandColor] = useState("#165DFF");
   const [businessName, setBusinessName] = useState("");
-  const [role, setRole] = useState("");
-  const [conversionGoal, setConversionGoal] = useState("");
+
+  // Edit overrides
+  const [editingIndustry, setEditingIndustry] = useState(false);
+  const [editingColor, setEditingColor] = useState(false);
+
+  // Questions Asmos cannot infer
+  const [role, setRole] = useState<string>("");
+  const [goal, setGoal] = useState<string>("");
+  const [traffic, setTraffic] = useState<string>("");
+  const [emailPlatform, setEmailPlatform] = useState<string>("");
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Pre-fill from sessionStorage if available
+  // Pre-fill from sessionStorage
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem("asmos_analyze_result");
@@ -131,6 +169,8 @@ export default function BusinessProfilePage() {
   const hasAnalyzeData = analyzeData !== null;
 
   async function handleContinue() {
+    if (!role) { setError("Please select your role."); return; }
+    if (!goal) { setError("Please select a primary goal."); return; }
     setSaving(true);
     setError(null);
     try {
@@ -141,13 +181,15 @@ export default function BusinessProfilePage() {
           industry,
           brandColor,
           name: businessName || undefined,
-          role: role || undefined,
-          conversionGoal: conversionGoal || undefined,
+          role,
+          conversionGoal: goal,
+          monthlyTraffic: traffic || undefined,
+          emailPlatform: emailPlatform || undefined,
         }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error ?? "Could not save business profile");
+        throw new Error((body as { error?: string }).error ?? "Could not save business profile");
       }
       onboardingStepCompleted(2, "business-profile");
       router.push("/onboarding/consent");
@@ -162,122 +204,71 @@ export default function BusinessProfilePage() {
     <div className="flex flex-col gap-6 animate-page-enter">
       <div>
         <h1 className="text-xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
-          {hasAnalyzeData ? "We already know your store — confirm a few details" : "Business profile"}
+          {hasAnalyzeData ? "Confirm a few details" : "Business profile"}
         </h1>
         <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
           {hasAnalyzeData
-            ? "We detected these from your site. Correct anything that looks off."
-            : "This sets your popup theme and tailors suggestions to your industry."}
+            ? "We detected these from your store. Correct anything that looks off, then answer a couple of quick questions."
+            : "This sets your popup theme and tailors suggestions to your business."}
         </p>
       </div>
 
-      {/* Business name */}
-      <div>
-        <label htmlFor="business-name" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
-          Business name
-        </label>
-        <input
-          id="business-name"
-          type="text"
-          value={businessName}
-          onChange={(e) => setBusinessName(e.target.value)}
-          placeholder="Your store or company name"
-          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
+      {/* ── Detected: industry ── */}
+      {hasAnalyzeData && !editingIndustry ? (
+        <DetectedField
+          label="Industry"
+          value={`Detected: ${industry}`}
+          onEdit={() => setEditingIndustry(true)}
         />
-      </div>
-
-      {/* Industry — read-only detected value if from analysis, else selector */}
-      {hasAnalyzeData ? (
-        <div>
-          <p className="mb-1.5 text-sm font-medium text-[color:var(--color-text-primary)]">Industry</p>
-          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-            <svg className="h-4 w-4 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 16 16">
-              <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M2 8l3.5 3.5L14 3.5" />
-            </svg>
-            <span className="text-sm font-medium text-emerald-800">Detected: {industry}</span>
-          </div>
-        </div>
       ) : (
         <div>
-          <p className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">
+          <label htmlFor="industry-input" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
             Industry
-          </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {INDUSTRIES.map((opt) => {
-              const active = industry === opt.value;
-              return (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setIndustry(opt.value)}
-                  className={[
-                    "flex flex-col items-center gap-2 rounded-2xl border p-4 text-center text-sm font-medium transition-colors duration-150 cursor-pointer",
-                    active
-                      ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)] shadow-sm"
-                      : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/40 hover:bg-[color:var(--color-primary-light)]/30",
-                  ].join(" ")}
-                  aria-pressed={active}
-                >
-                  <span className={active ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text-secondary)]"}>
-                    {opt.icon}
-                  </span>
-                  <span className="leading-tight">{opt.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          </label>
+          <input
+            id="industry-input"
+            type="text"
+            value={industry}
+            onChange={(e) => setIndustry(e.target.value)}
+            placeholder="e.g. Ecommerce / Retail"
+            className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
+          />
+          {hasAnalyzeData && (
+            <button
+              type="button"
+              onClick={() => setEditingIndustry(false)}
+              className="mt-1 text-[11px] text-[color:var(--color-primary)] hover:underline"
+            >
+              Revert to detected value
+            </button>
+          )}
         </div>
       )}
 
-      {/* Brand color — read-only detected value if from analysis, else picker */}
-      {hasAnalyzeData ? (
-        <div>
-          <p className="mb-1.5 text-sm font-medium text-[color:var(--color-text-primary)]">Brand color</p>
-          <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
-            <div
-              className="h-7 w-7 flex-shrink-0 rounded-md border border-black/10 shadow-sm"
-              style={{ backgroundColor: brandColor }}
-            />
-            <svg className="h-4 w-4 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 16 16">
-              <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M2 8l3.5 3.5L14 3.5" />
-            </svg>
-            <span className="text-sm font-medium text-emerald-800">
-              Detected: <span className="font-mono">{brandColor}</span>
+      {/* ── Detected: brand color ── */}
+      {hasAnalyzeData && !editingColor ? (
+        <DetectedField
+          label="Brand color"
+          value={
+            <span className="flex items-center gap-2">
+              <span
+                className="inline-block h-4 w-4 rounded-full border border-black/10 flex-shrink-0"
+                style={{ backgroundColor: brandColor }}
+              />
+              <span className="font-mono">{brandColor}</span>
             </span>
-          </div>
-        </div>
+          }
+          onEdit={() => setEditingColor(true)}
+        />
       ) : (
         <div>
-          <p className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">
-            Brand color
-          </p>
-          <div className="mb-3 flex items-center gap-3">
+          <p className="mb-2 text-sm font-medium text-[color:var(--color-text-primary)]">Brand color</p>
+          <div className="flex items-center gap-3 mb-3">
             <div
-              className="h-10 w-10 flex-shrink-0 rounded-lg border border-black/10 shadow-sm transition-colors duration-200"
+              className="h-10 w-10 rounded-lg border border-black/10 flex-shrink-0"
               style={{ backgroundColor: brandColor }}
-              aria-label={`Selected color: ${brandColor}`}
             />
-            <span className="font-mono text-sm text-[color:var(--color-text-secondary)] tabular-nums">
-              {brandColor}
-            </span>
-          </div>
-          <div className="mb-3 flex flex-wrap gap-2">
-            {PRESET_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setBrandColor(c)}
-                className={[
-                  "h-8 w-8 rounded-lg border-2 transition-colors duration-100 cursor-pointer",
-                  brandColor.toLowerCase() === c.toLowerCase()
-                    ? "border-[color:var(--color-primary)] scale-110 shadow-sm"
-                    : "border-transparent hover:scale-105",
-                ].join(" ")}
-                style={{ backgroundColor: c }}
-                aria-label={`Set color ${c}`}
-                aria-pressed={brandColor.toLowerCase() === c.toLowerCase()}
-              />
-            ))}
+            <span className="font-mono text-sm text-[color:var(--color-text-secondary)] tabular-nums">{brandColor}</span>
           </div>
           <div className="flex items-center gap-2">
             <input
@@ -285,50 +276,63 @@ export default function BusinessProfilePage() {
               value={brandColor}
               onChange={(e) => setBrandColor(e.target.value)}
               className="h-9 w-9 cursor-pointer rounded-lg border border-[color:var(--color-border)] p-0.5"
-              aria-label="Custom color picker"
+              aria-label="Pick brand color"
             />
-            <span className="text-xs text-[color:var(--color-text-secondary)]">
-              Custom color
-            </span>
+            <span className="text-xs text-[color:var(--color-text-secondary)]">Choose a color</span>
           </div>
+          {hasAnalyzeData && (
+            <button
+              type="button"
+              onClick={() => setEditingColor(false)}
+              className="mt-1 text-[11px] text-[color:var(--color-primary)] hover:underline"
+            >
+              Revert to detected value
+            </button>
+          )}
         </div>
       )}
 
-      {/* Role — always ask */}
-      <div>
-        <label htmlFor="role" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
-          What is your role?
-        </label>
-        <select
-          id="role"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm text-[color:var(--color-text-primary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 bg-white"
-        >
-          <option value="">Select your role…</option>
-          {ROLES.map((r) => (
-            <option key={r.value} value={r.value}>{r.label}</option>
-          ))}
-        </select>
-      </div>
+      {/* ── Divider ── */}
+      <div className="border-t border-[color:var(--color-border)]" />
 
-      {/* Conversion goal — always ask */}
-      <div>
-        <label htmlFor="conversion-goal" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
-          What is your main conversion goal?
-        </label>
-        <select
-          id="conversion-goal"
-          value={conversionGoal}
-          onChange={(e) => setConversionGoal(e.target.value)}
-          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm text-[color:var(--color-text-primary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 bg-white"
-        >
-          <option value="">Select a goal…</option>
-          {GOALS.map((g) => (
-            <option key={g.value} value={g.value}>{g.label}</option>
-          ))}
-        </select>
-      </div>
+      {/* ── Questions Asmos cannot infer ── */}
+      <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+        A couple of quick questions
+      </p>
+
+      {/* Role */}
+      <PillSelector
+        label="What is your role?"
+        options={ROLES}
+        value={role as never}
+        onChange={setRole}
+        required
+      />
+
+      {/* Primary goal */}
+      <PillSelector
+        label="Primary conversion goal"
+        options={GOALS}
+        value={goal as never}
+        onChange={setGoal}
+        required
+      />
+
+      {/* Monthly traffic */}
+      <PillSelector
+        label="Monthly store traffic"
+        options={TRAFFIC_RANGES}
+        value={traffic as never}
+        onChange={setTraffic}
+      />
+
+      {/* Email platform */}
+      <PillSelector
+        label="Email platform"
+        options={EMAIL_PLATFORMS}
+        value={emailPlatform as never}
+        onChange={setEmailPlatform}
+      />
 
       {error && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
