@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable } from "@/components/ui/DataTable";
@@ -93,16 +94,36 @@ export default async function LeadsPage(props: PageProps<"/leads">) {
 
       {rows.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] py-20 text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--color-surface-sunken)]">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M16 2H8C6.89543 2 6 2.89543 6 4V20C6 21.1046 6.89543 22 8 22H16C17.1046 22 18 21.1046 18 20V4C18 2.89543 17.1046 2 16 2Z" stroke="#9CA3AF" strokeWidth="1.5" />
-              <path d="M9 7H15M9 11H15M9 15H12" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+          <div className="mb-5 rounded-[1.125rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-[0.75rem] bg-[color:var(--color-primary-light)]"
+              style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)" }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="#165DFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <circle cx="9" cy="7" r="4" stroke="#165DFF" strokeWidth="1.5" />
+                <path d="M23 21v-2a4 4 0 00-3-3.87" stroke="#165DFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M16 3.13a4 4 0 010 7.75" stroke="#165DFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
           </div>
-          <p className="text-sm font-medium text-[color:var(--color-text-primary)]">No leads yet</p>
-          <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
-            Leads will appear here once visitors submit a popup form.
+          <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">No leads yet</p>
+          <p
+            className="mt-1 max-w-xs text-sm text-[color:var(--color-text-secondary)]"
+            style={{ textWrap: "pretty" } as React.CSSProperties}
+          >
+            {campaignId
+              ? "No leads captured for this campaign yet. Make sure the widget is installed and the campaign is active."
+              : "Leads will appear here once visitors submit a popup form. Create a campaign to get started."}
           </p>
+          {!campaignId && (
+            <Link
+              href="/campaigns/new"
+              className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-4 h-10 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
+            >
+              Create campaign
+            </Link>
+          )}
         </div>
       ) : (
         <DataTable<LeadRow>
