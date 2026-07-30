@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 type IntegrationStatus = "disconnected" | "connecting" | "connected" | "error";
@@ -100,6 +100,205 @@ const CATEGORY_LABELS = {
   automation: "Automation",
 } as const;
 
+// ── Webhook card (real API) ────────────────────────────────────────────────
+
+function WebhookCard({ integration }: { integration: Integration }) {
+  const [status, setStatus] = useState<IntegrationStatus>("disconnected");
+  const [webhookUrl, setWebhookUrl] = useState("");
+  const [webhookSecret, setWebhookSecret] = useState("");
+  const [maskedSecret, setMaskedSecret] = useState<string | null>(null);
+  const [showInput, setShowInput] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Load existing config on mount
+  useEffect(() => {
+    fetch("/api/account/webhook")
+      .then((r) => r.json())
+      .then((data: { webhookUrl: string | null; webhookSecret: string | null; webhookEnabled: boolean }) => {
+        if (data.webhookEnabled && data.webhookUrl) {
+          setWebhookUrl(data.webhookUrl);
+          setMaskedSecret(data.webhookSecret);
+          setStatus("connected");
+        }
+      })
+      .catch(() => {
+        // Non-fatal: page still works without pre-loaded state
+      });
+  }, []);
+
+  async function handleConnect() {
+    if (!showInput) {
+      setShowInput(true);
+      return;
+    }
+    if (!webhookUrl.trim()) {
+      setError("Please enter your webhook endpoint URL.");
+      return;
+    }
+    if (!webhookUrl.trim().startsWith("https://")) {
+      setError("Endpoint URL must start with https://");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/account/webhook", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          webhookUrl: webhookUrl.trim(),
+          webhookSecret: webhookSecret.trim() || undefined,
+          webhookEnabled: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Failed to save. Please try again.");
+        return;
+      }
+      setMaskedSecret(data.webhookSecret);
+      setStatus("connected");
+      setShowInput(false);
+      setWebhookSecret(""); // clear plaintext from state
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDisconnect() {
+    setSaving(true);
+    try {
+      await fetch("/api/account/webhook", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookEnabled: false }),
+      });
+    } catch {
+      // Best-effort; flip UI state regardless
+    } finally {
+      setSaving(false);
+    }
+    setStatus("disconnected");
+    setWebhookUrl("");
+    setWebhookSecret("");
+    setMaskedSecret(null);
+    setShowInput(false);
+    setError(null);
+  }
+
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="shrink-0">{integration.icon}</div>
+          <div>
+            <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">{integration.name}</p>
+            <p className="text-xs text-[color:var(--color-text-secondary)]">{CATEGORY_LABELS[integration.category]}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {status === "connected" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-success)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
+              Connected
+            </span>
+          )}
+          {status !== "connected" && (
+            <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-text-secondary)]">
+              Not connected
+            </span>
+          )}
+        </div>
+      </div>
+
+      <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{integration.description}</p>
+
+      {/* Show saved URL when connected and not editing */}
+      {status === "connected" && !showInput && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">Endpoint URL</p>
+          <p className="break-all font-mono text-xs text-[color:var(--color-text-primary)]">{webhookUrl}</p>
+          {maskedSecret && (
+            <>
+              <p className="mt-1 text-xs font-medium text-[color:var(--color-text-secondary)]">Signing secret</p>
+              <p className="font-mono text-xs text-[color:var(--color-text-primary)]">{maskedSecret}</p>
+            </>
+          )}
+        </div>
+      )}
+
+      {showInput && status !== "connected" && (
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
+              Endpoint URL <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="url"
+              value={webhookUrl}
+              onChange={(e) => setWebhookUrl(e.target.value)}
+              placeholder="https://your-endpoint.com/webhook"
+              className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 font-mono"
+            />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
+              Signing secret <span className="text-[color:var(--color-text-secondary)] font-normal">(optional)</span>
+            </label>
+            <input
+              type="password"
+              value={webhookSecret}
+              onChange={(e) => setWebhookSecret(e.target.value)}
+              placeholder="Used to verify HMAC-SHA256 signature"
+              className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 font-mono"
+            />
+            <p className="text-xs text-[color:var(--color-text-secondary)]">
+              We sign every request with <code className="font-mono">X-Asmos-Signature: sha256=&lt;hmac&gt;</code> when a secret is set.
+            </p>
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+        {status !== "connected" ? (
+          <button
+            onClick={handleConnect}
+            disabled={saving}
+            className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white transition-colors duration-150 disabled:opacity-50 cursor-pointer"
+          >
+            {saving ? "Saving..." : showInput ? "Save connection" : "Connect"}
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={() => { setShowInput(true); setStatus("disconnected"); }}
+              disabled={saving}
+              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)] hover:border-[color:var(--color-primary)] transition-colors duration-150 cursor-pointer disabled:opacity-50"
+            >
+              Edit
+            </button>
+            <button
+              onClick={handleDisconnect}
+              disabled={saving}
+              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-red-500 hover:border-red-200 transition-colors duration-150 cursor-pointer disabled:opacity-50"
+            >
+              {saving ? "Disconnecting..." : "Disconnect"}
+            </button>
+          </>
+        )}
+      </div>
+
+      <style>{`@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}`}</style>
+    </div>
+  );
+}
+
+// ── Generic facade card (Klaviyo, Mailchimp, etc.) ─────────────────────────
+
 function IntegrationCard({ integration }: { integration: Integration }) {
   const [status, setStatus] = useState<IntegrationStatus>("disconnected");
   const [apiKey, setApiKey] = useState("");
@@ -117,7 +316,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
     }
     setStatus("connecting");
     setError(null);
-    // Simulated async connect
+    // Simulated async connect — native integrations are coming soon
     setTimeout(() => {
       setStatus("connected");
       setShowInput(false);
@@ -164,16 +363,19 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 
       <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{integration.description}</p>
 
+      {/* Coming-soon note for non-webhook native integrations */}
+      <p className="text-xs text-[color:var(--color-text-secondary)] italic">
+        Native integration coming soon — use Webhooks + Zapier in the meantime.
+      </p>
+
       {showInput && status !== "connected" && (
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
-            {integration.id === "webhooks" ? "Endpoint URL" : "API key"}
-          </label>
+          <label className="text-xs font-medium text-[color:var(--color-text-primary)]">API key</label>
           <input
             type="text"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder={integration.id === "webhooks" ? "https://your-endpoint.com/webhook" : "Paste your API key here"}
+            placeholder="Paste your API key here"
             className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 font-mono"
           />
           {error && <p className="text-xs text-red-500">{error}</p>}
@@ -214,6 +416,8 @@ function IntegrationCard({ integration }: { integration: Integration }) {
   );
 }
 
+// ── Page ──────────────────────────────────────────────────────────────────
+
 export default function IntegrationsPage() {
   const categories = Array.from(new Set(INTEGRATIONS.map((i) => i.category)));
 
@@ -230,9 +434,13 @@ export default function IntegrationsPage() {
             {CATEGORY_LABELS[cat]}
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {INTEGRATIONS.filter((i) => i.category === cat).map((integration) => (
-              <IntegrationCard key={integration.id} integration={integration} />
-            ))}
+            {INTEGRATIONS.filter((i) => i.category === cat).map((integration) =>
+              integration.id === "webhooks" ? (
+                <WebhookCard key={integration.id} integration={integration} />
+              ) : (
+                <IntegrationCard key={integration.id} integration={integration} />
+              ),
+            )}
           </div>
         </section>
       ))}
