@@ -6,7 +6,8 @@ import { HomepageForm } from "@/components/ui/HomepageForm";
 
 export default async function LandingPage() {
   const { userId } = await auth();
-  if (userId) {
+  const isMock = process.env.MOCK_AUTH === "true";
+  if (userId && !isMock) {
     redirect("/dashboard");
   }
 
