@@ -110,7 +110,7 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-150",
+                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200",
                 active
                   ? "bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
                   : "text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]",
@@ -124,15 +124,25 @@ export function Sidebar() {
         })}
       </nav>
 
-      {/* Footer hint */}
-      <div className="px-4 py-4 border-t border-[color:var(--color-border)]">
-        <div className="rounded-2xl bg-[color:var(--color-primary-light)] p-3">
-          <p className="text-xs font-medium text-[color:var(--color-primary)] mb-1">
-            AI is optimizing
-          </p>
-          <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">
-            Traffic is being routed to your best variants automatically.
-          </p>
+      {/* Footer hint — Double-Bezel callout */}
+      <div className="px-3 py-3 border-t border-[color:var(--color-border)]">
+        {/* Outer shell */}
+        <div className="rounded-[1rem] border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary-light)] p-1">
+          {/* Inner core */}
+          <div
+            className="rounded-[0.625rem] bg-[color:var(--color-primary-light)] px-3 py-2.5"
+            style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" }}
+          >
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)] animate-pulse" aria-hidden="true" />
+              <p className="text-xs font-semibold text-[color:var(--color-primary)]">
+                AI is optimizing
+              </p>
+            </div>
+            <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">
+              Traffic routes to your best variant automatically.
+            </p>
+          </div>
         </div>
       </div>
     </aside>

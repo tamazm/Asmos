@@ -32,31 +32,33 @@ export function HomepageForm() {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="w-full max-w-xl mx-auto animate-page-enter-delay-2"
-    >
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="flex-1">
-          <label htmlFor="store-url" className="sr-only">
-            Your store URL
-          </label>
-          <input
-            id="store-url"
-            type="text"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="yourstore.com"
-            autoFocus
-            className="w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 shadow-sm h-12"
-          />
-        </div>
-        <button
-          type="submit"
-          className="shrink-0 rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98] h-12 whitespace-nowrap shadow-sm"
+    <form onSubmit={handleSubmit} className="w-full max-w-xl mx-auto">
+      {/* Double-Bezel form container */}
+      <div className="rounded-[1.125rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1 shadow-sm">
+        <div className="flex flex-col sm:flex-row gap-2 rounded-[0.75rem] bg-[color:var(--color-surface)] p-1.5"
+          style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}
         >
-          Analyze my store
-        </button>
+          <div className="flex-1">
+            <label htmlFor="store-url" className="sr-only">
+              Your store URL
+            </label>
+            <input
+              id="store-url"
+              type="text"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="yourstore.com"
+              autoFocus
+              className="w-full rounded-[0.5rem] border-0 bg-transparent px-3 py-2.5 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:ring-0 h-11"
+            />
+          </div>
+          <button
+            type="submit"
+            className="shrink-0 rounded-[0.5rem] bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] h-11 whitespace-nowrap"
+          >
+            Analyze my store
+          </button>
+        </div>
       </div>
       {error && (
         <p className="mt-2 text-left text-xs text-red-500">{error}</p>

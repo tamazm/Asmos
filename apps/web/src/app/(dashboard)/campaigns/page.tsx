@@ -44,7 +44,7 @@ export default async function CampaignsListPage() {
         actions={
           <Link
             href="/campaigns/new"
-            className="inline-flex items-center justify-center rounded-lg bg-[color:var(--color-primary)] px-4 py-2 h-10 text-sm font-medium text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98]"
+            className="inline-flex items-center justify-center rounded-lg bg-[color:var(--color-primary)] px-4 py-2 h-10 text-sm font-medium text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
           >
             New Campaign
           </Link>
@@ -52,17 +52,23 @@ export default async function CampaignsListPage() {
       />
 
       {rows.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] py-16 text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--color-primary-light)]">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M3 11l19-9-9 19-2-8-8-2zM22 2L11 13"
-                stroke="#165DFF"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] py-20 text-center">
+          {/* Double-Bezel icon */}
+          <div className="mb-5 rounded-[1.125rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-[0.75rem] bg-[color:var(--color-primary-light)]"
+              style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)" }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path
+                  d="M3 11l19-9-9 19-2-8-8-2zM22 2L11 13"
+                  stroke="#165DFF"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
           </div>
           <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">
             No campaigns yet
@@ -75,7 +81,7 @@ export default async function CampaignsListPage() {
           </p>
           <Link
             href="/campaigns/new"
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-4 h-10 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98]"
+            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-4 h-10 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
           >
             New Campaign
           </Link>

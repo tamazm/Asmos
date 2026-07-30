@@ -78,27 +78,36 @@ function StepBar({ current }: { current: number }) {
         return (
           <li key={step.id} className="flex items-center">
             <div className="flex flex-col items-center gap-1">
+              {/* Double-Bezel step indicator */}
               <div
                 className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold transition-colors duration-200",
-                  done
-                    ? "bg-[color:var(--color-primary)] text-white"
-                    : active
-                    ? "bg-[color:var(--color-primary)] text-white"
-                    : "bg-[color:var(--color-neutral-badge)] text-[color:var(--color-text-secondary)]",
+                  "rounded-[0.625rem] p-0.5 transition-colors duration-300",
+                  done || active
+                    ? "bg-[color:var(--color-primary)]/15"
+                    : "bg-[color:var(--color-surface-sunken)]",
                 )}
               >
-                {done ? (
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                    <path d="M3.5 8L6.5 11L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  step.id
-                )}
+                <div
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-[0.5rem] text-xs font-semibold transition-colors duration-300",
+                    done || active
+                      ? "bg-[color:var(--color-primary)] text-white"
+                      : "bg-[color:var(--color-neutral-badge)] text-[color:var(--color-text-secondary)]",
+                  )}
+                  style={done || active ? { boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)" } : {}}
+                >
+                  {done ? (
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                      <path d="M3.5 8L6.5 11L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  ) : (
+                    step.id
+                  )}
+                </div>
               </div>
-              <span className={cn("hidden text-xs sm:block", active ? "font-medium text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]")}>
-                {step.label}
-              </span>
+              <span className={cn("hidden text-xs sm:block", active ? "font-medium text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]")}>{
+                step.label
+              }</span>
             </div>
             {i < STEPS.length - 1 && (
               <div className={cn("mx-2 h-0.5 w-8 rounded-full transition-colors duration-300", done ? "bg-[color:var(--color-primary)]" : "bg-[color:var(--color-border)]")} aria-hidden="true" />
@@ -169,15 +178,24 @@ function Step1TypeSelect({ state, update }: { state: WizardState; update: (s: Pa
               type="button"
               onClick={() => update({ type: opt.value })}
               className={cn(
-                "flex flex-col items-start gap-3 rounded-2xl border p-5 text-left transition-colors duration-150 cursor-pointer",
+                "flex flex-col items-start gap-3 rounded-2xl border p-5 text-left transition-[border-color,background-color,box-shadow] duration-200 cursor-pointer",
                 active
                   ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] shadow-sm"
-                  : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] hover:border-[color:var(--color-primary)]/40",
+                  : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] hover:border-[color:var(--color-primary)]/40 hover:shadow-sm",
               )}
               aria-pressed={active}
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)]">
-                {opt.icon}
+              {/* Double-Bezel icon well */}
+              <div className={cn(
+                "rounded-[0.875rem] p-1 transition-colors duration-200",
+                active ? "bg-[color:var(--color-primary)]/10" : "bg-[color:var(--color-surface-sunken)]",
+              )}>
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-[0.625rem] bg-[color:var(--color-primary-light)]"
+                  style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)" }}
+                >
+                  {opt.icon}
+                </div>
               </div>
               <div>
                 <p className={cn("font-semibold", active ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text-primary)]")}>{opt.label}</p>
@@ -638,8 +656,16 @@ export default function NewCampaignPage() {
         <StepBar current={step} />
       </div>
 
-      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-sm animate-page-enter">
-        {stepComponents[step]}
+      {/* Double-Bezel wizard container */}
+      <div className="mx-auto w-full max-w-3xl">
+        <div className="rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5 shadow-sm">
+          <div
+            className="rounded-[1rem] bg-[color:var(--color-surface)] p-6 animate-page-enter"
+            style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}
+          >
+            {stepComponents[step]}
+          </div>
+        </div>
       </div>
 
       {publishError && (

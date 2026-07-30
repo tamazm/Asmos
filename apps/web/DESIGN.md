@@ -127,3 +127,126 @@ For variant swatches in tables/charts (rotate, do not mix):
 - No `z-50` spam — use z-index scale: `10` sidebar/nav, `20` dropdowns, `30` modals, `40` toasts
 - No `h-screen` for full-height layouts — use `min-h-[100dvh]`
 - No `width: calc(33% - 1rem)` flex math — use CSS Grid
+
+---
+
+## New Patterns (Added 2026-07)
+
+### Easing Tokens
+
+Custom cubic-bezier variables defined in `:root` (not Tailwind tokens, used via `style` or inline `cubic-bezier()`):
+
+| Token | Value | Usage |
+|---|---|---|
+| `--ease-out-expo` | `cubic-bezier(0.16, 1, 0.3, 1)` | Page entry, reveals |
+| `--ease-out-quart` | `cubic-bezier(0.25, 1, 0.5, 1)` | Hover state transitions |
+| `--ease-fluid` | `cubic-bezier(0.32, 0.72, 0, 1)` | Button/card interactions |
+
+All `transition-colors duration-150` hovers upgraded to `transition-[background-color,color,transform] duration-200`.
+Page-enter animations upgraded from `300ms ease-out` to `480ms var(--ease-out-expo)`.
+
+### Animation Stagger Delays
+
+Extended stagger variants: `animate-page-enter-delay-4` (280ms). All delays now use `--ease-out-expo`.
+
+### Scroll-Reveal Classes
+
+Declared in `globals.css`. Elements start invisible via CSS, then get `.is-visible` applied by JS `IntersectionObserver`:
+
+- `.reveal` — single element fade + slide up (600ms)
+- `.reveal-stagger` — wrapper class; children stagger with 80ms intervals (1–6 children)
+
+Apply `IntersectionObserver` in a client component with `threshold: 0.12`.
+
+### Double-Bezel (Doppelrand) Component Pattern
+
+A nested enclosure treatment that gives cards/containers physical depth without generic drop shadows.
+
+```tsx
+{/* Double-Bezel outer shell */}
+<div className="rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5 shadow-sm">
+  {/* Inner core */}
+  <div
+    className="rounded-[1rem] bg-[color:var(--color-surface)] p-6"
+    style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}
+  >
+    {/* content */}
+  </div>
+</div>
+```
+
+**Radius concentric rule:** outer `rounded-[1.375rem]` with `p-1.5` padding → inner `rounded-[1rem]` (outer - padding gap).
+
+Applied to: `StatCard`, `DataTable`, `CalloutCard`, `HomepageForm`, wizard container (`campaigns/new`), step icons, icon wells in empty states and onboarding.
+
+### Double-Bezel Icon Well
+
+For standalone icons (empty states, onboarding, type selectors):
+
+```tsx
+<div className="rounded-[1.125rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5">
+  <div
+    className="flex h-12 w-12 items-center justify-center rounded-[0.75rem] bg-[color:var(--color-primary-light)]"
+    style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)" }}
+  >
+    {/* icon */}
+  </div>
+</div>
+```
+
+### ButtonArrow — Button-in-Button Pattern
+
+A `ButtonArrow` component exports alongside `Button`. Wraps an arrow icon in its own circular pill for internal kinetic tension on hover.
+
+```tsx
+import { ButtonArrow } from "@/components/ui/Button";
+<ButtonArrow href="/next-step">Get started</ButtonArrow>
+```
+
+- Pill shape: `rounded-full h-11 pl-5 pr-1.5`
+- Arrow icon wraps: `h-8 w-8 rounded-full bg-white/20`
+- Hover: arrow translates `+0.5px / -1px` and scales `1.05`
+
+Use for primary CTAs with directional intent (onboarding, landing hero, confirmation flows).
+
+### Eyebrow Tags
+
+Pill-shaped labels above section headings:
+
+```tsx
+<span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
+  Section label
+</span>
+```
+
+Used on landing page sections: "How it works", "Pricing".
+
+### Transition Consolidation
+
+All button/interactive elements use `transition-[background-color,color,transform,box-shadow] duration-200` instead of `transition-colors duration-150`. This enables smooth press-scale feedback without animating layout properties.
+
+Active scale: `active:scale-[0.97]` (was `0.98`; slightly more tactile).
+
+### Featured Pricing Card
+
+The Growth/featured pricing plan uses the Double-Bezel pattern with a primary-tinted outer shell instead of a plain border:
+
+```tsx
+<div className="rounded-[1.375rem] border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary-light)] p-1.5 shadow-md">
+  <div className="rounded-[1rem] bg-[color:var(--color-surface)] p-7" style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}>
+    {/* plan content */}
+  </div>
+</div>
+```
+
+### StepBar Step Indicator
+
+Wizard step bubbles use Double-Bezel instead of plain circles:
+- Outer: `rounded-[0.625rem] p-0.5 bg-[color:var(--color-primary)]/15` (active/done)
+- Inner: `rounded-[0.5rem] bg-[color:var(--color-primary)] text-white`
+
+Conveys done/active/pending state while maintaining the depth hierarchy.
+
+### PageHeader
+
+Removed the bottom border. Title is `font-bold` (was `font-semibold`). Back chevron now uses an SVG arrow instead of a raw `←` character.

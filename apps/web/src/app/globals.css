@@ -53,11 +53,18 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Page enter animation */
+/* ─── Easing tokens ────────────────────────────────────────────────── */
+:root {
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* ─── Page enter animation ─────────────────────────────────────────── */
 @keyframes fadeSlideUp {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -65,20 +72,67 @@ body {
   }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Scroll-reveal: elements start invisible, JS adds .is-visible */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 600ms var(--ease-out-expo),
+    transform 600ms var(--ease-out-expo);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Stagger helpers for reveal children */
+.reveal-stagger > * {
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 550ms var(--ease-out-expo),
+    transform 550ms var(--ease-out-expo);
+}
+
+.reveal-stagger.is-visible > *:nth-child(1) { opacity: 1; transform: none; transition-delay: 0ms; }
+.reveal-stagger.is-visible > *:nth-child(2) { opacity: 1; transform: none; transition-delay: 80ms; }
+.reveal-stagger.is-visible > *:nth-child(3) { opacity: 1; transform: none; transition-delay: 160ms; }
+.reveal-stagger.is-visible > *:nth-child(4) { opacity: 1; transform: none; transition-delay: 240ms; }
+.reveal-stagger.is-visible > *:nth-child(5) { opacity: 1; transform: none; transition-delay: 320ms; }
+.reveal-stagger.is-visible > *:nth-child(6) { opacity: 1; transform: none; transition-delay: 400ms; }
+
 @media (prefers-reduced-motion: no-preference) {
   .animate-page-enter {
-    animation: fadeSlideUp 300ms ease-out both;
+    animation: fadeSlideUp 480ms var(--ease-out-expo) both;
   }
 
   .animate-page-enter-delay-1 {
-    animation: fadeSlideUp 300ms ease-out 60ms both;
+    animation: fadeSlideUp 480ms var(--ease-out-expo) 70ms both;
   }
 
   .animate-page-enter-delay-2 {
-    animation: fadeSlideUp 300ms ease-out 120ms both;
+    animation: fadeSlideUp 480ms var(--ease-out-expo) 140ms both;
   }
 
   .animate-page-enter-delay-3 {
-    animation: fadeSlideUp 300ms ease-out 180ms both;
+    animation: fadeSlideUp 480ms var(--ease-out-expo) 210ms both;
+  }
+
+  .animate-page-enter-delay-4 {
+    animation: fadeSlideUp 480ms var(--ease-out-expo) 280ms both;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .reveal-stagger > * {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
 }
