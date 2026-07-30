@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button, ButtonArrow } from "@/components/ui/Button";
 import { onboardingStepCompleted } from "@/lib/analytics";
 
 export default function OnboardingWelcomePage() {
+  const router = useRouter();
   const [storeName, setStoreName] = useState<string | null>(null);
 
   useEffect(() => {
@@ -13,11 +15,14 @@ export default function OnboardingWelcomePage() {
       if (raw) {
         const data = JSON.parse(raw);
         if (data.storeName) setStoreName(data.storeName);
+        // Analysis data present — skip generic welcome, go straight to confirm details
+        router.replace("/onboarding/business-profile");
+        return;
       }
     } catch {
       // ignore
     }
-  }, []);
+  }, [router]);
 
   function handleStart() {
     onboardingStepCompleted(1, "welcome");
