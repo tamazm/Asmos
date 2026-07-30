@@ -346,16 +346,21 @@ async function heuristicAnalysis(url: string) {
   const found = {
     popup: POPUP_LIBRARY_SIGNALS.some(sig => lower.includes(sig)),
     // emailCapture: require specific subscription signals; avoid bare 'newsletter'
-    // (appears in footer nav links) and 'email signup' (appears in nav menus).
+    // (appears in footer nav links), bare 'sign up' (nav menus), and generic
+    // 'form[action' (fires on every cart/search form — not an email signal).
     emailCapture:
-      lower.includes("subscribe to") ||
+      lower.includes("subscribe to our") ||
       lower.includes("join our newsletter") ||
       lower.includes("get 10%") ||
       lower.includes("first order discount") ||
-      lower.includes("sign up for") ||
+      lower.includes("sign up for emails") ||
+      lower.includes("sign up for our newsletter") ||
       lower.includes("klaviyo-form") ||
-      lower.includes("form[action") ||
-      (lower.includes("subscribe") && lower.includes("email")),
+      lower.includes("email-signup") ||
+      lower.includes("newsletter-form") ||
+      lower.includes("email_signup") ||
+      (lower.includes("enter your email") && lower.includes("subscribe")) ||
+      (lower.includes("subscribe") && lower.includes("email") && !lower.includes("email us")),
     socialProof: lower.includes("review") || lower.includes("trustpilot") || lower.includes("yotpo") || lower.includes("stars") || lower.includes("testimonial"),
     // Urgency: remove bare 'only' (stop word). Keep specific phrases.
     urgency:
