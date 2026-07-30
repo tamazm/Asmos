@@ -4,8 +4,8 @@ import posthog from "posthog-js";
 import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { useEffect } from "react";
 
-const POSTHOG_KEY = "process.env.NEXT_PUBLIC_POSTHOG_KEY ?? """;
-const POSTHOG_HOST = "https://eu.posthog.com";
+const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY ?? "";
+const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.posthog.com";
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
