@@ -335,14 +335,60 @@ async function heuristicAnalysis(url: string) {
 
   const lower = html.toLowerCase();
 
+  // Popup: only flag when a known popup library script/class is present.
+  // Bare 'popup' is in virtually every Shopify theme JS and is not a signal.
+  const POPUP_LIBRARY_SIGNALS = [
+    "klaviyo", "privy", "omnisend", "justuno", "wheelio", "spin-a-sale",
+    "wisepops", "sumo", "optinmonster", "popupsmart", "mailmunch",
+    "sleeknote", "popup-trigger", "pop-up-trigger", "privy-widget",
+    "klaviyo-popup",
+  ];
   const found = {
-    popup: lower.includes("popup") || lower.includes("klaviyo") || lower.includes("privy") || lower.includes("omnisend") || lower.includes("justuno"),
-    emailCapture: lower.includes("subscribe") || lower.includes("newsletter") || lower.includes("get 10%") || lower.includes("first order") || lower.includes("email signup"),
+    popup: POPUP_LIBRARY_SIGNALS.some(sig => lower.includes(sig)),
+    // emailCapture: require specific subscription signals; avoid bare 'newsletter'
+    // (appears in footer nav links) and 'email signup' (appears in nav menus).
+    emailCapture:
+      lower.includes("subscribe to") ||
+      lower.includes("join our newsletter") ||
+      lower.includes("get 10%") ||
+      lower.includes("first order discount") ||
+      lower.includes("sign up for") ||
+      lower.includes("klaviyo-form") ||
+      lower.includes("form[action") ||
+      (lower.includes("subscribe") && lower.includes("email")),
     socialProof: lower.includes("review") || lower.includes("trustpilot") || lower.includes("yotpo") || lower.includes("stars") || lower.includes("testimonial"),
-    urgency: lower.includes("limited time") || lower.includes("countdown") || lower.includes("ends soon") || lower.includes("only") || lower.includes("low stock"),
+    // Urgency: remove bare 'only' (stop word). Keep specific phrases.
+    urgency:
+      lower.includes("limited time") ||
+      lower.includes("countdown") ||
+      lower.includes("ends soon") ||
+      lower.includes("only left") ||
+      lower.includes("hours left") ||
+      lower.includes("today only") ||
+      lower.includes("low stock"),
     exitIntent: lower.includes("exit intent") || lower.includes("exit-intent") || lower.includes("exitintent"),
-    stickyBar: lower.includes("sticky") || lower.includes("announcement bar") || lower.includes("free shipping"),
-    liveChat: lower.includes("livechat") || lower.includes("intercom") || lower.includes("zendesk") || lower.includes("tidio") || lower.includes("crisp"),
+    // stickyBar: require announcement bar or sticky-bar specific signals.
+    // bare 'sticky' fires on sticky nav/footer (universal), 'free shipping' fires on almost every store footer.
+    stickyBar:
+      lower.includes("announcement-bar") ||
+      lower.includes("announcement_bar") ||
+      lower.includes("announcementbar") ||
+      lower.includes("sticky-bar") ||
+      lower.includes("stickybar") ||
+      lower.includes("free shipping on orders over") ||
+      lower.includes("free shipping over $"),
+    // liveChat: add Gorgias (common Shopify), Freshchat
+    liveChat:
+      lower.includes("livechat") ||
+      lower.includes("live-chat") ||
+      lower.includes("intercom") ||
+      lower.includes("zendesk") ||
+      lower.includes("tidio") ||
+      lower.includes("crisp") ||
+      lower.includes("gorgias") ||
+      lower.includes("freshchat") ||
+      lower.includes("re:amaze") ||
+      lower.includes("reamaze"),
   };
 
   const scoreMap: Record<keyof typeof found, number> = {
@@ -422,8 +468,31 @@ async function extractBrandMeta(url: string): Promise<{ brandColor: string; logo
   try {
     const res = await fetch(url, { headers: { "User-Agent": "AsmosBot/1.0" }, signal: AbortSignal.timeout(6000) });
     const html = await res.text();
+
+    // 1. meta theme-color (highest confidence)
     const themeColor = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{3,6})["']/i)?.[1];
-    if (themeColor) brandColor = themeColor;
+    if (themeColor) {
+      brandColor = themeColor;
+    } else {
+      // 2. CSS custom property: --color-primary, --brand-color, --primary-color, --accent-color
+      const cssVarMatch = html.match(/--(?:color-primary|brand-color|primary-color|accent-color|color-accent)\s*:\s*(#[0-9a-fA-F]{3,6})/i)?.[1];
+      if (cssVarMatch) {
+        brandColor = cssVarMatch;
+      } else {
+        // 3. background-color on header or nav element
+        const navBgMatch = html.match(/<(?:header|nav)[^>]*style=["'][^"']*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,6})/i)?.[1];
+        if (navBgMatch && navBgMatch.toLowerCase() !== "#ffffff" && navBgMatch.toLowerCase() !== "#fff" && navBgMatch.toLowerCase() !== "#000000" && navBgMatch.toLowerCase() !== "#000") {
+          brandColor = navBgMatch;
+        } else {
+          // 4. Shopify color settings in JSON blobs
+          const shopifyColor = html.match(/"colors_accent_1"\s*:\s*"(#[0-9a-fA-F]{3,6})"/i)?.[1] ||
+            html.match(/"color_button"\s*:\s*"(#[0-9a-fA-F]{3,6})"/i)?.[1] ||
+            html.match(/"color_accent"\s*:\s*"(#[0-9a-fA-F]{3,6})"/i)?.[1];
+          if (shopifyColor) brandColor = shopifyColor;
+        }
+      }
+    }
+
     const ogImage = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)?.[1];
     if (ogImage) logoUrl = ogImage;
     const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1];
