@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { auth } from "@clerk/nextjs/server";
+import { auth } from "@/lib/auth-adapter";
 import { HomepageForm } from "@/components/ui/HomepageForm";
 
 export default async function LandingPage() {
