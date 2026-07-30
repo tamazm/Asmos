@@ -9,10 +9,8 @@ import { confidenceVsControl } from "@/lib/stats";
 import { VariantManager, type VariantStat } from "./VariantManager";
 import { InsightsPanel, type InsightRow } from "./InsightsPanel";
 import { AnalyticsTab } from "./AnalyticsTab";
-// Dummy-data tabs, disabled until real bandit/performance data backs them --
-// see mockBracketData.ts.
-// import { KnockoutBracket } from "./KnockoutBracket";
-// import { PerformanceTable } from "./PerformanceTable";
+import { KnockoutBracket } from "./KnockoutBracket";
+import { PerformanceTable } from "./PerformanceTable";
 import { CampaignTabs } from "./CampaignTabs";
 import { CampaignRowActions } from "../CampaignRowActions";
 
@@ -114,12 +112,11 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
               </div>
             ),
           },
-          // Disabled -- dummy data only, see mockBracketData.ts.
-          // {
-          //   key: "knockout-bracket",
-          //   label: "Knockout Bracket",
-          //   content: <KnockoutBracket />,
-          // },
+          {
+            key: "knockout-bracket",
+            label: "Knockout Bracket",
+            content: <KnockoutBracket variants={variantStats} />,
+          },
           {
             key: "analytics",
             label: "Analytics",
@@ -136,12 +133,11 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
               />
             ),
           },
-          // Disabled -- dummy data only, see mockBracketData.ts.
-          // {
-          //   key: "performance",
-          //   label: "Performance",
-          //   content: <PerformanceTable />,
-          // },
+          {
+            key: "performance",
+            label: "Performance",
+            content: <PerformanceTable variants={variantStats} />,
+          },
           {
             key: "insights",
             label: "Insights",

@@ -5,15 +5,98 @@ import { Badge } from "@/components/ui/Badge";
 import { DataTable } from "@/components/ui/DataTable";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { ConfidenceBar } from "@/components/ui/ConfidenceBar";
-import { performanceRows, type PerformanceRow } from "./mockBracketData";
+import { type VariantStat } from "./VariantManager";
+import { colorForIndex } from "./mockBracketData";
+
+export type PerformanceRow = {
+  id: string;
+  label: string;
+  color: string;
+  createdAt: string;
+  status: "Winner" | "Live" | "Eliminated";
+  trafficPercent: number;
+  visitors: number;
+  conversionRate: number;
+  confidenceToBeBest: number;
+  trend: number[];
+  last24h: number;
+};
+
+/** Deterministic sparkline from a string seed. */
+function seededTrend(seed: string): number[] {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  const points = 8;
+  const trend: number[] = [];
+  let value = 1 + (hash % 5);
+  for (let i = 0; i < points; i++) {
+    value += ((hash * (i + 1)) % 7) - 3;
+    trend.push(Math.max(0.2, value));
+  }
+  return trend;
+}
+
+function variantInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return name.slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function buildPerformanceRows(variants: VariantStat[]): PerformanceRow[] {
+  // Sort by conversion rate descending to rank them
+  const ranked = [...variants].sort((a, b) => b.conversionRate - a.conversionRate);
+
+  return variants.map((v, index) => {
+    const rank = ranked.findIndex((r) => r.id === v.id);
+
+    let status: PerformanceRow["status"];
+    if (v.isWinner) {
+      status = "Winner";
+    } else if (v.trafficPercent >= 5) {
+      status = "Live";
+    } else {
+      status = "Eliminated";
+    }
+
+    // Confidence to be best: use confidenceVsControl if available, otherwise
+    // derive from rank (top is highest, others scale down)
+    let confidenceToBeBest: number;
+    if (v.confidenceVsControl !== null && v.confidenceVsControl !== undefined) {
+      confidenceToBeBest = Math.min(99.9, Math.max(0.1, v.confidenceVsControl));
+    } else if (rank === 0) {
+      confidenceToBeBest = 0; // control or top; no comparison
+    } else {
+      // Proportional fallback: higher conversion rank → lower confidence (losing)
+      confidenceToBeBest = Math.max(0.1, 50 - rank * 10);
+    }
+
+    const color = index === 0 ? "var(--color-primary)" : colorForIndex(index);
+
+    return {
+      id: v.id,
+      label: variantInitials(v.name),
+      color,
+      createdAt: "N/A",
+      status,
+      trafficPercent: v.trafficPercent,
+      visitors: v.impressions,
+      conversionRate: v.conversionRate,
+      confidenceToBeBest,
+      trend: seededTrend(v.id),
+      last24h: 0,
+    };
+  });
+}
 
 function statusBadgeVariant(status: PerformanceRow["status"]) {
   return status === "Eliminated" ? "neutral" : "success";
 }
 
-export function PerformanceTable() {
+export function PerformanceTable({ variants }: { variants: VariantStat[] }) {
   const [query, setQuery] = useState("");
-  const rows = performanceRows.filter((row) =>
+  const rows = buildPerformanceRows(variants).filter((row) =>
     row.label.toLowerCase().includes(query.trim().toLowerCase()),
   );
 
@@ -21,7 +104,7 @@ export function PerformanceTable() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-[color:var(--color-text-primary)]">
-          All Variants ({performanceRows.length})
+          All Variants ({variants.length})
         </h2>
         <div className="flex items-center gap-2">
           <input
@@ -57,7 +140,10 @@ export function PerformanceTable() {
               <div className="flex items-center gap-2">
                 <span
                   className="h-6 w-6 shrink-0 rounded-md"
-                  style={{ backgroundColor: row.color }}
+                  style={{
+                    backgroundColor: typeof row.color === "string" && row.color.startsWith("var(") ? undefined : row.color,
+                    background: typeof row.color === "string" && row.color.startsWith("var(") ? row.color : undefined,
+                  }}
                   aria-hidden="true"
                 />
                 <div>
@@ -119,20 +205,18 @@ export function PerformanceTable() {
           },
           {
             header: "Trend",
-            render: (row) => <Sparkline data={row.trend} color={row.color} />,
+            render: (row) => (
+              <Sparkline
+                data={row.trend}
+                color={typeof row.color === "string" && row.color.startsWith("var(") ? "#165DFF" : row.color}
+              />
+            ),
           },
           {
             header: "Last 24h",
-            render: (row) => (
-              <span
-                className={
-                  row.last24h >= 0
-                    ? "text-xs font-medium text-[color:var(--color-success)]"
-                    : "text-xs font-medium text-red-500"
-                }
-              >
-                {row.last24h >= 0 ? "+" : ""}
-                {row.last24h.toFixed(2)}%
+            render: () => (
+              <span className="text-xs text-[color:var(--color-text-secondary)]">
+                &ndash;
               </span>
             ),
           },
