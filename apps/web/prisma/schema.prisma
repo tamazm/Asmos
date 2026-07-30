@@ -54,6 +54,7 @@ enum CampaignEventType {
   INTERACTION
   SUBMISSION
   GIFT_CLAIMED
+  DISMISSED
 }
 
 // A customer business — the tenant boundary for every other model.
