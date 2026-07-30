@@ -212,7 +212,7 @@ export default function GeneratePopupPage() {
         varB = {
           label: "Asmos variant",
           headline: `${name}'s best-kept secret: 10% off`,
-          body: `Thousands of customers already save with ${name}. Join them — your discount waits inside.`,
+          body: `Thousands of customers already save with ${name}. Join them: your discount waits inside.`,
           cta: "Unlock my 10% off",
         };
       } else {
@@ -224,7 +224,7 @@ export default function GeneratePopupPage() {
           varA = {
             label: "Exclusive access angle",
             headline: `Join the inner circle`,
-            body: `${name} members receive early access to new collections and exclusive offers. Invite-only — enter now.`,
+            body: `${name} members receive early access to new collections and exclusive offers. Invite-only: enter now.`,
             cta: "Request access",
           };
           varB = {
@@ -237,7 +237,7 @@ export default function GeneratePopupPage() {
           varA = {
             label: "Results-led angle",
             headline: `Unlock your wellness routine`,
-            body: `Join ${name} subscribers and get 15% off your first order — plus expert tips delivered weekly.`,
+            body: `Join ${name} subscribers and get 15% off your first order, plus expert tips delivered weekly.`,
             cta: "Start my routine",
           };
           varB = {
@@ -250,7 +250,7 @@ export default function GeneratePopupPage() {
           varA = {
             label: "Discount angle",
             headline: `Get 10% off your first order`,
-            body: `Subscribe to ${name} and receive a welcome discount — use it on anything in the store.`,
+            body: `Subscribe to ${name} and receive a welcome discount. Use it on anything in the store.`,
             cta: "Claim my 10% off",
           };
           varB = {
