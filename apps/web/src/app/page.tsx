@@ -22,6 +22,14 @@ export default async function LandingPage() {
           priority
           className="h-7 w-auto"
         />
+        <nav className="hidden items-center gap-5 text-sm font-medium text-[color:var(--color-text-secondary)] sm:flex">
+          <Link
+            href="/pricing"
+            className="transition-colors duration-150 hover:text-[color:var(--color-text-primary)]"
+          >
+            Pricing
+          </Link>
+        </nav>
         <div className="flex items-center gap-3 text-sm font-medium">
           <Link
             href="/sign-in"
@@ -262,6 +270,12 @@ export default async function LandingPage() {
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[color:var(--color-text-secondary)]">
           <p>&copy; 2026 Asmos</p>
           <nav className="flex items-center gap-5">
+            <Link
+              href="/pricing"
+              className="hover:text-[color:var(--color-text-primary)] transition-colors duration-150"
+            >
+              Pricing
+            </Link>
             <Link
               href="/privacy"
               className="hover:text-[color:var(--color-text-primary)] transition-colors duration-150"

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfidenceBar } from "@/components/ui/ConfidenceBar";
@@ -318,6 +319,12 @@ export function VariantManager({
                 <Button variant="secondary" onClick={() => startEdit(variant)}>
                   Edit
                 </Button>
+                <Link
+                  href={`/campaigns/${campaignId}/variants/${variant.id}`}
+                  className="inline-flex items-center justify-center rounded-lg h-10 px-4 py-2 text-sm font-medium border border-[color:var(--color-border)] text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] transition-colors duration-150 active:scale-[0.98]"
+                >
+                  View details
+                </Link>
                 {!hasWinner && variants.length > 1 && (
                   <Button
                     variant="secondary"
