@@ -149,7 +149,6 @@ export default async function SettingsPage() {
 // It's rendered server-side but used as a pure presentational component
 // Client interaction will be handled by SettingsTabs
 function NotificationToggle({
-  id,
   label,
   description,
   defaultOn,

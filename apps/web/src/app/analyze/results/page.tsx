@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -143,8 +143,12 @@ export default function AnalyzeResultsPage() {
     if (!raw) { router.replace("/"); return; }
     try {
       const data: AnalyzeResult = JSON.parse(raw);
-      setResult(data);
-      if (sessionStorage.getItem("asmos_email_captured")) setEmailState("sent");
+      const captured = Boolean(sessionStorage.getItem("asmos_email_captured"));
+      // Batch updates via transition to avoid the synchronous-setState-in-effect pattern
+      startTransition(() => {
+        setResult(data);
+        if (captured) setEmailState("sent");
+      });
     } catch { router.replace("/"); }
   }, [router]);
 

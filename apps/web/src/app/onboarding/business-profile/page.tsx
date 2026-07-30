@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { onboardingStepCompleted } from "@/lib/analytics";
@@ -156,10 +156,12 @@ export default function BusinessProfilePage() {
       const raw = sessionStorage.getItem("asmos_analyze_result");
       if (raw) {
         const data: AnalyzeResult = JSON.parse(raw);
-        setAnalyzeData(data);
-        if (data.industry) setIndustry(data.industry);
-        if (data.brandColor) setBrandColor(data.brandColor);
-        if (data.storeName) setBusinessName(data.storeName);
+        startTransition(() => {
+          setAnalyzeData(data);
+          if (data.industry) setIndustry(data.industry);
+          if (data.brandColor) setBrandColor(data.brandColor);
+          if (data.storeName) setBusinessName(data.storeName);
+        });
       }
     } catch {
       // ignore

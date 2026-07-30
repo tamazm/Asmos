@@ -1,5 +1,12 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
+const ClerkUserButton = dynamic(
+  () => import("@clerk/nextjs").then((m) => ({ default: m.UserButton })),
+  { ssr: false },
+);
+
 export function UserButton() {
   if (process.env.NEXT_PUBLIC_MOCK_AUTH === "true") {
     return (
@@ -8,7 +15,5 @@ export function UserButton() {
       </div>
     );
   }
-  // Real Clerk UserButton
-  const { UserButton: ClerkUserButton } = require("@clerk/nextjs");
   return <ClerkUserButton />;
 }

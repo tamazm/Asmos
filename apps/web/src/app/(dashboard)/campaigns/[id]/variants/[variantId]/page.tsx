@@ -78,8 +78,6 @@ export default async function VariantDetailPage(props: {
   };
   const hasDesign = !!(design.headline || design.body || design.ctaText || design.primaryColor);
 
-  // Status badge variant
-  const badgeVariant = isWinner ? "success" : variant.isControl ? "neutral" : "neutral";
   const statusLabel = isWinner ? "Winner" : variant.isControl ? "Control" : "Variant";
 
   return (

@@ -1,20 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Button, ButtonArrow } from "@/components/ui/Button";
+import { ButtonArrow } from "@/components/ui/Button";
 import { onboardingStepCompleted } from "@/lib/analytics";
 
 export default function OnboardingWelcomePage() {
   const router = useRouter();
-  const [storeName, setStoreName] = useState<string | null>(null);
 
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem("asmos_analyze_result");
       if (raw) {
-        const data = JSON.parse(raw);
-        if (data.storeName) setStoreName(data.storeName);
         // Analysis data present — skip generic welcome, go straight to confirm details
         router.replace("/onboarding/business-profile");
         return;
@@ -23,6 +20,15 @@ export default function OnboardingWelcomePage() {
       // ignore
     }
   }, [router]);
+
+  // Read storeName synchronously for the heading before redirect happens
+  const storeName = (() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = sessionStorage.getItem("asmos_analyze_result");
+      return raw ? (JSON.parse(raw).storeName ?? null) : null;
+    } catch { return null; }
+  })();
 
   function handleStart() {
     onboardingStepCompleted(1, "welcome");

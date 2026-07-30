@@ -152,7 +152,7 @@ export function NotificationBell() {
                   </div>
                 );
                 return n.href ? (
-                  <Link key={n.id} href={n.href} onClick={() => { unread && markRead(n.id); setOpen(false); }}>
+                  <Link key={n.id} href={n.href} onClick={() => { if (unread) markRead(n.id); setOpen(false); }}>
                     {inner}
                   </Link>
                 ) : (

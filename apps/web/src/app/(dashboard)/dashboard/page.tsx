@@ -1,4 +1,3 @@
-import { PageHeader } from "@/components/ui/PageHeader";
 import { StatCard } from "@/components/ui/StatCard";
 import Link from "next/link";
 import { getOrCreateAccount } from "@/lib/account";

@@ -3,9 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import dynamic from "next/dynamic";
 
 const isMock = process.env.NEXT_PUBLIC_MOCK_AUTH === "true";
+
+const RealSignUp = dynamic(
+  () => import("@clerk/nextjs").then((m) => ({ default: m.SignUp })),
+  { ssr: false },
+);
 
 function MockSignUpForm() {
   const router = useRouter();
@@ -88,26 +94,22 @@ function MockSignUpForm() {
   );
 }
 
-function RealSignUp() {
-  // Dynamically rendered only in non-mock mode
-  const { SignUp } = require("@clerk/nextjs");
-  return <SignUp />;
-}
-
 export default function SignUpPage() {
-  const [storeName, setStoreName] = useState<string | null>(null);
-
-  useEffect(() => {
+  const storeName = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
     try {
       const raw = sessionStorage.getItem("asmos_analyze_result");
       if (raw) {
         const data = JSON.parse(raw);
-        if (data.storeName) setStoreName(data.storeName);
+        return data.storeName ?? null;
       }
     } catch {
       // ignore
     }
-  }, []);
+    return null;
+  })[0];
+
+  // storeName is initialized lazily from sessionStorage (see useState initializer above)
 
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6 py-12">
