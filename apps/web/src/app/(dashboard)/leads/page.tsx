@@ -109,11 +109,11 @@ export default async function LeadsPage(props: PageProps<"/leads">) {
           rows={rows}
           emptyMessage="No leads match your filters."
           columns={[
-            { header: "Name", render: (row) => row.name || <span className="text-[color:var(--color-text-secondary)]">—</span> },
-            { header: "Email", render: (row) => row.email || <span className="text-[color:var(--color-text-secondary)]">—</span> },
-            { header: "Phone", render: (row) => row.phone || <span className="text-[color:var(--color-text-secondary)]">—</span> },
+            { header: "Name", render: (row) => row.name || <span className="text-[color:var(--color-text-secondary)]">–</span> },
+            { header: "Email", render: (row) => row.email || <span className="text-[color:var(--color-text-secondary)]">–</span> },
+            { header: "Phone", render: (row) => row.phone || <span className="text-[color:var(--color-text-secondary)]">–</span> },
             { header: "Campaign", render: (row) => row.campaign },
-            { header: "Reward code", render: (row) => row.reward ? <code className="rounded bg-[color:var(--color-surface-sunken)] px-1.5 py-0.5 text-xs font-mono">{row.reward}</code> : <span className="text-[color:var(--color-text-secondary)]">—</span> },
+            { header: "Reward code", render: (row) => row.reward ? <code className="rounded bg-[color:var(--color-surface-sunken)] px-1.5 py-0.5 text-xs font-mono">{row.reward}</code> : <span className="text-[color:var(--color-text-secondary)]">–</span> },
             { header: "Date", render: (row) => <span className="tabular-nums text-[color:var(--color-text-secondary)]">{row.createdAt}</span> },
           ]}
         />

@@ -238,7 +238,7 @@ export default function AnalyzeResultsPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="w-full rounded-xl bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98] disabled:opacity-60"
+                  className="w-full rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98] disabled:opacity-60"
                 >
                   {submitting ? "One moment..." : "Show me how to fix it, free"}
                 </button>
@@ -257,7 +257,7 @@ export default function AnalyzeResultsPage() {
               {/* Brand color preview */}
               <div className="mb-5 flex items-center gap-4">
                 <div
-                  className="h-12 w-12 rounded-xl flex-shrink-0 shadow-sm border border-black/5"
+                  className="h-12 w-12 rounded-md flex-shrink-0 shadow-sm border border-black/5"
                   style={{ backgroundColor: brandColor }}
                 />
                 <div>
@@ -319,7 +319,7 @@ export default function AnalyzeResultsPage() {
 
               <button
                 onClick={handleConfirm}
-                className="mt-6 w-full rounded-xl bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98]"
+                className="mt-6 w-full rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98]"
               >
                 Start fixing my score, free
               </button>

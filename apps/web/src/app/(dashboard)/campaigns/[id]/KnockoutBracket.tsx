@@ -51,7 +51,7 @@ export function KnockoutBracket() {
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_320px]">
-        <div className="overflow-x-auto rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
+        <div className="overflow-x-auto rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
           <div className="flex min-w-max gap-6">
             {rounds.map((round) => (
               <div key={round.title} className="flex w-48 flex-col gap-2">
@@ -77,9 +77,11 @@ export function KnockoutBracket() {
                   Winner
                 </p>
               </div>
-              <div className="flex flex-col gap-3 rounded-xl border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] p-4">
+              <div className="flex flex-col gap-3 rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] p-4">
                 <div className="flex items-center justify-between">
-                  <span aria-hidden="true">🏆</span>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-[color:var(--color-success)]">
+                    <path d="M12 2l2.4 6.9H22l-6.2 4.5 2.4 6.9L12 16l-6.2 4.3 2.4-6.9L2 9.1h7.6L12 2z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                   <Badge variant="success">Live</Badge>
                 </div>
                 <div className="flex items-center gap-2">
@@ -127,7 +129,7 @@ export function KnockoutBracket() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
+          <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
             <h3 className="mb-3 text-sm font-semibold text-[color:var(--color-text-primary)]">
               Test Summary
             </h3>
@@ -154,7 +156,7 @@ export function KnockoutBracket() {
             </dl>
           </div>
 
-          <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
+          <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
             <h3 className="mb-3 text-sm font-semibold text-[color:var(--color-text-primary)]">
               Traffic Allocation
             </h3>
@@ -162,7 +164,12 @@ export function KnockoutBracket() {
           </div>
 
           <CalloutCard
-            icon={<span aria-hidden="true">✨</span>}
+            icon={
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" stroke="currentColor" strokeWidth="1.5" />
+                <path d="M12 8v4m0 4h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            }
             title="Auto-optimizing"
             message="Asmos is automatically allocating more traffic to better performing variants and eliminating underperformers."
           />

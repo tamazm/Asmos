@@ -3,7 +3,7 @@ import { cn } from "@/lib/cn";
 type BadgeVariant = "success" | "neutral";
 
 const variantClasses: Record<BadgeVariant, string> = {
-  success: "bg-[color:var(--color-success-bg)] text-green-700",
+  success: "bg-[color:var(--color-success-bg)] text-[color:var(--color-success)]",
   neutral: "bg-[color:var(--color-neutral-badge)] text-[color:var(--color-text-secondary)]",
 };
 

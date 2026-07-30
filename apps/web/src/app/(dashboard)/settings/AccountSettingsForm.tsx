@@ -29,7 +29,7 @@ export function AccountSettingsForm({
 }) {
   const [name, setName] = useState(initialName);
   const [industry, setIndustry] = useState(initialIndustry ?? INDUSTRIES[0]);
-  const [brandColor, setBrandColor] = useState(initialBrandColor ?? "#6366f1");
+  const [brandColor, setBrandColor] = useState(initialBrandColor ?? "#165DFF");
   const [gdpr, setGdpr] = useState(initialGdpr);
   const [ccpa, setCcpa] = useState(initialCcpa);
   const [bannerText, setBannerText] = useState(
@@ -78,7 +78,7 @@ export function AccountSettingsForm({
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
         />
       </div>
 
@@ -89,7 +89,7 @@ export function AccountSettingsForm({
         <select
           value={industry}
           onChange={(e) => setIndustry(e.target.value)}
-          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 bg-[color:var(--color-surface)]"
         >
           {INDUSTRIES.map((option) => (
             <option key={option} value={option}>
@@ -151,7 +151,7 @@ export function AccountSettingsForm({
           value={bannerText}
           onChange={(e) => setBannerText(e.target.value)}
           rows={3}
-          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
         />
       </div>
 

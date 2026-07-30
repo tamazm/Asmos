@@ -10,7 +10,7 @@ export default async function OnboardingLayout({
   await authProtect();
 
   return (
-    <div className="flex min-h-screen flex-col items-center bg-[color:var(--color-surface-sunken)] px-6 py-12">
+    <div className="flex min-h-[100dvh] flex-col items-center bg-[color:var(--color-surface-sunken)] px-6 py-12">
       <Logo className="mb-8" />
 
       <div className="mb-10">

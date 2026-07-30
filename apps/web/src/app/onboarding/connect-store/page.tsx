@@ -168,7 +168,7 @@ export default function ConnectStorePage() {
             )}
           </button>
         </div>
-        <pre className="overflow-x-auto rounded-xl bg-[color:var(--color-text-primary)] p-4 text-xs leading-relaxed text-[#e2e8f0] font-mono select-all">
+        <pre className="overflow-x-auto rounded-lg bg-[color:var(--color-text-primary)] p-4 text-xs leading-relaxed text-[#e2e8f0] font-mono select-all">
           <code>{SNIPPET}</code>
         </pre>
       </div>
@@ -178,7 +178,7 @@ export default function ConnectStorePage() {
         <p className="mb-2 text-sm font-medium text-[color:var(--color-text-primary)]">
           How to install
         </p>
-        <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4">
+        <div className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4">
           <ol className="flex flex-col gap-2">
             {activeTab.instructions.split("\n").map((line, i) => (
               <li key={i} className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">
@@ -191,7 +191,7 @@ export default function ConnectStorePage() {
 
       {/* Install verification */}
       {verified ? (
-        <div className="flex items-center gap-2 rounded-xl border border-[color:var(--color-success-bg)] bg-[color:var(--color-success-bg)] px-4 py-3">
+        <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-success-bg)] bg-[color:var(--color-success-bg)] px-4 py-3">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path d="M3 8l3.5 3.5L13 4.5" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>

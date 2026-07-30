@@ -176,7 +176,7 @@ function Step1TypeSelect({ state, update }: { state: WizardState; update: (s: Pa
               )}
               aria-pressed={active}
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[color:var(--color-primary-light)]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)]">
                 {opt.icon}
               </div>
               <div>
@@ -643,7 +643,7 @@ export default function NewCampaignPage() {
       </div>
 
       {publishError && (
-        <div className="mx-auto w-full max-w-3xl rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+        <div className="mx-auto w-full max-w-3xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
           <p className="text-sm text-red-600">{publishError}</p>
         </div>
       )}

@@ -44,7 +44,7 @@ export default async function CampaignsListPage() {
         actions={
           <Link
             href="/campaigns/new"
-            className="rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-sm font-medium text-white hover:bg-[color:var(--color-primary-dark)]"
+            className="inline-flex items-center justify-center rounded-lg bg-[color:var(--color-primary)] px-4 py-2 h-10 text-sm font-medium text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98]"
           >
             New Campaign
           </Link>

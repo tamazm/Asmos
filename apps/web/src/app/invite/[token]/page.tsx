@@ -18,7 +18,7 @@ export default async function InvitePage({
   const invalid = !invite || invite.status !== "PENDING";
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[color:var(--color-surface-sunken)] px-6 text-center">
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-6 bg-[color:var(--color-surface-sunken)] px-6 text-center">
       <Logo />
 
       {invalid ? (

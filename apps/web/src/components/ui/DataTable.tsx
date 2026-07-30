@@ -15,7 +15,7 @@ export function DataTable<T extends { id: string }>({
   onRowClick?: (row: T) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+    <div className="overflow-x-auto rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
       <table className="w-full min-w-max text-left text-sm">
         <thead>
           <tr className="border-b border-[color:var(--color-border)] text-[color:var(--color-text-secondary)]">
