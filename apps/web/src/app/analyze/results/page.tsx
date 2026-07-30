@@ -351,6 +351,123 @@ export default function AnalyzeResultsPage() {
           ))}
         </div>
 
+        {/* ── Blurred popup teaser ── */}
+        {(result.screenshotBase64 || result.score != null) && (
+          <div className="fade-up-3 relative rounded-2xl overflow-hidden" style={{ isolation: "isolate" }}>
+            {/* Pulsing gradient border */}
+            <style>{`
+              @keyframes pulse-border {
+                0%, 100% { opacity: 1; }
+                50% { opacity: 0.5; }
+              }
+              .popup-teaser-border {
+                animation: pulse-border 2.5s ease-in-out infinite;
+              }
+            `}</style>
+            <div
+              className="popup-teaser-border absolute inset-0 rounded-2xl pointer-events-none"
+              style={{
+                background: `linear-gradient(135deg, ${result.brandColor ?? "#165DFF"}40, ${result.brandColor ?? "#165DFF"}10, ${result.brandColor ?? "#165DFF"}40)`,
+                padding: "1.5px",
+                zIndex: 0,
+              }}
+            />
+
+            <div className="relative rounded-2xl border border-gray-100 bg-white overflow-hidden" style={{ zIndex: 1 }}>
+              {/* Label */}
+              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
+                <span
+                  className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
+                  style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
+                >
+                  Your popup
+                </span>
+                <span className="text-[11px] text-gray-400">Auto-generated for {result.storeName}</span>
+              </div>
+
+              {/* Popup preview (blurred/visible depending on emailState) */}
+              <div className="relative mx-4 mb-4">
+                {/* The fake popup UI */}
+                <div
+                  className="rounded-xl border border-gray-100 shadow-lg overflow-hidden transition-all duration-700"
+                  style={{
+                    filter: emailState === "sent" ? "none" : "blur(4px)",
+                    pointerEvents: "none",
+                    userSelect: "none",
+                  }}
+                >
+                  {/* Popup header bar */}
+                  <div
+                    className="px-5 py-4 text-white"
+                    style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
+                  >
+                    <p className="text-base font-bold leading-snug">
+                      Get 10% off your first order
+                    </p>
+                    <p className="mt-1 text-sm opacity-90">
+                      Join {result.storeName} subscribers and unlock exclusive deals.
+                    </p>
+                  </div>
+                  {/* Popup body */}
+                  <div className="bg-white px-5 py-4 flex flex-col gap-3">
+                    <div className="rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-400">
+                      Enter your email address…
+                    </div>
+                    <div
+                      className="w-full rounded-lg py-2.5 text-center text-sm font-semibold text-white"
+                      style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
+                    >
+                      Claim my 10% discount
+                    </div>
+                    <p className="text-center text-[10px] text-gray-400">No spam. Unsubscribe any time.</p>
+                  </div>
+                </div>
+
+                {/* Lock overlay — shown when not yet emailed */}
+                {emailState !== "sent" && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/70 backdrop-blur-[2px]">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-900">
+                      <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                        <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                        <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                      </svg>
+                    </div>
+                    <div className="text-center px-4">
+                      <p className="text-sm font-bold text-gray-900">Your Asmos popup is ready</p>
+                      <p className="mt-0.5 text-xs text-gray-500 leading-relaxed">
+                        Create a free account to unlock and publish it
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => router.push("/sign-up?from=analyze")}
+                      className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
+                      style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
+                    >
+                      Unlock my popup →
+                    </button>
+                  </div>
+                )}
+
+                {/* Post-email overlay — shown after email submitted */}
+                {emailState === "sent" && (
+                  <div className="mt-3 flex flex-col items-center gap-2 text-center">
+                    <p className="text-sm font-semibold text-gray-800">
+                      Your popup is ready. Create an account to publish it.
+                    </p>
+                    <button
+                      onClick={() => router.push("/sign-up?from=analyze")}
+                      className="w-full rounded-xl py-3 text-sm font-bold text-white transition-colors hover:opacity-90"
+                      style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
+                    >
+                      Create free account → publish now
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── No popup CTA block ── */}
         {noPopup && emailState !== "sent" && (
           <div className="fade-up-3 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-5">

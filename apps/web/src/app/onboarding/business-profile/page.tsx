@@ -12,6 +12,21 @@ interface AnalyzeResult {
   storeUrl?: string;
 }
 
+const ROLES = [
+  { value: "Store Owner", label: "Store Owner" },
+  { value: "Marketer", label: "Marketer" },
+  { value: "Agency", label: "Agency" },
+  { value: "Developer", label: "Developer" },
+  { value: "Other", label: "Other" },
+];
+
+const GOALS = [
+  { value: "Grow email list", label: "Grow email list" },
+  { value: "Increase first purchase", label: "Increase first purchase" },
+  { value: "Reduce cart abandonment", label: "Reduce cart abandonment" },
+  { value: "Increase repeat purchase", label: "Increase repeat purchase" },
+];
+
 const INDUSTRIES = [
   {
     value: "Ecommerce / Retail",
@@ -88,9 +103,12 @@ const PRESET_COLORS = [
 
 export default function BusinessProfilePage() {
   const router = useRouter();
+  const [analyzeData, setAnalyzeData] = useState<AnalyzeResult | null>(null);
   const [industry, setIndustry] = useState(INDUSTRIES[0].value);
   const [brandColor, setBrandColor] = useState("#165DFF");
   const [businessName, setBusinessName] = useState("");
+  const [role, setRole] = useState("");
+  const [conversionGoal, setConversionGoal] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,6 +118,7 @@ export default function BusinessProfilePage() {
       const raw = sessionStorage.getItem("asmos_analyze_result");
       if (raw) {
         const data: AnalyzeResult = JSON.parse(raw);
+        setAnalyzeData(data);
         if (data.industry) setIndustry(data.industry);
         if (data.brandColor) setBrandColor(data.brandColor);
         if (data.storeName) setBusinessName(data.storeName);
@@ -109,6 +128,8 @@ export default function BusinessProfilePage() {
     }
   }, []);
 
+  const hasAnalyzeData = analyzeData !== null;
+
   async function handleContinue() {
     setSaving(true);
     setError(null);
@@ -116,7 +137,13 @@ export default function BusinessProfilePage() {
       const res = await fetch("/api/onboarding/business-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ industry, brandColor, name: businessName || undefined }),
+        body: JSON.stringify({
+          industry,
+          brandColor,
+          name: businessName || undefined,
+          role: role || undefined,
+          conversionGoal: conversionGoal || undefined,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -135,10 +162,12 @@ export default function BusinessProfilePage() {
     <div className="flex flex-col gap-6 animate-page-enter">
       <div>
         <h1 className="text-xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
-          Business profile
+          {hasAnalyzeData ? "We already know your store — confirm a few details" : "Business profile"}
         </h1>
         <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
-          This sets your popup theme and tailors suggestions to your industry.
+          {hasAnalyzeData
+            ? "We detected these from your site. Correct anything that looks off."
+            : "This sets your popup theme and tailors suggestions to your industry."}
         </p>
       </div>
 
@@ -157,88 +186,148 @@ export default function BusinessProfilePage() {
         />
       </div>
 
-      {/* Industry selector -- visual cards */}
-      <div>
-        <p className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">
-          Industry
-        </p>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {INDUSTRIES.map((opt) => {
-            const active = industry === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setIndustry(opt.value)}
-                className={[
-                  "flex flex-col items-center gap-2 rounded-2xl border p-4 text-center text-sm font-medium transition-colors duration-150 cursor-pointer",
-                  active
-                    ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)] shadow-sm"
-                    : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/40 hover:bg-[color:var(--color-primary-light)]/30",
-                ].join(" ")}
-                aria-pressed={active}
-              >
-                <span className={active ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text-secondary)]"}>
-                  {opt.icon}
-                </span>
-                <span className="leading-tight">{opt.label}</span>
-              </button>
-            );
-          })}
+      {/* Industry — read-only detected value if from analysis, else selector */}
+      {hasAnalyzeData ? (
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-[color:var(--color-text-primary)]">Industry</p>
+          <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+            <svg className="h-4 w-4 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 16 16">
+              <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M2 8l3.5 3.5L14 3.5" />
+            </svg>
+            <span className="text-sm font-medium text-emerald-800">Detected: {industry}</span>
+          </div>
         </div>
+      ) : (
+        <div>
+          <p className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">
+            Industry
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {INDUSTRIES.map((opt) => {
+              const active = industry === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setIndustry(opt.value)}
+                  className={[
+                    "flex flex-col items-center gap-2 rounded-2xl border p-4 text-center text-sm font-medium transition-colors duration-150 cursor-pointer",
+                    active
+                      ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)] shadow-sm"
+                      : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/40 hover:bg-[color:var(--color-primary-light)]/30",
+                  ].join(" ")}
+                  aria-pressed={active}
+                >
+                  <span className={active ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text-secondary)]"}>
+                    {opt.icon}
+                  </span>
+                  <span className="leading-tight">{opt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Brand color — read-only detected value if from analysis, else picker */}
+      {hasAnalyzeData ? (
+        <div>
+          <p className="mb-1.5 text-sm font-medium text-[color:var(--color-text-primary)]">Brand color</p>
+          <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5">
+            <div
+              className="h-7 w-7 flex-shrink-0 rounded-md border border-black/10 shadow-sm"
+              style={{ backgroundColor: brandColor }}
+            />
+            <svg className="h-4 w-4 text-emerald-600 flex-shrink-0" fill="none" viewBox="0 0 16 16">
+              <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M2 8l3.5 3.5L14 3.5" />
+            </svg>
+            <span className="text-sm font-medium text-emerald-800">
+              Detected: <span className="font-mono">{brandColor}</span>
+            </span>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <p className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">
+            Brand color
+          </p>
+          <div className="mb-3 flex items-center gap-3">
+            <div
+              className="h-10 w-10 flex-shrink-0 rounded-lg border border-black/10 shadow-sm transition-colors duration-200"
+              style={{ backgroundColor: brandColor }}
+              aria-label={`Selected color: ${brandColor}`}
+            />
+            <span className="font-mono text-sm text-[color:var(--color-text-secondary)] tabular-nums">
+              {brandColor}
+            </span>
+          </div>
+          <div className="mb-3 flex flex-wrap gap-2">
+            {PRESET_COLORS.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setBrandColor(c)}
+                className={[
+                  "h-8 w-8 rounded-lg border-2 transition-colors duration-100 cursor-pointer",
+                  brandColor.toLowerCase() === c.toLowerCase()
+                    ? "border-[color:var(--color-primary)] scale-110 shadow-sm"
+                    : "border-transparent hover:scale-105",
+                ].join(" ")}
+                style={{ backgroundColor: c }}
+                aria-label={`Set color ${c}`}
+                aria-pressed={brandColor.toLowerCase() === c.toLowerCase()}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={brandColor}
+              onChange={(e) => setBrandColor(e.target.value)}
+              className="h-9 w-9 cursor-pointer rounded-lg border border-[color:var(--color-border)] p-0.5"
+              aria-label="Custom color picker"
+            />
+            <span className="text-xs text-[color:var(--color-text-secondary)]">
+              Custom color
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Role — always ask */}
+      <div>
+        <label htmlFor="role" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+          What is your role?
+        </label>
+        <select
+          id="role"
+          value={role}
+          onChange={(e) => setRole(e.target.value)}
+          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm text-[color:var(--color-text-primary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 bg-white"
+        >
+          <option value="">Select your role…</option>
+          {ROLES.map((r) => (
+            <option key={r.value} value={r.value}>{r.label}</option>
+          ))}
+        </select>
       </div>
 
-      {/* Brand color picker */}
+      {/* Conversion goal — always ask */}
       <div>
-        <p className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">
-          Brand color
-        </p>
-
-        {/* Live preview swatch */}
-        <div className="mb-3 flex items-center gap-3">
-          <div
-            className="h-10 w-10 flex-shrink-0 rounded-lg border border-black/10 shadow-sm transition-colors duration-200"
-            style={{ backgroundColor: brandColor }}
-            aria-label={`Selected color: ${brandColor}`}
-          />
-          <span className="font-mono text-sm text-[color:var(--color-text-secondary)] tabular-nums">
-            {brandColor}
-          </span>
-        </div>
-
-        {/* Preset colors */}
-        <div className="mb-3 flex flex-wrap gap-2">
-          {PRESET_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setBrandColor(c)}
-              className={[
-                "h-8 w-8 rounded-lg border-2 transition-colors duration-100 cursor-pointer",
-                brandColor.toLowerCase() === c.toLowerCase()
-                  ? "border-[color:var(--color-primary)] scale-110 shadow-sm"
-                  : "border-transparent hover:scale-105",
-              ].join(" ")}
-              style={{ backgroundColor: c }}
-              aria-label={`Set color ${c}`}
-              aria-pressed={brandColor.toLowerCase() === c.toLowerCase()}
-            />
+        <label htmlFor="conversion-goal" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+          What is your main conversion goal?
+        </label>
+        <select
+          id="conversion-goal"
+          value={conversionGoal}
+          onChange={(e) => setConversionGoal(e.target.value)}
+          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm text-[color:var(--color-text-primary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 bg-white"
+        >
+          <option value="">Select a goal…</option>
+          {GOALS.map((g) => (
+            <option key={g.value} value={g.value}>{g.label}</option>
           ))}
-        </div>
-
-        {/* Custom color input */}
-        <div className="flex items-center gap-2">
-          <input
-            type="color"
-            value={brandColor}
-            onChange={(e) => setBrandColor(e.target.value)}
-            className="h-9 w-9 cursor-pointer rounded-lg border border-[color:var(--color-border)] p-0.5"
-            aria-label="Custom color picker"
-          />
-          <span className="text-xs text-[color:var(--color-text-secondary)]">
-            Custom color
-          </span>
-        </div>
+        </select>
       </div>
 
       {error && (

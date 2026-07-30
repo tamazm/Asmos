@@ -95,7 +95,7 @@ export default function ConnectStorePage() {
 
   async function handleDone() {
     onboardingStepCompleted(4, "connect-store");
-    router.push("/dashboard");
+    router.push("/onboarding/generate-popup");
   }
 
   return (
