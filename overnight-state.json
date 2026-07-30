@@ -1,0 +1,84 @@
+{
+  "deadlineAt": "2026-07-31T07:35:00.000Z",
+  "branch": "overnight/core-flow",
+  "repo": "/home/ubuntu/.openclaw/workspace/Asmos",
+  "webApp": "/home/ubuntu/.openclaw/workspace/Asmos/apps/web",
+  "buildCmd": "cd /home/ubuntu/.openclaw/workspace/Asmos/apps/web && npm run build",
+  "doNotCommit": ["overnight-state.json", "*.overnight.*", "tmp-*", "*.tmp"],
+  "tasks": [
+    {
+      "id": "P0-bugfix-popup-detection",
+      "priority": 0,
+      "title": "Fix false popup detection in heuristic analyzer",
+      "status": "done",
+      "summary": "Tightened heuristic popup detection to require known popup library signals (klaviyo, privy, omnisend, etc.) instead of bare 'popup' word. Also tightened stickyBar (removed 'sticky'/'free shipping' as false positives), urgency (removed bare 'only'), emailCapture (require subscribe+email combo). Enhanced extractBrandMeta to parse --color-primary CSS vars, nav/header background-color, and Shopify theme color settings. Committed: e9bf9c6."
+    },
+    {
+      "id": "P0-widget-v2-commit",
+      "priority": 1,
+      "title": "Commit widget v2 with high-quality popup design",
+      "status": "in_progress",
+      "description": "The upgraded widget already exists at apps/web/public/widget/asmos-widget.js with these improvements: dynamic brand color driving accent bar, button, focus ring; auto black/white text contrast; store name brand badge; trust row (no spam / unsubscribe anytime / instant reward); 'No thanks, I'll pay full price' dismiss link; mobile bottom-sheet animation; desktop scale-in animation; success state with confetti + coupon code display. Also update the inline PopupPreview component in apps/web/src/app/(dashboard)/campaigns/new/page.tsx to render a proper full-fidelity popup preview (not the tiny squished card it currently shows). Commit: feat: widget v2 — brand-adaptive design, trust signals, animations"
+    },
+    {
+      "id": "P1-core-flow-analyze",
+      "priority": 2,
+      "title": "Core flow: URL input → AI analysis → analysis results page",
+      "status": "pending",
+      "description": "Polish the full analyze flow to elite level matching reference screenshots 01, 02, 03. Scope: (1) apps/web/src/app/page.tsx — homepage URL input, clean and minimal, single CTA 'Analyze my store', no clutter. (2) apps/web/src/app/analyze/page.tsx — live scanning animation with real progress steps (Fetching store... Detecting brand colors... Analyzing CRO elements... Building your popup preview...) each step shown as it completes. (3) apps/web/src/app/analyze/results/page.tsx — show detected brand color as a live color swatch, store grade (A/B/C/D/F) prominently, checklist of what was found vs missing, a blurred/locked popup preview card, and a strong CTA to sign up to unlock it. The blurred popup should use the actual widget v2 HTML rendered into an iframe or div with filter:blur(6px) + a signup overlay on top. Also improve brand color extraction in /api/analyze/route.ts: after meta theme-color, also parse inline CSS for --color-primary, background-color on nav/header elements. Commit per sub-step."
+    },
+    {
+      "id": "P1-core-flow-signup-personalization",
+      "priority": 3,
+      "title": "Core flow: signup → personalization screens",
+      "status": "pending",
+      "description": "Match reference screenshots 04 and 05 exactly. (1) Sign-up page (apps/web/src/app/sign-up/) — clean, minimal, Asmos brand, carry through store name from sessionStorage asmos_analyze_result so it says 'Create your account to unlock [StoreName]'s popup'. (2) Personalization page (apps/web/src/app/onboarding/business-profile/) — because AI already detected industry + brand color, only ask what it cannot infer: user role (founder/marketer/developer/agency), primary goal (email capture/discount/contest/lead gen), monthly traffic range (<1k/1k-10k/10k-100k/100k+), existing email platform (Klaviyo/Mailchimp/Omnisend/None/Other). Pre-fill industry and brand color from sessionStorage — show them as confirmed detections with an edit option, not as questions. Commit per sub-step."
+    },
+    {
+      "id": "P1-core-flow-generate-popup",
+      "priority": 4,
+      "title": "Core flow: auto-generate first popup with copy-existing logic",
+      "status": "pending",
+      "description": "Upgrade apps/web/src/app/onboarding/generate-popup/page.tsx significantly. Logic: (1) Read asmos_analyze_result from sessionStorage — includes storeName, industry, brandColor, popup.found, popup.description. (2) If popup.found=true: use popup.description (AI-detected text) to generate Variant A that copies the existing popup's offer/headline/style as closely as possible. Add a second variant (Variant B) with Asmos-improved copy — stronger headline, clearer CTA. Label them 'Your current popup (control)' and 'Asmos variant'. (3) If popup.found=false: generate from cold start using brandColor + industry. Generate 2 variants with meaningfully different hypotheses (different headline angle, different CTA, different offer framing). (4) The generated popup should use the widget v2 design quality — not a bland placeholder. Use the campaign creation API correctly. (5) Show a step-by-step generation progress UI (not just a spinner) — 'Analyzing your brand...', 'Writing headline variants...', 'Building popup design...', 'Setting up A/B test...'. Commit: feat: generate-popup — copy-existing logic, 2-variant generation, progress UI"
+    },
+    {
+      "id": "P1-core-flow-connect-store",
+      "priority": 5,
+      "title": "Core flow: connect store page polished",
+      "status": "pending",
+      "description": "Match reference screenshot 06. Polish apps/web/src/app/onboarding/connect-store/page.tsx: (1) Show the actual embed snippet clearly in a styled code block with a copy button. (2) Show platform-specific instructions (Shopify: Theme editor > Add code > paste before </head>; WordPress: Appearance > Theme Editor; Custom: paste in <head>). (3) Add a 'Verify installation' button that pings /api/widget/config?site=... and confirms the widget is live. Show a success state when detected. (4) 'Skip for now' option that goes to dashboard without blocking. (5) Mobile responsive. Commit: feat: connect-store — snippet display, copy button, verification ping, platform guides"
+    },
+    {
+      "id": "P2-dashboard",
+      "priority": 6,
+      "title": "Dashboard — real metrics, empty state, campaign board",
+      "status": "pending",
+      "description": "Match reference screenshot 16. Polish apps/web/src/app/(dashboard)/dashboard/page.tsx and RecentCampaignsBoard.tsx: (1) Empty state when no campaigns — designed card with clear CTA to create first campaign, not just 'no data'. (2) When campaigns exist: show real stats from the DB (impressions, submissions, conversion rate, leads captured) — pull from /api/campaigns and aggregate. (3) StatCards should show real numbers, not mocks. (4) Recent campaigns board shows each campaign with status badge (active/paused/draft), key metric, quick actions. (5) The overall layout should match screenshot 16 closely — top stat row, then campaigns section. Commit: feat: dashboard — real metrics, empty state, campaign board"
+    },
+    {
+      "id": "P2-campaign-detail-variants-bracket",
+      "priority": 7,
+      "title": "Campaign detail — variant manager + Successive Halving knockout bracket",
+      "status": "pending",
+      "description": "Match reference screenshots 17, 18, 19. This is the core differentiator UI. (1) apps/web/src/app/(dashboard)/campaigns/[id]/page.tsx — full campaign detail with tabs: Overview, Variants, Analytics, Insights. (2) Variant Manager (VariantManager.tsx) — list of variants with live stats (impressions, conversion rate, traffic %), ability to add new variant, pause/resume individual variants. (3) Knockout Bracket (KnockoutBracket.tsx) — implement Successive Halving visualization: variants start in round 1, losers get eliminated each round (shown grayed out with X), survivors advance. Use real variant performance data from the DB to determine bracket state. The bracket should be a proper visual bracket layout — not a list. Algorithm context: Thompson Sampling drives traffic allocation (more traffic to higher-performing variants), Successive Halving drives elimination rounds. Show each variant's win probability % on its bracket card. (4) InsightsPanel.tsx — AI-written plain-English explanation of what's happening ('Variant B is winning because its headline is more specific to new visitors. Recommend letting it run 48 more hours to reach statistical significance.'). Use /api/campaigns/[id]/chat or a new /api/campaigns/[id]/insights route. (5) PerformanceTable.tsx and AnalyticsTab.tsx — real charts, not placeholders. Commit per sub-component."
+    },
+    {
+      "id": "P3-empty-states-polish",
+      "priority": 8,
+      "title": "Empty states + error states + loading states audit",
+      "status": "pending",
+      "description": "Every page in the app must have a designed empty state, a real loading state (skeleton loaders not spinners where possible), and a real error state. Pages to audit: campaigns list, campaign detail, analytics, leads, integrations, settings. Empty states should have an icon, a headline, a short description, and a CTA. Not placeholder text. Commit: feat: empty states and loading skeletons across all dashboard pages"
+    },
+    {
+      "id": "P3-build-sweep",
+      "priority": 9,
+      "title": "Build sweep — zero TypeScript errors, clean build",
+      "status": "pending",
+      "description": "Run npm run build. Fix every TypeScript error, every ESLint error, every 'any' type that causes a build warning. Run tsc --noEmit and fix all type errors. The build must be clean before this task is marked done. Commit: fix: resolve all TypeScript and build errors"
+    }
+  ],
+  "freeRoamInstructions": "All tasks are done but deadline has not passed. Enter free-roam mode: (1) Re-read asmos_road_map.md, platform-page-map.md, mvp core flow.txt, mvp core pages.txt. (2) View ALL reference screenshots in asmos/asmos_light_mode_pages/ using the image tool. (3) Compare the current implementation against the roadmap and screenshots — identify gaps, rough edges, missing features, wrong layouts, hardcoded mocks, placeholder copy. (4) Fix them. Priority order: things that break the core flow > things that look wrong vs reference > things that are hardcoded/mocked that should be real > general polish. (5) Commit every fix with a clear conventional commit message. (6) Do NOT: delete working features, change architecture, add features not in the roadmap, make the design worse. (7) Keep going until the deadline passes.",
+  "summary": "",
+  "startedAt": "2026-07-30T22:38:00.000Z",
+  "completedAt": null
+}
