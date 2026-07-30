@@ -9,7 +9,7 @@ import { confidenceVsControl } from "@/lib/stats";
 import { VariantManager, type VariantStat } from "./VariantManager";
 import { InsightsPanel, type InsightRow } from "./InsightsPanel";
 import { AnalyticsTab } from "./AnalyticsTab";
-// Dummy-data tabs, disabled until real bandit/performance data backs them —
+// Dummy-data tabs, disabled until real bandit/performance data backs them --
 // see mockBracketData.ts.
 // import { KnockoutBracket } from "./KnockoutBracket";
 // import { PerformanceTable } from "./PerformanceTable";
@@ -114,7 +114,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
               </div>
             ),
           },
-          // Disabled — dummy data only, see mockBracketData.ts.
+          // Disabled -- dummy data only, see mockBracketData.ts.
           // {
           //   key: "knockout-bracket",
           //   label: "Knockout Bracket",
@@ -136,7 +136,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
               />
             ),
           },
-          // Disabled — dummy data only, see mockBracketData.ts.
+          // Disabled -- dummy data only, see mockBracketData.ts.
           // {
           //   key: "performance",
           //   label: "Performance",

@@ -157,7 +157,7 @@ export default function BusinessProfilePage() {
         />
       </div>
 
-      {/* Industry selector — visual cards */}
+      {/* Industry selector -- visual cards */}
       <div>
         <p className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">
           Industry

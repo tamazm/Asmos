@@ -8,19 +8,21 @@
     "posthogHost": "https://eu.posthog.com"
   },
   "status": "running",
-  "currentTask": "T00",
-  "completedTasks": [],
+  "currentTask": "T15",
+  "completedTasks": ["T00", "T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09", "T10", "T11", "T12", "T13", "T14"],
   "skippedTasks": [],
   "blockers": [],
-  "lastTickAt": "2026-07-29T22:09:36.429Z",
-  "tickCount": 2,
+  "lastTickAt": "2026-07-30T01:36:00Z",
+  "tickCount": 6,
   "tasks": [
     {
       "id": "T00",
       "title": "Quality pass on T01-T07 (fast-built tasks)",
       "priority": 0,
       "description": "Re-audit and improve the 7 tasks built in the first rapid tick. For each committed file: read it, compare against the relevant roadmap screenshot using the image tool, check PRODUCT.md anti-patterns strictly, fix rough edges, missing empty/loading/error states, shallow implementations. Files to audit: PostHog provider + analytics.ts, widget JS, onboarding pages, campaign wizard, campaign detail tabs, leads page, analytics page. Do NOT rewrite from scratch. Improve what is there. Commit fixes per component.",
-      "status": "in_progress"
+      "status": "done",
+      "doneAt": "2026-07-29T22:38:00Z",
+      "summary": "Builder: fixed anti-patterns (emoji in UI, em-dashes, wrong primary color defaults, transition-all), added missing states (empty variant state, bandit banner, dashboard empty state), improved error panel styling, focus rings. Reviewer: fixed rounded-xl->rounded-2xl on 14 card elements, added loading.tsx skeletons for 6 dashboard routes, removed emoji from PerformanceTable, fixed Button active:scale, added aria-label. Build passed 44 routes."
     },
     {
       "id": "T01",
@@ -62,7 +64,9 @@
       "title": "AI insights page",
       "priority": 6,
       "description": "Build /campaigns/[id]/insights — plain-English AI explanation of why variants are winning/losing, suggested next variants. Wire to existing /api/campaigns/[id]/insights route. Reference screenshot 20.",
-      "status": "pending"
+      "status": "done",
+      "doneAt": "2026-07-29T23:36:00Z",
+      "summary": "Fully implemented: /campaigns/[id]/insights page with campaign context bar, InsightsPanel client component, generate-on-demand button, suggested variant one-click creation. API routes GET/POST wired to generateCampaignInsight(). Loading skeleton in loading.tsx. Reviewer fixed: anti-patterns, mobile layout, disabled state, Link upgrade, design tokens. Build passed 44 routes."
     },
     {
       "id": "T07",
@@ -104,28 +108,34 @@
       "title": "Notifications system",
       "priority": 12,
       "description": "Build in-app notification bell in header — show alerts like 'Variant B is winning', 'Install snippet not detected'. Store in DB notifications table (add migration). Mark read on click.",
-      "status": "pending"
+      "status": "done",
+      "doneAt": "2026-07-29T23:36:00Z",
+      "summary": "Already implemented in previous ticks: NotificationBell component in dashboard layout, /api/notifications GET (list with unreadCount), /api/notifications/read POST (mark one or all read), Notification model in Prisma schema with accountId+createdAt index. Dropdown with empty state, unread badge, mark-all-read. Build confirmed passing."
     },
     {
       "id": "T13",
       "title": "Landing page polish",
       "priority": 13,
       "description": "Improve / — ensure URL-first flow is polished, hero copy matches roadmap vision, trust signals, pricing section placeholder, how-it-works section. Reference mvp core flow.txt.",
-      "status": "pending"
+      "status": "done",
+      "doneAt": "2026-07-30T00:36:00Z",
+      "summary": "Landing page fully polished: URL-first hero with HomepageForm, ambient blue radial glow, eyebrow badge, H1 matching roadmap copy, how-it-works numbered steps, pricing section (Starter free + Growth $29/mo), footer with privacy/terms. Build confirmed passing 44 routes. Reviewer fixed rounded-xl→rounded-lg, mobile padding, deduplicated trust copy."
     },
     {
       "id": "T14",
       "title": "Design system audit + polish",
       "priority": 14,
       "description": "Audit all pages against PRODUCT.md anti-patterns. Fix any gradient text, purple, em dashes, hero-metric cards. Ensure spacing, typography, motion all feel premium. Add subtle page-enter animations everywhere missing.",
-      "status": "pending"
+      "status": "done",
+      "doneAt": "2026-07-30T01:36:00Z",
+      "summary": "Reviewer completed full audit. Fixed: rounded-xl->correct radii (buttons->rounded-lg, cards->rounded-2xl, inner->rounded-md) across 13 locations, em-dash->en-dash in leads table empty cells, Button h-10 min-height added to baseClasses, Badge success token fixed to CSS var. All anti-patterns clean: no gradient text, no purple accent misuse, no side-stripe borders, no hero-metric grids, no emoji in copy, no transition-all. Build passed 0 errors."
     },
     {
       "id": "T15",
       "title": "Error states + empty states",
       "priority": 15,
       "description": "Add proper empty states to: campaigns list (no campaigns), leads (no leads), analytics (no data). Add error boundaries to dashboard route. 404 page polish.",
-      "status": "pending"
+      "status": "in_progress"
     }
   ]
 }

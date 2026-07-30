@@ -143,7 +143,7 @@ export default async function SettingsPage() {
   );
 }
 
-// Server component can't have hooks — inline a minimal toggle here for the notification list
+// Server component can't have hooks -- inline a minimal toggle here for the notification list
 // It's rendered server-side but used as a pure presentational component
 // Client interaction will be handled by SettingsTabs
 function NotificationToggle({

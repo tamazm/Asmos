@@ -37,7 +37,7 @@ export function VariantManager({
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<Partial<VariantStat>>({});
   // Once there's a real test running, traffic % is bandit-managed (see
-  // lib/bandit.ts) and reallocates automatically on every widget event —
+  // lib/bandit.ts) and reallocates automatically on every widget event --
   // manual editing would just get overwritten on the next impression.
   const banditActive = !hasWinner && variants.length > 1;
 
@@ -162,7 +162,7 @@ export function VariantManager({
     }
   }
 
-  // Ranked by actual performance, not creation order — position on the page
+  // Ranked by actual performance, not creation order -- position on the page
   // is the primary signal for "which variant is doing better," so the best
   // performer is always first regardless of how it was set up.
   const ranked = [...variants].sort((a, b) => b.conversionRate - a.conversionRate);

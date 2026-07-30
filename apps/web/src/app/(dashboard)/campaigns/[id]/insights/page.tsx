@@ -54,7 +54,7 @@ export default async function CampaignInsightsPage(props: {
         backLabel="Back to campaign"
       />
 
-      {/* Campaign context bar — compact, not a stat grid */}
+      {/* Campaign context bar -- compact, not a stat grid */}
       <div
         className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-3"
         aria-label="Campaign summary"
@@ -80,7 +80,7 @@ export default async function CampaignInsightsPage(props: {
         </p>
       </div>
 
-      {/* Insights panel — full page version */}
+      {/* Insights panel -- full page version */}
       <InsightsPanel campaignId={id} insights={insightRows} />
     </div>
   );

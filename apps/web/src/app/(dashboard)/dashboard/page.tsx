@@ -95,7 +95,7 @@ export default async function DashboardHomePage() {
           </p>
           <Link
             href="/campaigns/new"
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-4 h-10 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98]"
           >
             Create campaign
           </Link>
