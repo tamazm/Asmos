@@ -66,6 +66,33 @@ export async function POST(request: Request) {
     }
   });
 
+  // Forward email_captured event to PostHog for behavioral observability.
+  const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  if (posthogKey) {
+    after(async () => {
+      try {
+        await fetch("https://eu.posthog.com/capture/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            api_key: posthogKey,
+            event: "email_captured",
+            distinct_id: `widget_visitor_${variant.id}`,
+            properties: {
+              campaign_id: variant.campaignId,
+              variant_id: variant.id,
+              variant_name: variant.name,
+              has_reward: Boolean(reward),
+              reward_type: reward?.type ?? null,
+            },
+          }),
+        });
+      } catch (err) {
+        console.error("[posthog] email_captured forwarding failed", err);
+      }
+    });
+  }
+
   if (reward && body.email) {
     try {
       await sendRewardEmail({
