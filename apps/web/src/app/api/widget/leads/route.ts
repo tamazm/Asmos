@@ -4,6 +4,7 @@ import { corsJson, corsPreflight } from "@/lib/cors";
 import { pickWeightedReward, generateCouponCode } from "@/lib/reward";
 import { sendRewardEmail } from "@/lib/email";
 import { recomputeCampaignAllocation } from "@/lib/bandit";
+import { dispatchWebhook } from "@/lib/webhook";
 
 export async function OPTIONS() {
   return corsPreflight();
@@ -24,7 +25,21 @@ export async function POST(request: Request) {
 
   const variant = await prisma.variant.findUnique({
     where: { id: body.variantId },
-    include: { rewards: true, campaign: { include: { account: true } } },
+    include: {
+      rewards: true,
+      campaign: {
+        include: {
+          account: {
+            select: {
+              name: true,
+              webhookUrl: true,
+              webhookSecret: true,
+              webhookEnabled: true,
+            },
+          },
+        },
+      },
+    },
   });
   if (!variant) {
     return corsJson({ error: "Unknown variant" }, { status: 404 });
@@ -63,6 +78,41 @@ export async function POST(request: Request) {
       await recomputeCampaignAllocation(variant.id);
     } catch (err) {
       console.error("[bandit] allocation recompute failed", err);
+    }
+  });
+
+  // Fire outbound webhook if configured (fire-and-forget via after()).
+  // A slow or dead customer endpoint must never delay or break the widget's lead ack.
+  after(async () => {
+    try {
+      const account = variant.campaign.account;
+      if (account.webhookEnabled && account.webhookUrl) {
+        await dispatchWebhook(account.webhookUrl, account.webhookSecret ?? null, {
+          event: "lead.captured",
+          payload: {
+            campaign_id: variant.campaign.id,
+            campaign_name: variant.campaign.name,
+            variant_id: variant.id,
+            variant_name: variant.name,
+            lead: {
+              email: body.email ?? null,
+              name: body.name ?? null,
+              phone: body.phone ?? null,
+              consent_given: Boolean(body.consentGiven),
+              captured_at: new Date().toISOString(),
+            },
+            reward: reward
+              ? {
+                  label: reward.label,
+                  type: reward.type,
+                  coupon_code: couponCode,
+                }
+              : null,
+          },
+        });
+      }
+    } catch (err) {
+      console.error("[webhook] lead.captured dispatch failed", err);
     }
   });
 
