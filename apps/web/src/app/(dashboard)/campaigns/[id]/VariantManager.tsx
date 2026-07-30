@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ConfidenceBar } from "@/components/ui/ConfidenceBar";
+import { variantWinnerDeclared } from "@/lib/analytics";
 
 export type VariantStat = {
   id: string;
@@ -154,6 +155,16 @@ export function VariantManager({
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
         throw new Error(b.error ?? "Could not update winner");
+      }
+      if (variantId) {
+        const winner = variants.find((v) => v.id === variantId);
+        if (winner) {
+          variantWinnerDeclared({
+            campaignId,
+            variantId,
+            conversionRate: winner.conversionRate,
+          });
+        }
       }
       router.refresh();
     } catch (e) {

@@ -98,6 +98,7 @@ export default async function VariantDetailPage(props: {
             hasWinner={Boolean(campaign.winningVariantId)}
             currentDesign={design}
             currentName={variant.name}
+            conversionRate={conversionRate}
           />
         }
       />

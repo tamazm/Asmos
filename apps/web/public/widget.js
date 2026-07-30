@@ -6,6 +6,61 @@
   var apiBase = new URL(scriptEl.src).origin;
   var CONSENT_KEY = "asmos_consent";
 
+  // ── Behavioral context collected at load time ───────────────────────────────
+  var pageUrl = window.location.href;
+  var referrer = document.referrer || "";
+  var pageLoadTime = Date.now();
+
+  // Parse UTM params from the current URL query string
+  var utmParams = (function () {
+    var params = {};
+    try {
+      var search = new URLSearchParams(window.location.search);
+      params.utmSource = search.get("utm_source") || undefined;
+      params.utmMedium = search.get("utm_medium") || undefined;
+      params.utmCampaign = search.get("utm_campaign") || undefined;
+    } catch (e) { /* ignore */ }
+    return params;
+  })();
+
+  // Track max scroll depth (0–100)
+  var maxScrollDepthPct = 0;
+  var scrollDebounceTimer = null;
+  function updateScrollDepth() {
+    var scrolled = window.scrollY + window.innerHeight;
+    var full = document.documentElement.scrollHeight;
+    if (full > 0) {
+      var pct = Math.round((scrolled / full) * 100);
+      if (pct > maxScrollDepthPct) maxScrollDepthPct = Math.min(pct, 100);
+    }
+  }
+  window.addEventListener("scroll", function () {
+    clearTimeout(scrollDebounceTimer);
+    scrollDebounceTimer = setTimeout(updateScrollDepth, 150);
+  }, { passive: true });
+  updateScrollDepth(); // capture initial value
+
+  // Build behavioral context payload to attach to every event
+  function behavioralContext(extraProps) {
+    var ctx = {
+      pageUrl: pageUrl,
+      referrer: referrer || undefined,
+      utmSource: utmParams.utmSource,
+      utmMedium: utmParams.utmMedium,
+      utmCampaign: utmParams.utmCampaign,
+      scrollDepthPct: maxScrollDepthPct,
+      timeOnPageSeconds: Math.round((Date.now() - pageLoadTime) / 1000),
+    };
+    if (extraProps) {
+      for (var k in extraProps) {
+        if (Object.prototype.hasOwnProperty.call(extraProps, k)) {
+          ctx[k] = extraProps[k];
+        }
+      }
+    }
+    return ctx;
+  }
+
   function post(path, body) {
     return fetch(apiBase + path, {
       method: "POST",
@@ -15,8 +70,12 @@
     }).catch(function () {});
   }
 
-  function trackEvent(variantId, type) {
-    post("/api/widget/events", { variantId: variantId, type: type });
+  function trackEvent(variantId, type, extraContext) {
+    var payload = Object.assign(
+      { variantId: variantId, type: type },
+      behavioralContext(extraContext)
+    );
+    post("/api/widget/events", payload);
   }
 
   function pickVariant(campaign) {
@@ -120,6 +179,9 @@
     if (sessionStorage.getItem(sessionKey)) return;
     sessionStorage.setItem(sessionKey, "1");
 
+    // Record the exact moment the popup appeared for dismiss timing
+    var popupShownAt = Date.now();
+
     var overlay = document.createElement("div");
     overlay.style.cssText =
       "position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,0.5);" +
@@ -137,6 +199,9 @@
       "position:absolute;top:8px;right:12px;background:none;border:none;font-size:22px;" +
       "cursor:pointer;color:#6b7280;line-height:1;";
     close.onclick = function () {
+      // Fire DISMISSED event with how long the popup was visible
+      var dismissAfterMs = Date.now() - popupShownAt;
+      trackEvent(variant.id, "DISMISSED", { dismissAfterMs: dismissAfterMs });
       overlay.remove();
     };
     card.appendChild(close);
@@ -202,7 +267,10 @@
       submit.disabled = true;
       submit.textContent = "Submitting…";
 
-      var payload = { variantId: variant.id, consentGiven: true };
+      var payload = Object.assign(
+        { variantId: variant.id, consentGiven: true },
+        behavioralContext()
+      );
       Object.keys(inputs).forEach(function (field) {
         payload[field] = inputs[field].value;
       });
@@ -217,6 +285,9 @@
           return res.json();
         })
         .then(function (data) {
+          // Also fire the SUBMISSION event with full behavioral context
+          trackEvent(variant.id, "SUBMISSION");
+
           card.innerHTML = "";
           card.appendChild(close);
           var thanks = document.createElement("h2");
@@ -249,6 +320,8 @@
     card.appendChild(form);
     overlay.appendChild(card);
     document.body.appendChild(overlay);
+
+    // Fire IMPRESSION with full behavioral context (time on page, scroll depth, UTMs)
     trackEvent(variant.id, "IMPRESSION");
   }
 

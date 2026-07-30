@@ -122,12 +122,14 @@ export async function POST() {
     IMPRESSION: 2400,
     INTERACTION: 340,
     SUBMISSION: 96,
+    DISMISSED: 0,
     GIFT_CLAIMED: 40,
   });
   await seedEvents(variantB1.id, {
     IMPRESSION: 2200,
     INTERACTION: 260,
     SUBMISSION: 61,
+    DISMISSED: 0,
     GIFT_CLAIMED: 22,
   });
 
@@ -182,6 +184,7 @@ export async function POST() {
     IMPRESSION: 1800,
     INTERACTION: 210,
     SUBMISSION: 78,
+    DISMISSED: 0,
     GIFT_CLAIMED: 78,
   });
 
@@ -251,12 +254,14 @@ export async function POST() {
     IMPRESSION: 640,
     INTERACTION: 88,
     SUBMISSION: 21,
+    DISMISSED: 0,
     GIFT_CLAIMED: 21,
   });
   await seedEvents(variantB3.id, {
     IMPRESSION: 600,
     INTERACTION: 70,
     SUBMISSION: 15,
+    DISMISSED: 0,
     GIFT_CLAIMED: 15,
   });
 

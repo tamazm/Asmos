@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { variantWinnerDeclared } from "@/lib/analytics";
 
 type Design = {
   headline?: string;
@@ -19,6 +20,7 @@ export function VariantDetailActions({
   hasWinner,
   currentDesign,
   currentName,
+  conversionRate,
 }: {
   campaignId: string;
   variantId: string;
@@ -27,6 +29,7 @@ export function VariantDetailActions({
   hasWinner: boolean;
   currentDesign: Design;
   currentName: string;
+  conversionRate?: number;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -82,6 +85,13 @@ export function VariantDetailActions({
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
         throw new Error((b as { error?: string }).error ?? "Could not update winner");
+      }
+      if (winnerId) {
+        variantWinnerDeclared({
+          campaignId,
+          variantId: winnerId,
+          conversionRate: conversionRate ?? 0,
+        });
       }
       router.refresh();
     } catch (e) {
