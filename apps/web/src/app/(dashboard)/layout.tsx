@@ -12,10 +12,8 @@ export default async function DashboardLayout({
 }) {
   await authProtect();
 
-  const isMock = process.env.MOCK_AUTH === "true";
-
   const account = await getOrCreateAccount();
-  if (!isMock && !account.onboardingCompletedAt) {
+  if (!account.onboardingCompletedAt) {
     redirect("/onboarding");
   }
 

@@ -14,13 +14,9 @@ export async function getOrCreateAccount() {
   const email = user.primaryEmailAddress?.emailAddress ?? "";
   const name = [user.firstName, user.lastName].filter(Boolean).join(" ") || null;
 
-  const isMock = process.env.MOCK_AUTH === "true";
-
   const account = await prisma.account.create({
     data: {
       name: name ?? email ?? "New Account",
-      // In mock mode, mark onboarding complete so the dashboard doesn't redirect
-      onboardingCompletedAt: isMock ? new Date() : null,
       users: {
         create: { clerkUserId: user.id, email, name },
       },
