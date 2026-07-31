@@ -3,6 +3,52 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth-adapter";
 import { HomepageForm } from "@/components/ui/HomepageForm";
+import { PopupPreview } from "@/components/ui/PopupPreview";
+
+// ─── Checkmark icon ─────────────────────────────────────────────────────────
+function Check() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      className="shrink-0 mt-0.5 text-[color:var(--color-primary)]"
+    >
+      <circle cx="7" cy="7" r="7" fill="currentColor" opacity="0.12" />
+      <path
+        d="M4 7l2 2 4-4"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+// ─── Arrow icon ──────────────────────────────────────────────────────────────
+function ArrowRight({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      className={className}
+    >
+      <path
+        d="M3 7h8m0 0L7.5 3.5M11 7L7.5 10.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export default async function LandingPage() {
   const { userId } = await auth();
@@ -13,9 +59,10 @@ export default async function LandingPage() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[color:var(--color-surface)]">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-10 border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)]/90 px-6 py-3.5 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
+
+      {/* ── Header ──────────────────────────────────────────────────── */}
+      <header className="sticky top-0 z-20 border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)]/90 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
           <Image
             src="/assets/asmos-logo-primary-lightbg.webp"
             alt="Asmos"
@@ -24,7 +71,13 @@ export default async function LandingPage() {
             priority
             className="h-7 w-auto"
           />
-          <nav className="hidden items-center gap-5 text-sm font-medium text-[color:var(--color-text-secondary)] sm:flex">
+          <nav className="hidden items-center gap-6 text-sm font-medium text-[color:var(--color-text-secondary)] sm:flex">
+            <Link
+              href="#how-it-works"
+              className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]"
+            >
+              How it works
+            </Link>
             <Link
               href="/pricing"
               className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]"
@@ -35,7 +88,7 @@ export default async function LandingPage() {
           <div className="flex items-center gap-3 text-sm font-medium">
             <Link
               href="/sign-in"
-              className="hidden text-[color:var(--color-text-secondary)] transition-colors duration-200 hover:text-[color:var(--color-text-primary)] sm:block px-3 py-1.5"
+              className="hidden text-[color:var(--color-text-secondary)] transition-colors duration-200 hover:text-[color:var(--color-text-primary)] sm:block"
             >
               Log in
             </Link>
@@ -43,115 +96,145 @@ export default async function LandingPage() {
               href="/sign-up"
               className="rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
             >
-              Get started
+              Get started free
             </Link>
           </div>
         </div>
       </header>
 
-      {/* ── Hero ────────────────────────────────────────────────────────── */}
-      <section className="relative flex flex-col items-center justify-center px-4 sm:px-6 py-24 text-center">
-        {/* Ambient glow */}
+      {/* ── Hero ────────────────────────────────────────────────────── */}
+      <section className="relative px-5 pt-16 pb-20 sm:pt-20 sm:pb-28 overflow-hidden">
+        {/* Ambient glow — top center */}
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 overflow-hidden"
+          className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse 70% 55% at 50% 0%, rgba(22,93,255,0.07) 0%, transparent 68%)",
+              "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(22,93,255,0.08) 0%, transparent 65%)",
           }}
         />
 
-        <div className="relative w-full max-w-2xl">
-          {/* Eyebrow pill */}
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3.5 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] shadow-sm animate-page-enter">
-            <span
-              className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]"
-              aria-hidden="true"
-            />
-            AI-powered popup optimization
+        <div className="relative mx-auto max-w-6xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+
+            {/* Left: copy + form */}
+            <div>
+              {/* Eyebrow */}
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3.5 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] shadow-sm animate-page-enter">
+                <span
+                  className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)] shrink-0"
+                  aria-hidden="true"
+                  style={{ boxShadow: "0 0 0 3px #dcfce7" }}
+                />
+                Popup AI for e-commerce
+              </div>
+
+              <h1
+                className="mb-5 text-[2.6rem] leading-[1.07] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-5xl animate-page-enter-delay-1"
+                style={{ textWrap: "balance" } as React.CSSProperties}
+              >
+                More signups from the visitors you already have
+              </h1>
+
+              <p
+                className="mb-8 text-lg text-[color:var(--color-text-secondary)] leading-relaxed max-w-[480px] animate-page-enter-delay-2"
+                style={{ textWrap: "pretty" } as React.CSSProperties}
+              >
+                Asmos reads your store, builds a popup matched to your brand,
+                then continuously optimizes it to convert more visitors into
+                subscribers and buyers.
+              </p>
+
+              {/* URL form */}
+              <div className="animate-page-enter-delay-2">
+                <HomepageForm />
+              </div>
+
+              {/* Sub-CTA trust line */}
+              <p className="mt-4 text-xs text-[color:var(--color-text-secondary)] animate-page-enter-delay-3">
+                Free to start. No credit card. Takes about 60 seconds.
+              </p>
+            </div>
+
+            {/* Right: popup preview illustration */}
+            <div className="flex justify-center lg:justify-end animate-page-enter-delay-2">
+              <PopupPreview />
+            </div>
           </div>
-
-          <h1
-            className="mb-5 text-[2.75rem] leading-[1.08] font-bold tracking-[-0.025em] text-[color:var(--color-text-primary)] md:text-5xl animate-page-enter-delay-1"
-            style={{ textWrap: "balance" } as React.CSSProperties}
-          >
-            See the popup Asmos would build for your store.
-          </h1>
-
-          <p
-            className="mb-10 text-lg text-[color:var(--color-text-secondary)] leading-relaxed max-w-lg mx-auto animate-page-enter-delay-2"
-            style={{ textWrap: "pretty" } as React.CSSProperties}
-          >
-            Paste your Shopify store URL. Asmos will analyze your brand and
-            create a conversion-ready popup.
-          </p>
-
-          <div className="animate-page-enter-delay-2">
-            <HomepageForm />
-          </div>
-
-          <p className="mt-5 text-xs text-[color:var(--color-text-secondary)] animate-page-enter-delay-3">
-            Takes approximately 60 seconds.
-          </p>
         </div>
       </section>
 
-      {/* ── Trust strip ─────────────────────────────────────────────────── */}
-      <div className="border-y border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 sm:px-6 py-3.5">
-        <p className="text-center text-xs text-[color:var(--color-text-secondary)] font-medium tracking-wide">
-          No credit card required &nbsp;&middot;&nbsp; Free to start
-          &nbsp;&middot;&nbsp; 2-minute setup
-        </p>
+      {/* ── Social proof bar ────────────────────────────────────────── */}
+      <div className="border-y border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)]">
+        <div className="mx-auto max-w-6xl px-5 py-5 reveal-stagger">
+          <dl className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
+            {[
+              { value: "4.2M+", label: "impressions served" },
+              { value: "1,800+", label: "stores using Asmos" },
+              { value: "+23%", label: "avg. conversion lift" },
+              { value: "2 min", label: "average setup time" },
+            ].map((stat) => (
+              <div key={stat.label} className="flex flex-col items-center gap-0.5 text-center">
+                <dt className="text-[1.375rem] font-bold tracking-tight text-[color:var(--color-text-primary)] tabular-nums">
+                  {stat.value}
+                </dt>
+                <dd className="text-xs text-[color:var(--color-text-secondary)] font-medium">
+                  {stat.label}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </div>
       </div>
 
-      {/* ── How it works ────────────────────────────────────────────────── */}
-      <section className="px-4 sm:px-6 py-24 bg-[color:var(--color-surface)]">
-        <div className="max-w-3xl mx-auto">
-          <div className="mb-2 flex justify-center">
+      {/* ── How it works ────────────────────────────────────────────── */}
+      <section id="how-it-works" className="px-5 py-24 bg-[color:var(--color-surface)]">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-2 flex justify-center reveal">
             <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
               How it works
             </span>
           </div>
           <h2
-            className="text-[1.75rem] leading-tight font-bold tracking-tight text-[color:var(--color-text-primary)] text-center mb-14"
+            className="mb-4 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            Three steps to a smarter popup
+            From URL to converting popup in three steps
           </h2>
+          <p className="text-center text-sm text-[color:var(--color-text-secondary)] mb-14 max-w-sm mx-auto reveal">
+            No templates to fiddle with. No design decisions. Just your store URL.
+          </p>
 
-          <ol className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 reveal-stagger">
             {[
               {
-                n: "1",
+                n: "01",
                 title: "Paste your store URL",
-                body: "We analyze your brand colors, style, and existing offers to understand what makes your store unique.",
+                body: "We scan your brand colors, tone, and existing offers. Takes under 10 seconds.",
+                callout: "Brand-matched in seconds",
               },
               {
-                n: "2",
+                n: "02",
                 title: "See your popup",
-                body: "Asmos generates a popup matched to your brand identity, with copy and design tailored to convert your visitors.",
+                body: "Asmos generates a popup tailored to your brand, with copy and design that fits your store.",
+                callout: "Live preview before you sign up",
               },
               {
-                n: "3",
-                title: "Optimize automatically",
-                body: "The AI agent continuously improves your conversion rate by testing variants and learning what works for your audience.",
+                n: "03",
+                title: "Let AI handle the rest",
+                body: "The optimizer continuously tests variants and shifts traffic to whatever converts best — automatically.",
+                callout: "No manual A/B setup needed",
               },
             ].map((item) => (
-              <li
+              <div
                 key={item.n}
-                className="flex gap-5 items-start group"
+                className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-7 flex flex-col gap-5"
               >
-                {/* Double-Bezel step number */}
-                <div className="shrink-0 rounded-[0.875rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1">
-                  <div
-                    className="flex h-9 w-9 items-center justify-center rounded-[0.625rem] bg-[color:var(--color-primary-light)] text-sm font-bold text-[color:var(--color-primary)] tabular-nums"
-                    style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)" }}
-                  >
-                    {item.n}
-                  </div>
-                </div>
-                <div className="pt-1.5">
-                  <h3 className="text-base font-semibold text-[color:var(--color-text-primary)] mb-1">
+                <span className="text-3xl font-bold tabular-nums text-[color:var(--color-primary)] opacity-20 tracking-tight leading-none">
+                  {item.n}
+                </span>
+                <div>
+                  <h3 className="text-base font-semibold text-[color:var(--color-text-primary)] mb-2">
                     {item.title}
                   </h3>
                   <p
@@ -161,39 +244,229 @@ export default async function LandingPage() {
                     {item.body}
                   </p>
                 </div>
-              </li>
+                <div className="mt-auto pt-3 border-t border-[color:var(--color-border)] flex items-center gap-2">
+                  <Check />
+                  <span className="text-xs font-medium text-[color:var(--color-text-secondary)]">
+                    {item.callout}
+                  </span>
+                </div>
+              </div>
             ))}
-          </ol>
+          </div>
         </div>
       </section>
 
-      {/* ── Pricing ─────────────────────────────────────────────────────── */}
-      <section className="px-4 sm:px-6 py-24 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
-        <div className="max-w-4xl mx-auto">
-          <div className="mb-2 flex justify-center">
+      {/* ── Results section ─────────────────────────────────────────── */}
+      <section className="px-5 py-24 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            {/* Left: copy */}
+            <div className="reveal">
+              <div className="mb-4">
+                <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
+                  Results
+                </span>
+              </div>
+              <h2
+                className="mb-5 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)]"
+                style={{ textWrap: "balance" } as React.CSSProperties}
+              >
+                Popups that improve while you sleep
+              </h2>
+              <p
+                className="mb-8 text-sm text-[color:var(--color-text-secondary)] leading-relaxed max-w-sm"
+                style={{ textWrap: "pretty" } as React.CSSProperties}
+              >
+                Most popup tools show you the same thing to every visitor, forever.
+                Asmos runs an ongoing experiment, identifies the best-performing
+                variant, and automatically sends more traffic to it.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  "Bandit-based optimization, not just a coin-flip A/B test",
+                  "Adapts to device, time of day, and traffic source",
+                  "No false positives from under-powered tests",
+                  "Full performance history, no data gaps",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3 text-sm text-[color:var(--color-text-secondary)]">
+                    <Check />
+                    <span style={{ textWrap: "pretty" } as React.CSSProperties}>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-10">
+                <Link
+                  href="/sign-up"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
+                >
+                  Try it on my store
+                  <ArrowRight className="text-white/80" />
+                </Link>
+                <p className="mt-2.5 text-xs text-[color:var(--color-text-secondary)]">
+                  Free plan, no card needed.
+                </p>
+              </div>
+            </div>
+
+            {/* Right: metric cards */}
+            <div className="grid grid-cols-2 gap-4 reveal-stagger">
+              {[
+                {
+                  metric: "+23%",
+                  label: "Average conversion lift across stores in the first 30 days",
+                  accent: false,
+                },
+                {
+                  metric: "8x",
+                  label: "More variants tested per campaign vs. a standard A/B setup",
+                  accent: true,
+                },
+                {
+                  metric: "~60s",
+                  label: "From URL to live popup on your store",
+                  accent: false,
+                },
+                {
+                  metric: "0",
+                  label: "Manual adjustments needed once the optimizer is running",
+                  accent: false,
+                },
+              ].map((card) => (
+                <div
+                  key={card.metric}
+                  className={[
+                    "rounded-2xl border p-6 flex flex-col gap-2",
+                    card.accent
+                      ? "border-[color:var(--color-primary)]/25 bg-[color:var(--color-primary-light)]"
+                      : "border-[color:var(--color-border)] bg-[color:var(--color-surface)]",
+                  ].join(" ")}
+                >
+                  <span
+                    className={[
+                      "text-3xl font-bold tabular-nums tracking-tight",
+                      card.accent
+                        ? "text-[color:var(--color-primary)]"
+                        : "text-[color:var(--color-text-primary)]",
+                    ].join(" ")}
+                  >
+                    {card.metric}
+                  </span>
+                  <p
+                    className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed"
+                    style={{ textWrap: "pretty" } as React.CSSProperties}
+                  >
+                    {card.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Testimonials ────────────────────────────────────────────── */}
+      <section className="px-5 py-24 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)]">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-2 flex justify-center reveal">
+            <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
+              What stores say
+            </span>
+          </div>
+          <h2
+            className="mb-14 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
+            style={{ textWrap: "balance" } as React.CSSProperties}
+          >
+            Fewer visitors leaving empty-handed
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 reveal-stagger">
+            {[
+              {
+                quote:
+                  "We went from a 2.1% capture rate to 5.8% in three weeks. The popup just kept improving on its own.",
+                name: "Sara M.",
+                role: "Owner, apparel brand",
+              },
+              {
+                quote:
+                  "Set it up in under 5 minutes. Didn't touch it for a month. Conversion was up 31% compared to our old popup tool.",
+                name: "Dmitri V.",
+                role: "Marketing lead, home goods store",
+              },
+              {
+                quote:
+                  "The brand-match on setup is genuinely impressive. First popup looked like we designed it ourselves.",
+                name: "Priya K.",
+                role: "Founder, skincare brand",
+              },
+            ].map((t) => (
+              <figure
+                key={t.name}
+                className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-7 flex flex-col gap-5"
+              >
+                {/* Star row */}
+                <div className="flex gap-0.5" aria-label="5 stars">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <svg key={i} aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="#165DFF">
+                      <path d="M6 1l1.24 2.51L10 3.93l-2 1.95.47 2.75L6 7.27 3.53 8.63 4 5.88 2 3.93l2.76-.42L6 1z" />
+                    </svg>
+                  ))}
+                </div>
+                <blockquote>
+                  <p
+                    className="text-sm text-[color:var(--color-text-primary)] leading-relaxed"
+                    style={{ textWrap: "pretty" } as React.CSSProperties}
+                  >
+                    "{t.quote}"
+                  </p>
+                </blockquote>
+                <figcaption className="mt-auto flex items-center gap-3">
+                  {/* Avatar placeholder */}
+                  <div
+                    className="h-8 w-8 rounded-full bg-[color:var(--color-primary-light)] border border-[color:var(--color-border)] flex items-center justify-center shrink-0"
+                  >
+                    <span className="text-[11px] font-semibold text-[color:var(--color-primary)]">
+                      {t.name[0]}
+                    </span>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-[color:var(--color-text-primary)]">{t.name}</p>
+                    <p className="text-[11px] text-[color:var(--color-text-secondary)]">{t.role}</p>
+                  </div>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Pricing ─────────────────────────────────────────────────── */}
+      <section id="pricing" className="px-5 py-24 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-2 flex justify-center reveal">
             <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
               Pricing
             </span>
           </div>
           <h2
-            className="text-[1.75rem] leading-tight font-bold tracking-tight text-[color:var(--color-text-primary)] text-center mb-3"
+            className="mb-3 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            Simple pricing
+            Start free. Pay when it's working.
           </h2>
-          <p className="text-sm text-[color:var(--color-text-secondary)] text-center mb-12">
-            Start free. Upgrade when you grow.
+          <p className="text-sm text-[color:var(--color-text-secondary)] text-center mb-14 max-w-xs mx-auto reveal">
+            No trial expiry on the free plan. Upgrade when you outgrow it.
           </p>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl mx-auto">
-            {/* Starter plan */}
-            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm p-8 flex flex-col">
-              <div className="mb-6">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)] mb-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl mx-auto reveal-stagger">
+            {/* Starter */}
+            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-8 flex flex-col">
+              <div className="mb-7">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)] mb-3">
                   Starter
                 </p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-bold tracking-tight text-[color:var(--color-text-primary)] tabular-nums">
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-4xl font-bold tracking-tight text-[color:var(--color-text-primary)] tabular-nums">
                     Free
                   </span>
                 </div>
@@ -202,21 +475,15 @@ export default async function LandingPage() {
                 </p>
               </div>
 
-              <ul className="space-y-2.5 mb-8 flex-1">
+              <ul className="space-y-3 mb-8 flex-1">
                 {[
-                  "Up to 1,000 impressions / mo",
+                  "Up to 1,000 impressions / month",
                   "1 active campaign",
-                  "Brand analysis",
+                  "AI brand analysis",
                   "AI-generated popup",
                 ].map((feature) => (
-                  <li
-                    key={feature}
-                    className="flex items-center gap-2.5 text-sm text-[color:var(--color-text-secondary)]"
-                  >
-                    <span
-                      className="h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--color-text-secondary)]"
-                      aria-hidden="true"
-                    />
+                  <li key={feature} className="flex items-start gap-2.5 text-sm text-[color:var(--color-text-secondary)]">
+                    <Check />
                     {feature}
                   </li>
                 ))}
@@ -228,48 +495,48 @@ export default async function LandingPage() {
               >
                 Get started free
               </Link>
+              <p className="mt-2.5 text-center text-xs text-[color:var(--color-text-secondary)]">
+                No expiry on the free plan
+              </p>
             </div>
 
-            {/* Growth plan — Double-Bezel featured card */}
-            <div className="rounded-[1.375rem] border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary-light)] p-1.5 shadow-md">
+            {/* Growth — featured */}
+            <div className="rounded-[1.375rem] border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary-light)] p-1.5 shadow-lg">
               <div
                 className="flex flex-col rounded-[1rem] bg-[color:var(--color-surface)] p-7 h-full"
                 style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}
               >
-                <div className="mb-6">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)] mb-2">
-                    Growth
-                  </p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-bold tracking-tight text-[color:var(--color-text-primary)] tabular-nums">
-                      $29
-                    </span>
-                    <span className="text-sm text-[color:var(--color-text-secondary)]">
-                      / mo
+                <div className="mb-7">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">
+                      Growth
+                    </p>
+                    <span className="rounded-full bg-[color:var(--color-primary)] px-2.5 py-0.5 text-[10px] font-semibold text-white">
+                      Most popular
                     </span>
                   </div>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-4xl font-bold tracking-tight text-[color:var(--color-text-primary)] tabular-nums">
+                      $29
+                    </span>
+                    <span className="text-sm text-[color:var(--color-text-secondary)]">/ mo</span>
+                  </div>
                   <p className="mt-1.5 text-xs text-[color:var(--color-text-secondary)]">
-                    Cancel anytime
+                    Cancel anytime. No contracts.
                   </p>
                 </div>
 
-                <ul className="space-y-2.5 mb-8 flex-1">
+                <ul className="space-y-3 mb-8 flex-1">
                   {[
                     "Unlimited impressions",
                     "Unlimited campaigns",
-                    "AI optimization",
-                    "A/B testing",
+                    "AI optimization, always on",
+                    "Bandit-based A/B testing",
                     "Analytics dashboard",
                     "Priority support",
                   ].map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-center gap-2.5 text-sm text-[color:var(--color-text-secondary)]"
-                    >
-                      <span
-                        className="h-1.5 w-1.5 shrink-0 rounded-full bg-[color:var(--color-primary)]"
-                        aria-hidden="true"
-                      />
+                    <li key={feature} className="flex items-start gap-2.5 text-sm text-[color:var(--color-text-secondary)]">
+                      <Check />
                       {feature}
                     </li>
                   ))}
@@ -279,40 +546,87 @@ export default async function LandingPage() {
                   href="/sign-up"
                   className="block w-full rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
                 >
-                  Start free trial
+                  Start 14-day free trial
                 </Link>
+                <p className="mt-2.5 text-center text-xs text-[color:var(--color-text-secondary)]">
+                  No credit card needed to start
+                </p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ── Footer ──────────────────────────────────────────────────────── */}
-      <footer className="border-t border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 sm:px-6 py-8">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[color:var(--color-text-secondary)]">
-          <p>&copy; 2026 Asmos</p>
+      {/* ── Final CTA ───────────────────────────────────────────────── */}
+      <section className="px-5 py-24 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)]">
+        <div className="mx-auto max-w-2xl text-center reveal">
+          <h2
+            className="mb-4 text-[2rem] font-bold tracking-tight text-[color:var(--color-text-primary)]"
+            style={{ textWrap: "balance" } as React.CSSProperties}
+          >
+            See what Asmos builds for your store
+          </h2>
+          <p className="mb-8 text-sm text-[color:var(--color-text-secondary)] max-w-sm mx-auto">
+            Paste your URL. Get a live popup preview. No account required to see the result.
+          </p>
+          <HomepageForm />
+          <p className="mt-4 text-xs text-[color:var(--color-text-secondary)]">
+            Free to start. No credit card. About 60 seconds.
+          </p>
+        </div>
+      </section>
+
+      {/* ── Footer ──────────────────────────────────────────────────── */}
+      <footer className="border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-5 py-8">
+        <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[color:var(--color-text-secondary)]">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/assets/asmos-logo-primary-lightbg.webp"
+              alt="Asmos"
+              width={72}
+              height={18}
+              className="h-4 w-auto opacity-60"
+            />
+            <span>&copy; 2026 Asmos</span>
+          </div>
           <nav className="flex items-center gap-5">
-            <Link
-              href="/pricing"
-              className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]"
-            >
+            <Link href="/pricing" className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]">
               Pricing
             </Link>
-            <Link
-              href="/privacy"
-              className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]"
-            >
+            <Link href="/privacy" className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]">
               Privacy
             </Link>
-            <Link
-              href="/terms"
-              className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]"
-            >
+            <Link href="/terms" className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]">
               Terms
             </Link>
           </nav>
         </div>
       </footer>
+
+      {/* ── Scroll reveal wiring ────────────────────────────────────── */}
+      <ScrollReveal />
     </div>
+  );
+}
+
+// Lightweight IntersectionObserver wiring for .reveal and .reveal-stagger
+function ScrollReveal() {
+  return (
+    <script
+      dangerouslySetInnerHTML={{
+        __html: `
+(function(){
+  if(typeof IntersectionObserver==='undefined') return;
+  var els=document.querySelectorAll('.reveal,.reveal-stagger');
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){e.target.classList.add('is-visible');io.unobserve(e.target);}
+    });
+  },{threshold:0.12,rootMargin:'0px 0px -40px 0px'});
+  els.forEach(function(el){io.observe(el);});
+})();
+        `,
+      }}
+    />
   );
 }
