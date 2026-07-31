@@ -9,7 +9,6 @@ import { confidenceVsControl } from "@/lib/stats";
 import { VariantManager, type VariantStat } from "./VariantManager";
 import { InsightsPanel, type InsightRow } from "./InsightsPanel";
 import { AnalyticsTab } from "./AnalyticsTab";
-import { KnockoutBracket } from "./KnockoutBracket";
 import { KnockoutBracketWithVariants } from "./KnockoutBracketWithVariants";
 import { PerformanceTable } from "./PerformanceTable";
 import { CampaignTabs } from "./CampaignTabs";
