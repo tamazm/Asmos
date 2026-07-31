@@ -148,10 +148,7 @@ export default async function LandingPage() {
                 <HomepageForm />
               </div>
 
-              {/* Sub-CTA trust line */}
-              <p className="mt-4 text-xs text-[color:var(--color-text-secondary)] animate-page-enter-delay-3">
-                Free to start. No credit card. Takes about 60 seconds.
-              </p>
+
             </div>
 
             {/* Right: popup preview illustration */}
@@ -566,9 +563,6 @@ export default async function LandingPage() {
             Paste your store URL. We'll scan it, score it, and show you a popup built to convert — in under 60 seconds. No account needed.
           </p>
           <HomepageForm />
-          <p className="mt-4 text-xs text-[color:var(--color-text-secondary)]">
-            Free to start. No credit card. About 60 seconds.
-          </p>
         </div>
       </section>
 
