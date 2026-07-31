@@ -126,23 +126,23 @@ export default async function LandingPage() {
                   aria-hidden="true"
                   style={{ boxShadow: "0 0 0 3px #dcfce7" }}
                 />
-                Popup AI for e-commerce
+                AI popup optimization for Shopify and WooCommerce
               </div>
 
               <h1
                 className="mb-5 text-[2.6rem] leading-[1.07] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-5xl animate-page-enter-delay-1"
                 style={{ textWrap: "balance" } as React.CSSProperties}
               >
-                More signups from the visitors you already have
+                Your next 500 email subscribers are already on your site
               </h1>
 
               <p
                 className="mb-8 text-lg text-[color:var(--color-text-secondary)] leading-relaxed max-w-[480px] animate-page-enter-delay-2"
                 style={{ textWrap: "pretty" } as React.CSSProperties}
               >
-                Asmos reads your store, builds a popup matched to your brand,
-                then continuously optimizes it to convert more visitors into
-                subscribers and buyers.
+                Paste your store URL. Asmos reads your brand, builds a popup
+                that matches it, then runs continuous experiments to find the
+                version that converts the most visitors into subscribers.
               </p>
 
               {/* URL form */}
@@ -169,10 +169,10 @@ export default async function LandingPage() {
         <div className="mx-auto max-w-6xl px-5 py-5 reveal-stagger">
           <dl className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
             {[
-              { value: "4.2M+", label: "impressions served" },
+              { value: "4.2M+", label: "popups served" },
               { value: "1,800+", label: "stores using Asmos" },
-              { value: "+23%", label: "avg. conversion lift" },
-              { value: "2 min", label: "average setup time" },
+              { value: "+23%", label: "average capture lift" },
+              { value: "2 min", label: "to first live popup" },
             ].map((stat) => (
               <div key={stat.label} className="flex flex-col items-center gap-0.5 text-center">
                 <dt className="text-[1.375rem] font-bold tracking-tight text-[color:var(--color-text-primary)] tabular-nums">
@@ -199,10 +199,10 @@ export default async function LandingPage() {
             className="mb-4 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            From URL to converting popup in three steps
+            Live popup on your store in under 5 minutes
           </h2>
           <p className="text-center text-sm text-[color:var(--color-text-secondary)] mb-14 max-w-sm mx-auto reveal">
-            No templates to fiddle with. No design decisions. Just your store URL.
+            No templates to configure. No design decisions. Just paste your URL.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 reveal-stagger">
@@ -210,19 +210,19 @@ export default async function LandingPage() {
               {
                 n: "01",
                 title: "Paste your store URL",
-                body: "We scan your brand colors, tone, and existing offers. Takes under 10 seconds.",
-                callout: "Brand-matched in seconds",
+                body: "We scan your brand colors, tone, and existing offers in under 10 seconds. No account needed yet.",
+                callout: "Brand-matched automatically",
               },
               {
                 n: "02",
-                title: "See your popup",
-                body: "Asmos generates a popup tailored to your brand, with copy and design that fits your store.",
-                callout: "Live preview before you sign up",
+                title: "Get a popup built for your brand",
+                body: "Asmos generates a popup with copy and design tailored to your store. Review it before you commit to anything.",
+                callout: "Live preview, no signup required",
               },
               {
                 n: "03",
-                title: "Let AI handle the rest",
-                body: "The optimizer continuously tests variants and shifts traffic to whatever converts best — automatically.",
+                title: "It keeps improving on its own",
+                body: "Once live, Asmos tests multiple versions and automatically sends more visitors to the one converting best.",
                 callout: "No manual A/B setup needed",
               },
             ].map((item) => (
@@ -271,22 +271,22 @@ export default async function LandingPage() {
                 className="mb-5 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)]"
                 style={{ textWrap: "balance" } as React.CSSProperties}
               >
-                Popups that improve while you sleep
+                Most popup tools show the same thing to everyone, forever
               </h2>
               <p
                 className="mb-8 text-sm text-[color:var(--color-text-secondary)] leading-relaxed max-w-sm"
                 style={{ textWrap: "pretty" } as React.CSSProperties}
               >
-                Most popup tools show you the same thing to every visitor, forever.
-                Asmos runs an ongoing experiment, identifies the best-performing
-                variant, and automatically sends more traffic to it.
+                Asmos runs multiple popup versions simultaneously, figures out
+                which one is actually converting visitors, and shifts traffic
+                to it automatically. No spreadsheets. No weekly check-ins.
               </p>
               <ul className="space-y-3">
                 {[
-                  "Bandit-based optimization, not just a coin-flip A/B test",
+                  "Tests multiple versions at once, not just two",
                   "Adapts to device, time of day, and traffic source",
-                  "No false positives from under-powered tests",
-                  "Full performance history, no data gaps",
+                  "Stops wasting impressions on underperforming variants early",
+                  "Full history of every test, nothing gets deleted",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm text-[color:var(--color-text-secondary)]">
                     <Check />
@@ -299,11 +299,11 @@ export default async function LandingPage() {
                   href="/sign-up"
                   className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
                 >
-                  Try it on my store
+                  Start growing my list
                   <ArrowRight className="text-white/80" />
                 </Link>
                 <p className="mt-2.5 text-xs text-[color:var(--color-text-secondary)]">
-                  Free plan, no card needed.
+                  Free to start, no credit card.
                 </p>
               </div>
             </div>
@@ -313,22 +313,22 @@ export default async function LandingPage() {
               {[
                 {
                   metric: "+23%",
-                  label: "Average conversion lift across stores in the first 30 days",
+                  label: "Average email capture lift in the first 30 days",
                   accent: false,
                 },
                 {
                   metric: "8x",
-                  label: "More variants tested per campaign vs. a standard A/B setup",
+                  label: "More popup versions tested per campaign than a manual A/B tool",
                   accent: true,
                 },
                 {
                   metric: "~60s",
-                  label: "From URL to live popup on your store",
+                  label: "From store URL to a branded popup live on your site",
                   accent: false,
                 },
                 {
                   metric: "0",
-                  label: "Manual adjustments needed once the optimizer is running",
+                  label: "Manual tweaks required after setup. It runs itself.",
                   accent: false,
                 },
               ].map((card) => (
@@ -369,14 +369,14 @@ export default async function LandingPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-2 flex justify-center reveal">
             <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
-              What stores say
+              From store owners
             </span>
           </div>
           <h2
             className="mb-14 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            Fewer visitors leaving empty-handed
+            Store owners who stopped guessing what works
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 reveal-stagger">
@@ -452,10 +452,10 @@ export default async function LandingPage() {
             className="mb-3 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            Start free. Pay when it's working.
+            Start free. Upgrade when you outgrow it.
           </h2>
           <p className="text-sm text-[color:var(--color-text-secondary)] text-center mb-14 max-w-xs mx-auto reveal">
-            No trial expiry on the free plan. Upgrade when you outgrow it.
+            The free plan doesn't expire. No credit card, no trial clock.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl mx-auto reveal-stagger">
@@ -564,10 +564,10 @@ export default async function LandingPage() {
             className="mb-4 text-[2rem] font-bold tracking-tight text-[color:var(--color-text-primary)]"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            See what Asmos builds for your store
+            Find out what your store's been leaving on the table
           </h2>
           <p className="mb-8 text-sm text-[color:var(--color-text-secondary)] max-w-sm mx-auto">
-            Paste your URL. Get a live popup preview. No account required to see the result.
+            Paste your URL and get a branded popup preview in under a minute. No account needed.
           </p>
           <HomepageForm />
           <p className="mt-4 text-xs text-[color:var(--color-text-secondary)]">
