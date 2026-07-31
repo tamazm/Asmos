@@ -4,15 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, SignUp as RealSignUp } from "@clerk/nextjs";
 
 const isMock = process.env.NEXT_PUBLIC_MOCK_AUTH === "true";
-
-const RealSignUp = dynamic(
-  () => import("@clerk/nextjs").then((m) => ({ default: m.SignUp })),
-  { ssr: false },
-);
 
 function MockSignUpForm() {
   const router = useRouter();
@@ -207,7 +201,7 @@ export default function SignUpPage() {
 
         {/* Auth widget */}
         <div className="flex justify-center animate-page-enter-delay-2">
-          {isMock ? <MockSignUpForm /> : <RealSignUp />}
+          {isMock ? <MockSignUpForm /> : <RealSignUp routing="path" path="/sign-up" />}
         </div>
 
         <p className="mt-6 text-center text-sm text-[color:var(--color-text-secondary)] animate-page-enter-delay-3">

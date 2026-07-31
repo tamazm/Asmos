@@ -5,13 +5,15 @@ import { PostHogProvider as PHProvider } from "posthog-js/react";
 import { useEffect } from "react";
 
 const POSTHOG_KEY = process.env.NEXT_PUBLIC_POSTHOG_KEY ?? "";
-const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.posthog.com";
+const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com";
 
 export function PostHogProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!POSTHOG_KEY) return; // skip init when no key is configured
     posthog.init(POSTHOG_KEY, {
       api_host: POSTHOG_HOST,
+      // @ts-ignore - added per user config
+      defaults: '2026-05-30',
       person_profiles: "identified_only",
       capture_pageview: false, // we fire page_view manually via PostHogPageView
       capture_pageleave: true,
