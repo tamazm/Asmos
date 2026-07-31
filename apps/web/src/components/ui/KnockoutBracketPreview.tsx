@@ -138,7 +138,7 @@ function VariantRow({
                 color: eliminated
                   ? dark ? "oklch(40% 0.01 255)" : "#9ca3af"
                   : dark ? "#f3f4f6" : "#0d0d10",
-              textDecoration: eliminated ? "line-through" : "none",
+              textDecoration: eliminated ? "line-through red" : "none",
                 transition: "color 400ms ease",
               }}
             >
