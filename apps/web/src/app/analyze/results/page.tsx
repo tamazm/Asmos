@@ -512,13 +512,13 @@ export default function AnalyzeResultsPage() {
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 onClick={() => router.push("/")}
-                className="flex-1 rounded-lg border border-blue-200 bg-white px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-50 transition-colors text-center"
+                className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] transition-[background-color] duration-200 text-center"
               >
                 Try a different URL
               </button>
               <button
                 onClick={() => router.push("/sign-up")}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors text-center"
+                className="flex-1 rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-[background-color] duration-200 text-center"
               >
                 Build one free with Asmos
               </button>
@@ -571,7 +571,7 @@ export default function AnalyzeResultsPage() {
                   placeholder="you@yourstore.com"
                   autoFocus
                   disabled={emailState === "submitting"}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors disabled:opacity-50"
+                  className="w-full rounded-xl border border-[color:var(--color-border)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors disabled:opacity-50"
                 />
                 {emailError && <p className="text-xs text-red-500">{emailError}</p>}
                 <button

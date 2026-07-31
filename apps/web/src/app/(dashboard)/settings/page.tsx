@@ -52,7 +52,7 @@ export default async function SettingsPage() {
             <p className="mt-1 text-2xl font-bold text-[color:var(--color-text-primary)] capitalize">{account.planTier.toLowerCase()}</p>
             <div className="mt-2 flex items-center gap-2">
               <Badge variant={account.subscriptionStatus === "ACTIVE" || account.subscriptionStatus === "TRIALING" ? "success" : "neutral"}>
-                {account.subscriptionStatus}
+                {account.subscriptionStatus.charAt(0).toUpperCase() + account.subscriptionStatus.slice(1).toLowerCase()}
               </Badge>
             </div>
           </div>
