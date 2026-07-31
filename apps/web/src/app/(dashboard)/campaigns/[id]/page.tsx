@@ -10,6 +10,7 @@ import { VariantManager, type VariantStat } from "./VariantManager";
 import { InsightsPanel, type InsightRow } from "./InsightsPanel";
 import { AnalyticsTab } from "./AnalyticsTab";
 import { KnockoutBracket } from "./KnockoutBracket";
+import { KnockoutBracketWithVariants } from "./KnockoutBracketWithVariants";
 import { PerformanceTable } from "./PerformanceTable";
 import { CampaignTabs } from "./CampaignTabs";
 import { CampaignRowActions } from "../CampaignRowActions";
@@ -115,7 +116,12 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
           {
             key: "knockout-bracket",
             label: "Knockout Bracket",
-            content: <KnockoutBracket variants={variantStats} />,
+            content: (
+            <KnockoutBracketWithVariants
+              campaignId={campaign.id}
+              initialVariants={variantStats}
+            />
+          ),
           },
           {
             key: "analytics",
