@@ -69,7 +69,7 @@ export default async function LandingPage() {
             width={110}
             height={28}
             priority
-            className="h-7 w-auto"
+            className="h-8 w-auto"
           />
           <nav className="hidden items-center gap-6 text-sm font-medium text-[color:var(--color-text-secondary)] sm:flex">
             <Link
