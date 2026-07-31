@@ -15,17 +15,21 @@ export function HomepageForm() {
     setError(null);
 
     let normalized = url.trim();
-    if (!normalized || !normalized.includes(".")) {
-      setError("Enter a valid store URL");
+    if (!normalized) {
+      setError("Enter your store URL to get started");
       return;
     }
     if (!/^https?:\/\//i.test(normalized)) {
       normalized = "https://" + normalized;
     }
+    if (!normalized.includes(".")) {
+      setError("Enter a valid store URL (e.g. yourstore.com)");
+      return;
+    }
     try {
       new URL(normalized);
     } catch {
-      setError("Enter a valid store URL");
+      setError("Enter a valid store URL (e.g. yourstore.com)");
       return;
     }
     setLoading(true);
@@ -37,7 +41,8 @@ export function HomepageForm() {
     <form onSubmit={handleSubmit} className="w-full max-w-xl mx-auto">
       {/* Double-Bezel form container */}
       <div className="rounded-[1.125rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1 shadow-sm">
-        <div className="flex flex-col sm:flex-row gap-2 rounded-[0.75rem] bg-[color:var(--color-surface)] p-1.5"
+        <div
+          className="flex flex-col sm:flex-row gap-2 rounded-[0.75rem] bg-[color:var(--color-surface)] p-1.5"
           style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.9)" }}
         >
           <div className="flex-1">
@@ -47,10 +52,13 @@ export function HomepageForm() {
             <input
               id="store-url"
               type="text"
+              inputMode="url"
               value={url}
-              onChange={(e) => { setUrl(e.target.value); if (error) setError(null); }}
+              onChange={(e) => {
+                setUrl(e.target.value);
+                if (error) setError(null);
+              }}
               placeholder="yourstore.com"
-              autoFocus
               disabled={loading}
               className="w-full rounded-[0.5rem] border-0 bg-transparent px-3 py-2.5 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:ring-0 h-11 disabled:opacity-50"
             />
@@ -86,7 +94,7 @@ export function HomepageForm() {
                 Analyzing...
               </>
             ) : (
-              "Analyze my store"
+              "Analyze my store →"
             )}
           </button>
         </div>
@@ -96,7 +104,7 @@ export function HomepageForm() {
       )}
       {!error && (
         <p className="mt-2 text-center text-xs text-[color:var(--color-text-secondary)]">
-          No credit card required
+          No account needed · Takes about 60 seconds
         </p>
       )}
     </form>

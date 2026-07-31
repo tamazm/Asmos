@@ -84,7 +84,7 @@ export function PopupPreview() {
 
       {/* Floating "AI optimized" badge */}
       <div
-        className="absolute -top-3 -right-3 flex items-center gap-1.5 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-2.5 py-1.5 shadow-md"
+        className="absolute -top-3 -right-3 z-20 flex items-center gap-1.5 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-2.5 py-1.5 shadow-md"
       >
         <span
           className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)] shrink-0"
@@ -95,12 +95,23 @@ export function PopupPreview() {
         </span>
       </div>
 
-      {/* Floating conversion rate badge */}
+      {/* Conversion lift banner badge — prominent, high z-index */}
       <div
-        className="absolute -bottom-3 -left-3 flex items-center gap-2 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 shadow-md"
+        className="absolute -bottom-5 left-1/2 -translate-x-1/2 z-30 flex items-center gap-3 rounded-2xl px-5 py-3 shadow-xl whitespace-nowrap"
+        style={{
+          background: "linear-gradient(135deg, #165DFF 0%, #2B6FFF 100%)",
+          boxShadow: "0 8px 24px rgba(22,93,255,0.35), 0 2px 6px rgba(22,93,255,0.2)",
+        }}
       >
-        <span className="text-base font-bold text-[color:var(--color-primary)] tabular-nums">+23%</span>
-        <span className="text-[10px] text-[color:var(--color-text-secondary)] leading-tight">conversion<br/>lift</span>
+        <span className="text-2xl font-extrabold text-white tabular-nums tracking-tight leading-none">+23%</span>
+        <div className="flex flex-col leading-tight">
+          <span className="text-[11px] font-semibold text-white">conversion lift</span>
+          <span className="text-[10px] text-white/70">avg. first 30 days</span>
+        </div>
+        {/* Arrow up icon */}
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true" className="shrink-0">
+          <path d="M9 14V4M9 4L5 8M9 4l4 4" stroke="rgba(255,255,255,0.9)" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
       </div>
     </div>
   );

@@ -103,7 +103,7 @@ export default async function LandingPage() {
       </header>
 
       {/* ── Hero ────────────────────────────────────────────────────── */}
-      <section className="relative px-5 pt-16 pb-20 sm:pt-20 sm:pb-28 overflow-hidden">
+      <section className="relative px-4 pt-10 pb-14 sm:px-5 sm:pt-20 sm:pb-28 overflow-hidden">
         {/* Ambient glow — top center */}
         <div
           aria-hidden="true"
@@ -115,7 +115,7 @@ export default async function LandingPage() {
         />
 
         <div className="relative mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
 
             {/* Left: copy + form */}
             <div>
@@ -130,14 +130,14 @@ export default async function LandingPage() {
               </div>
 
               <h1
-                className="mb-5 text-[2.6rem] leading-[1.07] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-5xl animate-page-enter-delay-1"
+                className="mb-4 text-[2rem] leading-[1.1] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-[2.6rem] sm:leading-[1.07] md:text-5xl animate-page-enter-delay-1"
                 style={{ textWrap: "balance" } as React.CSSProperties}
               >
                 Your next 500 email subscribers are already on your site
               </h1>
 
               <p
-                className="mb-8 text-lg text-[color:var(--color-text-secondary)] leading-relaxed max-w-[480px] animate-page-enter-delay-2"
+                className="mb-6 text-base sm:text-lg text-[color:var(--color-text-secondary)] leading-relaxed max-w-[480px] animate-page-enter-delay-2"
                 style={{ textWrap: "pretty" } as React.CSSProperties}
               >
                 Paste your store URL. Asmos reads your brand, builds a popup
@@ -157,7 +157,7 @@ export default async function LandingPage() {
             </div>
 
             {/* Right: popup preview illustration */}
-            <div className="flex justify-center lg:justify-end animate-page-enter-delay-2">
+            <div className="flex justify-center lg:justify-end animate-page-enter-delay-2 pb-8 sm:pb-0">
               <PopupPreview />
             </div>
           </div>
@@ -188,7 +188,7 @@ export default async function LandingPage() {
       </div>
 
       {/* ── How it works ────────────────────────────────────────────── */}
-      <section id="how-it-works" className="px-5 py-24 bg-[color:var(--color-surface)]">
+      <section id="how-it-works" className="px-4 py-14 sm:px-5 sm:py-24 bg-[color:var(--color-surface)]">
         <div className="mx-auto max-w-6xl">
           <div className="mb-2 flex justify-center reveal">
             <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
@@ -196,12 +196,12 @@ export default async function LandingPage() {
             </span>
           </div>
           <h2
-            className="mb-4 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
+            className="mb-4 text-[1.5rem] sm:text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
             Live popup on your store in under 5 minutes
           </h2>
-          <p className="text-center text-sm text-[color:var(--color-text-secondary)] mb-14 max-w-sm mx-auto reveal">
+          <p className="text-center text-sm text-[color:var(--color-text-secondary)] mb-10 sm:mb-14 max-w-sm mx-auto reveal">
             No templates to configure. No design decisions. Just paste your URL.
           </p>
 
@@ -257,9 +257,9 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Results section ─────────────────────────────────────────── */}
-      <section className="px-5 py-24 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
+      <section className="px-4 py-14 sm:px-5 sm:py-24 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 items-center">
             {/* Left: copy */}
             <div className="reveal">
               <div className="mb-4">
@@ -268,7 +268,7 @@ export default async function LandingPage() {
                 </span>
               </div>
               <h2
-                className="mb-5 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)]"
+                className="mb-5 text-[1.5rem] sm:text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)]"
                 style={{ textWrap: "balance" } as React.CSSProperties}
               >
                 Most popup tools show the same thing to everyone, forever
@@ -309,7 +309,7 @@ export default async function LandingPage() {
             </div>
 
             {/* Right: metric cards */}
-            <div className="grid grid-cols-2 gap-4 reveal-stagger">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 reveal-stagger">
               {[
                 {
                   metric: "+23%",
@@ -365,7 +365,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Testimonials ────────────────────────────────────────────── */}
-      <section className="px-5 py-24 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)]">
+      <section className="px-4 py-14 sm:px-5 sm:py-24 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <div className="mb-2 flex justify-center reveal">
             <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
@@ -373,7 +373,7 @@ export default async function LandingPage() {
             </span>
           </div>
           <h2
-            className="mb-14 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
+            className="mb-10 sm:mb-14 text-[1.5rem] sm:text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
             Store owners who stopped guessing what works
@@ -441,7 +441,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Pricing ─────────────────────────────────────────────────── */}
-      <section id="pricing" className="px-5 py-24 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
+      <section id="pricing" className="px-4 py-14 sm:px-5 sm:py-24 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <div className="mb-2 flex justify-center reveal">
             <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
@@ -449,7 +449,7 @@ export default async function LandingPage() {
             </span>
           </div>
           <h2
-            className="mb-3 text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
+            className="mb-3 text-[1.5rem] sm:text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
             Start free. Upgrade when you outgrow it.
@@ -558,10 +558,10 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Final CTA ───────────────────────────────────────────────── */}
-      <section className="px-5 py-24 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)]">
+      <section className="px-4 py-14 sm:px-5 sm:py-24 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)]">
         <div className="mx-auto max-w-2xl text-center reveal">
           <h2
-            className="mb-4 text-[2rem] font-bold tracking-tight text-[color:var(--color-text-primary)]"
+            className="mb-4 text-[1.625rem] sm:text-[2rem] font-bold tracking-tight text-[color:var(--color-text-primary)]"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
             Find out what your store's been leaving on the table
