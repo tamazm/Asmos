@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, startTransition } from "react";
+import { useEffect, useState, useCallback, startTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -40,59 +40,63 @@ interface AnalyzeResult {
   };
 }
 
-// What Asmos can actually fix — no live chat, no A/B test infra
 interface CheckMeta {
   key: keyof AnalyzeResult | string;
   label: string;
-  // shown when missing — written to make user feel the pain and only Asmos can fix it
   missingHeadline: string;
   missingBody: string;
-  // shown when present
   foundLabel: string;
+  impact: "high" | "medium" | "low";
 }
 
 const CHECK_META: CheckMeta[] = [
   {
     key: "popup",
-    label: "Popup campaign",
-    missingHeadline: "No popup: you are gifting revenue to your competitors",
-    missingBody: "Every visitor who leaves without subscribing is gone. Stores with a high-converting popup capture 4–8% of cold traffic. Without one, that email list stays empty.",
-    foundLabel: "Running a popup",
+    label: "Email popup",
+    missingHeadline: "Visitors leave without buying — and you never hear from them again",
+    missingBody: "Stores with a high-converting popup capture 4–8% of cold traffic as email subscribers. Without one, every visitor who doesn't buy is gone forever.",
+    foundLabel: "Active",
+    impact: "high",
   },
   {
     key: "emailCapture",
-    label: "Email capture offer",
-    missingHeadline: "No offer to capture emails: cold traffic disappears",
-    missingBody: "A discount or lead magnet is the difference between a one-time visitor and a customer you can reach 10 times. Without it you're paying for traffic you can only use once.",
-    foundLabel: "Email capture active",
-  },
-  {
-    key: "socialProof",
-    label: "Social proof",
-    missingHeadline: "No reviews visible: visitors have no reason to trust you yet",
-    missingBody: "93% of shoppers read reviews before buying. If a visitor can't see that other people love your product, they'll find a store where they can.",
-    foundLabel: "Reviews present",
-  },
-  {
-    key: "urgency",
-    label: "Urgency signals",
-    missingHeadline: "No urgency: shoppers say they will come back later and never do",
-    missingBody: "Without a reason to buy now, people bookmark and forget. A countdown, low-stock badge, or time-limited offer can double your conversion rate on the same traffic.",
-    foundLabel: "Urgency messaging detected",
+    label: "Capture offer",
+    missingHeadline: "No discount or lead magnet — cold traffic has no reason to subscribe",
+    missingBody: "A discount or freebie turns one-time visitors into people you can reach 10x. Without it, you're renting attention you can never use again.",
+    foundLabel: "Active",
+    impact: "high",
   },
   {
     key: "exitIntent",
     label: "Exit-intent recovery",
-    missingHeadline: "No exit recovery: 70% of your visitors walk out the door",
-    missingBody: "The moment someone moves to close the tab is your last chance. An exit-intent popup with the right offer recovers 5–15% of abandoning visitors. Right now that revenue is gone.",
-    foundLabel: "Exit-intent active",
+    missingHeadline: "70% of your visitors leave without buying or subscribing",
+    missingBody: "Catching the exit moment with the right offer recovers 5–15% of abandoning visitors. Right now that revenue is gone.",
+    foundLabel: "Active",
+    impact: "high",
+  },
+  {
+    key: "urgency",
+    label: "Urgency signals",
+    missingHeadline: "No urgency means shoppers bookmark and never come back",
+    missingBody: "A countdown, low-stock notice, or time-limited offer can double conversion on the same traffic.",
+    foundLabel: "Present",
+    impact: "medium",
+  },
+  {
+    key: "socialProof",
+    label: "Social proof",
+    missingHeadline: "No reviews visible — visitors have no reason to trust you",
+    missingBody: "93% of shoppers read reviews before buying. If they can't see that others love your product, they'll find a store where they can.",
+    foundLabel: "Present",
+    impact: "medium",
   },
   {
     key: "stickyBar",
     label: "Announcement bar",
-    missingHeadline: "No sticky bar: your best offer disappears when visitors scroll",
-    missingBody: "A persistent top bar keeps your shipping offer or discount in front of visitors the entire time they're on your site. Without it, your offer disappears the moment they scroll.",
-    foundLabel: "Announcement bar visible",
+    missingHeadline: "Your best offer disappears when visitors scroll",
+    missingBody: "A persistent top bar keeps your shipping offer or discount in view the entire visit.",
+    foundLabel: "Present",
+    impact: "low",
   },
 ];
 
@@ -101,7 +105,6 @@ function getCheck(result: AnalyzeResult, key: string): { found: boolean; descrip
   if (val && typeof val === "object" && "found" in (val as object)) {
     return val as CheckItem;
   }
-  // Legacy heuristic shape
   const legacyMap: Record<string, string> = {
     popup: "hasPopup",
     emailCapture: "hasEmailCapture",
@@ -117,18 +120,41 @@ function getCheck(result: AnalyzeResult, key: string): { found: boolean; descrip
   return { found: false, description: "None detected" };
 }
 
-function gradeTextColor(grade: string) {
-  if (grade.startsWith("A")) return "#059669"; // emerald
-  if (grade.startsWith("B")) return "#2563eb"; // blue
-  if (grade.startsWith("C")) return "#d97706"; // amber
-  return "#dc2626"; // red
+// Score ring arc
+function ScoreRing({ score, color }: { score: number; color: string }) {
+  const r = 44;
+  const circ = 2 * Math.PI * r;
+  const dash = (score / 100) * circ;
+  return (
+    <svg width="110" height="110" viewBox="0 0 110 110" className="block">
+      <circle cx="55" cy="55" r={r} fill="none" stroke="oklch(96% 0.005 258)" strokeWidth="8" />
+      <circle
+        cx="55" cy="55" r={r}
+        fill="none"
+        stroke={color}
+        strokeWidth="8"
+        strokeLinecap="round"
+        strokeDasharray={`${dash} ${circ}`}
+        strokeDashoffset={circ / 4}
+        style={{ transition: "stroke-dasharray 0.9s cubic-bezier(0.16,1,0.3,1)" }}
+      />
+      <text x="55" y="51" textAnchor="middle" fontSize="24" fontWeight="800" fill={color} fontFamily="inherit">{score}</text>
+      <text x="55" y="66" textAnchor="middle" fontSize="11" fontWeight="600" fill="oklch(60% 0.02 258)" fontFamily="inherit">/100</text>
+    </svg>
+  );
 }
 
-function gradeBgClass(grade: string) {
-  if (grade.startsWith("A")) return "bg-emerald-50 border-emerald-200";
-  if (grade.startsWith("B")) return "bg-blue-50 border-blue-200";
-  if (grade.startsWith("C")) return "bg-amber-50 border-amber-200";
-  return "bg-red-50 border-red-200";
+function gradeColor(grade: string): string {
+  if (grade.startsWith("A")) return "oklch(48% 0.16 155)";
+  if (grade.startsWith("B")) return "oklch(50% 0.20 258)";
+  if (grade.startsWith("C")) return "oklch(58% 0.18 70)";
+  return "oklch(52% 0.20 22)";
+}
+
+function impactDot(impact: "high" | "medium" | "low") {
+  if (impact === "high") return "bg-red-400";
+  if (impact === "medium") return "bg-amber-400";
+  return "bg-gray-300";
 }
 
 export default function AnalyzeResultsPage() {
@@ -137,6 +163,7 @@ export default function AnalyzeResultsPage() {
   const [email, setEmail] = useState("");
   const [emailState, setEmailState] = useState<"idle" | "submitting" | "sent">("idle");
   const [emailError, setEmailError] = useState("");
+  const emailInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("asmos_analyze_result");
@@ -144,7 +171,6 @@ export default function AnalyzeResultsPage() {
     try {
       const data: AnalyzeResult = JSON.parse(raw);
       const captured = Boolean(sessionStorage.getItem("asmos_email_captured"));
-      // Batch updates via transition to avoid the synchronous-setState-in-effect pattern
       startTransition(() => {
         setResult(data);
         if (captured) setEmailState("sent");
@@ -161,7 +187,6 @@ export default function AnalyzeResultsPage() {
     setEmailError("");
     setEmailState("submitting");
 
-    // Save email to DB
     if (result) {
       fetch("/api/analyze/lead", {
         method: "POST",
@@ -174,7 +199,7 @@ export default function AnalyzeResultsPage() {
           score: result.score,
           grade: result.grade,
         }),
-      }).catch(() => {}); // fire and forget — don't block UX
+      }).catch(() => {});
     }
 
     sessionStorage.setItem("asmos_email_captured", email.toLowerCase().trim());
@@ -192,400 +217,293 @@ export default function AnalyzeResultsPage() {
   }
 
   const checks = CHECK_META.map(m => ({ ...m, ...getCheck(result, m.key) }));
-  const passedCount = checks.filter(c => c.found).length;
-  const failedCount = checks.length - passedCount;
+  const failedChecks = checks.filter(c => !c.found);
+  const passedChecks = checks.filter(c => c.found);
+  const color = gradeColor(result.grade);
   const isAI = result.analysisSource && result.analysisSource !== "heuristic";
-  const gradeColor = gradeTextColor(result.grade);
-  const noPopup = !getCheck(result, "popup").found;
+  const brandColor = result.brandColor && result.brandColor !== "#165DFF" ? result.brandColor : "#165DFF";
 
   return (
     <div className="min-h-[100dvh] bg-white">
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes fade-up {
-          from { opacity: 0; transform: translateY(10px); }
+        @keyframes fade-in {
+          from { opacity: 0; transform: translateY(12px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .fade-up { animation: fade-up 0.4s ease-out both; }
-        .fade-up-1 { animation: fade-up 0.4s 0.05s ease-out both; }
-        .fade-up-2 { animation: fade-up 0.4s 0.1s ease-out both; }
-        .fade-up-3 { animation: fade-up 0.4s 0.15s ease-out both; }
-        .fade-up-4 { animation: fade-up 0.4s 0.2s ease-out both; }
+        .fi   { animation: fade-in 0.45s ease-out both; }
+        .fi-1 { animation: fade-in 0.45s 0.07s ease-out both; }
+        .fi-2 { animation: fade-in 0.45s 0.14s ease-out both; }
+        .fi-3 { animation: fade-in 0.45s 0.21s ease-out both; }
+        .fi-4 { animation: fade-in 0.45s 0.28s ease-out both; }
       `}</style>
 
-      {/* Header */}
-      <header className="sticky top-0 z-10 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-xl items-center justify-between px-5 py-3.5">
-          <Image src="/assets/asmos-logo-primary-lightbg.webp" alt="Asmos" width={88} height={22} priority className="h-5.5 w-auto" />
+      {/* Nav */}
+      <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-3.5">
+          <Image src="/assets/asmos-logo-primary-lightbg.webp" alt="Asmos" width={88} height={22} priority className="h-5 w-auto" />
           <Link href="/sign-in" className="text-xs font-medium text-gray-400 hover:text-gray-700 transition-colors">
             Sign in
           </Link>
         </div>
       </header>
 
-      <main className="mx-auto max-w-xl px-5 pb-24 pt-8 space-y-5">
+      <main className="mx-auto max-w-lg px-5 pt-8 pb-20 space-y-5">
 
-        {/* ── Screenshot card ── */}
-        {result.screenshotBase64 && (
-          <div className="fade-up overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
-            <div className="flex items-center gap-1.5 border-b border-gray-100 bg-gray-50 px-3.5 py-2">
-              <span className="h-2.5 w-2.5 rounded-full bg-red-300" />
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-300" />
-              <span className="h-2.5 w-2.5 rounded-full bg-emerald-300" />
-              <span className="ml-2 flex-1 truncate rounded bg-gray-200/70 px-2.5 py-0.5 text-[11px] text-gray-400">
-                {result.storeUrl}
-              </span>
-            </div>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={`data:image/jpeg;base64,${result.screenshotBase64}`}
-              alt="Store screenshot"
-              className="w-full object-cover object-top"
-              style={{ maxHeight: 260 }}
-            />
-            {isAI && (
-              <div className="flex items-center gap-1.5 border-t border-gray-100 bg-gray-50 px-3.5 py-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
-                <span className="text-[11px] text-gray-400">
-                  Analyzed by AI vision · {result.analysisSource === "bedrock" ? "Claude Haiku" : result.analysisSource === "anthropic" ? "Claude Haiku" : "Gemini Flash"}
+        {/* ─────────────── 1. SCORE HERO ─────────────── */}
+        <section className="fi">
+          {/* Screenshot browser chrome */}
+          {result.screenshotBase64 && (
+            <div className="mb-4 overflow-hidden rounded-2xl border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-1.5 border-b border-gray-100 bg-gray-50 px-3.5 py-2">
+                <span className="h-2 w-2 rounded-full bg-red-300" />
+                <span className="h-2 w-2 rounded-full bg-amber-300" />
+                <span className="h-2 w-2 rounded-full bg-emerald-300" />
+                <span className="ml-2 flex-1 truncate rounded bg-white/80 px-2.5 py-0.5 text-[11px] text-gray-400 border border-gray-200">
+                  {result.storeUrl.replace(/^https?:\/\//, "")}
                 </span>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* ── Score hero ── */}
-        <div className={`fade-up-1 rounded-2xl border p-5 ${gradeBgClass(result.grade)}`}>
-          <div className="flex items-start gap-4">
-            {/* Grade */}
-            <div className="flex-shrink-0 w-20 text-center">
-              <div
-                className="text-[56px] font-black leading-none tabular-nums"
-                style={{ color: gradeColor }}
-              >
-                {result.grade}
-              </div>
-              <div className="mt-1 text-xs font-semibold" style={{ color: gradeColor }}>
-                {result.score}/100
-              </div>
-            </div>
-            {/* Store info */}
-            <div className="flex-1 min-w-0 pt-1">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400 mb-0.5">
-                CRO score for
-              </p>
-              <p className="text-lg font-bold text-gray-900 leading-tight truncate">
-                {result.storeName}
-              </p>
-              <p className="text-sm text-gray-500 mt-0.5">{result.gradeLabel}</p>
-              {/* Brand color swatch */}
-              {result.brandColor && result.brandColor !== "#165DFF" && (
-                <div className="mt-2 flex items-center gap-2">
-                  <div
-                    className="h-4 w-4 rounded-full border border-black/10 flex-shrink-0"
-                    style={{ backgroundColor: result.brandColor }}
-                    title={`Brand color: ${result.brandColor}`}
-                  />
-                  <span className="text-[11px] text-gray-400 font-mono">{result.brandColor}</span>
-                  <span className="text-[11px] text-gray-400">detected</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={`data:image/jpeg;base64,${result.screenshotBase64}`}
+                alt="Store screenshot"
+                className="w-full object-cover object-top"
+                style={{ maxHeight: 220 }}
+              />
+              {isAI && (
+                <div className="flex items-center gap-1.5 border-t border-gray-100 bg-gray-50 px-3.5 py-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                  <span className="text-[10px] text-gray-400">
+                    AI vision scan ·{" "}
+                    {result.analysisSource === "bedrock" || result.analysisSource === "anthropic" ? "Claude" : "Gemini"}
+                  </span>
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Verdict */}
-          {result.verdict && !result.verdict.includes("HTML signals") && (
-            <p className="mt-4 text-sm font-medium text-gray-700 leading-relaxed border-t border-black/5 pt-4">
-              {result.verdict}
-            </p>
           )}
 
-          {/* Pass/fail bar */}
-          <div className="mt-4 flex items-center gap-2">
-            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/5">
-              <div
-                className="h-full rounded-full transition-[width] duration-700"
-                style={{
-                  width: `${(passedCount / checks.length) * 100}%`,
-                  backgroundColor: gradeColor,
-                }}
-              />
-            </div>
-            <span className="text-xs font-semibold text-gray-500 tabular-nums flex-shrink-0">
-              {passedCount}/{checks.length} tools
-            </span>
-          </div>
-        </div>
-
-        {/* ── Checks ── */}
-        <div className="fade-up-2 space-y-2.5">
-          {checks.map((c) => (
-            <div
-              key={c.key}
-              className={`rounded-xl border px-4 py-3.5 ${
-                c.found
-                  ? "border-emerald-100 bg-emerald-50/50"
-                  : "border-gray-100 bg-white"
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                {/* Status icon */}
-                <div className={`mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full ${c.found ? "bg-emerald-100" : "bg-red-50"}`}>
-                  {c.found ? (
-                    <svg className="h-3 w-3 text-emerald-600" fill="none" viewBox="0 0 12 12">
-                      <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M2 6l2.5 2.5L10 3.5" />
-                    </svg>
-                  ) : (
-                    <svg className="h-3 w-3 text-red-400" fill="none" viewBox="0 0 12 12">
-                      <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" d="M3 3l6 6M9 3l-6 6" />
-                    </svg>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`text-sm font-semibold ${c.found ? "text-gray-700" : "text-gray-900"}`}>
-                      {c.label}
-                    </span>
-                    {c.found && c.description && c.description !== "Detected" && c.description !== "None detected" && c.description !== "Detected via script signals" && (
-                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-medium text-emerald-700 truncate max-w-[180px]">
-                        {c.description}
-                      </span>
-                    )}
-                    {c.found && (
-                      <span className="text-xs text-emerald-600 font-medium">{c.foundLabel}</span>
-                    )}
+          {/* Score card */}
+          <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-5">
+              <ScoreRing score={result.score} color={color} />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-0.5">
+                  CRO score
+                </p>
+                <p className="text-xl font-extrabold text-gray-900 leading-tight truncate">
+                  {result.storeName}
+                </p>
+                <p className="text-sm mt-0.5 font-medium" style={{ color }}>
+                  {result.grade} &middot; {result.gradeLabel}
+                </p>
+                {result.brandColor && result.brandColor !== "#165DFF" && (
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <div className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: result.brandColor }} />
+                    <span className="text-[10px] font-mono text-gray-400">{result.brandColor}</span>
                   </div>
-                  {!c.found && (
-                    <div className="mt-1.5">
-                      <p className="text-sm font-semibold text-red-600 leading-snug">{c.missingHeadline}</p>
-                      <p className="mt-1 text-xs text-gray-500 leading-relaxed">{c.missingBody}</p>
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             </div>
-          ))}
-        </div>
 
-        {/* ── Blurred popup teaser ── */}
-        {(result.screenshotBase64 || result.score != null) && (
-          <div className="fade-up-3 relative rounded-2xl overflow-hidden" style={{ isolation: "isolate" }}>
-            <div className="relative rounded-2xl border border-gray-100 bg-white overflow-hidden">
-              {/* Label */}
-              <div className="px-4 pt-4 pb-2 flex items-center gap-2">
-                <span
-                  className="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white"
-                  style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
-                >
-                  Your popup
+            {/* Verdict */}
+            {result.verdict && !result.verdict.includes("HTML signals") && (
+              <p className="mt-4 text-sm text-gray-600 leading-relaxed border-t border-gray-50 pt-4">
+                {result.verdict}
+              </p>
+            )}
+
+            {/* Pass/fail summary chips */}
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              {failedChecks.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-red-400 flex-shrink-0" />
+                  {failedChecks.length} gap{failedChecks.length > 1 ? "s" : ""} found
                 </span>
-                <span className="text-[11px] text-gray-400">Auto-generated for {result.storeName}</span>
-              </div>
-
-              {/* Popup preview (blurred/visible depending on emailState) */}
-              <div className="relative mx-4 mb-4">
-                {/* Widget v2-quality popup preview */}
-                <div
-                  className="rounded-[20px] bg-white overflow-hidden transition-[filter] duration-700"
-                  style={{
-                    filter: emailState === "sent" ? "none" : "blur(5px)",
-                    pointerEvents: "none",
-                    userSelect: "none",
-                    boxShadow: "0 12px 48px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)",
-                  }}
-                >
-                  {/* Accent bar */}
-                  <div className="h-1" style={{ backgroundColor: result.brandColor ?? "#165DFF" }} />
-
-                  <div className="px-6 pt-4 pb-5">
-                    {/* Close button */}
-                    <div className="flex justify-end mb-2">
-                      <div className="w-6 h-6 rounded-full bg-[#f3f4f6] flex items-center justify-center">
-                        <svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#6b7280" strokeWidth="1.6" strokeLinecap="round" /></svg>
-                      </div>
-                    </div>
-
-                    {/* Brand row */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: result.brandColor ?? "#165DFF" }} />
-                      <span className="text-[10px] font-bold tracking-[0.06em] uppercase" style={{ color: "#9ca3af" }}>
-                        {result.storeName.toUpperCase()}
-                      </span>
-                    </div>
-
-                    {/* Headline */}
-                    <h3 className="text-[18px] font-extrabold leading-snug mb-1.5 tracking-tight" style={{ color: "#0d0d10" }}>
-                      Get 10% off your first order
-                    </h3>
-
-                    {/* Body */}
-                    <p className="text-[13px] leading-relaxed mb-4" style={{ color: "#6b7280" }}>
-                      Join {result.storeName} subscribers and unlock exclusive offers sent just for you.
-                    </p>
-
-                    {/* Input */}
-                    <div className="flex flex-col gap-2 mb-3">
-                      <div
-                        className="w-full border rounded-[10px] px-3 py-2.5 text-[13px]"
-                        style={{ borderColor: "#e5e7eb", background: "#fafafa", color: "#9ca3af" }}
-                      >
-                        Your email address
-                      </div>
-                    </div>
-
-                    {/* CTA button */}
-                    <div
-                      className="w-full rounded-[10px] py-3 text-[13px] font-bold text-center mb-3"
-                      style={{ backgroundColor: result.brandColor ?? "#165DFF", color: "#ffffff" }}
-                    >
-                      Claim my 10% discount
-                    </div>
-
-                    {/* Trust row */}
-                    <div className="flex items-center justify-center gap-4 pt-3 flex-wrap" style={{ borderTop: "1px solid #f3f4f6" }}>
-                      {["No spam", "Unsubscribe anytime", "Instant reward"].map((label) => (
-                        <span key={label} className="flex items-center gap-1 text-[10px] whitespace-nowrap" style={{ color: "#9ca3af" }}>
-                          {label}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Dismiss link */}
-                    <p className="text-center text-[11px] mt-2" style={{ color: "#9ca3af" }}>
-                      No thanks, I&apos;ll pay full price
-                    </p>
-                  </div>
-                </div>
-
-                {/* Lock overlay */}
-                {emailState !== "sent" && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[20px] bg-white/75 backdrop-blur-[2px]">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-900">
-                      <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                        <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
-                        <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                      </svg>
-                    </div>
-                    <div className="text-center px-4">
-                      <p className="text-sm font-bold text-gray-900">Your Asmos popup is ready</p>
-                      <p className="mt-0.5 text-xs text-gray-500 leading-relaxed">
-                        Create a free account to unlock and publish it
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => router.push("/sign-up?from=analyze")}
-                      className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
-                      style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
-                    >
-                      Unlock my popup
-                    </button>
-                  </div>
-                )}
-
-                {/* Post-email state */}
-                {emailState === "sent" && (
-                  <div className="mt-3 flex flex-col items-center gap-2 text-center">
-                    <p className="text-sm font-semibold text-gray-800">
-                      Your popup is ready. Create an account to publish it.
-                    </p>
-                    <button
-                      onClick={() => router.push("/sign-up?from=analyze")}
-                      className="w-full rounded-xl py-3 text-sm font-bold text-white transition-colors hover:opacity-90"
-                      style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
-                    >
-                      Create free account and publish now
-                    </button>
-                  </div>
-                )}
-              </div>
+              )}
+              {passedChecks.length > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-600">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                  {passedChecks.length} tool{passedChecks.length > 1 ? "s" : ""} active
+                </span>
+              )}
             </div>
           </div>
-        )}
+        </section>
 
-        {/* ── No popup CTA block ── */}
-        {noPopup && emailState !== "sent" && (
-          <div className="fade-up-3 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-5">
-            <p className="text-sm font-bold text-blue-900 mb-1">No popup detected on {result.storeName}</p>
-            <p className="text-xs text-blue-700 mb-4 leading-relaxed">
-              Asmos builds high-converting popups for you in minutes. No design skills needed. Try a different URL or build your first popup free.
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <button
-                onClick={() => router.push("/")}
-                className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] transition-[background-color] duration-200 text-center"
-              >
-                Try a different URL
-              </button>
-              <button
-                onClick={() => router.push("/sign-up?from=analyze")}
-                className="flex-1 rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-[background-color] duration-200 text-center"
-              >
-                Build one free with Asmos
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Email gate / sent state ── */}
-        <div className="fade-up-4">
+        {/* ─────────────── 2. EMAIL GATE ─────────────── */}
+        <section className="fi-1">
           {emailState === "sent" ? (
-            /* ── Post-email: sent confirmation + sign-up CTA ── */
-            <div className="rounded-2xl border border-gray-100 bg-white px-5 py-6 shadow-sm text-center">
+            /* POST-EMAIL: confirmed, push to sign-up */
+            <div className="rounded-2xl bg-gray-900 px-5 py-6 text-center">
               <div className="mb-3 flex justify-center">
-                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-50">
-                  <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 20 20">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20">
+                  <svg className="h-5 w-5 text-emerald-400" fill="none" viewBox="0 0 20 20">
                     <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M4 10l4 4 8-8" />
                   </svg>
                 </div>
               </div>
-              <p className="text-base font-bold text-gray-900">Check your inbox</p>
-              <p className="mt-1.5 text-sm text-gray-500 leading-relaxed max-w-xs mx-auto">
-                Your CRO report is on its way. In the meantime, fix {failedCount > 0 ? `your ${failedCount} missing tool${failedCount > 1 ? "s" : ""}` : "your store"} right now. It takes minutes.
+              <p className="text-base font-bold text-white">Full report is on its way</p>
+              <p className="mt-1.5 text-sm text-gray-400 leading-relaxed max-w-xs mx-auto">
+                We emailed your CRO breakdown. Fix every gap above with Asmos for free — takes 3 minutes to get your first popup live.
               </p>
               <button
                 onClick={() => router.push("/sign-up?from=analyze")}
-                className="mt-5 w-full rounded-xl bg-[color:var(--color-primary)] px-6 py-3.5 text-sm font-bold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors active:scale-[0.98]"
+                className="mt-5 w-full rounded-xl py-3.5 text-sm font-bold text-gray-900 bg-white hover:bg-gray-100 transition-colors"
               >
-                Create free account
+                Fix it free with Asmos
               </button>
-              <p className="mt-2 text-[11px] text-gray-400">Free to start. No credit card.</p>
+              <p className="mt-2 text-[11px] text-gray-600">No credit card. Free to start.</p>
             </div>
           ) : (
-            /* ── Email capture form ── */
-            <div className="rounded-2xl border border-gray-100 bg-white px-5 py-6 shadow-sm">
-              <p className="text-base font-bold text-gray-900">
-                {failedCount > 0
-                  ? `You're losing revenue from ${failedCount} gap${failedCount > 1 ? "s" : ""}. Fix them free.`
-                  : "Your store is strong. Make it unbeatable."}
+            /* EMAIL CAPTURE — primary CTA */
+            <div className="rounded-2xl bg-gray-900 px-5 py-6">
+              <p className="text-lg font-extrabold text-white leading-snug">
+                {failedChecks.length > 0
+                  ? `${failedChecks.length} thing${failedChecks.length > 1 ? "s" : ""} are costing you sales right now`
+                  : "Your store is strong. Here's how to go higher."}
               </p>
-              <p className="mt-1.5 text-sm text-gray-500 leading-relaxed">
-                {failedCount > 0
-                  ? "Enter your email and we will send you a step-by-step fix for every gap above. Asmos builds the tools for you, no code needed."
-                  : "Enter your email to see where you can push your score to 100."}
+              <p className="mt-1.5 text-sm text-gray-400 leading-relaxed">
+                {failedChecks.length > 0
+                  ? "Get the step-by-step fix for every gap — and a ready-to-publish popup built for your store."
+                  : "Enter your email for the full breakdown."}
               </p>
-              <form onSubmit={handleEmailSubmit} className="mt-4 flex flex-col gap-3">
+              <form onSubmit={handleEmailSubmit} className="mt-5 space-y-3">
                 <input
+                  ref={emailInputRef}
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
                   placeholder="you@yourstore.com"
-                  autoFocus
                   disabled={emailState === "submitting"}
-                  className="w-full rounded-xl border border-[color:var(--color-border)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors disabled:opacity-50"
+                  className="w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all disabled:opacity-50"
                 />
-                {emailError && <p className="text-xs text-red-500">{emailError}</p>}
+                {emailError && <p className="text-xs text-red-400">{emailError}</p>}
                 <button
                   type="submit"
                   disabled={emailState === "submitting"}
-                  className="w-full rounded-xl bg-[color:var(--color-primary)] px-6 py-3.5 text-sm font-bold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors active:scale-[0.98] disabled:opacity-60"
+                  className="w-full rounded-xl py-3.5 text-sm font-bold text-gray-900 bg-white hover:bg-gray-100 transition-colors disabled:opacity-60 active:scale-[0.98]"
                 >
-                  {emailState === "submitting" ? "One moment..." : "Show me how to fix it, free"}
+                  {emailState === "submitting" ? "One moment..." : "Send me the fix"}
                 </button>
-                <p className="text-center text-[11px] text-gray-400">No spam. Unsubscribe any time.</p>
+                <p className="text-center text-[11px] text-gray-600">No spam. Unsubscribe any time.</p>
               </form>
             </div>
           )}
-        </div>
+        </section>
+
+        {/* ─────────────── 3. GAPS (failed checks first, high-impact first) ─────────────── */}
+        {failedChecks.length > 0 && (
+          <section className="fi-2">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
+              What&apos;s costing you sales
+            </h2>
+            <div className="space-y-2">
+              {failedChecks.map((c) => (
+                <div key={c.key} className="rounded-xl border border-gray-100 bg-white px-4 py-4">
+                  <div className="flex items-start gap-3">
+                    <div className={`mt-1 h-2 w-2 rounded-full flex-shrink-0 ${impactDot(c.impact)}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900 leading-snug">{c.missingHeadline}</p>
+                      <p className="mt-1 text-xs text-gray-500 leading-relaxed">{c.missingBody}</p>
+                      <p className="mt-2 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">{c.label}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ─────────────── 4. PASSING CHECKS ─────────────── */}
+        {passedChecks.length > 0 && (
+          <section className="fi-3">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
+              What&apos;s working
+            </h2>
+            <div className="rounded-xl border border-gray-100 divide-y divide-gray-50">
+              {passedChecks.map((c) => (
+                <div key={c.key} className="flex items-center gap-3 px-4 py-3">
+                  <div className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                    <svg className="h-3 w-3 text-emerald-600" fill="none" viewBox="0 0 12 12">
+                      <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M2 6l2.5 2.5L10 3.5" />
+                    </svg>
+                  </div>
+                  <div className="flex-1 flex items-center justify-between gap-2 min-w-0">
+                    <span className="text-sm font-medium text-gray-700">{c.label}</span>
+                    <span className="text-[11px] font-semibold text-emerald-600 flex-shrink-0">{c.foundLabel}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ─────────────── 5. POPUP PREVIEW (blurred teaser) ─────────────── */}
+        {result.screenshotBase64 && (
+          <section className="fi-4">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
+              Your Asmos popup
+            </h2>
+            <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white">
+              {/* Popup mockup */}
+              <div
+                className="p-4 transition-[filter] duration-700"
+                style={{ filter: emailState === "sent" ? "none" : "blur(6px)", pointerEvents: "none", userSelect: "none" }}
+              >
+                <div className="rounded-[18px] overflow-hidden shadow-xl mx-auto max-w-[280px]">
+                  <div className="h-1" style={{ backgroundColor: brandColor }} />
+                  <div className="bg-white px-5 pt-4 pb-5">
+                    <div className="flex justify-end mb-2">
+                      <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+                        <svg width="7" height="7" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" /></svg>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 mb-3">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: brandColor }} />
+                      <span className="text-[9px] font-bold tracking-[0.08em] uppercase text-gray-400">{result.storeName.toUpperCase()}</span>
+                    </div>
+                    <h3 className="text-[16px] font-extrabold leading-tight mb-1.5 text-gray-900">Get 10% off your first order</h3>
+                    <p className="text-[12px] text-gray-500 leading-relaxed mb-3">Join {result.storeName} subscribers and get exclusive offers sent just for you.</p>
+                    <div className="border border-gray-200 rounded-lg px-3 py-2 text-[12px] text-gray-400 mb-2 bg-gray-50">Your email address</div>
+                    <div className="rounded-lg py-2.5 text-[12px] font-bold text-center text-white mb-2" style={{ backgroundColor: brandColor }}>Claim my 10% discount</div>
+                    <div className="flex items-center justify-center gap-3 pt-2 border-t border-gray-100">
+                      {["No spam", "Unsubscribe anytime"].map(l => (
+                        <span key={l} className="text-[9px] text-gray-400">{l}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Lock overlay — only if email not submitted */}
+              {emailState !== "sent" && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/70 backdrop-blur-[2px] px-6 text-center">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-900">
+                    <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                      <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-bold text-gray-900">Popup ready to publish</p>
+                  <p className="text-xs text-gray-500">Enter your email above to unlock it</p>
+                </div>
+              )}
+
+              {/* Post-unlock CTA */}
+              {emailState === "sent" && (
+                <div className="border-t border-gray-100 px-5 py-4 text-center">
+                  <button
+                    onClick={() => router.push("/sign-up?from=analyze")}
+                    className="w-full rounded-xl py-3 text-sm font-bold text-white transition-colors hover:opacity-90"
+                    style={{ backgroundColor: brandColor }}
+                  >
+                    Create account and publish
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
       </main>
     </div>
