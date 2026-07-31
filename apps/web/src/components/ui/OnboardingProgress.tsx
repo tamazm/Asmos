@@ -5,19 +5,15 @@ import { cn } from "@/lib/cn";
 
 const STEPS = [
   {
-    label: "Welcome",
-    matchPaths: ["/onboarding"],
+    label: "Profile",
+    matchPaths: [
+      "/onboarding",
+      "/onboarding/business-profile",
+    ],
   },
   {
-    label: "About You",
-    matchPaths: [
-      "/onboarding/business-profile",
-      "/onboarding/conversion-goal",
-      "/onboarding/offer-selection",
-      "/onboarding/audience-trigger",
-      "/onboarding/consent",
-      "/onboarding/testing-strategy",
-    ],
+    label: "Consent",
+    matchPaths: ["/onboarding/consent"],
   },
   {
     label: "Connect Store",
@@ -25,11 +21,7 @@ const STEPS = [
   },
   {
     label: "Your Popup",
-    matchPaths: ["/onboarding/generate-popup"],
-  },
-  {
-    label: "Launch",
-    matchPaths: ["/onboarding/launch-confirmation"],
+    matchPaths: ["/onboarding/generate-popup", "/onboarding/launch-confirmation"],
   },
 ];
 

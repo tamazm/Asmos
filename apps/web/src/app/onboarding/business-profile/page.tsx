@@ -194,7 +194,7 @@ export default function BusinessProfilePage() {
         throw new Error((body as { error?: string }).error ?? "Could not save business profile");
       }
       onboardingStepCompleted(2, "business-profile");
-      router.push("/onboarding/conversion-goal");
+      router.push("/onboarding/consent");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -206,12 +206,12 @@ export default function BusinessProfilePage() {
     <div className="flex flex-col gap-6 animate-page-enter">
       <div>
         <h1 className="text-xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
-          {hasAnalyzeData ? "Confirm a few details" : "Business profile"}
+          {hasAnalyzeData ? "Confirm your details" : "About your business"}
         </h1>
         <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
           {hasAnalyzeData
-            ? "We detected these from your store. Correct anything that looks off, then answer a couple of quick questions."
-            : "This sets your popup theme and tailors suggestions to your business."}
+            ? "We detected these from your store. Correct anything that looks off."
+            : "This sets your popup theme and tailors everything to your store."}
         </p>
       </div>
 
@@ -342,10 +342,7 @@ export default function BusinessProfilePage() {
         </p>
       )}
 
-      <div className="flex justify-between gap-3 pt-1">
-        <Button href="/onboarding" variant="secondary">
-          Back
-        </Button>
+      <div className="flex justify-end gap-3 pt-1">
         <Button
           onClick={handleContinue}
           className={saving ? "opacity-60 pointer-events-none" : ""}

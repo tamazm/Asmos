@@ -29,7 +29,7 @@ export default function ConsentSetupPage() {
         throw new Error(body.error ?? "Could not save consent settings");
       }
       onboardingStepCompleted(3, "consent");
-      router.push("/onboarding/testing-strategy");
+      router.push("/onboarding/connect-store");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -88,7 +88,7 @@ export default function ConsentSetupPage() {
       )}
 
       <div className="flex justify-between">
-        <Button href="/onboarding/audience-trigger" variant="secondary">
+        <Button href="/onboarding/business-profile" variant="secondary">
           Back
         </Button>
         <Button onClick={handleFinish} className={saving ? "opacity-60" : ""}>
