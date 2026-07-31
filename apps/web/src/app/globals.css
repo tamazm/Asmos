@@ -1,75 +1,86 @@
 @import "tailwindcss";
 
+/* ─── Design tokens ─────────────────────────────────────────────────── */
 :root {
   --background: #ffffff;
-  --foreground: #0d0d10;
+  --foreground: oklch(13% 0.025 255);
 
-  /* Asmos Blue */
-  --color-primary: #165dff;
-  --color-primary-dark: #124fd9;
-  --color-primary-light: #ecf2ff;
+  /* Asmos Blue — OKLCH for perceptual accuracy */
+  --color-primary:       oklch(48% 0.255 258);
+  --color-primary-dark:  oklch(40% 0.245 258);
+  --color-primary-light: oklch(96% 0.025 258);
 
-  --color-success: #22c55e;
+  --color-success:    #22c55e;
   --color-success-bg: #dcfce7;
 
-  --color-neutral-badge: #f3f4f6;
+  --color-neutral-badge: oklch(96% 0.004 255);
 
-  /* Ink / Graphite */
-  --color-text-primary: #0d0d10;
-  --color-text-secondary: #6b7280;
+  /* Text */
+  --color-text-primary:   oklch(13% 0.025 255);
+  --color-text-secondary: oklch(55% 0.018 255);
+  --color-text-inverse:   oklch(98% 0.005 255);
 
-  --color-border: #e5e7eb;
-  --color-surface: #ffffff;
-  --color-surface-sunken: #f3f4f6;
+  /* Surfaces */
+  --color-border:          oklch(91% 0.008 255);
+  --color-surface:         oklch(99.5% 0.002 255);
+  --color-surface-sunken:  oklch(96.5% 0.005 255);
+
+  /* Hero dark surface */
+  --color-hero-bg:         oklch(13.5% 0.028 258);
+  --color-hero-border:     oklch(22% 0.035 258);
+  --color-hero-text:       oklch(97% 0.008 258);
+  --color-hero-muted:      oklch(65% 0.02 258);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
-  --color-primary: var(--color-primary);
-  --color-primary-dark: var(--color-primary-dark);
+  --color-primary:       var(--color-primary);
+  --color-primary-dark:  var(--color-primary-dark);
   --color-primary-light: var(--color-primary-light);
 
-  --color-success: var(--color-success);
+  --color-success:    var(--color-success);
   --color-success-bg: var(--color-success-bg);
 
   --color-neutral-badge: var(--color-neutral-badge);
 
-  --color-text-primary: var(--color-text-primary);
+  --color-text-primary:   var(--color-text-primary);
   --color-text-secondary: var(--color-text-secondary);
+  --color-text-inverse:   var(--color-text-inverse);
 
-  --color-border: var(--color-border);
-  --color-surface: var(--color-surface);
+  --color-border:         var(--color-border);
+  --color-surface:        var(--color-surface);
   --color-surface-sunken: var(--color-surface-sunken);
+
+  --color-hero-bg:     var(--color-hero-bg);
+  --color-hero-border: var(--color-hero-border);
+  --color-hero-text:   var(--color-hero-text);
+  --color-hero-muted:  var(--color-hero-muted);
 
   --font-sans: var(--font-geist);
 }
 
+/* ─── Base ──────────────────────────────────────────────────────────── */
 body {
   background: var(--color-surface-sunken);
   color: var(--color-text-primary);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ─── Easing tokens ────────────────────────────────────────────────── */
+/* ─── Easing tokens ─────────────────────────────────────────────────── */
 :root {
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-expo:  cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
-  --ease-fluid: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-fluid:     cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* ─── Page enter animation ─────────────────────────────────────────── */
+/* ─── Keyframes ─────────────────────────────────────────────────────── */
 @keyframes fadeSlideUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
@@ -77,62 +88,177 @@ body {
   to   { opacity: 1; }
 }
 
-/* Scroll-reveal: elements start invisible, JS adds .is-visible */
-.reveal {
-  opacity: 0;
-  transform: translateY(16px);
-  transition:
-    opacity 600ms var(--ease-out-expo),
-    transform 600ms var(--ease-out-expo);
+/* word-by-word hero reveal */
+@keyframes wordUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
+/* floating popup preview */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
+}
+
+/* CTA button fill wipe */
+@keyframes btnFill {
+  from { transform: translateX(-101%); }
+  to   { transform: translateX(0); }
+}
+
+/* count-up is handled in JS; just make sure the element starts visible */
+
+/* ─── Page-enter animations ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .animate-page-enter {
+    animation: fadeSlideUp 520ms var(--ease-out-expo) both;
+  }
+  .animate-page-enter-delay-1 {
+    animation: fadeSlideUp 520ms var(--ease-out-expo) 80ms both;
+  }
+  .animate-page-enter-delay-2 {
+    animation: fadeSlideUp 520ms var(--ease-out-expo) 160ms both;
+  }
+  .animate-page-enter-delay-3 {
+    animation: fadeSlideUp 520ms var(--ease-out-expo) 240ms both;
+  }
+  .animate-page-enter-delay-4 {
+    animation: fadeSlideUp 520ms var(--ease-out-expo) 320ms both;
+  }
+
+  /* word-reveal spans */
+  .hero-word {
+    display: inline-block;
+    animation: wordUp 600ms var(--ease-out-expo) both;
+  }
+  .hero-word:nth-child(1)  { animation-delay: 40ms; }
+  .hero-word:nth-child(2)  { animation-delay: 90ms; }
+  .hero-word:nth-child(3)  { animation-delay: 140ms; }
+  .hero-word:nth-child(4)  { animation-delay: 190ms; }
+  .hero-word:nth-child(5)  { animation-delay: 240ms; }
+  .hero-word:nth-child(6)  { animation-delay: 290ms; }
+  .hero-word:nth-child(7)  { animation-delay: 340ms; }
+  .hero-word:nth-child(8)  { animation-delay: 390ms; }
+  .hero-word:nth-child(9)  { animation-delay: 430ms; }
+  .hero-word:nth-child(10) { animation-delay: 470ms; }
+  .hero-word:nth-child(11) { animation-delay: 510ms; }
+  .hero-word:nth-child(12) { animation-delay: 550ms; }
+
+  /* floating popup */
+  .popup-float {
+    animation: floatY 6s ease-in-out infinite;
+  }
+}
+
+/* ─── Scroll-reveal ──────────────────────────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 650ms var(--ease-out-expo),
+    transform 650ms var(--ease-out-expo);
+}
 .reveal.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
 
-/* Stagger helpers for reveal children */
 .reveal-stagger > * {
   opacity: 0;
   transform: translateY(16px);
   transition:
-    opacity 550ms var(--ease-out-expo),
-    transform 550ms var(--ease-out-expo);
+    opacity 580ms var(--ease-out-expo),
+    transform 580ms var(--ease-out-expo);
 }
-
-.reveal-stagger.is-visible > *:nth-child(1) { opacity: 1; transform: none; transition-delay: 0ms; }
-.reveal-stagger.is-visible > *:nth-child(2) { opacity: 1; transform: none; transition-delay: 80ms; }
+.reveal-stagger.is-visible > *:nth-child(1) { opacity: 1; transform: none; transition-delay:   0ms; }
+.reveal-stagger.is-visible > *:nth-child(2) { opacity: 1; transform: none; transition-delay:  80ms; }
 .reveal-stagger.is-visible > *:nth-child(3) { opacity: 1; transform: none; transition-delay: 160ms; }
 .reveal-stagger.is-visible > *:nth-child(4) { opacity: 1; transform: none; transition-delay: 240ms; }
 .reveal-stagger.is-visible > *:nth-child(5) { opacity: 1; transform: none; transition-delay: 320ms; }
 .reveal-stagger.is-visible > *:nth-child(6) { opacity: 1; transform: none; transition-delay: 400ms; }
 
-@media (prefers-reduced-motion: no-preference) {
-  .animate-page-enter {
-    animation: fadeSlideUp 480ms var(--ease-out-expo) both;
-  }
-
-  .animate-page-enter-delay-1 {
-    animation: fadeSlideUp 480ms var(--ease-out-expo) 70ms both;
-  }
-
-  .animate-page-enter-delay-2 {
-    animation: fadeSlideUp 480ms var(--ease-out-expo) 140ms both;
-  }
-
-  .animate-page-enter-delay-3 {
-    animation: fadeSlideUp 480ms var(--ease-out-expo) 210ms both;
-  }
-
-  .animate-page-enter-delay-4 {
-    animation: fadeSlideUp 480ms var(--ease-out-expo) 280ms both;
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .reveal, .reveal-stagger > * {
+  .reveal,
+  .reveal-stagger > *,
+  .hero-word {
     opacity: 1;
     transform: none;
     transition: none;
+    animation: none;
   }
+}
+
+/* ─── CTA button wipe effect ─────────────────────────────────────────── */
+.btn-wipe {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.btn-wipe::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-primary-dark);
+  transform: translateX(-101%);
+  transition: transform 380ms var(--ease-out-expo);
+  z-index: -1;
+}
+.btn-wipe:hover::before {
+  transform: translateX(0);
+}
+
+/* ─── Form input focus glow ─────────────────────────────────────────── */
+.input-glow:focus-within {
+  box-shadow:
+    0 0 0 3px oklch(48% 0.255 258 / 0.18),
+    0 2px 8px oklch(48% 0.255 258 / 0.08);
+  border-color: oklch(48% 0.255 258 / 0.5);
+  transition: box-shadow 200ms ease, border-color 200ms ease;
+}
+
+/* ─── Navbar scroll state ────────────────────────────────────────────── */
+.nav-scrolled {
+  background: oklch(99.5% 0.002 255 / 0.96) !important;
+  backdrop-filter: blur(16px) !important;
+  box-shadow: 0 1px 0 0 var(--color-border);
+}
+.nav-hero-dark {
+  border-bottom-color: var(--color-hero-border) !important;
+  background: var(--color-hero-bg) !important;
+  backdrop-filter: blur(12px);
+}
+
+/* ─── Step connector line ─────────────────────────────────────────────── */
+.steps-rail {
+  position: relative;
+}
+.steps-rail::before {
+  content: '';
+  position: absolute;
+  top: 22px;
+  left: calc(33% / 2);
+  right: calc(33% / 2);
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    var(--color-border) 10%,
+    var(--color-border) 90%,
+    transparent 100%
+  );
+}
+
+/* ─── Counter target ──────────────────────────────────────────────────── */
+.stat-counter {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Hero dark section text overrides ────────────────────────────────── */
+.hero-dark {
+  --color-text-primary:   var(--color-hero-text);
+  --color-text-secondary: var(--color-hero-muted);
+  --color-border:         var(--color-hero-border);
+  --color-surface:        oklch(18% 0.032 258);
+  --color-surface-sunken: oklch(16% 0.028 258);
+  background: var(--color-hero-bg);
+  color: var(--color-hero-text);
 }
