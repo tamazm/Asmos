@@ -185,6 +185,60 @@ export default function GeneratePopupPage() {
       const industry = analyzeData.industry ?? "Ecommerce / Retail";
       const existingPopup = analyzeData.popup;
 
+      // Read new onboarding sessionStorage keys
+      let conversionGoal = "email_capture";
+      let offerType = "percent_discount";
+      let offerValue = "10";
+      let audienceValue = "all";
+      let triggerValue = "3s";
+
+      try {
+        const cgRaw = sessionStorage.getItem("asmos_conversion_goal");
+        if (cgRaw) conversionGoal = cgRaw;
+
+        const osRaw = sessionStorage.getItem("asmos_offer_selection");
+        if (osRaw) {
+          const os = JSON.parse(osRaw) as { type: string; value: string };
+          offerType = os.type ?? "percent_discount";
+          offerValue = os.value ?? "10";
+        }
+
+        const atRaw = sessionStorage.getItem("asmos_audience_trigger");
+        if (atRaw) {
+          const at = JSON.parse(atRaw) as { audience: string; trigger: string };
+          audienceValue = at.audience ?? "all";
+          triggerValue = at.trigger ?? "3s";
+        }
+      } catch { /* ignore */ }
+
+      // Map trigger pill value -> API payload
+      type TriggerPayload =
+        | { trigger: "time_delay"; delaySeconds: number }
+        | { trigger: "exit_intent" }
+        | { trigger: "scroll_depth"; scrollPercent: number };
+
+      function buildTriggerPayload(tv: string): TriggerPayload {
+        switch (tv) {
+          case "5s": return { trigger: "time_delay", delaySeconds: 5 };
+          case "exit": return { trigger: "exit_intent" };
+          case "scroll50": return { trigger: "scroll_depth", scrollPercent: 50 };
+          default: return { trigger: "time_delay", delaySeconds: 3 };
+        }
+      }
+
+      // Build headline from offer
+      function buildHeadline(ot: string, ov: string, sn: string): string {
+        switch (ot) {
+          case "free_shipping": return "Get free shipping on your order";
+          case "giveaway": return `Enter to win ${sn}'s giveaway`;
+          case "percent_discount": return `Get ${ov || "10"}% off your first order`;
+          case "fixed_discount": return `Get $${ov || "5"} off your first order`;
+          case "free_gift": return `Free gift with your first order at ${sn}`;
+          case "early_access": return `Get early access to ${sn}`;
+          default: return `Get 10% off your first order`;
+        }
+      }
+
       setStoreName(name);
       setBrandColor(color);
 
@@ -197,30 +251,64 @@ export default function GeneratePopupPage() {
       setStepStatus("headlines", "active");
       await delay(800);
 
-      // Generate variants based on popup.found
+      // Generate variants based on popup.found + new onboarding data
       let varA: { headline: string; body: string; cta: string; label: string };
       let varB: { headline: string; body: string; cta: string; label: string };
+
+      const baseHeadline = buildHeadline(offerType, offerValue, name);
+      const _ = conversionGoal; // used for future personalization
+      void _;
 
       if (existingPopup?.found && existingPopup.description) {
         // Copy-existing mode: Variant A mirrors existing, Variant B is improved
         varA = {
           label: "Your current popup (control)",
-          headline: `Get 10% off your first order`,
+          headline: baseHeadline,
           body: existingPopup.description.slice(0, 100) || `Join ${name} and claim your exclusive first-order discount.`,
-          cta: "Claim my discount",
+          cta: offerType === "free_shipping" ? "Get free shipping" : offerType === "giveaway" ? "Enter now" : "Claim my discount",
         };
         varB = {
           label: "Asmos variant",
-          headline: `${name}'s best-kept secret: 10% off`,
+          headline: offerType === "percent_discount"
+            ? `${name}'s best-kept secret: ${offerValue || "10"}% off`
+            : offerType === "free_shipping"
+            ? `Free shipping — no minimum order`
+            : baseHeadline,
           body: `Thousands of customers already save with ${name}. Join them: your discount waits inside.`,
-          cta: "Unlock my 10% off",
+          cta: offerType === "free_shipping" ? "Unlock free shipping" : `Unlock my ${offerValue || "10"}% off`,
         };
       } else {
         // Cold-start: two meaningfully different variants
         const isLuxury = /luxury|premium|fine|artisan|couture|bespoke/i.test(industry);
         const isHealth = /health|wellness|beauty|skin|fitness|organic/i.test(industry);
 
-        if (isLuxury) {
+        if (offerType === "free_shipping") {
+          varA = {
+            label: "Direct offer",
+            headline: "Get free shipping on your order",
+            body: `Shop ${name} today with complimentary shipping — no minimum required.`,
+            cta: "Get free shipping",
+          };
+          varB = {
+            label: "Scarcity angle",
+            headline: `Free shipping — limited time offer`,
+            body: `New to ${name}? Your free shipping offer expires soon. Don't miss it.`,
+            cta: "Lock in free shipping",
+          };
+        } else if (offerType === "giveaway") {
+          varA = {
+            label: "Entry angle",
+            headline: `Enter to win ${name}'s giveaway`,
+            body: `Join our community giveaway and get a chance to win an exclusive ${name} prize.`,
+            cta: "Enter the giveaway",
+          };
+          varB = {
+            label: "Community angle",
+            headline: `Win big with ${name}`,
+            body: `Our biggest giveaway yet. Drop your email to enter — winner announced this month.`,
+            cta: "I want to win",
+          };
+        } else if (isLuxury) {
           varA = {
             label: "Exclusive access angle",
             headline: `Join the inner circle`,
@@ -229,29 +317,29 @@ export default function GeneratePopupPage() {
           };
           varB = {
             label: "Discount angle",
-            headline: `A private offer, just for you`,
+            headline: baseHeadline,
             body: `Subscribe to ${name} and receive a personal discount on your first purchase. Limited time.`,
             cta: "Reveal my offer",
           };
         } else if (isHealth) {
           varA = {
             label: "Results-led angle",
-            headline: `Unlock your wellness routine`,
-            body: `Join ${name} subscribers and get 15% off your first order, plus expert tips delivered weekly.`,
+            headline: baseHeadline,
+            body: `Join ${name} subscribers and get your exclusive offer, plus expert tips delivered weekly.`,
             cta: "Start my routine",
           };
           varB = {
             label: "Community angle",
             headline: `Join 10,000+ ${name} customers`,
-            body: `Real results, real people. Get 15% off and access our private wellness community.`,
+            body: `Real results, real people. Get your offer and access our private wellness community.`,
             cta: "Join the community",
           };
         } else {
           varA = {
             label: "Discount angle",
-            headline: `Get 10% off your first order`,
+            headline: baseHeadline,
             body: `Subscribe to ${name} and receive a welcome discount. Use it on anything in the store.`,
-            cta: "Claim my 10% off",
+            cta: offerType === "percent_discount" ? `Claim my ${offerValue || "10"}% off` : "Claim my offer",
           };
           varB = {
             label: "Scarcity angle",
@@ -280,6 +368,8 @@ export default function GeneratePopupPage() {
         const websiteId = accountData?.websites?.[0]?.id;
         if (!websiteId) throw new Error("No website found. Connect your store first.");
 
+        const triggerPayload = buildTriggerPayload(triggerValue);
+
         const campaignPayload = {
           name: `${name} Welcome Popup`,
           type: "FORM",
@@ -290,13 +380,13 @@ export default function GeneratePopupPage() {
             ctaText: varA.cta,
           },
           formFields: ["email"],
-          targeting: { trigger: "time_delay", delaySeconds: 3 },
+          targeting: triggerPayload,
           rewards: [{ label: "10% off your first order", type: "DISCOUNT_PERCENT", couponCode: "WELCOME10", weight: 100 }],
           websiteId,
-          goal: "email_capture",
-          offer: "discount",
-          audienceTrigger: "new_visitors",
-          triggerDelay: 3,
+          goal: conversionGoal,
+          offer: offerType,
+          offerValue,
+          audienceTrigger: audienceValue,
         };
 
         const campaignRes = await fetch("/api/campaigns", {
@@ -322,7 +412,7 @@ export default function GeneratePopupPage() {
             name: varB.label,
             design: { headline: varB.headline, body: varB.body, primaryColor: color, ctaText: varB.cta },
             formFields: ["email"],
-            targeting: { trigger: "time_delay", delaySeconds: 3 },
+            targeting: triggerPayload,
             rewards: [{ label: "10% off your first order", type: "DISCOUNT_PERCENT", couponCode: "WELCOME10", weight: 100 }],
           }),
         }).catch(() => { /* non-fatal */ });

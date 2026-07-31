@@ -194,7 +194,7 @@ export default function BusinessProfilePage() {
         throw new Error((body as { error?: string }).error ?? "Could not save business profile");
       }
       onboardingStepCompleted(2, "business-profile");
-      router.push("/onboarding/consent");
+      router.push("/onboarding/conversion-goal");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {

@@ -88,7 +88,7 @@ export default function ConsentSetupPage() {
       )}
 
       <div className="flex justify-between">
-        <Button href="/onboarding/business-profile" variant="secondary">
+        <Button href="/onboarding/audience-trigger" variant="secondary">
           Back
         </Button>
         <Button onClick={handleFinish} className={saving ? "opacity-60" : ""}>

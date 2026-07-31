@@ -4,17 +4,39 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 
 const STEPS = [
-  { href: "/onboarding", label: "Welcome" },
-  { href: "/onboarding/business-profile", label: "Business Profile" },
-  { href: "/onboarding/consent", label: "Compliance" },
-  { href: "/onboarding/connect-store", label: "Connect Store" },
+  {
+    label: "Welcome",
+    matchPaths: ["/onboarding"],
+  },
+  {
+    label: "About You",
+    matchPaths: [
+      "/onboarding/business-profile",
+      "/onboarding/conversion-goal",
+      "/onboarding/offer-selection",
+      "/onboarding/audience-trigger",
+      "/onboarding/consent",
+    ],
+  },
+  {
+    label: "Connect Store",
+    matchPaths: ["/onboarding/connect-store"],
+  },
+  {
+    label: "Your Popup",
+    matchPaths: ["/onboarding/generate-popup"],
+  },
 ];
 
 export function OnboardingProgress() {
   const pathname = usePathname();
+
+  // Find active step index by checking if pathname starts with or equals any matchPath
   const activeIndex = Math.max(
     0,
-    STEPS.findIndex((step) => step.href === pathname),
+    STEPS.findIndex((step) =>
+      step.matchPaths.some((p) => pathname === p || pathname.startsWith(p + "/")),
+    ),
   );
 
   return (
@@ -26,7 +48,7 @@ export function OnboardingProgress() {
           const active = index === activeIndex;
           const pending = !done && !active;
           return (
-            <li key={step.href} className="flex flex-1 items-center">
+            <li key={step.label} className="flex flex-1 items-center">
               <div className="flex flex-col items-center gap-1.5">
                 {/* Double-Bezel step bubble */}
                 {(done || active) ? (

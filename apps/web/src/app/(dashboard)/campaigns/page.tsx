@@ -6,6 +6,17 @@ import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { CampaignRowActions } from "./CampaignRowActions";
 
+// ─── Humanize raw campaign type ─────────────────────────────────────────────
+const CAMPAIGN_TYPE_LABELS: Record<string, string> = {
+  FORM: "Lead form",
+  WHEEL: "Spin to win",
+  SCRATCH_CARD: "Scratch card",
+};
+
+function humanizeCampaignType(raw: string): string {
+  return CAMPAIGN_TYPE_LABELS[raw] ?? raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase().replace(/_/g, " ");
+}
+
 type CampaignRow = {
   id: string;
   name: string;
@@ -98,7 +109,7 @@ export default async function CampaignsListPage() {
                 </Link>
               ),
             },
-            { header: "Type", render: (row) => row.type },
+            { header: "Type", render: (row) => humanizeCampaignType(row.type) },
             {
               header: "Status",
               render: (row) => (

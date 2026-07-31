@@ -222,7 +222,7 @@ export default function ConnectStorePage() {
 
       <div className="flex flex-col gap-3 pt-1">
         <div className="flex justify-between gap-3">
-          <Button href="/onboarding/consent" variant="secondary">
+          <Button href="/onboarding/audience-trigger" variant="secondary">
             Back
           </Button>
           <Button onClick={handleDone}>
