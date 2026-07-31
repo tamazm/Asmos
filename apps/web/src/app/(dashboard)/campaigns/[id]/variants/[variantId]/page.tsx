@@ -8,6 +8,7 @@ import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { confidenceVsControl } from "@/lib/stats";
 import { VariantDetailActions } from "./VariantDetailActions";
+import { PopupPreviewCard } from "./PopupPreviewCard";
 
 export default async function VariantDetailPage(props: {
   params: Promise<{ id: string; variantId: string }>;
@@ -78,8 +79,6 @@ export default async function VariantDetailPage(props: {
   };
   const hasDesign = !!(design.headline || design.body || design.ctaText || design.primaryColor);
 
-  // Status badge variant
-  const badgeVariant = isWinner ? "success" : variant.isControl ? "neutral" : "neutral";
   const statusLabel = isWinner ? "Winner" : variant.isControl ? "Control" : "Variant";
 
   return (
@@ -198,6 +197,15 @@ export default async function VariantDetailPage(props: {
           </div>
         )}
       </div>
+
+      {/* Popup Preview */}
+      <PopupPreviewCard
+        headline={design.headline}
+        body={design.body}
+        ctaText={design.ctaText}
+        primaryColor={design.primaryColor}
+        campaignName={campaign.name}
+      />
 
       {/* Performance vs Other Variants */}
       <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-sm">

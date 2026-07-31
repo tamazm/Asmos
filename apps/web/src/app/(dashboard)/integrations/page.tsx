@@ -365,7 +365,7 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 
       {/* Coming-soon note for non-webhook native integrations */}
       <p className="text-xs text-[color:var(--color-text-secondary)] italic">
-        Native integration coming soon — use Webhooks + Zapier in the meantime.
+        Native integration coming soon. Use Webhooks + Zapier in the meantime.
       </p>
 
       {showInput && status !== "connected" && (

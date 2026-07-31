@@ -6,11 +6,11 @@ import Image from "next/image";
 import { analyzeCompleted } from "@/lib/analytics";
 
 const STEPS = [
-  { label: "Rendering your store", sub: "Loading JavaScript and dynamic content" },
-  { label: "Capturing screenshot", sub: "Full viewport at 1280px" },
-  { label: "Detecting conversion tools", sub: "Popups, email capture, social proof" },
+  { label: "Fetching store", sub: "Loading your storefront and JavaScript" },
+  { label: "Detecting brand colors", sub: "Reading theme settings and visual identity" },
+  { label: "Analyzing CRO elements", sub: "Popups, email capture, urgency signals, social proof" },
   { label: "Scoring your funnel", sub: "Comparing against top-performing stores" },
-  { label: "Preparing your report", sub: "Almost there" },
+  { label: "Building your popup preview", sub: "Creating a custom popup for your brand" },
 ];
 
 export function AnalyzeClient() {
@@ -159,7 +159,7 @@ export function AnalyzeClient() {
                 return (
                   <div
                     key={i}
-                    className={`flex items-center gap-3 transition-all duration-300 ${
+                    className={`flex items-center gap-3 transition-opacity duration-300 ${
                       done ? "opacity-40" : active ? "opacity-100" : "opacity-20"
                     }`}
                   >

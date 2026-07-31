@@ -225,34 +225,174 @@ function Step1TypeSelect({ state, update }: { state: WizardState; update: (s: Pa
 
 // ─── Step 2: Design editor + live preview ─────────────────────────────────────
 
+/** Full-fidelity popup preview that mirrors asmos-widget.js v2 design */
 function PopupPreview({ state }: { state: WizardState }) {
+  const primary = state.design.primaryColor || "#165DFF";
+  const storeName = "Your Store";
+
+  // Determine text color for button (white on dark, dark on light)
+  function hexLuminance(hex: string) {
+    const s = hex.trim();
+    let r = 22, g = 93, b = 255;
+    if (s[0] === "#") {
+      const full = s.length === 4
+        ? "#" + s[1] + s[1] + s[2] + s[2] + s[3] + s[3]
+        : s;
+      r = parseInt(full.slice(1, 3), 16);
+      g = parseInt(full.slice(3, 5), 16);
+      b = parseInt(full.slice(5, 7), 16);
+    }
+    const vals = [r, g, b].map((v) => {
+      const n = v / 255;
+      return n <= 0.03928 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * vals[0] + 0.7152 * vals[1] + 0.0722 * vals[2];
+  }
+  const btnTextColor = hexLuminance(primary) < 0.35 ? "#ffffff" : "#0d0d10";
+  const focusRingColor = primary + "2e"; // 18% opacity approx
+
+  const inputIds = state.formFields;
+
   return (
-    <div className="rounded-2xl border border-[color:var(--color-border)] bg-[#f0f4ff] p-4 flex items-end justify-center min-h-[280px]">
-      <div className="w-full max-w-[280px] rounded-2xl bg-white shadow-lg overflow-hidden">
-        <div className="h-1.5 w-full" style={{ backgroundColor: state.design.primaryColor }} />
-        <div className="p-4">
-          <p className="text-sm font-bold text-[color:var(--color-text-primary)] leading-tight mb-1">{state.design.headline || "Your headline"}</p>
-          <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed mb-3">{state.design.body || "Your body text"}</p>
+    <div className="rounded-2xl border border-[color:var(--color-border)] bg-[#e8edf5] p-5 flex items-end justify-center">
+      {/* Mimics the widget card in desktop mode */}
+      <div
+        className="w-full max-w-[360px] rounded-[20px] bg-white overflow-hidden relative"
+        style={{
+          boxShadow: "0 24px 80px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08)",
+          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
+        }}
+      >
+        {/* Accent bar */}
+        <div className="h-1" style={{ backgroundColor: primary }} />
+
+        <div className="px-6 pt-4 pb-5">
+          {/* Close button */}
+          <div className="flex justify-end mb-2">
+            <div className="w-6 h-6 rounded-full bg-[#f3f4f6] flex items-center justify-center">
+              <svg width="8" height="8" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path d="M1 1l8 8M9 1L1 9" stroke="#6b7280" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+
+          {/* Brand row */}
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: primary }} />
+            <span
+              className="text-[10px] font-bold tracking-[0.06em] uppercase"
+              style={{ color: "#9ca3af" }}
+            >
+              {storeName.toUpperCase()}
+            </span>
+          </div>
+
+          {/* Headline */}
+          <h3
+            className="text-[18px] font-extrabold leading-snug mb-1.5 tracking-tight"
+            style={{ color: "#0d0d10" }}
+          >
+            {state.design.headline || "Your headline here"}
+          </h3>
+
+          {/* Body */}
+          <p className="text-[13px] leading-relaxed mb-4" style={{ color: "#6b7280" }}>
+            {state.design.body || "Your body copy goes here."}
+          </p>
+
+          {/* Wheel/scratch preview block */}
           {state.type !== "FORM" && (
-            <div className="mb-3 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-3 text-center">
-              <p className="text-xs text-[color:var(--color-text-secondary)]">
-                {state.type === "WHEEL" ? "Spin wheel" : "Scratch card"} preview
+            <div
+              className="rounded-xl border p-3 mb-4 text-center"
+              style={{ background: "#f9fafb", borderColor: "#e5e7eb" }}
+            >
+              <p className="text-[10px] font-semibold uppercase tracking-wide mb-2" style={{ color: "#9ca3af" }}>
+                You could win
               </p>
+              <ul className="space-y-1">
+                {[state.reward.label || "Special reward"].map((label, i) => (
+                  <li key={i} className="flex items-center gap-1.5 text-[12px] justify-center" style={{ color: "#374151" }}>
+                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: primary }} />
+                    {label}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
-          <div className="flex flex-col gap-1.5">
-            {state.formFields.map((f) => (
-              <div key={f} className="h-7 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-2 flex items-center">
-                <span className="text-[10px] text-[color:var(--color-text-secondary)] capitalize">{f}</span>
+
+          {/* Form inputs */}
+          <div className="flex flex-col gap-2 mb-3">
+            {inputIds.map((f) => (
+              <div
+                key={f}
+                className="w-full border rounded-[10px] px-3 py-2.5 text-[13px]"
+                style={{
+                  borderColor: "#e5e7eb",
+                  background: "#fafafa",
+                  color: "#9ca3af",
+                }}
+              >
+                {f === "email" ? "Your email address"
+                  : f === "phone" ? "Phone number"
+                  : f === "name" ? "Your name"
+                  : f.charAt(0).toUpperCase() + f.slice(1)}
               </div>
             ))}
           </div>
+
+          {/* CTA button */}
           <button
-            className="mt-2 w-full rounded-lg py-2 text-xs font-semibold text-white"
-            style={{ backgroundColor: state.design.primaryColor }}
+            type="button"
             tabIndex={-1}
+            className="w-full rounded-[10px] py-3 text-[13px] font-bold tracking-[0.01em] mb-3 transition-transform"
+            style={{
+              backgroundColor: primary,
+              color: btnTextColor,
+              border: "none",
+              boxShadow: `0 0 0 0px ${focusRingColor}`,
+            }}
           >
-            {state.design.ctaText || "Submit"}
+            {state.design.ctaText || "Get my offer"}
+          </button>
+
+          {/* Trust row */}
+          <div
+            className="flex items-center justify-center gap-4 pt-3 flex-wrap"
+            style={{ borderTop: "1px solid #f3f4f6" }}
+          >
+            {[
+              { icon: (
+                <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
+                  <path d="M8 1.5 10 5.5 14.5 6.2 11.25 9.3 12 13.8 8 11.7 4 13.8 4.75 9.3 1.5 6.2 6 5.5 8 1.5z" stroke="#9ca3af" strokeWidth="1.2" strokeLinejoin="round" />
+                </svg>
+              ), label: "No spam" },
+              { icon: (
+                <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
+                  <rect x="2" y="6" width="12" height="9" rx="2" stroke="#9ca3af" strokeWidth="1.2" />
+                  <path d="M5 6V4.5a3 3 0 016 0V6" stroke="#9ca3af" strokeWidth="1.2" />
+                </svg>
+              ), label: "Unsubscribe anytime" },
+              { icon: (
+                <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
+                  <circle cx="8" cy="8" r="6" stroke="#9ca3af" strokeWidth="1.2" />
+                  <path d="M5.5 8.5 7 10 10.5 6" stroke="#9ca3af" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ), label: "Instant reward" },
+            ].map(({ icon, label }) => (
+              <span key={label} className="flex items-center gap-1 text-[10px] whitespace-nowrap" style={{ color: "#9ca3af" }}>
+                {icon}{label}
+              </span>
+            ))}
+          </div>
+
+          {/* Dismiss link */}
+          <button
+            type="button"
+            tabIndex={-1}
+            className="block w-full text-center text-[11px] mt-3 underline underline-offset-2"
+            style={{ color: "#9ca3af", background: "none", border: "none", cursor: "pointer" }}
+          >
+            No thanks, I&apos;ll pay full price
           </button>
         </div>
       </div>

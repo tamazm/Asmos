@@ -46,10 +46,8 @@ export function DataTable<T extends { id: string }>({
                 <tr
                   key={row.id}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  className={`border-b border-[color:var(--color-border)] last:border-0 transition-colors duration-200 ${
-                    onRowClick
-                      ? "cursor-pointer hover:bg-[color:var(--color-surface-sunken)]"
-                      : ""
+                  className={`border-b border-[color:var(--color-border)] last:border-0 transition-colors duration-200 hover:bg-[color:var(--color-surface-sunken)] ${
+                    onRowClick ? "cursor-pointer" : ""
                   }`}
                 >
                   {columns.map((col) => (

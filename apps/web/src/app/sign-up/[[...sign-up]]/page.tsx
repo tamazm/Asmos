@@ -4,8 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import dynamic from "next/dynamic";
 
 const isMock = process.env.NEXT_PUBLIC_MOCK_AUTH === "true";
+
+const RealSignUp = dynamic(
+  () => import("@clerk/nextjs").then((m) => ({ default: m.SignUp })),
+  { ssr: false },
+);
 
 function MockSignUpForm() {
   const router = useRouter();
@@ -17,9 +23,7 @@ function MockSignUpForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    // Simulate a short delay
     await new Promise((r) => setTimeout(r, 500));
-    // In mock mode we just navigate to onboarding
     router.push("/onboarding");
   }
 
@@ -73,7 +77,7 @@ function MockSignUpForm() {
         disabled={loading}
         className="mt-1 w-full rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 disabled:opacity-60"
       >
-        {loading ? "Creating account…" : "Create account"}
+        {loading ? "Creating account..." : "Create account"}
       </button>
       <p className="text-center text-[11px] text-[color:var(--color-text-secondary)]">
         By continuing, you agree to our{" "}
@@ -90,13 +94,41 @@ function MockSignUpForm() {
   );
 }
 
-function RealSignUp() {
-  // Dynamically rendered only in non-mock mode
-  const { SignUp } = require("@clerk/nextjs");
-  return <SignUp />;
-}
-
 export default function SignUpPage() {
+  const storeName = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = sessionStorage.getItem("asmos_analyze_result");
+      if (raw) {
+        const data = JSON.parse(raw);
+        return data.storeName ?? null;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  })[0];
+
+  const analyzeResult = useState<{ grade?: string; score?: number } | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = sessionStorage.getItem("asmos_analyze_result");
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.grade || data.score != null) {
+          return { grade: data.grade, score: data.score };
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  })[0];
+
+  const fromAnalyze = analyzeResult !== null;
+
+  // storeName is initialized lazily from sessionStorage (see useState initializer above)
+
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6 py-12">
       <div className="w-full max-w-sm animate-page-enter">
@@ -115,12 +147,47 @@ export default function SignUpPage() {
         {/* Heading */}
         <div className="mb-6 text-center animate-page-enter-delay-1">
           <h1 className="text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
-            Create your account
+            {storeName
+              ? `Unlock ${storeName}'s popup`
+              : "Create your account"}
           </h1>
           <p className="mt-1.5 text-sm text-[color:var(--color-text-secondary)]">
-            Free to start. Build your first popup in minutes.
+            {storeName
+              ? "We detected your brand and have your popup ready."
+              : "Free to start. Build your first popup in minutes."}
           </p>
         </div>
+
+        {/* What we found summary for analyze-result users */}
+        {fromAnalyze && analyzeResult && (analyzeResult.grade || analyzeResult.score != null) && (
+          <div className="mb-5 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 animate-page-enter-delay-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--color-text-secondary)] mb-2">
+              What we found
+            </p>
+            <div className="flex items-center gap-3">
+              {analyzeResult.grade && (
+                <span className="text-2xl font-black tabular-nums" style={{
+                  color: analyzeResult.grade.startsWith("A") ? "#059669"
+                    : analyzeResult.grade.startsWith("B") ? "#2563eb"
+                    : analyzeResult.grade.startsWith("C") ? "#d97706"
+                    : "#dc2626",
+                }}>
+                  {analyzeResult.grade}
+                </span>
+              )}
+              <div>
+                {analyzeResult.score != null && (
+                  <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+                    CRO score: {analyzeResult.score}/100
+                  </p>
+                )}
+                <p className="text-xs text-[color:var(--color-text-secondary)]">
+                  Your custom popup is ready to publish.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Auth widget */}
         <div className="flex justify-center animate-page-enter-delay-2">

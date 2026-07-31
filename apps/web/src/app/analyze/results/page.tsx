@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, startTransition } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -55,42 +55,42 @@ const CHECK_META: CheckMeta[] = [
   {
     key: "popup",
     label: "Popup campaign",
-    missingHeadline: "No popup — you're gifting revenue to your competitors",
+    missingHeadline: "No popup: you are gifting revenue to your competitors",
     missingBody: "Every visitor who leaves without subscribing is gone. Stores with a high-converting popup capture 4–8% of cold traffic. Without one, that email list stays empty.",
     foundLabel: "Running a popup",
   },
   {
     key: "emailCapture",
     label: "Email capture offer",
-    missingHeadline: "No offer to capture emails — cold traffic disappears",
+    missingHeadline: "No offer to capture emails: cold traffic disappears",
     missingBody: "A discount or lead magnet is the difference between a one-time visitor and a customer you can reach 10 times. Without it you're paying for traffic you can only use once.",
     foundLabel: "Email capture active",
   },
   {
     key: "socialProof",
     label: "Social proof",
-    missingHeadline: "No reviews visible — visitors don't trust you yet",
+    missingHeadline: "No reviews visible: visitors have no reason to trust you yet",
     missingBody: "93% of shoppers read reviews before buying. If a visitor can't see that other people love your product, they'll find a store where they can.",
     foundLabel: "Reviews present",
   },
   {
     key: "urgency",
     label: "Urgency signals",
-    missingHeadline: "No urgency — shoppers will 'come back later' and never do",
+    missingHeadline: "No urgency: shoppers say they will come back later and never do",
     missingBody: "Without a reason to buy now, people bookmark and forget. A countdown, low-stock badge, or time-limited offer can double your conversion rate on the same traffic.",
     foundLabel: "Urgency messaging detected",
   },
   {
     key: "exitIntent",
     label: "Exit-intent recovery",
-    missingHeadline: "No exit recovery — 70% of your visitors walk out the door",
+    missingHeadline: "No exit recovery: 70% of your visitors walk out the door",
     missingBody: "The moment someone moves to close the tab is your last chance. An exit-intent popup with the right offer recovers 5–15% of abandoning visitors. Right now that revenue is gone.",
     foundLabel: "Exit-intent active",
   },
   {
     key: "stickyBar",
     label: "Announcement bar",
-    missingHeadline: "No sticky bar — your best offer is invisible on scroll",
+    missingHeadline: "No sticky bar: your best offer disappears when visitors scroll",
     missingBody: "A persistent top bar keeps your shipping offer or discount in front of visitors the entire time they're on your site. Without it, your offer disappears the moment they scroll.",
     foundLabel: "Announcement bar visible",
   },
@@ -143,8 +143,12 @@ export default function AnalyzeResultsPage() {
     if (!raw) { router.replace("/"); return; }
     try {
       const data: AnalyzeResult = JSON.parse(raw);
-      setResult(data);
-      if (sessionStorage.getItem("asmos_email_captured")) setEmailState("sent");
+      const captured = Boolean(sessionStorage.getItem("asmos_email_captured"));
+      // Batch updates via transition to avoid the synchronous-setState-in-effect pattern
+      startTransition(() => {
+        setResult(data);
+        if (captured) setEmailState("sent");
+      });
     } catch { router.replace("/"); }
   }, [router]);
 
@@ -274,6 +278,18 @@ export default function AnalyzeResultsPage() {
                 {result.storeName}
               </p>
               <p className="text-sm text-gray-500 mt-0.5">{result.gradeLabel}</p>
+              {/* Brand color swatch */}
+              {result.brandColor && result.brandColor !== "#165DFF" && (
+                <div className="mt-2 flex items-center gap-2">
+                  <div
+                    className="h-4 w-4 rounded-full border border-black/10 flex-shrink-0"
+                    style={{ backgroundColor: result.brandColor }}
+                    title={`Brand color: ${result.brandColor}`}
+                  />
+                  <span className="text-[11px] text-gray-400 font-mono">{result.brandColor}</span>
+                  <span className="text-[11px] text-gray-400">detected</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -288,7 +304,7 @@ export default function AnalyzeResultsPage() {
           <div className="mt-4 flex items-center gap-2">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/5">
               <div
-                className="h-full rounded-full transition-all duration-700"
+                className="h-full rounded-full transition-[width] duration-700"
                 style={{
                   width: `${(passedCount / checks.length) * 100}%`,
                   backgroundColor: gradeColor,
@@ -354,26 +370,7 @@ export default function AnalyzeResultsPage() {
         {/* ── Blurred popup teaser ── */}
         {(result.screenshotBase64 || result.score != null) && (
           <div className="fade-up-3 relative rounded-2xl overflow-hidden" style={{ isolation: "isolate" }}>
-            {/* Pulsing gradient border */}
-            <style>{`
-              @keyframes pulse-border {
-                0%, 100% { opacity: 1; }
-                50% { opacity: 0.5; }
-              }
-              .popup-teaser-border {
-                animation: pulse-border 2.5s ease-in-out infinite;
-              }
-            `}</style>
-            <div
-              className="popup-teaser-border absolute inset-0 rounded-2xl pointer-events-none"
-              style={{
-                background: `linear-gradient(135deg, ${result.brandColor ?? "#165DFF"}40, ${result.brandColor ?? "#165DFF"}10, ${result.brandColor ?? "#165DFF"}40)`,
-                padding: "1.5px",
-                zIndex: 0,
-              }}
-            />
-
-            <div className="relative rounded-2xl border border-gray-100 bg-white overflow-hidden" style={{ zIndex: 1 }}>
+            <div className="relative rounded-2xl border border-gray-100 bg-white overflow-hidden">
               {/* Label */}
               <div className="px-4 pt-4 pb-2 flex items-center gap-2">
                 <span
@@ -387,45 +384,82 @@ export default function AnalyzeResultsPage() {
 
               {/* Popup preview (blurred/visible depending on emailState) */}
               <div className="relative mx-4 mb-4">
-                {/* The fake popup UI */}
+                {/* Widget v2-quality popup preview */}
                 <div
-                  className="rounded-xl border border-gray-100 shadow-lg overflow-hidden transition-all duration-700"
+                  className="rounded-[20px] bg-white overflow-hidden transition-[filter] duration-700"
                   style={{
-                    filter: emailState === "sent" ? "none" : "blur(4px)",
+                    filter: emailState === "sent" ? "none" : "blur(5px)",
                     pointerEvents: "none",
                     userSelect: "none",
+                    boxShadow: "0 12px 48px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)",
                   }}
                 >
-                  {/* Popup header bar */}
-                  <div
-                    className="px-5 py-4 text-white"
-                    style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
-                  >
-                    <p className="text-base font-bold leading-snug">
-                      Get 10% off your first order
-                    </p>
-                    <p className="mt-1 text-sm opacity-90">
-                      Join {result.storeName} subscribers and unlock exclusive deals.
-                    </p>
-                  </div>
-                  {/* Popup body */}
-                  <div className="bg-white px-5 py-4 flex flex-col gap-3">
-                    <div className="rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-400">
-                      Enter your email address…
+                  {/* Accent bar */}
+                  <div className="h-1" style={{ backgroundColor: result.brandColor ?? "#165DFF" }} />
+
+                  <div className="px-6 pt-4 pb-5">
+                    {/* Close button */}
+                    <div className="flex justify-end mb-2">
+                      <div className="w-6 h-6 rounded-full bg-[#f3f4f6] flex items-center justify-center">
+                        <svg width="8" height="8" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#6b7280" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                      </div>
                     </div>
+
+                    {/* Brand row */}
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-2 h-2 rounded-full" style={{ backgroundColor: result.brandColor ?? "#165DFF" }} />
+                      <span className="text-[10px] font-bold tracking-[0.06em] uppercase" style={{ color: "#9ca3af" }}>
+                        {result.storeName.toUpperCase()}
+                      </span>
+                    </div>
+
+                    {/* Headline */}
+                    <h3 className="text-[18px] font-extrabold leading-snug mb-1.5 tracking-tight" style={{ color: "#0d0d10" }}>
+                      Get 10% off your first order
+                    </h3>
+
+                    {/* Body */}
+                    <p className="text-[13px] leading-relaxed mb-4" style={{ color: "#6b7280" }}>
+                      Join {result.storeName} subscribers and unlock exclusive offers sent just for you.
+                    </p>
+
+                    {/* Input */}
+                    <div className="flex flex-col gap-2 mb-3">
+                      <div
+                        className="w-full border rounded-[10px] px-3 py-2.5 text-[13px]"
+                        style={{ borderColor: "#e5e7eb", background: "#fafafa", color: "#9ca3af" }}
+                      >
+                        Your email address
+                      </div>
+                    </div>
+
+                    {/* CTA button */}
                     <div
-                      className="w-full rounded-lg py-2.5 text-center text-sm font-semibold text-white"
-                      style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
+                      className="w-full rounded-[10px] py-3 text-[13px] font-bold text-center mb-3"
+                      style={{ backgroundColor: result.brandColor ?? "#165DFF", color: "#ffffff" }}
                     >
                       Claim my 10% discount
                     </div>
-                    <p className="text-center text-[10px] text-gray-400">No spam. Unsubscribe any time.</p>
+
+                    {/* Trust row */}
+                    <div className="flex items-center justify-center gap-4 pt-3 flex-wrap" style={{ borderTop: "1px solid #f3f4f6" }}>
+                      {["No spam", "Unsubscribe anytime", "Instant reward"].map((label) => (
+                        <span key={label} className="flex items-center gap-1 text-[10px] whitespace-nowrap" style={{ color: "#9ca3af" }}>
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Dismiss link */}
+                    <p className="text-center text-[11px] mt-2" style={{ color: "#9ca3af" }}>
+                      No thanks, I&apos;ll pay full price
+                    </p>
                   </div>
                 </div>
 
-                {/* Lock overlay — shown when not yet emailed */}
+                {/* Lock overlay */}
                 {emailState !== "sent" && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-xl bg-white/70 backdrop-blur-[2px]">
+                  <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 rounded-[20px] bg-white/75 backdrop-blur-[2px]">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-900">
                       <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <rect x="3" y="11" width="18" height="11" rx="2" stroke="currentColor" strokeWidth="1.5" />
@@ -443,12 +477,12 @@ export default function AnalyzeResultsPage() {
                       className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
                       style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
                     >
-                      Unlock my popup →
+                      Unlock my popup
                     </button>
                   </div>
                 )}
 
-                {/* Post-email overlay — shown after email submitted */}
+                {/* Post-email state */}
                 {emailState === "sent" && (
                   <div className="mt-3 flex flex-col items-center gap-2 text-center">
                     <p className="text-sm font-semibold text-gray-800">
@@ -459,7 +493,7 @@ export default function AnalyzeResultsPage() {
                       className="w-full rounded-xl py-3 text-sm font-bold text-white transition-colors hover:opacity-90"
                       style={{ backgroundColor: result.brandColor ?? "#165DFF" }}
                     >
-                      Create free account → publish now
+                      Create free account and publish now
                     </button>
                   </div>
                 )}
@@ -473,18 +507,18 @@ export default function AnalyzeResultsPage() {
           <div className="fade-up-3 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-5">
             <p className="text-sm font-bold text-blue-900 mb-1">No popup detected on {result.storeName}</p>
             <p className="text-xs text-blue-700 mb-4 leading-relaxed">
-              Asmos builds high-converting popups for you in minutes — no design skills, no developers. Try a different URL or build your first popup free.
+              Asmos builds high-converting popups for you in minutes. No design skills needed. Try a different URL or build your first popup free.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row">
               <button
                 onClick={() => router.push("/")}
-                className="flex-1 rounded-lg border border-blue-200 bg-white px-4 py-2.5 text-sm font-medium text-blue-700 hover:bg-blue-50 transition-colors text-center"
+                className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2.5 text-sm font-medium text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] transition-[background-color] duration-200 text-center"
               >
                 Try a different URL
               </button>
               <button
-                onClick={() => router.push("/sign-up")}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 transition-colors text-center"
+                onClick={() => router.push("/sign-up?from=analyze")}
+                className="flex-1 rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-[background-color] duration-200 text-center"
               >
                 Build one free with Asmos
               </button>
@@ -506,13 +540,13 @@ export default function AnalyzeResultsPage() {
               </div>
               <p className="text-base font-bold text-gray-900">Check your inbox</p>
               <p className="mt-1.5 text-sm text-gray-500 leading-relaxed max-w-xs mx-auto">
-                Your CRO report is on its way. In the meantime, fix {failedCount > 0 ? `your ${failedCount} missing tool${failedCount > 1 ? "s" : ""}` : "your store"} right now — it takes minutes.
+                Your CRO report is on its way. In the meantime, fix {failedCount > 0 ? `your ${failedCount} missing tool${failedCount > 1 ? "s" : ""}` : "your store"} right now. It takes minutes.
               </p>
               <button
-                onClick={() => router.push("/sign-up")}
+                onClick={() => router.push("/sign-up?from=analyze")}
                 className="mt-5 w-full rounded-xl bg-[color:var(--color-primary)] px-6 py-3.5 text-sm font-bold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors active:scale-[0.98]"
               >
-                Create account to fix it
+                Create free account
               </button>
               <p className="mt-2 text-[11px] text-gray-400">Free to start. No credit card.</p>
             </div>
@@ -526,7 +560,7 @@ export default function AnalyzeResultsPage() {
               </p>
               <p className="mt-1.5 text-sm text-gray-500 leading-relaxed">
                 {failedCount > 0
-                  ? "Enter your email — we'll send you a step-by-step fix for every gap above. Asmos builds the tools for you, no code needed."
+                  ? "Enter your email and we will send you a step-by-step fix for every gap above. Asmos builds the tools for you, no code needed."
                   : "Enter your email to see where you can push your score to 100."}
               </p>
               <form onSubmit={handleEmailSubmit} className="mt-4 flex flex-col gap-3">
@@ -537,7 +571,7 @@ export default function AnalyzeResultsPage() {
                   placeholder="you@yourstore.com"
                   autoFocus
                   disabled={emailState === "submitting"}
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-colors disabled:opacity-50"
+                  className="w-full rounded-xl border border-[color:var(--color-border)] px-4 py-3 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors disabled:opacity-50"
                 />
                 {emailError && <p className="text-xs text-red-500">{emailError}</p>}
                 <button

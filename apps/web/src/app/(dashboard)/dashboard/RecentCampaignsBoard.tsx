@@ -53,13 +53,26 @@ export function RecentCampaignsBoard({ rows }: { rows: RecentCampaignRow[] }) {
                 {
                   header: "Status",
                   render: (row) => (
-                    <Badge variant={row.status === "ACTIVE" ? "success" : "neutral"}>
-                      {row.status}
+                    <Badge variant={row.status === "ACTIVE" ? "success" : row.status === "PAUSED" ? "warning" : "neutral"}>
+                      {row.status.toLowerCase()}
                     </Badge>
                   ),
                 },
                 { header: "Impressions", render: (row) => row.impressions.toLocaleString() },
                 { header: "Conversions", render: (row) => row.conversions.toLocaleString() },
+                {
+                  header: "",
+                  render: (row) => (
+                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Link
+                        href={`/campaigns/${row.id}`}
+                        className="rounded-md border border-[color:var(--color-border)] px-2.5 py-1 text-xs font-medium text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)] transition-colors"
+                      >
+                        View
+                      </Link>
+                    </div>
+                  ),
+                },
               ]}
             />
           </div>

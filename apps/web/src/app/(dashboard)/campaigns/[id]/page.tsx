@@ -174,8 +174,8 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge variant={campaign.status === "ACTIVE" ? "success" : "neutral"}>
-                      {campaign.status}
+                    <Badge variant={campaign.status === "ACTIVE" ? "success" : campaign.status === "PAUSED" ? "warning" : "neutral"}>
+                      {campaign.status.charAt(0).toUpperCase() + campaign.status.slice(1).toLowerCase()}
                     </Badge>
                     <CampaignRowActions campaignId={campaign.id} status={campaign.status} />
                   </div>

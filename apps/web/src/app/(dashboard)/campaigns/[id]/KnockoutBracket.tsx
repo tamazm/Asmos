@@ -67,7 +67,7 @@ function VariantPill({
 
   return (
     <div
-      className={`relative flex items-center gap-3 rounded-xl border p-3 transition-all duration-200 ${ring} ${opacity}`}
+      className={`relative flex items-center gap-3 rounded-xl border p-3 transition-[border-color,background-color,opacity] duration-200 ${ring} ${opacity}`}
     >
       {/* Rank badge */}
       <span

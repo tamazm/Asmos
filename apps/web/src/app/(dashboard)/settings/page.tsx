@@ -52,7 +52,7 @@ export default async function SettingsPage() {
             <p className="mt-1 text-2xl font-bold text-[color:var(--color-text-primary)] capitalize">{account.planTier.toLowerCase()}</p>
             <div className="mt-2 flex items-center gap-2">
               <Badge variant={account.subscriptionStatus === "ACTIVE" || account.subscriptionStatus === "TRIALING" ? "success" : "neutral"}>
-                {account.subscriptionStatus}
+                {account.subscriptionStatus.charAt(0).toUpperCase() + account.subscriptionStatus.slice(1).toLowerCase()}
               </Badge>
             </div>
           </div>
@@ -65,44 +65,39 @@ export default async function SettingsPage() {
         </div>
       </div>
 
-      {/* Plan comparison */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {[
-          { name: "Starter", price: "$29", campaigns: 3, impressions: "10k/mo", features: ["3 campaigns", "10k impressions/mo", "Basic analytics", "Email support"] },
-          { name: "Growth", price: "$79", campaigns: 10, impressions: "100k/mo", features: ["10 campaigns", "100k impressions/mo", "Advanced analytics", "A/B testing", "Priority support"], highlighted: true },
-          { name: "Scale", price: "$199", campaigns: 999, impressions: "1M/mo", features: ["Unlimited campaigns", "1M impressions/mo", "Custom domains", "API access", "Dedicated support"] },
-        ].map((plan) => (
-          <div
-            key={plan.name}
-            className={[
-              "flex flex-col gap-3 rounded-2xl border p-5",
-              plan.highlighted
-                ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]"
-                : "border-[color:var(--color-border)] bg-[color:var(--color-surface)]",
-            ].join(" ")}
-          >
-            <div>
-              <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">{plan.name}</p>
-              <p className="mt-0.5 text-xl font-bold text-[color:var(--color-text-primary)] tabular-nums">{plan.price}<span className="text-sm font-normal text-[color:var(--color-text-secondary)]">/mo</span></p>
-            </div>
-            <ul className="flex flex-col gap-1.5">
-              {plan.features.map((f) => (
-                <li key={f} className="flex items-center gap-2 text-xs text-[color:var(--color-text-secondary)]">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                    <path d="M3 8l3.5 3.5L13 4.5" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <button
-              disabled
-              className="mt-auto rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-xs font-medium text-[color:var(--color-text-secondary)] opacity-50 cursor-not-allowed"
-            >
-              Coming soon
-            </button>
-          </div>
-        ))}
+      {/* Plan feature comparison */}
+      <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm overflow-hidden">
+        <div className="px-5 py-3.5 border-b border-[color:var(--color-border)]">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">Plan comparison</p>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-[color:var(--color-border)]">
+              <th className="px-5 py-3 text-left text-xs font-medium text-[color:var(--color-text-secondary)] w-1/3">Feature</th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-[color:var(--color-text-primary)]">Starter<br /><span className="font-normal text-[color:var(--color-text-secondary)]">/mo</span></th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]/50">Growth<br /><span className="font-normal text-[color:var(--color-text-secondary)]">/mo</span></th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-[color:var(--color-text-primary)]">Scale<br /><span className="font-normal text-[color:var(--color-text-secondary)]">/mo</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { feature: "Price", starter: "$29", growth: "$79", scale: "$199" },
+              { feature: "Campaigns", starter: "3", growth: "10", scale: "Unlimited" },
+              { feature: "Impressions/mo", starter: "10k", growth: "100k", scale: "1M" },
+              { feature: "A/B testing", starter: "No", growth: "Yes", scale: "Yes" },
+              { feature: "AI optimization", starter: "No", growth: "Yes", scale: "Yes" },
+              { feature: "API access", starter: "No", growth: "No", scale: "Yes" },
+              { feature: "Support", starter: "Email", growth: "Priority", scale: "Dedicated" },
+            ].map((row, i) => (
+              <tr key={row.feature} className={i % 2 === 0 ? "bg-[color:var(--color-surface)]" : "bg-[color:var(--color-surface-sunken)]/40"}>
+                <td className="px-5 py-2.5 text-xs text-[color:var(--color-text-secondary)]">{row.feature}</td>
+                <td className="px-4 py-2.5 text-xs text-center text-[color:var(--color-text-primary)] tabular-nums">{row.starter}</td>
+                <td className="px-4 py-2.5 text-xs text-center text-[color:var(--color-primary)] font-medium bg-[color:var(--color-primary-light)]/30 tabular-nums">{row.growth}</td>
+                <td className="px-4 py-2.5 text-xs text-center text-[color:var(--color-text-primary)] tabular-nums">{row.scale}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <p className="text-xs text-center text-[color:var(--color-text-secondary)]">
@@ -149,7 +144,6 @@ export default async function SettingsPage() {
 // It's rendered server-side but used as a pure presentational component
 // Client interaction will be handled by SettingsTabs
 function NotificationToggle({
-  id,
   label,
   description,
   defaultOn,

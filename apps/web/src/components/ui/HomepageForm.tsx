@@ -8,14 +8,15 @@ export function HomepageForm() {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
 
     let normalized = url.trim();
-    if (!normalized) {
-      setError("Please enter your store URL.");
+    if (!normalized || !normalized.includes(".")) {
+      setError("Enter a valid store URL");
       return;
     }
     if (!/^https?:\/\//i.test(normalized)) {
@@ -24,9 +25,10 @@ export function HomepageForm() {
     try {
       new URL(normalized);
     } catch {
-      setError("That doesn't look like a valid URL.");
+      setError("Enter a valid store URL");
       return;
     }
+    setLoading(true);
     analyzeStarted(normalized);
     router.push(`/analyze?url=${encodeURIComponent(normalized)}`);
   }
@@ -46,22 +48,56 @@ export function HomepageForm() {
               id="store-url"
               type="text"
               value={url}
-              onChange={(e) => setUrl(e.target.value)}
+              onChange={(e) => { setUrl(e.target.value); if (error) setError(null); }}
               placeholder="yourstore.com"
               autoFocus
-              className="w-full rounded-[0.5rem] border-0 bg-transparent px-3 py-2.5 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:ring-0 h-11"
+              disabled={loading}
+              className="w-full rounded-[0.5rem] border-0 bg-transparent px-3 py-2.5 text-sm text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-secondary)] outline-none focus:ring-0 h-11 disabled:opacity-50"
             />
           </div>
           <button
             type="submit"
-            className="shrink-0 rounded-[0.5rem] bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] h-11 whitespace-nowrap"
+            disabled={loading}
+            className="shrink-0 rounded-[0.5rem] bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] h-11 whitespace-nowrap disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2 justify-center"
           >
-            Analyze my store
+            {loading ? (
+              <>
+                <svg
+                  className="h-4 w-4 animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Analyzing...
+              </>
+            ) : (
+              "Analyze my store"
+            )}
           </button>
         </div>
       </div>
       {error && (
         <p className="mt-2 text-left text-xs text-red-500">{error}</p>
+      )}
+      {!error && (
+        <p className="mt-2 text-center text-xs text-[color:var(--color-text-secondary)]">
+          No credit card required
+        </p>
       )}
     </form>
   );

@@ -63,10 +63,15 @@ export default async function AnalyticsPage() {
       <div className="flex flex-col gap-6">
         <PageHeader title="Analytics" />
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] py-24 text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--color-surface-sunken)]">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M3 17l4-8 4 4 4-6 4 10" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+          <div className="mb-3 rounded-[1.125rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-[0.75rem] bg-[color:var(--color-primary-light)]"
+              style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)" }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M3 17l4-8 4 4 4-6 4 10" stroke="#165DFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
           </div>
           <p className="text-sm font-medium text-[color:var(--color-text-primary)]">No data yet</p>
           <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">Create a campaign to start collecting analytics.</p>
@@ -110,6 +115,17 @@ export default async function AnalyticsPage() {
     where: { variant: { campaign: { accountId: account.id } }, email: { not: null } },
   });
 
+  // Funnel totals across all campaigns
+  const funnelGrouped = await prisma.campaignEvent.groupBy({
+    by: ["type"],
+    where: { variant: { campaign: { accountId: account.id } } },
+    _count: { _all: true },
+  });
+  const funnelCounts: Record<string, number> = {};
+  for (const row of funnelGrouped) {
+    funnelCounts[row.type] = row._count._all;
+  }
+
   const rows: CampaignRow[] = campaigns.map((campaign) => {
     const impressions = countFor(campaign.id, "IMPRESSION");
     const submissions = countFor(campaign.id, "SUBMISSION");
@@ -150,6 +166,32 @@ export default async function AnalyticsPage() {
     {} as Record<string, number>,
   );
 
+  // Funnel stages
+  const funnelImpressions = funnelCounts["IMPRESSION"] ?? 0;
+  const funnelInteractions = funnelCounts["INTERACTION"] ?? 0;
+  const funnelSubmissions = funnelCounts["SUBMISSION"] ?? 0;
+  const funnelLeads = emailsCaptured;
+
+  const funnelStages = [
+    { label: "Impressions", count: funnelImpressions, pct: null },
+    {
+      label: "Interactions",
+      count: funnelInteractions,
+      pct: funnelImpressions > 0 ? (funnelInteractions / funnelImpressions) * 100 : 0,
+    },
+    {
+      label: "Submissions",
+      count: funnelSubmissions,
+      pct: funnelInteractions > 0 ? (funnelSubmissions / funnelInteractions) * 100 : 0,
+    },
+    {
+      label: "Leads",
+      count: funnelLeads,
+      pct: funnelSubmissions > 0 ? (funnelLeads / funnelSubmissions) * 100 : 0,
+    },
+  ];
+  const funnelMax = funnelImpressions || 1;
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader title="Analytics" />
@@ -165,6 +207,71 @@ export default async function AnalyticsPage() {
           sub={totals.impressions > 0 ? `${totals.submissions} / ${totals.impressions}` : undefined}
         />
       </div>
+
+      {/* Conversion funnel */}
+      {funnelImpressions > 0 && (
+        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
+          <p className="mb-4 text-sm font-semibold text-[color:var(--color-text-primary)]">Conversion funnel</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-0">
+            {funnelStages.map((stage, i) => {
+              const barWidth = Math.max((stage.count / funnelMax) * 100, stage.count > 0 ? 3 : 0);
+              const STAGE_COLORS = ["#165DFF", "#8B5CF6", "#10B981", "#F59E0B"];
+              const color = STAGE_COLORS[i];
+              const isLast = i === funnelStages.length - 1;
+              return (
+                <div key={stage.label} className="flex sm:flex-1 flex-col gap-0">
+                  {/* Horizontal bar */}
+                  <div className="flex items-center gap-3 sm:flex-col sm:items-start sm:gap-2">
+                    <div className="hidden sm:block w-full">
+                      <div
+                        className="h-8 rounded-l-md transition-[width] duration-500"
+                        style={{
+                          width: `${barWidth}%`,
+                          minWidth: stage.count > 0 ? 12 : 0,
+                          backgroundColor: color,
+                          opacity: 0.85,
+                          borderRadius: i === 0 ? "6px 0 0 6px" : isLast ? "0 6px 6px 0" : "0",
+                        }}
+                      />
+                    </div>
+                    {/* Mobile: horizontal progress bar */}
+                    <div className="sm:hidden flex-1 h-2 rounded-full bg-[color:var(--color-surface-sunken)] overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-[width] duration-500"
+                        style={{ width: `${barWidth}%`, backgroundColor: color }}
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-2 flex sm:flex-col gap-1.5 items-center sm:items-start">
+                    <span
+                      className="text-[11px] font-bold uppercase tracking-wide"
+                      style={{ color }}
+                    >
+                      {stage.label}
+                    </span>
+                    <span className="text-lg font-bold tabular-nums text-[color:var(--color-text-primary)]">
+                      {stage.count.toLocaleString()}
+                    </span>
+                    {stage.pct !== null && (
+                      <span className="text-[11px] tabular-nums text-[color:var(--color-text-secondary)]">
+                        {stage.pct.toFixed(1)}% of prev
+                      </span>
+                    )}
+                  </div>
+                  {/* Arrow between stages (desktop only) */}
+                  {!isLast && (
+                    <div
+                      className="hidden sm:flex absolute items-center"
+                      aria-hidden="true"
+                      style={{ right: -10, top: "50%", transform: "translateY(-50%)" }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {totals.impressions === 0 ? (
         <div className="rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-8 text-center">

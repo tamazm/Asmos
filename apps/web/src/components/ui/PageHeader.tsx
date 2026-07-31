@@ -1,6 +1,18 @@
 import Link from "next/link";
 import { Badge } from "./Badge";
 
+type BadgeVariant = "success" | "warning" | "neutral";
+
+function statusVariant(status: string | undefined): BadgeVariant {
+  if (!status) return "neutral";
+  switch (status.toUpperCase()) {
+    case "ACTIVE": return "success";
+    case "PAUSED": return "warning";
+    case "DRAFT": return "neutral";
+    default: return "neutral";
+  }
+}
+
 export function PageHeader({
   title,
   backHref,
@@ -38,7 +50,7 @@ export function PageHeader({
           <h1 className="text-xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
             {title}
           </h1>
-          {status && <Badge variant="success">{status}</Badge>}
+          {status && <Badge variant={statusVariant(status)}>{status}</Badge>}
         </div>
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
