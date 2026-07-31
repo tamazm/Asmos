@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
+import { useAuth } from "@clerk/nextjs";
 
 const isMock = process.env.NEXT_PUBLIC_MOCK_AUTH === "true";
 
@@ -68,6 +69,21 @@ function MockSignInForm() {
 }
 
 export default function SignInPage() {
+  const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuth();
+
+  // Clerk correctly renders no form when already signed in — but nothing
+  // was sending the user anywhere in that case, leaving this page stuck.
+  useEffect(() => {
+    if (isLoaded && isSignedIn) {
+      router.replace("/dashboard");
+    }
+  }, [isLoaded, isSignedIn, router]);
+
+  if (isLoaded && isSignedIn) {
+    return null;
+  }
+
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6 py-12">
       <div className="w-full max-w-sm animate-page-enter">
