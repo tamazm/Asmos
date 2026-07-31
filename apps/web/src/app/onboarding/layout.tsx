@@ -17,8 +17,14 @@ export default async function OnboardingLayout({
         <OnboardingProgress />
       </div>
 
-      <div className="w-full max-w-lg rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-8">
-        {children}
+      {/* Double-Bezel container */}
+      <div className="w-full max-w-lg rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5 shadow-sm">
+        <div
+          className="rounded-[1rem] bg-[color:var(--color-surface)] p-8"
+          style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}
+        >
+          {children}
+        </div>
       </div>
     </div>
   );

@@ -110,21 +110,21 @@ export function Sidebar({ businessName }: { businessName?: string }) {
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200",
+                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200",
                 active
                   ? "bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
                   : "text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]",
               )}
               aria-current={active ? "page" : undefined}
             >
+              {item.icon}
+              {item.label}
               {active && (
                 <span
-                  className="absolute left-0 top-1/2 -translate-y-1/2 h-4 w-[3px] rounded-r-full bg-[color:var(--color-primary)]"
+                  className="ml-auto h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)] flex-shrink-0"
                   aria-hidden="true"
                 />
               )}
-              {item.icon}
-              {item.label}
             </Link>
           );
         })}

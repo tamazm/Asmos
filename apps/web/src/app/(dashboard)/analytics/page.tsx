@@ -63,10 +63,15 @@ export default async function AnalyticsPage() {
       <div className="flex flex-col gap-6">
         <PageHeader title="Analytics" />
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] py-24 text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--color-surface-sunken)]">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M3 17l4-8 4 4 4-6 4 10" stroke="#9CA3AF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+          <div className="mb-3 rounded-[1.125rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-[0.75rem] bg-[color:var(--color-primary-light)]"
+              style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)" }}
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M3 17l4-8 4 4 4-6 4 10" stroke="#165DFF" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
           </div>
           <p className="text-sm font-medium text-[color:var(--color-text-primary)]">No data yet</p>
           <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">Create a campaign to start collecting analytics.</p>
