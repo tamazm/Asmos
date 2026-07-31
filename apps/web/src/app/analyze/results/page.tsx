@@ -517,7 +517,7 @@ export default function AnalyzeResultsPage() {
                 Try a different URL
               </button>
               <button
-                onClick={() => router.push("/sign-up")}
+                onClick={() => router.push("/sign-up?from=analyze")}
                 className="flex-1 rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-[background-color] duration-200 text-center"
               >
                 Build one free with Asmos
@@ -543,10 +543,10 @@ export default function AnalyzeResultsPage() {
                 Your CRO report is on its way. In the meantime, fix {failedCount > 0 ? `your ${failedCount} missing tool${failedCount > 1 ? "s" : ""}` : "your store"} right now. It takes minutes.
               </p>
               <button
-                onClick={() => router.push("/sign-up")}
+                onClick={() => router.push("/sign-up?from=analyze")}
                 className="mt-5 w-full rounded-xl bg-[color:var(--color-primary)] px-6 py-3.5 text-sm font-bold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors active:scale-[0.98]"
               >
-                Create account to fix it
+                Create free account
               </button>
               <p className="mt-2 text-[11px] text-gray-400">Free to start. No credit card.</p>
             </div>

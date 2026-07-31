@@ -366,7 +366,13 @@ export default function GeneratePopupPage() {
         if (!accountRes.ok) throw new Error("Could not load account");
         const accountData = await accountRes.json() as { websites?: Array<{ id: string }> };
         const websiteId = accountData?.websites?.[0]?.id;
-        if (!websiteId) throw new Error("No website found. Connect your store first.");
+
+        if (!websiteId) {
+          // No store connected yet -- skip campaign creation gracefully
+          setStepStatus("ab", "done");
+          setPhase("done");
+          return;
+        }
 
         const triggerPayload = buildTriggerPayload(triggerValue);
 
@@ -497,22 +503,30 @@ export default function GeneratePopupPage() {
             {/* CTA */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={() => router.push(`/onboarding/launch-confirmation?campaign=${campaignId}`)}
+                onClick={() => {
+                  if (campaignId) {
+                    router.push(`/onboarding/launch-confirmation?campaign=${campaignId}`);
+                  } else {
+                    router.push("/dashboard");
+                  }
+                }}
                 className="rounded-xl px-6 py-3 text-sm font-bold text-white transition-colors hover:opacity-90"
                 style={{ backgroundColor: brandColor }}
               >
-                View and launch campaign
+                {campaignId ? "View and launch campaign" : "Go to dashboard"}
               </button>
               <button
-                onClick={() => router.push("/dashboard")}
+                onClick={() => router.push("/onboarding/connect-store")}
                 className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-medium text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] transition-colors"
               >
-                Go to dashboard
+                Back
               </button>
             </div>
 
             <p className="text-center text-[11px] text-[color:var(--color-text-secondary)]">
-              Both variants are set up. Asmos will split traffic 50/50 and optimize automatically.
+              {campaignId
+                ? "Both variants are set up. Asmos will split traffic 50/50 and optimize automatically."
+                : "Campaign will be created after store connection. Connect your store from the dashboard to go live."}
             </p>
           </div>
         )}

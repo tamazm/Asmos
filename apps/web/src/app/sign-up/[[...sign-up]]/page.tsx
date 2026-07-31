@@ -109,6 +109,24 @@ export default function SignUpPage() {
     return null;
   })[0];
 
+  const analyzeResult = useState<{ grade?: string; score?: number } | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const raw = sessionStorage.getItem("asmos_analyze_result");
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.grade || data.score != null) {
+          return { grade: data.grade, score: data.score };
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  })[0];
+
+  const fromAnalyze = analyzeResult !== null;
+
   // storeName is initialized lazily from sessionStorage (see useState initializer above)
 
   return (
@@ -135,10 +153,41 @@ export default function SignUpPage() {
           </h1>
           <p className="mt-1.5 text-sm text-[color:var(--color-text-secondary)]">
             {storeName
-              ? "Create a free account to view and publish your generated popup."
+              ? "We detected your brand and have your popup ready."
               : "Free to start. Build your first popup in minutes."}
           </p>
         </div>
+
+        {/* What we found summary for analyze-result users */}
+        {fromAnalyze && analyzeResult && (analyzeResult.grade || analyzeResult.score != null) && (
+          <div className="mb-5 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 animate-page-enter-delay-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--color-text-secondary)] mb-2">
+              What we found
+            </p>
+            <div className="flex items-center gap-3">
+              {analyzeResult.grade && (
+                <span className="text-2xl font-black tabular-nums" style={{
+                  color: analyzeResult.grade.startsWith("A") ? "#059669"
+                    : analyzeResult.grade.startsWith("B") ? "#2563eb"
+                    : analyzeResult.grade.startsWith("C") ? "#d97706"
+                    : "#dc2626",
+                }}>
+                  {analyzeResult.grade}
+                </span>
+              )}
+              <div>
+                {analyzeResult.score != null && (
+                  <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+                    CRO score: {analyzeResult.score}/100
+                  </p>
+                )}
+                <p className="text-xs text-[color:var(--color-text-secondary)]">
+                  Your custom popup is ready to publish.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Auth widget */}
         <div className="flex justify-center animate-page-enter-delay-2">
