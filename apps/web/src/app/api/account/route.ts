@@ -8,12 +8,21 @@ export async function GET() {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   const account = await getOrCreateAccount();
+
+  // Re-fetch websites with explicit field selection so callers always get
+  // id, url, and installVerified regardless of how getOrCreateAccount loads them.
+  const websites = await prisma.website.findMany({
+    where: { accountId: account.id },
+    select: { id: true, url: true, installVerified: true },
+    orderBy: { createdAt: "asc" },
+  });
+
   return Response.json({
     id: account.id,
     name: account.name,
     industry: account.industry,
     brandColor: account.brandColor,
-    websites: account.websites,
+    websites,
   });
 }
 
