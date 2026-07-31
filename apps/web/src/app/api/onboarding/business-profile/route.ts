@@ -8,10 +8,14 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { industry, brandColor, name } = (await request.json()) as {
+  const { industry, brandColor, name, role, conversionGoal, monthlyTraffic, emailPlatform } = (await request.json()) as {
     industry?: string;
     brandColor?: string;
     name?: string;
+    role?: string;
+    conversionGoal?: string;
+    monthlyTraffic?: string;
+    emailPlatform?: string;
   };
 
   const account = await getOrCreateAccount();
@@ -21,6 +25,10 @@ export async function POST(request: Request) {
       ...(name?.trim() ? { name: name.trim() } : {}),
       industry: industry?.trim() || null,
       brandColor: brandColor?.trim() || null,
+      ...(role?.trim() ? { ownerRole: role.trim() } : {}),
+      ...(conversionGoal?.trim() ? { conversionGoal: conversionGoal.trim() } : {}),
+      ...(monthlyTraffic?.trim() ? { monthlyTraffic: monthlyTraffic.trim() } : {}),
+      ...(emailPlatform?.trim() ? { emailPlatform: emailPlatform.trim() } : {}),
     },
   });
 
