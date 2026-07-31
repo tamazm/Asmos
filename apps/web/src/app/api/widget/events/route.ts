@@ -75,7 +75,7 @@ export async function POST(request: Request) {
           select: { name: true, campaignId: true },
         });
 
-        await fetch("https://eu.posthog.com/capture/", {
+        await fetch("https://eu.i.posthog.com/capture/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

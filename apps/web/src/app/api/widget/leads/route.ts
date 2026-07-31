@@ -121,7 +121,7 @@ export async function POST(request: Request) {
   if (posthogKey) {
     after(async () => {
       try {
-        await fetch("https://eu.posthog.com/capture/", {
+        await fetch("https://eu.i.posthog.com/capture/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
