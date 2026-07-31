@@ -136,13 +136,150 @@ function triggerLabel(targeting: Record<string, unknown> | null | undefined): st
   }
 }
 
+function audienceLabel(targeting: Record<string, unknown> | null | undefined): string {
+  if (!targeting) return "All visitors";
+  const audience = (targeting as { audience?: string }).audience;
+  switch (audience) {
+    case "new_visitors": return "New visitors only";
+    case "returning_visitors": return "Returning visitors only";
+    case "cart_abandoners": return "Cart abandoners";
+    default: return "All visitors";
+  }
+}
+
 // ─── Check icon ───────────────────────────────────────────────────────────────
-function CheckIcon() {
+function CheckIcon({ color = "#22C55E" }: { color?: string }) {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <circle cx="8" cy="8" r="7" fill="#DCFCE7" />
-      <path d="M5 8l2.5 2.5L11 5.5" stroke="#22C55E" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="8" cy="8" r="7" fill={color === "#22C55E" ? "#DCFCE7" : "#DBEAFE"} />
+      <path d="M5 8l2.5 2.5L11 5.5" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
+  );
+}
+
+// ─── Confetti burst (CSS only, no library) ────────────────────────────────────
+function ConfettiBurst() {
+  const pieces = [
+    { color: "#165DFF", x: -60, y: -80, rot: -30, delay: 0 },
+    { color: "#22C55E", x: 60, y: -90, rot: 20, delay: 0.05 },
+    { color: "#F59E0B", x: -40, y: -110, rot: -50, delay: 0.1 },
+    { color: "#EC4899", x: 80, y: -60, rot: 40, delay: 0.08 },
+    { color: "#8B5CF6", x: -90, y: -50, rot: -20, delay: 0.12 },
+    { color: "#F97316", x: 20, y: -120, rot: 60, delay: 0.03 },
+    { color: "#06B6D4", x: -70, y: -70, rot: -45, delay: 0.15 },
+    { color: "#10B981", x: 100, y: -40, rot: 15, delay: 0.06 },
+    { color: "#EF4444", x: -20, y: -130, rot: -10, delay: 0.09 },
+    { color: "#165DFF", x: 50, y: -100, rot: 35, delay: 0.11 },
+    { color: "#F59E0B", x: -100, y: -30, rot: -60, delay: 0.04 },
+    { color: "#8B5CF6", x: 30, y: -115, rot: 50, delay: 0.13 },
+  ];
+
+  return (
+    <div className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden" aria-hidden="true">
+      <style>{`
+        @keyframes confetti-fall {
+          0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+          100% { opacity: 0; transform: var(--cf-end) scale(0.3); }
+        }
+      `}</style>
+      {pieces.map((p, i) => (
+        <div
+          key={i}
+          className="absolute"
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: i % 3 === 0 ? "50%" : i % 3 === 1 ? "1px" : "2px",
+            backgroundColor: p.color,
+            animation: `confetti-fall 1.2s ease-out forwards`,
+            animationDelay: `${p.delay}s`,
+            ["--cf-end" as string]: `translate(${p.x}px, ${p.y}px) rotate(${p.rot * 3}deg) scale(0.3)`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Success state ─────────────────────────────────────────────────────────────
+function SuccessState({
+  campaignId,
+  primaryColor,
+  onDashboard,
+}: {
+  campaignId: string;
+  primaryColor: string;
+  onDashboard: () => void;
+}) {
+  const textColor = readableColor(primaryColor);
+  void campaignId; // used for future deep link
+
+  return (
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6 py-16">
+      <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center animate-page-enter">
+        {/* Icon with confetti */}
+        <div className="relative flex items-center justify-center">
+          <ConfettiBurst />
+          {/* Double-Bezel icon well */}
+          <div className="rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5 shadow-sm">
+            <div
+              className="flex h-14 w-14 items-center justify-center rounded-[0.875rem]"
+              style={{
+                backgroundColor: primaryColor,
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
+              }}
+            >
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M20 6L9 17l-5-5" stroke={textColor} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
+            Campaign is live
+          </h1>
+          <p className="mt-2 text-sm text-[color:var(--color-text-secondary)]" style={{ textWrap: "pretty" } as React.CSSProperties}>
+            Your popup is now active and collecting leads. Head to your dashboard to track performance.
+          </p>
+        </div>
+
+        {/* Double-Bezel card with next steps */}
+        <div className="w-full rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5 shadow-sm">
+          <div
+            className="rounded-[1rem] bg-[color:var(--color-surface)] px-5 py-4 flex flex-col gap-3"
+            style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}
+          >
+            <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+              What happens next
+            </p>
+            {[
+              "Your popup appears on your store immediately",
+              "Leads are captured and listed under this campaign",
+              "A/B test results update in real time",
+            ].map((step, i) => (
+              <div key={i} className="flex items-start gap-2.5">
+                <CheckIcon color={primaryColor === "#165DFF" ? "#22C55E" : primaryColor} />
+                <span className="text-sm text-[color:var(--color-text-primary)]">{step}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={onDashboard}
+          className="w-full rounded-lg h-11 text-sm font-semibold transition-[background-color,transform] duration-200 active:scale-[0.97]"
+          style={{ backgroundColor: primaryColor, color: textColor }}
+        >
+          Go to dashboard
+        </button>
+
+        <p className="text-[11px] text-[color:var(--color-text-secondary)]">
+          You can pause or edit this campaign at any time.
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -157,6 +294,7 @@ function LaunchConfirmationContent() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [launching, setLaunching] = useState(false);
   const [launchError, setLaunchError] = useState<string | null>(null);
+  const [launched, setLaunched] = useState(false);
 
   // Read store name from session storage
   const [storeName, setStoreName] = useState("Your Store");
@@ -211,7 +349,7 @@ function LaunchConfirmationContent() {
         const body = await res.json().catch(() => ({})) as { error?: string };
         throw new Error(body.error ?? "Could not launch campaign");
       }
-      router.push(`/campaigns/${campaignId}`);
+      setLaunched(true);
     } catch (e) {
       setLaunchError(e instanceof Error ? e.message : "Something went wrong");
       setLaunching(false);
@@ -249,10 +387,69 @@ function LaunchConfirmationContent() {
     );
   }
 
-  // Extract variant data
+  // ─── Success state ─────────────────────────────────────────────────────────
   const variants = campaign.variants ?? [];
-  const variantLabels = ["A", "B", "C", "D"];
   const primaryDesign = variants[0]?.design ?? {};
+  const primaryColor = primaryDesign.primaryColor ?? "#165DFF";
+
+  if (launched) {
+    return (
+      <SuccessState
+        campaignId={campaignId}
+        primaryColor={primaryColor}
+        onDashboard={() => router.push("/dashboard")}
+      />
+    );
+  }
+
+  // Extract variant data
+  const variantLabels = ["A", "B", "C", "D"];
+
+  // ─── Pre-launch checklist items ─────────────────────────────────────────────
+  const checklistItems = [
+    {
+      label: "Brand color",
+      value: (
+        <span className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-3 w-3 rounded-[3px] border border-black/10 flex-shrink-0"
+            style={{ backgroundColor: primaryColor }}
+          />
+          <span className="font-mono text-[11px] tabular-nums">{primaryColor}</span>
+        </span>
+      ),
+    },
+    {
+      label: "Variant A headline",
+      value: variants[0]?.design?.headline ?? "Get 10% off your first order",
+    },
+    ...(variants.length > 1
+      ? [
+          {
+            label: "Variant B headline",
+            value: variants[1]?.design?.headline ?? "Join the list",
+          },
+        ]
+      : []),
+    {
+      label: "Trigger",
+      value: triggerLabel(campaign.targeting as Record<string, unknown> | null),
+    },
+    {
+      label: "Audience",
+      value: audienceLabel(campaign.targeting as Record<string, unknown> | null),
+    },
+    {
+      label: "Device target",
+      value: campaign.deviceTarget
+        ? campaign.deviceTarget.charAt(0).toUpperCase() + campaign.deviceTarget.slice(1).toLowerCase()
+        : "All devices",
+    },
+    {
+      label: "A/B split",
+      value: `${variants.length} variant${variants.length !== 1 ? "s" : ""}, 50/50 traffic split`,
+    },
+  ];
 
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6 py-16">
@@ -320,33 +517,22 @@ function LaunchConfirmationContent() {
               </div>
             )}
 
-            {/* Targeting + A/B summary */}
+            {/* Pre-launch checklist */}
             <div className="flex flex-col gap-2.5 pt-1 border-t border-[color:var(--color-border)]">
               <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)] mb-1">
-                Configuration
+                Pre-launch checklist
               </p>
 
-              {[
-                {
-                  label: "Trigger",
-                  value: triggerLabel(campaign.targeting as Record<string, unknown> | null),
-                },
-                {
-                  label: "Device target",
-                  value: campaign.deviceTarget
-                    ? campaign.deviceTarget.charAt(0).toUpperCase() + campaign.deviceTarget.slice(1).toLowerCase()
-                    : "All devices",
-                },
-                {
-                  label: "A/B test",
-                  value: `${variants.length} variant${variants.length !== 1 ? "s" : ""}, 50/50 split, auto-optimize enabled`,
-                },
-              ].map((row) => (
-                <div key={row.label} className="flex items-start gap-2.5">
+              {checklistItems.map((item) => (
+                <div key={item.label} className="flex items-start gap-2.5">
                   <CheckIcon />
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-xs text-[color:var(--color-text-secondary)]">{row.label}</span>
-                    <span className="text-sm font-medium text-[color:var(--color-text-primary)]">{row.value}</span>
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <span className="text-xs text-[color:var(--color-text-secondary)]">{item.label}</span>
+                    {typeof item.value === "string" ? (
+                      <span className="text-sm font-medium text-[color:var(--color-text-primary)] truncate">{item.value}</span>
+                    ) : (
+                      <div className="text-sm font-medium text-[color:var(--color-text-primary)]">{item.value}</div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -364,18 +550,18 @@ function LaunchConfirmationContent() {
         {/* Actions */}
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
           <button
-            onClick={() => router.push(`/campaigns/${campaignId}`)}
+            onClick={() => router.push(`/onboarding/generate-popup?campaign=${campaignId}`)}
             className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-2.5 text-sm font-medium text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] transition-[background-color] duration-200 h-10"
           >
-            Edit first
+            Back
           </button>
           <button
             onClick={handleLaunch}
             disabled={launching}
-            className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white h-10 transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ backgroundColor: primaryDesign.primaryColor ?? "var(--color-primary)" }}
+            className="rounded-lg px-6 py-2.5 text-sm font-semibold text-white h-10 transition-[background-color,transform] duration-200 hover:opacity-90 active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ backgroundColor: primaryColor }}
           >
-            {launching ? "Launching..." : "Launch campaign"}
+            {launching ? "Launching..." : "Go live"}
           </button>
         </div>
 

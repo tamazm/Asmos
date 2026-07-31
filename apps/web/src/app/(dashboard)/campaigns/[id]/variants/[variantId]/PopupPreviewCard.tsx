@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 // ─── Color utility ────────────────────────────────────────────────────────────
 
 function btnTextColor(hex: string): string {
@@ -32,6 +34,101 @@ interface PopupPreviewCardProps {
   campaignName?: string;
 }
 
+// ─── Popup widget ─────────────────────────────────────────────────────────────
+
+function PopupWidget({
+  headline,
+  body,
+  ctaText,
+  primaryColor,
+  campaignName,
+  compact,
+}: PopupPreviewCardProps & { compact?: boolean }) {
+  const color = primaryColor ?? "#165DFF";
+  const textColor = btnTextColor(color);
+  const px = compact ? "px-3.5 pt-3 pb-3.5" : "px-5 pt-4 pb-5";
+  const headlineSize = compact ? "text-[13px]" : "text-[17px]";
+  const bodySize = compact ? "text-[10px]" : "text-[12px]";
+  const inputSize = compact ? "text-[10px] py-1.5" : "text-[12px] py-2.5";
+  const ctaSize = compact ? "text-[10px] py-1.5" : "text-[13px] py-2.5";
+  const trustSize = compact ? "text-[8px]" : "text-[10px]";
+  const brandDot = compact ? "h-1.5 w-1.5" : "h-2 w-2";
+  const brandText = compact ? "text-[8px]" : "text-[10px]";
+  const accentHeight = compact ? "h-1" : "h-1.5";
+
+  return (
+    <div
+      className="overflow-hidden rounded-[1rem] bg-white"
+      style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}
+    >
+      {/* Accent bar */}
+      <div className={accentHeight} style={{ backgroundColor: color }} />
+
+      <div className={px}>
+        {/* Brand row */}
+        <div className="flex items-center gap-1.5 mb-3">
+          <div
+            className={`${brandDot} rounded-full flex-shrink-0`}
+            style={{ backgroundColor: color }}
+          />
+          <span
+            className={`${brandText} font-bold tracking-[0.08em] uppercase`}
+            style={{ color: "#9ca3af" }}
+          >
+            {(campaignName ?? "Your Store").toUpperCase()}
+          </span>
+        </div>
+
+        {/* Headline */}
+        <p
+          className={`${headlineSize} font-extrabold leading-snug tracking-tight mb-2`}
+          style={{ color: "#0d0d10" }}
+        >
+          {headline ?? "Get 10% off your first order"}
+        </p>
+
+        {/* Body */}
+        <p
+          className={`${bodySize} leading-relaxed mb-4`}
+          style={{ color: "#6b7280" }}
+        >
+          {body ?? "Subscribe and receive a welcome discount on anything in the store."}
+        </p>
+
+        {/* Email input */}
+        <div
+          className={`w-full rounded-lg border px-3 ${inputSize} mb-2.5`}
+          style={{
+            borderColor: "#e5e7eb",
+            background: "#fafafa",
+            color: "#9ca3af",
+          }}
+        >
+          Your email address
+        </div>
+
+        {/* CTA Button */}
+        <div
+          className={`w-full rounded-lg ${ctaSize} font-bold text-center mb-3`}
+          style={{ backgroundColor: color, color: textColor }}
+        >
+          {ctaText ?? "Claim my discount"}
+        </div>
+
+        {/* Trust signals row */}
+        <div className="flex items-center justify-center gap-3">
+          <p
+            className={`${trustSize} text-center`}
+            style={{ color: "#9ca3af" }}
+          >
+            No spam. Unsubscribe anytime.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function PopupPreviewCard({
@@ -41,90 +138,90 @@ export function PopupPreviewCard({
   primaryColor = "#165DFF",
   campaignName = "Your Store",
 }: PopupPreviewCardProps) {
-  const textColor = btnTextColor(primaryColor);
+  const [view, setView] = useState<"desktop" | "mobile">("desktop");
 
   return (
     <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-sm">
-      <h2 className="mb-5 text-base font-semibold text-[color:var(--color-text-primary)]">
-        Popup Preview
-      </h2>
+      {/* Header row */}
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-[color:var(--color-text-primary)]">
+          Popup Preview
+        </h2>
+
+        {/* Desktop / Mobile toggle */}
+        <div className="flex items-center rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-0.5 gap-0.5">
+          {(["desktop", "mobile"] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setView(mode)}
+              className="flex items-center gap-1.5 rounded-[7px] px-2.5 py-1 text-xs font-medium transition-[background-color,color] duration-150"
+              style={
+                view === mode
+                  ? {
+                      backgroundColor: "var(--color-surface)",
+                      color: "var(--color-text-primary)",
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.06)",
+                    }
+                  : {
+                      color: "var(--color-text-secondary)",
+                    }
+              }
+              aria-pressed={view === mode}
+            >
+              {mode === "desktop" ? (
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="2" y="3" width="20" height="14" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M8 21h8M12 17v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="11" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <rect x="5" y="2" width="14" height="20" rx="2" stroke="currentColor" strokeWidth="1.5" />
+                  <path d="M10 18h4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              )}
+              <span className="capitalize">{mode}</span>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Outer wrapper — centered, constrained */}
       <div className="flex items-center justify-center py-4">
-        {/* Double-Bezel outer shell */}
-        <div
-          className="w-full max-w-[340px] rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5"
-          style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)" }}
-        >
-          {/* Inner core */}
-          <div
-            className="overflow-hidden rounded-[1rem] bg-white"
-            style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}
-          >
-            {/* Accent bar */}
-            <div className="h-1.5" style={{ backgroundColor: primaryColor }} />
-
-            <div className="px-5 pt-4 pb-5">
-              {/* Brand row */}
-              <div className="flex items-center gap-1.5 mb-3">
-                <div
-                  className="h-2 w-2 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: primaryColor }}
-                />
-                <span
-                  className="text-[10px] font-bold tracking-[0.08em] uppercase"
-                  style={{ color: "#9ca3af" }}
-                >
-                  {campaignName.toUpperCase()}
-                </span>
-              </div>
-
-              {/* Headline */}
-              <p
-                className="text-[17px] font-extrabold leading-snug tracking-tight mb-2"
-                style={{ color: "#0d0d10" }}
-              >
-                {headline}
-              </p>
-
-              {/* Body */}
-              <p
-                className="text-[12px] leading-relaxed mb-4"
-                style={{ color: "#6b7280" }}
-              >
-                {body}
-              </p>
-
-              {/* Email input */}
-              <div
-                className="w-full rounded-lg border px-3 py-2.5 text-[12px] mb-2.5"
-                style={{
-                  borderColor: "#e5e7eb",
-                  background: "#fafafa",
-                  color: "#9ca3af",
-                }}
-              >
-                Your email address
-              </div>
-
-              {/* CTA Button */}
-              <div
-                className="w-full rounded-lg py-2.5 text-[13px] font-bold text-center mb-3"
-                style={{ backgroundColor: primaryColor, color: textColor }}
-              >
-                {ctaText}
-              </div>
-
-              {/* Trust signal */}
-              <p
-                className="text-center text-[10px]"
-                style={{ color: "#9ca3af" }}
-              >
-                No spam. Unsubscribe anytime.
-              </p>
+        {view === "desktop" ? (
+          /* Desktop: wider preview with browser chrome hint */
+          <div className="w-full max-w-[360px]">
+            {/* Double-Bezel outer shell */}
+            <div
+              className="rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5"
+              style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)" }}
+            >
+              <PopupWidget
+                headline={headline}
+                body={body}
+                ctaText={ctaText}
+                primaryColor={primaryColor}
+                campaignName={campaignName}
+              />
             </div>
           </div>
-        </div>
+        ) : (
+          /* Mobile: narrower with phone frame hint */
+          <div className="w-full max-w-[240px]">
+            <div
+              className="rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5"
+              style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)" }}
+            >
+              <PopupWidget
+                headline={headline}
+                body={body}
+                ctaText={ctaText}
+                primaryColor={primaryColor}
+                campaignName={campaignName}
+                compact
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Color swatch row */}
