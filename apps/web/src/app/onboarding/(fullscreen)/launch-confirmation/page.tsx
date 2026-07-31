@@ -215,7 +215,7 @@ function SuccessState({
   void campaignId; // used for future deep link
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6 py-16">
+    <div className="flex flex-col items-center justify-center px-6 py-16">
       <div className="w-full max-w-sm flex flex-col items-center gap-6 text-center animate-page-enter">
         {/* Icon with confetti */}
         <div className="relative flex items-center justify-center">
@@ -359,7 +359,7 @@ function LaunchConfirmationContent() {
   // ─── Loading state ─────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6">
+      <div className="flex flex-col items-center justify-center px-6" style={{ minHeight: "60vh" }}>
         <div
           className="h-5 w-5 rounded-full border-2 border-[color:var(--color-primary)] border-t-transparent"
           style={{ animation: "spin 0.7s linear infinite" }}
@@ -373,7 +373,7 @@ function LaunchConfirmationContent() {
   // ─── Error state ───────────────────────────────────────────────────────────
   if (loadError || !campaign) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6 py-16">
+      <div className="flex flex-col items-center justify-center px-6 py-16" style={{ minHeight: "60vh" }}>
         <div className="w-full max-w-sm text-center flex flex-col gap-4">
           <p className="text-sm text-red-600">{loadError ?? "Campaign not found."}</p>
           <button
@@ -452,7 +452,7 @@ function LaunchConfirmationContent() {
   ];
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6 py-16">
+    <div className="flex flex-col items-center justify-center px-6 py-16">
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       <div className="w-full max-w-lg flex flex-col gap-8 animate-page-enter">
@@ -577,7 +577,7 @@ export default function LaunchConfirmationPage() {
   return (
     <Suspense
       fallback={
-        <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)]">
+        <div className="flex flex-col items-center justify-center" style={{ minHeight: "60vh" }}>
           <div
             className="h-5 w-5 rounded-full border-2 border-[color:var(--color-primary)] border-t-transparent"
             style={{ animation: "spin 0.7s linear infinite" }}

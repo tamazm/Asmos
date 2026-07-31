@@ -226,7 +226,7 @@ export default function ConnectStorePage() {
             Back
           </Button>
           <Button onClick={handleDone}>
-            {verified ? "Go to dashboard" : "I've installed it"}
+            {verified ? "Continue to your popup" : "I've installed it"}
           </Button>
         </div>
         <button

@@ -436,7 +436,7 @@ export default function GeneratePopupPage() {
   }, [router]);
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-[color:var(--color-surface-sunken)] px-6 py-16">
+    <div className="flex flex-col items-center justify-center px-6 py-16">
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       <div className="w-full max-w-md flex flex-col items-center gap-8 animate-page-enter">
