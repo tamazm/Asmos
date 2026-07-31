@@ -113,7 +113,7 @@ export function HomepageForm({ dark = false, inverted = false }: HomepageFormPro
       {error && <p className="mt-2 text-left text-xs text-red-400">{error}</p>}
       {!error && (
         <p className="mt-2.5 text-center text-xs" style={{ color: subText }}>
-          No account needed &middot; Takes about 60 seconds
+          No account needed &middot; Scan takes ~10 seconds
         </p>
       )}
     </form>

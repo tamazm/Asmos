@@ -118,7 +118,7 @@ export default async function LandingPage() {
                 className="mb-7 text-base sm:text-lg text-[color:var(--color-hero-muted)] leading-relaxed max-w-[440px] animate-page-enter-delay-2"
                 style={{ textWrap: "pretty" } as React.CSSProperties}
               >
-                Paste your store URL. In 60 seconds, Asmos reads your brand and deploys a popup that captures emails and drives repeat sales. Then it keeps running knockout experiments until it converts as well as it possibly can.
+                Paste your store URL. Asmos reads your brand in seconds and deploys a popup that captures emails and drives repeat sales. Then it keeps running knockout experiments until it converts as well as it possibly can.
               </p>
 
               <div className="animate-page-enter-delay-2">
@@ -559,7 +559,7 @@ export default async function LandingPage() {
           >
             Your next{" "}
             <span className="text-[color:var(--color-primary)]">+23%</span>
-            {" "}is 60 seconds away.
+            {" "}starts with a URL.
           </h2>
           <p className="mb-8 text-sm text-[color:var(--color-hero-muted)] max-w-sm mx-auto">
             Paste your store URL. We&apos;ll show you a popup built to convert before you create an account.
