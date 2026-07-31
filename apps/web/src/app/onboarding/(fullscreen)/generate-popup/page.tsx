@@ -62,7 +62,7 @@ function delay(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-/** Derive two-three meaningfully different variants from onboarding context */
+/** Derive two meaningfully different variants from onboarding context */
 function deriveVariants(
   storeName: string,
   industry: string,
@@ -77,7 +77,6 @@ function deriveVariants(
   const isFashion = /fashion|apparel|cloth|wear|dress|shoe|accessory/i.test(industry);
   const isFood = /food|beverage|coffee|tea|snack|grocery|gourmet/i.test(industry);
 
-  // Base offer helpers
   function discountLabel(): string {
     if (offerType === "percent_discount") return `${offerValue || "10"}% off`;
     if (offerType === "fixed_discount") return `$${offerValue || "5"} off`;
@@ -91,7 +90,11 @@ function deriveVariants(
   function ctaForOffer(angle: "claim" | "unlock" | "enter" | "get"): string {
     switch (offerType) {
       case "free_shipping":
-        return angle === "get" ? "Get free shipping" : angle === "unlock" ? "Unlock free shipping" : "Apply free shipping";
+        return angle === "get"
+          ? "Get free shipping"
+          : angle === "unlock"
+          ? "Unlock free shipping"
+          : "Apply free shipping";
       case "giveaway":
         return angle === "enter" ? "Enter to win" : "Join the giveaway";
       case "early_access":
@@ -107,7 +110,7 @@ function deriveVariants(
     }
   }
 
-  // ── Existing popup: control vs. Asmos challenger ──
+  // Existing popup: control vs. Asmos challenger
   if (existingPopup?.found && existingPopup.description) {
     const controlVariant: PopupVariant = {
       label: "Control (current popup)",
@@ -118,27 +121,26 @@ function deriveVariants(
           : offerType === "free_shipping"
           ? "Get free shipping on your order"
           : `Your exclusive welcome offer from ${name}`,
-      body: existingPopup.description.slice(0, 90) || `Join ${name} and claim your welcome offer.`,
+      body:
+        existingPopup.description.slice(0, 90) ||
+        `Join ${name} and claim your welcome offer.`,
       cta: ctaForOffer("claim"),
     };
     const challengerVariant: PopupVariant = {
       label: "Asmos challenger",
       style: "bold",
-      headline:
-        isLuxury
-          ? `The ${name} inner circle`
-          : offerType === "percent_discount"
-          ? `${name}'s best-kept secret`
-          : offerType === "free_shipping"
-          ? `Free shipping, zero minimums`
-          : `A personal welcome from ${name}`,
+      headline: isLuxury
+        ? `The ${name} inner circle`
+        : offerType === "percent_discount"
+        ? `${name}'s best-kept secret`
+        : offerType === "free_shipping"
+        ? "Free shipping, zero minimums"
+        : `A personal welcome from ${name}`,
       body: `Thousands of customers already save with ${name}. Join them today and get ${discountLabel()} instantly.`,
       cta: ctaForOffer("unlock"),
     };
     return [controlVariant, challengerVariant];
   }
-
-  // ── Cold-start: two meaningfully different angles ──
 
   // Giveaway
   if (offerType === "giveaway") {
@@ -194,13 +196,13 @@ function deriveVariants(
         label: "Social proof angle",
         style: "social-proof",
         headline: `Join the ${name} waitlist`,
-        body: `Hundreds of customers are already signed up. Get early access + a special launch-day offer.`,
+        body: `Hundreds of customers are already signed up. Get early access and a special launch-day offer.`,
         cta: ctaForOffer("unlock"),
       },
     ];
   }
 
-  // Luxury store
+  // Luxury
   if (isLuxury) {
     return [
       {
@@ -280,7 +282,7 @@ function deriveVariants(
     ];
   }
 
-  // Default: discount / scarcity pair
+  // Default: discount / urgency pair
   return [
     {
       label: "Welcome offer",
@@ -318,12 +320,16 @@ function MiniPopupCard({
 }) {
   const textColor = btnTextColor(brandColor);
   const displayHeadline = typewriterHeadline ?? variant.headline;
+  const isTyping =
+    typewriterHeadline !== undefined &&
+    typewriterHeadline.length < variant.headline.length;
 
   return (
     <div
       className="rounded-[16px] bg-white overflow-hidden w-full transition-all duration-500"
       style={{
-        boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06)",
+        boxShadow:
+          "0 8px 32px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06)",
         opacity: visible ? 1 : 0,
         transform: visible ? "translateY(0)" : "translateY(12px)",
       }}
@@ -333,32 +339,51 @@ function MiniPopupCard({
       <div className="px-5 pt-3 pb-4">
         {/* Brand row */}
         <div className="flex items-center gap-1.5 mb-2.5">
-          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: brandColor }} />
-          <span className="text-[9px] font-bold tracking-[0.06em] uppercase" style={{ color: "#9ca3af" }}>
+          <div
+            className="w-1.5 h-1.5 rounded-full"
+            style={{ backgroundColor: brandColor }}
+          />
+          <span
+            className="text-[9px] font-bold tracking-[0.06em] uppercase"
+            style={{ color: "#9ca3af" }}
+          >
             {storeName.toUpperCase()}
           </span>
         </div>
-        {/* Headline with cursor during typewriter */}
-        <p className="text-[15px] font-extrabold leading-snug mb-1.5 tracking-tight" style={{ color: "#0d0d10", minHeight: "1.4em" }}>
+
+        {/* Headline */}
+        <p
+          className="text-[15px] font-extrabold leading-snug mb-1.5 tracking-tight"
+          style={{ color: "#0d0d10", minHeight: "1.4em" }}
+        >
           {displayHeadline}
-          {typewriterHeadline !== undefined && typewriterHeadline.length < variant.headline.length && (
+          {isTyping && (
             <span
               className="inline-block w-[2px] h-[1em] ml-[1px] align-middle"
-              style={{ backgroundColor: brandColor, animation: "cursorBlink 0.6s step-end infinite" }}
+              style={{
+                backgroundColor: brandColor,
+                animation: "cursorBlink 0.6s step-end infinite",
+              }}
             />
           )}
         </p>
-        {/* Body — only shown after design step */}
-        {showBody && (
-          <p className="text-[11px] leading-relaxed mb-3" style={{ color: "#6b7280" }}>
-            {variant.body}
-          </p>
-        )}
+
+        {/* Body + CTA shown after design step */}
         {showBody && (
           <>
+            <p
+              className="text-[11px] leading-relaxed mb-3"
+              style={{ color: "#6b7280" }}
+            >
+              {variant.body}
+            </p>
             <div
               className="w-full border rounded-[8px] px-2.5 py-2 text-[11px] mb-2"
-              style={{ borderColor: "#e5e7eb", background: "#fafafa", color: "#9ca3af" }}
+              style={{
+                borderColor: "#e5e7eb",
+                background: "#fafafa",
+                color: "#9ca3af",
+              }}
             >
               Your email address
             </div>
@@ -368,7 +393,10 @@ function MiniPopupCard({
             >
               {variant.cta}
             </div>
-            <p className="text-center text-[9px]" style={{ color: "#9ca3af" }}>
+            <p
+              className="text-center text-[9px]"
+              style={{ color: "#9ca3af" }}
+            >
               No spam. Unsubscribe anytime.
             </p>
           </>
@@ -394,7 +422,13 @@ function StepList({ steps }: { steps: GenerationStep[] }) {
           <div className="flex-shrink-0 h-5 w-5 flex items-center justify-center">
             {step.status === "done" ? (
               <svg className="h-4 w-4 text-emerald-500" fill="none" viewBox="0 0 16 16">
-                <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" d="M3 8l3.5 3.5L13 4.5" />
+                <path
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M3 8l3.5 3.5L13 4.5"
+                />
               </svg>
             ) : step.status === "active" ? (
               <div
@@ -403,7 +437,12 @@ function StepList({ steps }: { steps: GenerationStep[] }) {
               />
             ) : step.status === "error" ? (
               <svg className="h-4 w-4 text-red-400" fill="none" viewBox="0 0 16 16">
-                <path stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" d="M3 3l10 10M13 3L3 13" />
+                <path
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  d="M3 3l10 10M13 3L3 13"
+                />
               </svg>
             ) : (
               <div className="h-2 w-2 rounded-full bg-[color:var(--color-border)]" />
@@ -429,14 +468,15 @@ function StepList({ steps }: { steps: GenerationStep[] }) {
 
 export default function GeneratePopupPage() {
   const router = useRouter();
-  const [steps, setSteps] = useState<GenerationStep[]>(BASE_STEPS.map((s) => ({ ...s })));
+  const [steps, setSteps] = useState<GenerationStep[]>(
+    BASE_STEPS.map((s) => ({ ...s })),
+  );
   const [phase, setPhase] = useState<"loading" | "done" | "error">("loading");
   const [errorMsg, setErrorMsg] = useState<string>("");
   const [storeName, setStoreName] = useState("your store");
   const [brandColor, setBrandColor] = useState("#165DFF");
   const [variantA, setVariantA] = useState<PopupVariant | null>(null);
   const [variantB, setVariantB] = useState<PopupVariant | null>(null);
-  const [campaignId, setCampaignId] = useState<string>("");
   const [campaignError, setCampaignError] = useState<string>("");
   const [launching, setLaunching] = useState(false);
 
@@ -452,12 +492,11 @@ export default function GeneratePopupPage() {
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, status } : s)));
   }
 
-  // Typewriter effect for a headline string
+  /** Typewriter: writes headline char-by-char and resolves when complete. */
   function typeHeadline(headline: string): Promise<void> {
     return new Promise((resolve) => {
       let idx = 0;
       setTypewriterText("");
-      // Clear any existing interval
       if (typewriterRef.current) clearInterval(typewriterRef.current);
       typewriterRef.current = setInterval(() => {
         idx++;
@@ -467,7 +506,7 @@ export default function GeneratePopupPage() {
           typewriterRef.current = null;
           resolve();
         }
-      }, 38); // ~38ms per char => ~1s for 26 chars
+      }, 38);
     });
   }
 
@@ -476,16 +515,17 @@ export default function GeneratePopupPage() {
     ranRef.current = true;
 
     async function run() {
-      // ── Read sessionStorage context ──
+      // Read sessionStorage context
       let analyzeData: AnalyzeResult = {};
       let offerType = "percent_discount";
       let offerValue = "10";
-      let triggerValue = "3s";
 
       try {
         const raw = sessionStorage.getItem("asmos_analyze_result");
         if (raw) analyzeData = JSON.parse(raw) as AnalyzeResult;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       try {
         const osRaw = sessionStorage.getItem("asmos_offer_selection");
@@ -494,12 +534,9 @@ export default function GeneratePopupPage() {
           offerType = os.type ?? "percent_discount";
           offerValue = os.value ?? "10";
         }
-        const atRaw = sessionStorage.getItem("asmos_audience_trigger");
-        if (atRaw) {
-          const at = JSON.parse(atRaw) as { audience: string; trigger: string };
-          triggerValue = at.trigger ?? "3s";
-        }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       const name = analyzeData.storeName ?? "My Store";
       const color = analyzeData.brandColor ?? "#165DFF";
@@ -509,8 +546,14 @@ export default function GeneratePopupPage() {
       setStoreName(name);
       setBrandColor(color);
 
-      // Derive variants early so typewriter can start
-      const [varA, varB] = deriveVariants(name, industry, offerType, offerValue, existingPopup);
+      // Derive both variants early (used in typewriter step)
+      const [varA, varB] = deriveVariants(
+        name,
+        industry,
+        offerType,
+        offerValue,
+        existingPopup,
+      );
 
       // ── Step 1: Brand analysis (800ms) ──
       setStepStatus("brand", "active");
@@ -518,16 +561,14 @@ export default function GeneratePopupPage() {
       await delay(800);
       setStepStatus("brand", "done");
 
-      // ── Step 2: Headline writing (typewriter during this step) ──
+      // ── Step 2: Headline generation + typewriter (1200ms min) ──
       setStepStatus("headlines", "active");
       setPreviewPhase("headline");
 
-      // Start typewriter; step advances after it completes or after max 1200ms
       const typePromise = typeHeadline(varA.headline);
       const minWait = delay(1200);
       await Promise.all([typePromise, minWait]);
 
-      // Commit variant data (headline now fully typed)
       setVariantA(varA);
       setVariantB(varB);
       setStepStatus("headlines", "done");
@@ -548,7 +589,10 @@ export default function GeneratePopupPage() {
       setPhase("done");
     }
 
-    run();
+    run().catch((e: unknown) => {
+      setErrorMsg(e instanceof Error ? e.message : "Something went wrong");
+      setPhase("error");
+    });
 
     return () => {
       if (typewriterRef.current) clearInterval(typewriterRef.current);
@@ -562,10 +606,10 @@ export default function GeneratePopupPage() {
     setCampaignError("");
 
     try {
-      // Read trigger from sessionStorage at click time
       let triggerValue = "3s";
       let offerType = "percent_discount";
       let offerValue = "10";
+
       try {
         const atRaw = sessionStorage.getItem("asmos_audience_trigger");
         if (atRaw) {
@@ -578,29 +622,38 @@ export default function GeneratePopupPage() {
           offerType = os.type ?? "percent_discount";
           offerValue = os.value ?? "10";
         }
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
 
       type TriggerPayload =
         | { trigger: "time_delay"; delaySeconds: number }
         | { trigger: "exit_intent"; delaySeconds: null }
-        | { trigger: "scroll_depth"; delaySeconds: null; scrollPercent?: number };
+        | { trigger: "scroll_depth"; delaySeconds: null };
 
       function buildTrigger(tv: string): TriggerPayload {
         switch (tv) {
-          case "5s": return { trigger: "time_delay", delaySeconds: 5 };
-          case "exit": return { trigger: "exit_intent", delaySeconds: null };
-          case "scroll50": return { trigger: "scroll_depth", delaySeconds: null, scrollPercent: 50 };
-          default: return { trigger: "time_delay", delaySeconds: 3 };
+          case "5s":
+            return { trigger: "time_delay", delaySeconds: 5 };
+          case "exit":
+            return { trigger: "exit_intent", delaySeconds: null };
+          case "scroll50":
+            return { trigger: "scroll_depth", delaySeconds: null };
+          default:
+            return { trigger: "time_delay", delaySeconds: 3 };
         }
       }
 
-      function rewardType(ot: string): "DISCOUNT_PERCENT" | "DISCOUNT_FIXED" | "FREE_SHIPPING" | "COUPON" {
+      function rewardType(
+        ot: string,
+      ): "DISCOUNT_PERCENT" | "DISCOUNT_FIXED" | "FREE_SHIPPING" | "COUPON" {
         if (ot === "fixed_discount") return "DISCOUNT_FIXED";
         if (ot === "free_shipping") return "FREE_SHIPPING";
         return "DISCOUNT_PERCENT";
       }
 
       const triggerPayload = buildTrigger(triggerValue);
+
       const campaignPayload = {
         name: `${storeName} Welcome Series`,
         type: "FORM" as const,
@@ -630,13 +683,14 @@ export default function GeneratePopupPage() {
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string };
+        const body = (await res.json().catch(() => ({}))) as {
+          error?: string;
+        };
         throw new Error(body.error ?? `Request failed: ${res.status}`);
       }
 
-      const data = await res.json() as { campaign: { id: string } };
+      const data = (await res.json()) as { campaign: { id: string } };
       const cId = data.campaign.id;
-      setCampaignId(cId);
 
       // Add variant B (non-fatal)
       await fetch(`/api/campaigns/${cId}/variants`, {
@@ -661,32 +715,34 @@ export default function GeneratePopupPage() {
             },
           ],
         }),
-      }).catch(() => { /* non-fatal */ });
+      }).catch(() => {
+        /* non-fatal */
+      });
 
       router.push(`/campaigns/${cId}`);
     } catch (e) {
-      setCampaignError(e instanceof Error ? e.message : "Something went wrong");
+      setCampaignError(
+        e instanceof Error ? e.message : "Something went wrong",
+      );
       setLaunching(false);
     }
   }
 
-  // ── Derive what to show in the live preview during loading ──
+  // ── Derive live preview state ──
   const previewVisible = previewPhase !== "empty";
-  const showBodyInPreview = previewPhase === "design" || previewPhase === "done" || phase === "done";
-  const headlineForPreview =
-    previewPhase === "headline" ? typewriterText
-    : previewPhase === "brand" ? ""
-    : (variantA?.headline ?? "");
+  const showBodyInPreview =
+    previewPhase === "design" || previewPhase === "done" || phase === "done";
 
   const liveVariantA: PopupVariant = variantA ?? {
     label: "Variant A",
     style: "minimal",
-    headline: headlineForPreview,
+    headline: previewPhase === "headline" ? typewriterText : "",
     body: "",
     cta: "Subscribe",
   };
 
-  const progressPct = (steps.filter((s) => s.status === "done").length / steps.length) * 100;
+  const progressPct =
+    (steps.filter((s) => s.status === "done").length / steps.length) * 100;
 
   return (
     <div className="flex flex-col items-center justify-center px-6 py-16">
@@ -714,15 +770,12 @@ export default function GeneratePopupPage() {
           </p>
         </div>
 
-        {/* ── Loading layout: steps left, live preview right ── */}
+        {/* Loading: steps + live preview side-by-side */}
         {phase === "loading" && (
           <div className="w-full flex flex-col sm:flex-row items-start gap-8">
-            {/* Steps */}
             <div className="flex-shrink-0">
               <StepList steps={steps} />
             </div>
-
-            {/* Live preview */}
             <div className="flex-1 min-w-0 w-full max-w-[220px] sm:max-w-none mx-auto">
               {previewVisible ? (
                 <MiniPopupCard
@@ -730,7 +783,9 @@ export default function GeneratePopupPage() {
                   brandColor={brandColor}
                   storeName={storeName}
                   visible={previewVisible}
-                  typewriterHeadline={previewPhase === "headline" ? typewriterText : undefined}
+                  typewriterHeadline={
+                    previewPhase === "headline" ? typewriterText : undefined
+                  }
                   showBody={showBodyInPreview}
                 />
               ) : (
@@ -738,7 +793,9 @@ export default function GeneratePopupPage() {
                   className="rounded-[16px] border-2 border-dashed w-full h-40 flex items-center justify-center"
                   style={{ borderColor: "#e5e7eb" }}
                 >
-                  <p className="text-[11px]" style={{ color: "#9ca3af" }}>Preview will appear here</p>
+                  <p className="text-[11px]" style={{ color: "#9ca3af" }}>
+                    Preview will appear here
+                  </p>
                 </div>
               )}
             </div>
@@ -757,7 +814,7 @@ export default function GeneratePopupPage() {
           </div>
         )}
 
-        {/* ── Error state ── */}
+        {/* Error state */}
         {phase === "error" && (
           <div className="w-full max-w-xs flex flex-col items-center gap-4 text-center">
             <StepList steps={steps} />
@@ -773,7 +830,7 @@ export default function GeneratePopupPage() {
           </div>
         )}
 
-        {/* ── Done: two side-by-side variant cards ── */}
+        {/* Done: two side-by-side variant cards */}
         {phase === "done" && variantA && variantB && (
           <div className="w-full flex flex-col gap-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -782,11 +839,16 @@ export default function GeneratePopupPage() {
                 <div className="flex items-center gap-2">
                   <span
                     className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-                    style={{ backgroundColor: brandColor, color: btnTextColor(brandColor) }}
+                    style={{
+                      backgroundColor: brandColor,
+                      color: btnTextColor(brandColor),
+                    }}
                   >
                     A
                   </span>
-                  <span className="text-[11px] text-[color:var(--color-text-secondary)]">{variantA.label}</span>
+                  <span className="text-[11px] text-[color:var(--color-text-secondary)]">
+                    {variantA.label}
+                  </span>
                 </div>
                 <MiniPopupCard
                   variant={variantA}
@@ -797,11 +859,13 @@ export default function GeneratePopupPage() {
                 />
               </div>
 
-              {/* Variant B — slides in after A/B step */}
+              {/* Variant B: slides in */}
               <div
                 className="flex flex-col gap-2"
                 style={{
-                  animation: showVariantB ? "slideInRight 0.45s cubic-bezier(0.22,1,0.36,1) both" : "none",
+                  animation: showVariantB
+                    ? "slideInRight 0.45s cubic-bezier(0.22,1,0.36,1) both"
+                    : "none",
                   opacity: showVariantB ? 1 : 0,
                 }}
               >
@@ -812,7 +876,9 @@ export default function GeneratePopupPage() {
                   >
                     B
                   </span>
-                  <span className="text-[11px] text-[color:var(--color-text-secondary)]">{variantB.label}</span>
+                  <span className="text-[11px] text-[color:var(--color-text-secondary)]">
+                    {variantB.label}
+                  </span>
                 </div>
                 <MiniPopupCard
                   variant={variantB}
@@ -824,11 +890,13 @@ export default function GeneratePopupPage() {
               </div>
             </div>
 
-            {/* Campaign error */}
+            {/* Campaign creation error */}
             {campaignError && (
               <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
                 <p className="text-sm text-amber-700">{campaignError}</p>
-                <p className="text-xs text-amber-600 mt-1">Campaign creation failed. You can still launch from the dashboard after connecting your store.</p>
+                <p className="text-xs text-amber-600 mt-1">
+                  Connect your store from the dashboard and try again.
+                </p>
               </div>
             )}
 
@@ -860,7 +928,8 @@ export default function GeneratePopupPage() {
             </div>
 
             <p className="text-center text-[11px] text-[color:var(--color-text-secondary)]">
-              Asmos will split traffic 50/50 between Variant A and B and optimize automatically.
+              Asmos splits traffic 50/50 between Variant A and B and optimizes
+              automatically.
             </p>
           </div>
         )}
