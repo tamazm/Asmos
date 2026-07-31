@@ -28,7 +28,5 @@ export async function auth() {
 export const authProtect = async () => {
   if (isMock) return;
   const { auth: clerkAuth } = await import("@clerk/nextjs/server");
-  // .protect() lives on the auth function reference itself, not on what
-  // calling auth() resolves to -- same as the proxy.ts middleware usage.
-  return clerkAuth.protect();
+  return (await clerkAuth()).protect();
 };
