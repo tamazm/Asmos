@@ -187,7 +187,7 @@ export function PopupPreview() {
 
                 {/* Sub-copy */}
                 <p className="text-[11.5px] text-gray-500 leading-relaxed mb-3.5">
-                  Join 4,200+ UrbanCraft subscribers for exclusive offers, early drops, and insider deals.
+                  Join 4,200+ UrbanCraft customers and unlock exclusive first-order savings.
                 </p>
 
                 {/* Email field */}
@@ -291,7 +291,7 @@ export function PopupPreview() {
           </div>
           <div>
             <div className="text-[15px] font-black text-gray-900 leading-none tabular-nums">+23%</div>
-            <div className="text-[9.5px] text-gray-500 font-medium mt-0.5">email capture lift</div>
+            <div className="text-[9.5px] text-gray-500 font-medium mt-0.5">avg. revenue lift</div>
           </div>
         </div>
       </div>

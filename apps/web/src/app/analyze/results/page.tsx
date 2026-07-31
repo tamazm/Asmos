@@ -53,48 +53,48 @@ const CHECK_META: CheckMeta[] = [
   {
     key: "popup",
     label: "Email popup",
-    missingHeadline: "Visitors leave without buying — and you never hear from them again",
-    missingBody: "Stores with a high-converting popup capture 4–8% of cold traffic as email subscribers. Without one, every visitor who doesn't buy is gone forever.",
+    missingHeadline: "Visitors leave without buying — and you lose them forever",
+    missingBody: "Stores with a high-converting popup recover 4–8% of visitors who leave without purchasing. Without one, every visitor who doesn't buy on the first visit is lost revenue you'll never get back.",
     foundLabel: "Active",
     impact: "high",
   },
   {
     key: "emailCapture",
     label: "Capture offer",
-    missingHeadline: "No discount or lead magnet — cold traffic has no reason to subscribe",
-    missingBody: "A discount or freebie turns one-time visitors into people you can reach 10x. Without it, you're renting attention you can never use again.",
+    missingHeadline: "No offer — visitors have no reason to buy now or come back later",
+    missingBody: "A discount or freebie converts fence-sitters into buyers and gives you permission to bring them back. Without it, you pay for traffic you can only use once.",
     foundLabel: "Active",
     impact: "high",
   },
   {
     key: "exitIntent",
     label: "Exit-intent recovery",
-    missingHeadline: "70% of your visitors leave without buying or subscribing",
-    missingBody: "Catching the exit moment with the right offer recovers 5–15% of abandoning visitors. Right now that revenue is gone.",
+    missingHeadline: "70% of your visitors leave without buying — nothing brings them back",
+    missingBody: "Catching the exit moment with the right offer turns abandoning visitors into customers. Right now that revenue is gone for good.",
     foundLabel: "Active",
     impact: "high",
   },
   {
     key: "urgency",
     label: "Urgency signals",
-    missingHeadline: "No urgency means shoppers bookmark and never come back",
-    missingBody: "A countdown, low-stock notice, or time-limited offer can double conversion on the same traffic.",
+    missingHeadline: "No urgency: shoppers say they'll come back and spend the money elsewhere",
+    missingBody: "A countdown, low-stock notice, or time-limited offer pushes people to buy now instead of never. Same traffic, more sales.",
     foundLabel: "Present",
     impact: "medium",
   },
   {
     key: "socialProof",
     label: "Social proof",
-    missingHeadline: "No reviews visible — visitors have no reason to trust you",
-    missingBody: "93% of shoppers read reviews before buying. If they can't see that others love your product, they'll find a store where they can.",
+    missingHeadline: "No reviews visible — visitors won't buy without proof others have",
+    missingBody: "93% of shoppers read reviews before handing over money. If first-time visitors can't find social proof, they will buy from someone else.",
     foundLabel: "Present",
     impact: "medium",
   },
   {
     key: "stickyBar",
     label: "Announcement bar",
-    missingHeadline: "Your best offer disappears when visitors scroll",
-    missingBody: "A persistent top bar keeps your shipping offer or discount in view the entire visit.",
+    missingHeadline: "Your best offer disappears the moment visitors scroll",
+    missingBody: "A persistent bar keeps your shipping offer or discount visible the entire visit — the simplest, highest-ROI thing you can add.",
     foundLabel: "Present",
     impact: "low",
   },
@@ -344,13 +344,13 @@ export default function AnalyzeResultsPage() {
               </div>
               <p className="text-base font-bold text-white">Full report is on its way</p>
               <p className="mt-1.5 text-sm text-gray-400 leading-relaxed max-w-xs mx-auto">
-                We emailed your CRO breakdown. Fix every gap above with Asmos for free — takes 3 minutes to get your first popup live.
+                Your revenue breakdown is on its way. Fix every gap with Asmos — takes 3 minutes to get your first popup live and converting.
               </p>
               <button
                 onClick={() => router.push("/sign-up?from=analyze")}
                 className="mt-5 w-full rounded-xl py-3.5 text-sm font-bold text-gray-900 bg-white hover:bg-gray-100 transition-colors"
               >
-                Fix it free with Asmos
+                Start recovering that revenue
               </button>
               <p className="mt-2 text-[11px] text-gray-600">No credit card. Free to start.</p>
             </div>
@@ -359,13 +359,13 @@ export default function AnalyzeResultsPage() {
             <div className="rounded-2xl bg-gray-900 px-5 py-6">
               <p className="text-lg font-extrabold text-white leading-snug">
                 {failedChecks.length > 0
-                  ? `${failedChecks.length} thing${failedChecks.length > 1 ? "s" : ""} are costing you sales right now`
-                  : "Your store is strong. Here's how to go higher."}
+                  ? `${failedChecks.length} gap${failedChecks.length > 1 ? "s" : ""} on your store are leaking revenue right now`
+                  : "Your store is strong. Here's how to push revenue further."}
               </p>
               <p className="mt-1.5 text-sm text-gray-400 leading-relaxed">
                 {failedChecks.length > 0
-                  ? "Get the step-by-step fix for every gap — and a ready-to-publish popup built for your store."
-                  : "Enter your email for the full breakdown."}
+                  ? "Get the step-by-step fix for each one — and a popup built for your brand, ready to publish in minutes."
+                  : "Get the full breakdown and see where you can drive more revenue."}
               </p>
               <form onSubmit={handleEmailSubmit} className="mt-5 space-y-3">
                 <input
@@ -383,7 +383,7 @@ export default function AnalyzeResultsPage() {
                   disabled={emailState === "submitting"}
                   className="w-full rounded-xl py-3.5 text-sm font-bold text-gray-900 bg-white hover:bg-gray-100 transition-colors disabled:opacity-60 active:scale-[0.98]"
                 >
-                  {emailState === "submitting" ? "One moment..." : "Send me the fix"}
+                  {emailState === "submitting" ? "One moment..." : "Show me how to fix it"}
                 </button>
                 <p className="text-center text-[11px] text-gray-600">No spam. Unsubscribe any time.</p>
               </form>
@@ -463,7 +463,7 @@ export default function AnalyzeResultsPage() {
                       <span className="text-[9px] font-bold tracking-[0.08em] uppercase text-gray-400">{result.storeName.toUpperCase()}</span>
                     </div>
                     <h3 className="text-[16px] font-extrabold leading-tight mb-1.5 text-gray-900">Get 10% off your first order</h3>
-                    <p className="text-[12px] text-gray-500 leading-relaxed mb-3">Join {result.storeName} subscribers and get exclusive offers sent just for you.</p>
+                    <p className="text-[12px] text-gray-500 leading-relaxed mb-3">Get 15% off your first order and be the first to hear about new drops and exclusive deals.</p>
                     <div className="border border-gray-200 rounded-lg px-3 py-2 text-[12px] text-gray-400 mb-2 bg-gray-50">Your email address</div>
                     <div className="rounded-lg py-2.5 text-[12px] font-bold text-center text-white mb-2" style={{ backgroundColor: brandColor }}>Claim my 10% discount</div>
                     <div className="flex items-center justify-center gap-3 pt-2 border-t border-gray-100">
