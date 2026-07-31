@@ -59,6 +59,7 @@
   --color-hero-muted:  var(--color-hero-muted);
 
   --font-sans: var(--font-geist);
+  --font-display: var(--font-barlow-condensed);
 }
 
 /* ─── Base ──────────────────────────────────────────────────────────── */
@@ -261,4 +262,64 @@ body {
   --color-surface-sunken: oklch(16% 0.028 258);
   background: var(--color-hero-bg);
   color: var(--color-hero-text);
+}
+
+/* ─── Display font shorthand ─────────────────────────────────────────── */
+.font-display {
+  font-family: var(--font-barlow-condensed), var(--font-geist), system-ui, sans-serif;
+}
+
+/* ─── Bracket animation ──────────────────────────────────────────────── */
+@keyframes strikethrough {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes fadeEliminated {
+  from { opacity: 1; color: var(--color-text-primary); }
+  to   { opacity: 0.35; color: oklch(60% 0.01 255); }
+}
+@keyframes winnerPulse {
+  0%, 100% { box-shadow: 0 0 0 0 oklch(48% 0.255 258 / 0); }
+  50%       { box-shadow: 0 0 0 6px oklch(48% 0.255 258 / 0.18); }
+}
+@keyframes connectorDraw {
+  from { stroke-dashoffset: 80; }
+  to   { stroke-dashoffset: 0; }
+}
+
+.bracket-connector {
+  stroke-dasharray: 80;
+  stroke-dashoffset: 80;
+  animation: connectorDraw 0.6s var(--ease-out-expo) forwards;
+}
+.bracket-winner {
+  animation: winnerPulse 2s ease-in-out infinite;
+}
+.bracket-eliminated {
+  animation: fadeEliminated 0.5s var(--ease-out-expo) forwards;
+}
+.bracket-strike {
+  transform-origin: left center;
+  animation: strikethrough 0.4s var(--ease-out-expo) forwards;
+}
+
+/* ─── Pull-quote ─────────────────────────────────────────────────────── */
+.pull-quote-mark {
+  font-family: var(--font-barlow-condensed), serif;
+  font-size: clamp(6rem, 12vw, 10rem);
+  line-height: 0.7;
+  font-weight: 900;
+  color: var(--color-primary);
+  opacity: 0.12;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* ─── Stat ticker ────────────────────────────────────────────────────── */
+@keyframes tickUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.stat-tick {
+  animation: tickUp 0.4s var(--ease-out-expo) both;
 }
