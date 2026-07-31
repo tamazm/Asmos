@@ -58,7 +58,7 @@ export function OnboardingProgress() {
                 {/* Double-Bezel step bubble */}
                 {(done || active) ? (
                   <div
-                    className="rounded-[0.625rem] p-0.5 bg-[color:var(--color-primary)]/15 transition-all duration-200"
+                    className="rounded-[0.625rem] p-0.5 bg-[color:var(--color-primary)]/15 transition-[background-color] duration-200"
                     aria-current={active ? "step" : undefined}
                   >
                     <div className="flex h-7 w-7 items-center justify-center rounded-[0.5rem] bg-[color:var(--color-primary)] text-white text-xs font-semibold">
@@ -85,7 +85,7 @@ export function OnboardingProgress() {
                   </div>
                 ) : (
                   <div
-                    className="flex h-8 w-8 items-center justify-center rounded-[0.625rem] bg-[color:var(--color-neutral-badge)] text-[color:var(--color-text-secondary)] text-xs font-semibold transition-all duration-200"
+                    className="flex h-8 w-8 items-center justify-center rounded-[0.625rem] bg-[color:var(--color-neutral-badge)] text-[color:var(--color-text-secondary)] text-xs font-semibold transition-[background-color] duration-200"
                     aria-hidden={pending ? "true" : undefined}
                   >
                     {index + 1}
