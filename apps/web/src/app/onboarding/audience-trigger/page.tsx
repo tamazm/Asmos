@@ -87,7 +87,7 @@ export default function AudienceTriggerPage() {
     } catch {
       // ignore
     }
-    router.push("/onboarding/connect-store");
+    router.push("/onboarding/consent");
   }
 
   return (

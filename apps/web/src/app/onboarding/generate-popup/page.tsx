@@ -272,7 +272,7 @@ export default function GeneratePopupPage() {
           headline: offerType === "percent_discount"
             ? `${name}'s best-kept secret: ${offerValue || "10"}% off`
             : offerType === "free_shipping"
-            ? `Free shipping — no minimum order`
+            ? `Free shipping: no minimum order`
             : baseHeadline,
           body: `Thousands of customers already save with ${name}. Join them: your discount waits inside.`,
           cta: offerType === "free_shipping" ? "Unlock free shipping" : `Unlock my ${offerValue || "10"}% off`,
@@ -286,12 +286,12 @@ export default function GeneratePopupPage() {
           varA = {
             label: "Direct offer",
             headline: "Get free shipping on your order",
-            body: `Shop ${name} today with complimentary shipping — no minimum required.`,
+            body: `Shop ${name} today with complimentary shipping. No minimum required.`,
             cta: "Get free shipping",
           };
           varB = {
             label: "Scarcity angle",
-            headline: `Free shipping — limited time offer`,
+            headline: `Free shipping, limited time`,
             body: `New to ${name}? Your free shipping offer expires soon. Don't miss it.`,
             cta: "Lock in free shipping",
           };
@@ -305,7 +305,7 @@ export default function GeneratePopupPage() {
           varB = {
             label: "Community angle",
             headline: `Win big with ${name}`,
-            body: `Our biggest giveaway yet. Drop your email to enter — winner announced this month.`,
+            body: `Our biggest giveaway yet. Drop your email to enter. Winner announced this month.`,
             cta: "I want to win",
           };
         } else if (isLuxury) {
