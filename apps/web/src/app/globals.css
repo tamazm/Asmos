@@ -164,6 +164,19 @@ body {
   transform: translateY(0);
 }
 
+/* Eager variant — fires earlier, used for key product visuals */
+.reveal-eager {
+  opacity: 0;
+  transform: translateY(12px);
+  transition:
+    opacity 500ms var(--ease-out-expo),
+    transform 500ms var(--ease-out-expo);
+}
+.reveal-eager.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .reveal-stagger > * {
   opacity: 0;
   transform: translateY(16px);
@@ -180,6 +193,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .reveal,
+  .reveal-eager,
   .reveal-stagger > *,
   .hero-word {
     opacity: 1;
