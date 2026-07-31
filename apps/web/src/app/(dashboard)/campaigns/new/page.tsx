@@ -701,10 +701,8 @@ function Step5Review({ state }: { state: WizardState }) {
       </div>
 
       <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Copy preview</p>
-        <ReviewRow label="Headline" value={state.design.headline} />
-        <ReviewRow label="Body" value={state.design.body} />
-        <ReviewRow label="CTA" value={state.design.ctaText} />
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Popup preview</p>
+        <PopupPreview state={state} />
       </div>
 
       <div className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-success-bg)] bg-[color:var(--color-success-bg)] px-4 py-3">
