@@ -113,8 +113,8 @@ export default async function CampaignsListPage() {
             {
               header: "Status",
               render: (row) => (
-                <Badge variant={row.status === "ACTIVE" ? "success" : "neutral"}>
-                  {row.status}
+                <Badge variant={row.status === "ACTIVE" ? "success" : row.status === "PAUSED" ? "warning" : "neutral"}>
+                  {row.status === "ACTIVE" ? "Active" : row.status === "PAUSED" ? "Paused" : row.status.charAt(0).toUpperCase() + row.status.slice(1).toLowerCase()}
                 </Badge>
               ),
             },

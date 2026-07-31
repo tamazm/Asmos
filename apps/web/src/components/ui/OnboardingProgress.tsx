@@ -16,6 +16,7 @@ const STEPS = [
       "/onboarding/offer-selection",
       "/onboarding/audience-trigger",
       "/onboarding/consent",
+      "/onboarding/testing-strategy",
     ],
   },
   {
@@ -25,6 +26,10 @@ const STEPS = [
   {
     label: "Your Popup",
     matchPaths: ["/onboarding/generate-popup"],
+  },
+  {
+    label: "Launch",
+    matchPaths: ["/onboarding/launch-confirmation"],
   },
 ];
 

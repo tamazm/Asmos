@@ -83,7 +83,7 @@ const NAV_ITEMS = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ businessName }: { businessName?: string }) {
   const pathname = usePathname();
 
   return (
@@ -125,7 +125,22 @@ export function Sidebar() {
       </nav>
 
       {/* Footer hint — Double-Bezel callout */}
-      <div className="px-3 py-3 border-t border-[color:var(--color-border)]">
+      <div className="px-3 py-3 border-t border-[color:var(--color-border)] flex flex-col gap-2.5">
+        {/* Workspace section */}
+        {businessName && (
+          <div className="flex items-center gap-2 px-1 py-1">
+            <div
+              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[6px] text-[10px] font-bold text-white"
+              style={{ backgroundColor: "#165DFF" }}
+              aria-hidden="true"
+            >
+              {businessName.charAt(0).toUpperCase()}
+            </div>
+            <span className="truncate text-xs font-medium text-[color:var(--color-text-primary)]">
+              {businessName}
+            </span>
+          </div>
+        )}
         {/* Outer shell */}
         <div className="rounded-[1rem] border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary-light)] p-1">
           {/* Inner core */}

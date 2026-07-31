@@ -29,7 +29,7 @@ export default function ConsentSetupPage() {
         throw new Error(body.error ?? "Could not save consent settings");
       }
       onboardingStepCompleted(3, "consent");
-      router.push("/onboarding/connect-store");
+      router.push("/onboarding/testing-strategy");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {

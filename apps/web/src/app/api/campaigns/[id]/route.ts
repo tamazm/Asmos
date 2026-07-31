@@ -4,6 +4,34 @@ import { prisma } from "@/lib/prisma";
 import { after } from "next/server";
 import { dispatchWebhook } from "@/lib/webhook";
 
+export async function GET(
+  _request: Request,
+  ctx: RouteContext<"/api/campaigns/[id]">,
+) {
+  const { userId } = await auth();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await ctx.params;
+  const account = await getOrCreateAccount();
+  const campaign = await prisma.campaign.findFirst({
+    where: { id, accountId: account.id },
+    include: {
+      variants: {
+        select: { id: true, name: true, isControl: true, design: true },
+        orderBy: { createdAt: "asc" },
+      },
+    },
+  });
+
+  if (!campaign) {
+    return Response.json({ error: "Campaign not found" }, { status: 404 });
+  }
+
+  return Response.json({ campaign });
+}
+
 export async function PATCH(
   request: Request,
   ctx: RouteContext<"/api/campaigns/[id]">,

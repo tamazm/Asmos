@@ -5,8 +5,32 @@ export function StatCard({
 }: {
   label: string;
   value: string;
-  trend?: { value: string; positive: boolean };
+  /** Optional trend indicator shown below the main value. */
+  trend?: {
+    value: string;
+    direction: "up" | "down" | "neutral";
+    /** Optional label suffix, e.g. "vs last week" */
+    label?: string;
+  };
 }) {
+  const trendColor =
+    trend?.direction === "up"
+      ? "text-[color:var(--color-success)]"
+      : trend?.direction === "down"
+      ? "text-red-500"
+      : "text-[color:var(--color-text-secondary)]";
+
+  const trendIcon =
+    trend?.direction === "up" ? (
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+        <path d="M5 1.5L8.5 5M5 1.5L1.5 5M5 1.5V8.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ) : trend?.direction === "down" ? (
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+        <path d="M5 8.5L1.5 5M5 8.5L8.5 5M5 8.5V1.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ) : null;
+
   return (
     /* Double-Bezel outer shell */
     <div className="rounded-[1.25rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5 shadow-sm transition-shadow duration-300 hover:shadow-md">
@@ -22,19 +46,16 @@ export function StatCard({
           <p className="text-2xl font-bold tabular-nums text-[color:var(--color-text-primary)]">
             {value}
           </p>
-          {trend && (
-            <span
-              className={
-                trend.positive
-                  ? "text-xs font-medium text-[color:var(--color-success)]"
-                  : "text-xs font-medium text-red-500"
-              }
-            >
-              {trend.positive ? "+" : ""}
-              {trend.value}
-            </span>
-          )}
         </div>
+        {trend && (
+          <div className={`mt-1.5 flex items-center gap-1 ${trendColor}`}>
+            {trendIcon}
+            <span className="text-xs font-medium">
+              {trend.value}
+              {trend.label ? ` ${trend.label}` : ""}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );

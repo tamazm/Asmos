@@ -19,7 +19,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-[color:var(--color-surface-sunken)]">
-      <Sidebar />
+      <Sidebar businessName={account.name} />
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6">

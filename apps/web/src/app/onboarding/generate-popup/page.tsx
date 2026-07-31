@@ -497,7 +497,7 @@ export default function GeneratePopupPage() {
             {/* CTA */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <button
-                onClick={() => router.push(`/campaigns/${campaignId}`)}
+                onClick={() => router.push(`/onboarding/launch-confirmation?campaign=${campaignId}`)}
                 className="rounded-xl px-6 py-3 text-sm font-bold text-white transition-colors hover:opacity-90"
                 style={{ backgroundColor: brandColor }}
               >
