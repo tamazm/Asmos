@@ -159,7 +159,7 @@ export function AnalyzeClient() {
                 return (
                   <div
                     key={i}
-                    className={`flex items-center gap-3 transition-all duration-300 ${
+                    className={`flex items-center gap-3 transition-opacity duration-300 ${
                       done ? "opacity-40" : active ? "opacity-100" : "opacity-20"
                     }`}
                   >

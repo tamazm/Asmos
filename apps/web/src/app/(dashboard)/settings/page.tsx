@@ -84,9 +84,9 @@ export default async function SettingsPage() {
               { feature: "Price", starter: "$29", growth: "$79", scale: "$199" },
               { feature: "Campaigns", starter: "3", growth: "10", scale: "Unlimited" },
               { feature: "Impressions/mo", starter: "10k", growth: "100k", scale: "1M" },
-              { feature: "A/B testing", starter: "—", growth: "Yes", scale: "Yes" },
-              { feature: "AI optimization", starter: "—", growth: "Yes", scale: "Yes" },
-              { feature: "API access", starter: "—", growth: "—", scale: "Yes" },
+              { feature: "A/B testing", starter: "No", growth: "Yes", scale: "Yes" },
+              { feature: "AI optimization", starter: "No", growth: "Yes", scale: "Yes" },
+              { feature: "API access", starter: "No", growth: "No", scale: "Yes" },
               { feature: "Support", starter: "Email", growth: "Priority", scale: "Dedicated" },
             ].map((row, i) => (
               <tr key={row.feature} className={i % 2 === 0 ? "bg-[color:var(--color-surface)]" : "bg-[color:var(--color-surface-sunken)]/40"}>

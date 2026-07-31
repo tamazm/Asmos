@@ -216,7 +216,7 @@ export function PerformanceTable({ variants }: { variants: VariantStat[] }) {
             header: "Last 24h",
             render: () => (
               <span className="text-xs text-[color:var(--color-text-secondary)]">
-                &ndash;
+                N/A
               </span>
             ),
           },

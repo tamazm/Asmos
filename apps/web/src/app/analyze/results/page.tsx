@@ -304,7 +304,7 @@ export default function AnalyzeResultsPage() {
           <div className="mt-4 flex items-center gap-2">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-black/5">
               <div
-                className="h-full rounded-full transition-all duration-700"
+                className="h-full rounded-full transition-[width] duration-700"
                 style={{
                   width: `${(passedCount / checks.length) * 100}%`,
                   backgroundColor: gradeColor,
@@ -386,7 +386,7 @@ export default function AnalyzeResultsPage() {
               <div className="relative mx-4 mb-4">
                 {/* Widget v2-quality popup preview */}
                 <div
-                  className="rounded-[20px] bg-white overflow-hidden transition-all duration-700"
+                  className="rounded-[20px] bg-white overflow-hidden transition-[filter] duration-700"
                   style={{
                     filter: emailState === "sent" ? "none" : "blur(5px)",
                     pointerEvents: "none",

@@ -32,8 +32,8 @@ const GOALS = [
 
 const TRAFFIC_RANGES = [
   { value: "lt_1k", label: "Less than 1k/mo" },
-  { value: "1k_10k", label: "1k – 10k/mo" },
-  { value: "10k_100k", label: "10k – 100k/mo" },
+  { value: "1k_10k", label: "1k to 10k/mo" },
+  { value: "10k_100k", label: "10k to 100k/mo" },
   { value: "gt_100k", label: "100k+/mo" },
 ];
 

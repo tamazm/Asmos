@@ -111,7 +111,7 @@ function StepList({ steps }: { steps: GenerationStep[] }) {
         <div
           key={step.id}
           className={[
-            "flex items-center gap-3 transition-all duration-300",
+            "flex items-center gap-3 transition-opacity duration-300",
             step.status === "pending" ? "opacity-25" : "opacity-100",
           ].join(" ")}
         >
