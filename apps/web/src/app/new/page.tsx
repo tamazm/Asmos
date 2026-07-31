@@ -39,26 +39,26 @@ export default async function NewLandingPage() {
     <div className="flex min-h-[100dvh] flex-col bg-[color:var(--color-surface)]">
 
       {/* ── Header ──────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 border-b border-[color:var(--color-hero-border)] bg-[color:var(--color-hero-bg)]/90 backdrop-blur-sm">
+      <header className="sticky top-0 z-20 border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)]/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
           <Image
-            src="/assets/asmos-logo-primary-darkbg.webp"
+            src="/assets/asmos-logo-primary-lightbg.webp"
             alt="Asmos"
             width={110}
             height={28}
             priority
             className="h-8 w-auto"
           />
-          <nav className="hidden items-center gap-6 text-sm font-medium text-[color:var(--color-hero-muted)] sm:flex">
-            <Link href="#how-it-works" className="transition-colors duration-200 hover:text-[color:var(--color-hero-text)]">
+          <nav className="hidden items-center gap-6 text-sm font-medium text-[color:var(--color-text-secondary)] sm:flex">
+            <Link href="#how-it-works" className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]">
               How it works
             </Link>
-            <Link href="/pricing" className="transition-colors duration-200 hover:text-[color:var(--color-hero-text)]">
+            <Link href="/pricing" className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]">
               Pricing
             </Link>
           </nav>
           <div className="flex items-center gap-3 text-sm font-medium">
-            <Link href="/sign-in" className="hidden text-[color:var(--color-hero-muted)] transition-colors duration-200 hover:text-[color:var(--color-hero-text)] sm:block">
+            <Link href="/sign-in" className="hidden text-[color:var(--color-text-secondary)] transition-colors duration-200 hover:text-[color:var(--color-text-primary)] sm:block">
               Log in
             </Link>
             <Link href="/sign-up" className="rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
@@ -68,14 +68,14 @@ export default async function NewLandingPage() {
         </div>
       </header>
 
-      {/* ── Hero — dark, typographic, but product-clear ──────────────── */}
-      <section className="hero-dark relative px-5 pt-14 pb-20 sm:pt-20 sm:pb-28 overflow-hidden">
+      {/* ── Hero ─────────────────────────────────────────────────────── */}
+      <section className="relative px-5 pt-14 pb-20 sm:pt-20 sm:pb-28 overflow-hidden bg-[color:var(--color-surface)]">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(ellipse 70% 60% at 65% 50%, oklch(35% 0.16 258 / 0.15) 0%, transparent 70%)",
+              "radial-gradient(ellipse 70% 60% at 65% 50%, oklch(35% 0.16 258 / 0.06) 0%, transparent 70%)",
           }}
         />
 
@@ -89,7 +89,7 @@ export default async function NewLandingPage() {
               </p>
 
               <h1
-                className="font-display mb-5 text-[clamp(2.8rem,6.5vw,5rem)] leading-[0.93] font-black tracking-tight text-[color:var(--color-hero-text)] uppercase animate-page-enter-delay-1"
+                className="font-display mb-5 text-[clamp(2.8rem,6.5vw,5rem)] leading-[0.93] font-black tracking-tight text-[color:var(--color-text-primary)] uppercase animate-page-enter-delay-1"
                 style={{ textWrap: "balance" } as React.CSSProperties}
               >
                 Turn visitors into buyers.
@@ -98,14 +98,14 @@ export default async function NewLandingPage() {
               </h1>
 
               <p
-                className="mb-7 text-base sm:text-lg text-[color:var(--color-hero-muted)] leading-relaxed max-w-[460px] animate-page-enter-delay-2"
+                className="mb-7 text-base sm:text-lg text-[color:var(--color-text-secondary)] leading-relaxed max-w-[460px] animate-page-enter-delay-2"
                 style={{ textWrap: "pretty" } as React.CSSProperties}
               >
-                Paste your Shopify store URL. Asmos reads your brand in seconds, builds a popup that captures emails and drives sales, then keeps testing variants until it converts as well as it possibly can.
+                Paste your store URL. Asmos reads your brand, builds a branded popup, and keeps testing until it converts as well as it can — all on its own.
               </p>
 
               <div className="animate-page-enter-delay-2">
-                <HomepageForm dark />
+                <HomepageForm />
               </div>
 
               <div className="mt-6 flex items-center gap-5 animate-page-enter-delay-3">
@@ -118,21 +118,21 @@ export default async function NewLandingPage() {
                   ].map((a) => (
                     <span
                       key={a.l}
-                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[color:var(--color-hero-bg)] text-[10px] font-bold text-white"
+                      className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-[color:var(--color-surface)] text-[10px] font-bold text-white"
                       style={{ background: a.bg }}
                     >
                       {a.l}
                     </span>
                   ))}
                 </div>
-                <p className="text-sm text-[color:var(--color-hero-muted)]">
-                  <span className="font-semibold text-[color:var(--color-hero-text)]">1,800+ stores</span>{" "}
+                <p className="text-sm text-[color:var(--color-text-secondary)]">
+                  <span className="font-semibold text-[color:var(--color-text-primary)]">1,800+ stores</span>{" "}
                   growing with Asmos
                 </p>
               </div>
             </div>
 
-            {/* Right: popup preview — the product, made concrete */}
+            {/* Right: popup preview */}
             <div className="flex justify-center lg:justify-end animate-page-enter-delay-2 mt-10 lg:mt-0">
               <PopupPreview />
             </div>
@@ -141,7 +141,7 @@ export default async function NewLandingPage() {
       </section>
 
       {/* ── Stats bar ───────────────────────────────────────────────── */}
-      <div className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)]">
+      <div className="border-y border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)]">
         <div className="mx-auto max-w-6xl px-5 py-5 reveal-stagger">
           <dl className="grid grid-cols-2 sm:flex sm:flex-row items-center justify-center gap-5 sm:gap-12">
             {[
@@ -173,10 +173,10 @@ export default async function NewLandingPage() {
             className="font-display mb-3 text-[clamp(1.8rem,3.5vw,2.8rem)] font-black uppercase tracking-tight text-[color:var(--color-text-primary)] reveal"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            More sales from the traffic you already have.
+            More sales from traffic you already have.
           </h2>
           <p className="text-sm text-[color:var(--color-text-secondary)] mb-12 sm:mb-16 max-w-sm reveal">
-            No templates to wrestle with. No designer required. Just paste your store URL.
+            No templates. No designer. Just paste your URL.
           </p>
 
           <div className="relative reveal-stagger">
@@ -193,20 +193,20 @@ export default async function NewLandingPage() {
                 {
                   n: "01",
                   title: "Paste your store URL",
-                  body: "We scan your brand colors, tone, and existing offers in under 10 seconds. No account needed yet.",
+                  body: "We read your brand colors, tone, and offers in under 10 seconds. No account needed.",
                   callout: "Brand-matched in seconds",
                 },
                 {
                   n: "02",
-                  title: "Get a popup built for your brand",
-                  body: "Asmos builds a popup matched to your brand, offer, and audience. Live preview before you commit to anything.",
+                  title: "Get a popup built for your store",
+                  body: "Asmos builds a popup that matches your brand and offer. You see a live preview before signing up.",
                   callout: "Live preview, no signup required",
                 },
                 {
                   n: "03",
-                  title: "It keeps converting more, automatically",
-                  body: "Once live, Asmos tests multiple versions and shifts traffic to the one driving the most sales. No weekly check-ins needed.",
-                  callout: "No manual A/B setup needed",
+                  title: "It keeps getting better on its own",
+                  body: "Once live, Asmos tests multiple versions and sends more traffic to whichever one is converting best. No manual work.",
+                  callout: "No A/B setup needed",
                 },
               ].map((item) => (
                 <div key={item.n} className="flex flex-col gap-4">
@@ -253,14 +253,14 @@ export default async function NewLandingPage() {
                 className="mb-8 text-sm text-[color:var(--color-text-secondary)] leading-relaxed max-w-sm"
                 style={{ textWrap: "pretty" } as React.CSSProperties}
               >
-                Asmos captures those visitors before they go. Then it keeps testing which offer, headline, and timing drives the most sales — and shifts budget to the winner automatically. No spreadsheets. No guessing.
+                Asmos captures those visitors before they go — then keeps testing which offer and timing drives the most sales, automatically shifting to the winner. No spreadsheets, no guessing.
               </p>
               <ul className="space-y-3">
                 {[
                   "Captures visitors who would have left empty-handed",
                   "Adapts to device, time of day, and traffic source",
-                  "Stops wasting impressions on underperforming variants early",
-                  "Full history of every test — see exactly what drove results",
+                  "Stops wasting impressions on weak variants early",
+                  "Full history of every test — see exactly what worked",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-3 text-sm text-[color:var(--color-text-secondary)]">
                     <Check />
@@ -278,7 +278,7 @@ export default async function NewLandingPage() {
                     <path d="M3 7h8m0 0L7.5 3.5M11 7L7.5 10.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </Link>
-                <p className="mt-2.5 text-xs text-[color:var(--color-text-secondary)]">Free to start, no credit card.</p>
+                <p className="mt-2.5 text-xs text-[color:var(--color-text-secondary)]">Free to start. No credit card.</p>
               </div>
             </div>
 
@@ -286,9 +286,9 @@ export default async function NewLandingPage() {
             <div className="space-y-px reveal-stagger">
               {[
                 { metric: "+23%", label: "Average revenue lift in the first 30 days" },
-                { metric: "8x", label: "More versions tested per campaign vs any manual A/B tool" },
+                { metric: "8x", label: "More variants tested per campaign vs manual A/B" },
                 { metric: "~60s", label: "From store URL to a live branded popup" },
-                { metric: "0", label: "Manual tweaks required. It runs itself." },
+                { metric: "0", label: "Manual tweaks needed. It runs itself." },
               ].map((item) => (
                 <div
                   key={item.metric}
@@ -308,7 +308,7 @@ export default async function NewLandingPage() {
       </section>
 
       {/* ── Knockout — the differentiator, explained plainly ─────────── */}
-      <section className="hero-dark px-5 py-16 sm:py-24 border-b border-[color:var(--color-hero-border)] overflow-hidden">
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)] overflow-hidden">
         <div className="mx-auto max-w-6xl">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-12 items-center">
             <div className="reveal">
@@ -316,7 +316,7 @@ export default async function NewLandingPage() {
                 How the testing works
               </p>
               <h2
-                className="font-display mb-5 text-[clamp(1.8rem,3.5vw,2.8rem)] font-black uppercase leading-[1.0] tracking-tight text-[color:var(--color-hero-text)]"
+                className="font-display mb-5 text-[clamp(1.8rem,3.5vw,2.8rem)] font-black uppercase leading-[1.0] tracking-tight text-[color:var(--color-text-primary)]"
                 style={{ textWrap: "balance" } as React.CSSProperties}
               >
                 Other tools run all variants equally.
@@ -324,23 +324,20 @@ export default async function NewLandingPage() {
                 <span className="text-[color:var(--color-primary)]">Asmos cuts the losers and doubles down on what works.</span>
               </h2>
               <p
-                className="mb-6 text-base text-[color:var(--color-hero-muted)] leading-relaxed max-w-[420px]"
+                className="mb-6 text-base text-[color:var(--color-text-secondary)] leading-relaxed max-w-[420px]"
                 style={{ textWrap: "pretty" } as React.CSSProperties}
               >
-                Standard A/B testing splits traffic 50/50 and waits weeks for a winner. Asmos uses a tournament model: variants compete in real time, underperformers lose traffic automatically, and the winner gets everything. You see more conversions from day one, not just at the end.
+                Standard A/B testing splits traffic 50/50 and waits weeks. Asmos runs a tournament: variants compete in real time, underperformers lose traffic, the winner gets everything. More conversions from day one, not just at the end.
               </p>
               <ul className="space-y-3">
                 {[
                   "Up to 8 popup variants per campaign",
-                  "Traffic shifts toward the winner automatically, in real time",
-                  "No manual winner declarations or check-ins",
-                  "Full bracket history showing exactly why each variant won or lost",
+                  "Traffic shifts toward the winner automatically",
+                  "No manual winner declarations",
+                  "Full bracket history showing why each variant won or lost",
                 ].map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm text-[color:var(--color-hero-muted)]">
-                    <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-0.5 text-[color:var(--color-primary)]">
-                      <circle cx="7" cy="7" r="7" fill="currentColor" opacity="0.15" />
-                      <path d="M4 7l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
+                  <li key={item} className="flex items-start gap-3 text-sm text-[color:var(--color-text-secondary)]">
+                    <Check />
                     <span>{item}</span>
                   </li>
                 ))}
@@ -348,14 +345,14 @@ export default async function NewLandingPage() {
             </div>
 
             <div className="flex justify-center reveal">
-              <KnockoutBracketPreview variant="dark" animated />
+              <KnockoutBracketPreview animated />
             </div>
           </div>
         </div>
       </section>
 
       {/* ── Testimonials ────────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)]">
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-b border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--color-text-secondary)] text-center reveal">
             From store owners
@@ -370,21 +367,21 @@ export default async function NewLandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 reveal-stagger">
             {[
               {
-                quote: "We went from converting 2.1% of visitors to 5.8% in three weeks. The popup just kept improving on its own.",
+                quote: "We went from 2.1% to 5.8% conversion in three weeks. The popup just kept improving on its own.",
                 name: "Sara M.",
                 role: "Owner, apparel brand",
                 initial: "S",
                 color: "#a78bfa",
               },
               {
-                quote: "Set it up in under 5 minutes. Didn't touch it for a month. Sales from returning customers were up 31% compared to before.",
+                quote: "Set it up in 5 minutes. Didn't touch it for a month. Sales from returning customers were up 31%.",
                 name: "Dmitri V.",
                 role: "Marketing lead, home goods store",
                 initial: "D",
                 color: "#34d399",
               },
               {
-                quote: "The brand-match is genuinely impressive. First popup looked like we designed it ourselves — and it started converting on day one.",
+                quote: "The brand match is genuinely impressive. First popup looked like we designed it — and it converted on day one.",
                 name: "Priya K.",
                 role: "Founder, skincare brand",
                 initial: "P",
@@ -393,7 +390,7 @@ export default async function NewLandingPage() {
             ].map((t) => (
               <figure
                 key={t.name}
-                className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-7 flex flex-col gap-5"
+                className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-7 flex flex-col gap-5"
               >
                 <div className="flex gap-0.5" aria-label="5 stars">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -429,7 +426,7 @@ export default async function NewLandingPage() {
       </section>
 
       {/* ── Pricing ─────────────────────────────────────────────────── */}
-      <section id="pricing" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-b border-[color:var(--color-border)]">
+      <section id="pricing" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface)] border-b border-[color:var(--color-border)]">
         <div className="mx-auto max-w-5xl">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-[color:var(--color-primary)] reveal">
             Pricing
@@ -438,14 +435,14 @@ export default async function NewLandingPage() {
             className="font-display mb-3 text-[clamp(1.8rem,3.5vw,2.8rem)] font-black uppercase tracking-tight text-[color:var(--color-text-primary)] reveal"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            Start free. Upgrade when you outgrow it.
+            Start free. Upgrade when you&apos;re ready.
           </h2>
           <p className="text-sm text-[color:var(--color-text-secondary)] mb-10 sm:mb-14 max-w-xs reveal">
-            The free plan doesn&apos;t expire. No credit card, no trial clock.
+            Free plan doesn&apos;t expire. No credit card, no trial clock.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl reveal-stagger">
-            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-8 flex flex-col">
+            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-8 flex flex-col">
               <div className="mb-7">
                 <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)] mb-3">Starter</p>
                 <div className="flex items-baseline gap-1.5">
@@ -492,19 +489,19 @@ export default async function NewLandingPage() {
         </div>
       </section>
 
-      {/* ── Final CTA — dark ─────────────────────────────────────────── */}
-      <section className="hero-dark px-5 py-16 sm:py-24">
+      {/* ── Final CTA ────────────────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-b border-[color:var(--color-border)]">
         <div className="mx-auto max-w-2xl text-center reveal">
           <h2
-            className="font-display mb-4 text-[clamp(2.2rem,5vw,4rem)] font-black uppercase leading-[0.95] tracking-tight text-[color:var(--color-hero-text)]"
+            className="font-display mb-4 text-[clamp(2.2rem,5vw,4rem)] font-black uppercase leading-[0.95] tracking-tight text-[color:var(--color-text-primary)]"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            See how much revenue your store is leaving on the table.
+            See how much your store could be making.
           </h2>
-          <p className="mb-8 text-sm text-[color:var(--color-hero-muted)] max-w-sm mx-auto">
-            Paste your store URL. We&apos;ll scan it and show you a popup built to convert — before you create an account.
+          <p className="mb-8 text-sm text-[color:var(--color-text-secondary)] max-w-sm mx-auto">
+            Paste your store URL. We&apos;ll show you a popup built for your brand — before you create an account.
           </p>
-          <HomepageForm dark />
+          <HomepageForm />
         </div>
       </section>
 
