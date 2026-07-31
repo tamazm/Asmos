@@ -34,7 +34,7 @@ const VARIANTS = [
 // 3: C eliminated, A wins
 
 const PHASES = [0, 1, 2, 3];
-const PHASE_DURATIONS = [700, 700, 700, 1000]; // ms per phase
+const PHASE_DURATIONS = [1400, 900, 900, 1200]; // ms per phase
 
 function useAnimationPhase(autoPlay: boolean) {
   const [phase, setPhase] = useState(0);
@@ -52,15 +52,15 @@ function useAnimationPhase(autoPlay: boolean) {
         timerRef.current = setTimeout(() => {
           currentPhase = 0;
           setPhase(0);
-          timerRef.current = setTimeout(advance, 400);
-        }, 2000);
+          timerRef.current = setTimeout(advance, 1000);
+        }, 2400);
         return;
       }
       setPhase(currentPhase);
-      timerRef.current = setTimeout(advance, PHASE_DURATIONS[currentPhase] ?? 700);
+      timerRef.current = setTimeout(advance, PHASE_DURATIONS[currentPhase] ?? 900);
     }
 
-    timerRef.current = setTimeout(advance, 300);
+    timerRef.current = setTimeout(advance, 1000);
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
@@ -96,7 +96,7 @@ function VariantRow({
   return (
     <div
       style={{
-        transition: `opacity 350ms ease ${delay}ms, transform 350ms ease ${delay}ms`,
+        transition: `opacity 500ms ease ${delay}ms, transform 500ms ease ${delay}ms`,
         opacity: eliminated ? 0.3 : 1,
         transform: eliminated ? "scale(0.97)" : "scale(1)",
       }}
@@ -262,7 +262,7 @@ function TrafficBar({
             style={{
               width: `${pct}%`,
               background: colors[i],
-              transition: "width 500ms cubic-bezier(0.16, 1, 0.3, 1)",
+              transition: "width 800ms cubic-bezier(0.16, 1, 0.3, 1)",
               opacity: phase === 3 && i !== 0 ? 0.35 : 1,
               borderRadius: i === 0 ? "4px 0 0 4px" : i === alloc.length - 1 ? "0 4px 4px 0" : 0,
             }}
