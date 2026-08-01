@@ -27,7 +27,7 @@ export default async function CampaignInsightsPage(props: {
     orderBy: { createdAt: "desc" },
   });
 
-  const insightRows: InsightRow[] = insights.map((insight) => ({
+  const insightRows: InsightRow[] = insights.map((insight: any) => ({
     id: insight.id,
     summary: insight.summary,
     suggestedVariant: insight.suggestedVariant as InsightRow["suggestedVariant"],
