@@ -36,11 +36,11 @@ export default async function CampaignInsightsPage(props: {
 
   // Compute compact campaign stats
   const totalImpressions = campaign.variants.reduce(
-    (sum, v) => sum + v.events.filter((e) => e.type === "IMPRESSION").length,
+    (sum: number, v: any) => sum + v.events.filter((e: any) => e.type === "IMPRESSION").length,
     0,
   );
   const totalSubmissions = campaign.variants.reduce(
-    (sum, v) => sum + v.events.filter((e) => e.type === "SUBMISSION").length,
+    (sum: number, v: any) => sum + v.events.filter((e: any) => e.type === "SUBMISSION").length,
     0,
   );
   const overallCvr =

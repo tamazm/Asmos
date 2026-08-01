@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import type { GeneratedCampaign } from "@/lib/campaignGeneration";
 import type { Prisma } from "@/generated/prisma/client";
 import type { PopupSpec } from "@/lib/popupGeneration";
+import { inngest } from "@/lib/inngest/client";
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -105,6 +106,14 @@ export async function POST(request: Request) {
     },
     include: { variants: true },
   });
+
+  if (isGeneratingAI) {
+    // Send background task to Inngest instead of waiting for a cron
+    await inngest.send({
+      name: "campaign.generate",
+      data: { campaignId: created.id },
+    });
+  }
 
   return Response.json({ campaign: created });
 }

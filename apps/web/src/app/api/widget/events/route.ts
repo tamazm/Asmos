@@ -45,8 +45,23 @@ export async function POST(request: Request) {
     after(async () => {
       try {
         await recomputeCampaignAllocation(variantId);
+        
+        // Evaluate knockout bracket every 1000 impressions
+        if (eventType === "IMPRESSION") {
+          const variant = await prisma.variant.findUnique({ where: { id: variantId } });
+          if (variant) {
+            const impressions = await prisma.campaignEvent.count({
+              where: { variant: { campaignId: variant.campaignId }, type: "IMPRESSION" }
+            });
+            
+            if (impressions > 0 && impressions % 1000 === 0) {
+              const { inngest } = await import("@/lib/inngest/client");
+              await inngest.send({ name: "campaign.evaluate", data: { campaignId: variant.campaignId } });
+            }
+          }
+        }
       } catch (err) {
-        console.error("[bandit] allocation recompute failed", err);
+        console.error("[bandit/inngest] background task failed", err);
       }
     });
   }

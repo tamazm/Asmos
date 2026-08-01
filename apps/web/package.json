@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "dev": "next dev",
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
     "lint": "eslint"
@@ -16,6 +15,7 @@
     "@google/genai": "^2.13.0",
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.0",
+    "inngest": "^4.14.0",
     "next": "16.2.10",
     "pg": "^8.22.0",
     "posthog-js": "^1.408.0",
