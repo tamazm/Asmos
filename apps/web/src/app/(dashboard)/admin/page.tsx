@@ -48,7 +48,7 @@ export default async function AdminDashboardPage() {
     <div className="flex flex-col gap-8 p-6 lg:p-10 max-w-[1400px] mx-auto w-full">
       <PageHeader 
         title="Superadmin Dashboard"
-        action={
+        actions={
           <Link href="/admin/logs" className="rounded-lg bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 transition-colors">
             View Error Logs →
           </Link>
