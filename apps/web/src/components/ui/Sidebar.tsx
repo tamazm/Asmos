@@ -107,6 +107,21 @@ export function Sidebar({ businessName, userEmail }: { businessName?: string; us
         {NAV_ITEMS.map((item) => {
           const active =
             pathname === item.href || pathname?.startsWith(`${item.href}/`);
+          
+          let displayLabel = item.label;
+          if (active && pathname && pathname !== item.href) {
+            const parts = pathname.replace(item.href, "").split("/").filter(Boolean);
+            if (parts.length > 0) {
+              if (parts.length === 1) {
+                displayLabel = `${item.label} / Overview`;
+              } else {
+                const subPage = parts[parts.length - 1];
+                const capitalized = subPage.charAt(0).toUpperCase() + subPage.slice(1);
+                displayLabel = `${item.label} / ${capitalized}`;
+              }
+            }
+          }
+
           return (
             <Link
               key={item.href}
@@ -120,7 +135,7 @@ export function Sidebar({ businessName, userEmail }: { businessName?: string; us
               aria-current={active ? "page" : undefined}
             >
               {item.icon}
-              {item.label}
+              <span className="truncate">{displayLabel}</span>
               {active && (
                 <span
                   className="ml-auto h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)] flex-shrink-0"
