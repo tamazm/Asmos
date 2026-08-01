@@ -15,6 +15,10 @@ import { anthropic } from "@/lib/anthropic";
 import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 import { confidenceVsControl } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
+import {
+  BedrockRuntimeClient,
+  InvokeModelCommand,
+} from "@aws-sdk/client-bedrock-runtime";
 
 
 
@@ -23,6 +27,9 @@ const POSTHOG_PERSONAL_API_KEY = process.env.POSTHOG_PERSONAL_API_KEY ?? "";
 const POSTHOG_PROJECT_ID = process.env.POSTHOG_PROJECT_ID ?? "";
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com";
 const HAS_ANTHROPIC_KEY = Boolean(process.env.ANTHROPIC_API_KEY);
+const HAS_AWS_KEY = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+const AWS_REGION = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "eu-central-1";
+const BEDROCK_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -532,11 +539,58 @@ async function generateWithGemini(input: PopupGenerationInput): Promise<PopupGen
   return call.args as PopupGenerationOutput;
 }
 
+// ─── Generation — Bedrock (primary when AWS keys present) ────────────────────
+
+async function generateWithBedrock(input: PopupGenerationInput): Promise<PopupGenerationOutput> {
+  const client = new BedrockRuntimeClient({ region: AWS_REGION });
+
+  // Bedrock uses the same Anthropic message format but via InvokeModel
+  const bedrockBody = {
+    anthropic_version: "bedrock-2023-05-31",
+    max_tokens: 8000,
+    system: POPUP_GENERATION_SYSTEM_PROMPT,
+    tools: [GENERATE_POPUP_TOOL],
+    tool_choice: { type: "any" },
+    messages: [
+      {
+        role: "user",
+        content: `Generate a popup design for this store. Return the result by calling generate_popup.\n\n${JSON.stringify(input, null, 2)}`,
+      },
+    ],
+  };
+
+  const cmd = new InvokeModelCommand({
+    modelId: BEDROCK_MODEL,
+    body: new TextEncoder().encode(JSON.stringify(bedrockBody)),
+    contentType: "application/json",
+    accept: "application/json",
+  });
+
+  const raw = await client.send(cmd);
+  const response = JSON.parse(new TextDecoder().decode(raw.body)) as {
+    content: Array<{ type: string; name?: string; input?: unknown }>;
+  };
+
+  const toolUse = response.content.find(
+    (block) => block.type === "tool_use" && block.name === "generate_popup",
+  );
+
+  if (!toolUse) {
+    throw new Error("[popupGeneration] Bedrock did not call generate_popup tool");
+  }
+
+  return toolUse.input as PopupGenerationOutput;
+}
+
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export async function generatePopupWithVariants(
   input: PopupGenerationInput,
 ): Promise<PopupGenerationOutput> {
+  // Provider priority: Bedrock (AWS) → Anthropic direct → Gemini
+  if (HAS_AWS_KEY) {
+    return generateWithBedrock(input);
+  }
   if (HAS_ANTHROPIC_KEY) {
     return generateWithClaude(input);
   }
