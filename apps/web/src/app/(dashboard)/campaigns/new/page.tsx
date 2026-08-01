@@ -454,7 +454,7 @@ export default function NewCampaignAutonomous() {
                   disabled={isWorking}
                   className="flex-1 rounded-lg bg-[color:var(--color-primary)] py-3 text-sm font-bold text-white transition-[background-color,transform,opacity] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.98] disabled:opacity-60"
                 >
-                  {phase === "publishing" ? (
+                  {isWorking ? (
                     <span className="flex items-center justify-center gap-2">
                       <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
                       Publishing…
