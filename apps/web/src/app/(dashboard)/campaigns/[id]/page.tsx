@@ -46,8 +46,8 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
       <div className="flex flex-col gap-6 p-6 lg:p-10 max-w-[1400px] mx-auto w-full">
         <PageHeader 
           title={campaign.name} 
-          subtitle="Campaign generation in progress"
         />
+        <p className="text-sm text-[color:var(--color-text-secondary)] mt-[-1rem]">Campaign generation in progress</p>
         <div className="flex flex-col items-center justify-center gap-6 py-20">
           <div className="relative flex h-24 w-24 items-center justify-center">
             <span className="absolute inline-block h-24 w-24 rounded-full border border-[color:var(--color-primary)] opacity-20 animate-ping" />

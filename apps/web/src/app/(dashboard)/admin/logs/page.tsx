@@ -28,7 +28,8 @@ export default async function AdminLogsPage() {
           <span>/</span>
           <span className="text-[color:var(--color-text-primary)] font-medium">System Logs</span>
         </div>
-        <PageHeader title="System Error Logs" subtitle="Recent application errors and background task failures." />
+        <PageHeader title="System Error Logs" />
+        <p className="mt-2 text-sm text-[color:var(--color-text-secondary)]">Recent application errors and background task failures.</p>
       </div>
 
       <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm overflow-hidden">
