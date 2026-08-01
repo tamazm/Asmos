@@ -135,12 +135,17 @@ export async function GET(request: Request) {
           });
         }
 
-        // Update campaign status
+        // Update campaign status and increment aiGenerationsCount
         await tx.campaign.update({
           where: { id: campaign.id },
           data: {
             status: "ACTIVE",
             lastError: null,
+            account: {
+              update: {
+                aiGenerationsCount: { increment: 1 }
+              }
+            }
           }
         });
       });

@@ -35,6 +35,19 @@ export async function POST(request: Request) {
     );
   }
 
+  // Spend Protection Check
+  const isGeneratingAI = body.status === "GENERATING" || Boolean(body.popupSpec?.spec);
+  if (isGeneratingAI) {
+    const limits: Record<string, number> = { FREE: 3, STARTER: 10, GROWTH: 50, SCALE: 250 };
+    const max = limits[account.planTier] ?? 3;
+    if (account.aiGenerationsCount >= max) {
+      return Response.json(
+        { error: `You have reached your AI generation limit (${max}) for the ${account.planTier} plan. Please upgrade your plan to generate more variants.` },
+        { status: 403 }
+      );
+    }
+  }
+
   // When a popup spec is provided (from /analyze flow), use it to seed the control variant
   const hasPopupSpec = Boolean(body.popupSpec?.spec);
   const spec = body.popupSpec?.spec;

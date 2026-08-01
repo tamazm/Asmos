@@ -120,6 +120,14 @@ export async function GET(request: Request) {
       const slotsAvailable = maxVariants - activeVariants.length;
       if (slotsAvailable <= 0) continue;
 
+      // Spend Protection Check
+      const limits: Record<string, number> = { FREE: 3, STARTER: 10, GROWTH: 50, SCALE: 250 };
+      const maxGenerations = limits[planTier] ?? 3;
+      if (campaign.account.aiGenerationsCount >= maxGenerations) {
+        console.log(`[cron/knockout] campaign ${campaign.id}: account reached AI generation limit (${maxGenerations})`);
+        continue;
+      }
+
       // ── Fetch analytics for this campaign ──
       const analyticsVariants: AnalyticsVariant[] = await fetchVariantAnalytics(campaign.id);
 
@@ -254,7 +262,13 @@ export async function GET(request: Request) {
           },
         });
 
-        // ── Create dashboard Notification ──
+        // Increment account generation limit usage
+        await prisma.account.update({
+          where: { id: campaign.accountId },
+          data: { aiGenerationsCount: { increment: 1 } },
+        });
+
+        // 🔔 Create dashboard Notification 🔔
         const firstVariant = variantsToCreate[0];
         if (firstVariant) {
           await prisma.notification.create({

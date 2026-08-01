@@ -88,6 +88,9 @@ model Account {
 
   onboardingCompletedAt DateTime?
 
+  aiGenerationsCount Int      @default(0)
+  billingCycleStart  DateTime @default(now())
+
   webhookUrl     String? // outbound webhook endpoint
   webhookSecret  String? // HMAC-SHA256 signing secret (customer sets this, we sign with it)
   webhookEnabled Boolean @default(false)
@@ -318,4 +321,14 @@ model AnalyzeLead {
 
   @@index([email])
   @@index([createdAt])
+}
+
+model RateLimit {
+  id        String   @id @default(cuid())
+  ip        String   @unique
+  count     Int      @default(0)
+  resetAt   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([ip])
 }

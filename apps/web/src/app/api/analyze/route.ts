@@ -3,6 +3,7 @@ import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
+import { prisma } from "@/lib/prisma";
 
 // ---------------------------------------------------------------------------
 // POST  /api/analyze
@@ -660,6 +661,29 @@ export async function GET(req: NextRequest) { return handler(req); }
 export async function POST(req: NextRequest) { return handler(req); }
 
 async function handler(req: NextRequest) {
+  const ip = req.ip || req.headers.get("x-forwarded-for") || "unknown";
+  if (ip !== "unknown") {
+    const rateLimit = await prisma.rateLimit.upsert({
+      where: { ip },
+      update: {},
+      create: { ip, resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }
+    });
+
+    if (rateLimit.resetAt < new Date()) {
+      await prisma.rateLimit.update({
+        where: { id: rateLimit.id },
+        data: { count: 1, resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }
+      });
+    } else if (rateLimit.count >= 5) {
+      return NextResponse.json({ error: "Rate limit exceeded. Please try again tomorrow." }, { status: 429 });
+    } else {
+      await prisma.rateLimit.update({
+        where: { id: rateLimit.id },
+        data: { count: { increment: 1 } }
+      });
+    }
+  }
+
   let url: string | null = req.nextUrl.searchParams.get("url");
   if (!url && req.method === "POST") {
     try { url = (await req.json()).url; } catch { /* ignore */ }
