@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
         const { sendReportEmail } = await import("@/lib/email");
         await sendReportEmail({
           to: lead.email,
-          storeName: lead.storeName ?? undefined,
+          storeName: lead.storeName,
           storeUrl: lead.storeUrl,
         });
       } catch (err) {

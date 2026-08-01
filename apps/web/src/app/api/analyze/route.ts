@@ -661,7 +661,7 @@ export async function GET(req: NextRequest) { return handler(req); }
 export async function POST(req: NextRequest) { return handler(req); }
 
 async function handler(req: NextRequest) {
-  const ip = req.ip || req.headers.get("x-forwarded-for") || "unknown";
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   if (ip !== "unknown") {
     const rateLimit = await prisma.rateLimit.upsert({
       where: { ip },

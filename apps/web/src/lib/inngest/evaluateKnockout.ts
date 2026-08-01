@@ -1,5 +1,6 @@
 import { inngest } from "./client";
-import { prisma, type Prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import {
   generatePopupWithVariants,
   fetchVariantAnalytics,
@@ -14,8 +15,7 @@ import {
 } from "@/lib/popupGeneration";
 
 export const evaluateKnockout = inngest.createFunction(
-  { id: "evaluate-knockout" },
-  { event: "campaign.evaluate" },
+  { id: "evaluate-knockout", triggers: { event: "campaign.evaluate" } },
   async ({ event, step }) => {
     const { campaignId } = event.data;
 

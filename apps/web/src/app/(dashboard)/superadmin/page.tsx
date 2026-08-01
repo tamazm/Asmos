@@ -55,7 +55,7 @@ export default async function SuperadminPage() {
                     <div className="text-xs text-[color:var(--color-text-secondary)]">{c.id}</div>
                   </td>
                   <td className="px-4 py-3 max-w-[200px] truncate">
-                    <div className="font-medium text-[color:var(--color-text-primary)]">{c.website?.domain ?? "No Domain"}</div>
+                    <div className="font-medium text-[color:var(--color-text-primary)]">{c.website?.url ?? "No Domain"}</div>
                     <div className="text-xs text-[color:var(--color-text-secondary)]">Acct: {c.accountId}</div>
                   </td>
                   <td className="px-4 py-3">

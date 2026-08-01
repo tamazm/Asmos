@@ -12,8 +12,7 @@ import {
 } from "@/lib/popupGeneration";
 
 export const generateCampaign = inngest.createFunction(
-  { id: "generate-campaign" },
-  { event: "campaign.generate" },
+  { id: "generate-campaign", triggers: { event: "campaign.generate" } },
   async ({ event, step }) => {
     const { campaignId } = event.data;
 
@@ -48,7 +47,7 @@ export const generateCampaign = inngest.createFunction(
     });
 
     const category = typeof context.industry === "string" ? context.industry : "Ecommerce / Retail";
-    let storeUrl = typeof context.storeUrl === "string" ? context.storeUrl : "unknown.com";
+    const storeUrl = typeof context.storeUrl === "string" ? context.storeUrl : "unknown.com";
     let domain = storeUrl;
     try { domain = new URL(storeUrl).hostname.replace(/^www\./, ""); } catch {}
 
