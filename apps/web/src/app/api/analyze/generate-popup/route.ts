@@ -10,6 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 import {
   generatePopupWithVariants,
   buildPopupInput,
@@ -21,23 +22,6 @@ import {
   type ComputedStyles,
 } from "@/lib/popupGeneration";
 
-// ─── Simple in-memory rate limiter (per IP, resets on cold start) ─────────────
-const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-const RATE_LIMIT = 5;
-const RATE_WINDOW_MS = 60_000;
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return false;
-  }
-  if (entry.count >= RATE_LIMIT) return true;
-  entry.count++;
-  return false;
-}
-
 // ─── Simple in-memory cache (per domain, 1h TTL) ──────────────────────────────
 type CacheEntry = { result: unknown; expiresAt: number };
 const popupCache = new Map<string, CacheEntry>();
@@ -46,13 +30,32 @@ const CACHE_TTL_MS = 60 * 60_000; // 1 hour
 // ─── Handler ──────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  // Rate limit by IP
+  // Rate limit by IP using Database to prevent Serverless cold-start bypass
   const ip =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??
     "unknown";
-  if (isRateLimited(ip)) {
-    return NextResponse.json({ error: "Rate limit exceeded — try again in a minute" }, { status: 429 });
+
+  if (ip !== "unknown") {
+    const rateLimit = await prisma.rateLimit.upsert({
+      where: { ip },
+      update: {},
+      create: { ip, resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }
+    });
+
+    if (rateLimit.resetAt < new Date()) {
+      await prisma.rateLimit.update({
+        where: { id: rateLimit.id },
+        data: { count: 1, resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }
+      });
+    } else if (rateLimit.count >= 15) { // Allow up to 15 generations per day per IP pre-signup
+      return NextResponse.json({ error: "Rate limit exceeded. Please try again tomorrow." }, { status: 429 });
+    } else {
+      await prisma.rateLimit.update({
+        where: { id: rateLimit.id },
+        data: { count: { increment: 1 } }
+      });
+    }
   }
 
   let body: Record<string, unknown>;
