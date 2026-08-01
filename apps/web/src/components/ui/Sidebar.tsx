@@ -83,8 +83,10 @@ const NAV_ITEMS = [
   },
 ];
 
-export function Sidebar({ businessName }: { businessName?: string }) {
+export function Sidebar({ businessName, userEmail }: { businessName?: string; userEmail?: string | null }) {
   const pathname = usePathname();
+
+  const isSuperadmin = userEmail === "zaridzezurabi@gmail.com" || userEmail === "test@asmos.dev";
 
   return (
     <aside className="flex h-full w-56 flex-shrink-0 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
@@ -128,6 +130,25 @@ export function Sidebar({ businessName }: { businessName?: string }) {
             </Link>
           );
         })}
+        {isSuperadmin && (
+          <Link
+            href="/admin"
+            className={cn(
+              "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200 mt-4",
+              pathname === "/admin"
+                ? "bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
+                : "text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]",
+            )}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 2L14 5V11L8 14L2 11V5L8 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M8 14V8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M14 5L8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M2 5L8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Superadmin
+          </Link>
+        )}
       </nav>
 
       {/* Footer hint — Double-Bezel callout */}

@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { NotificationBell } from "@/components/ui/NotificationBell";
 import { getOrCreateAccount } from "@/lib/account";
-import { authProtect } from "@/lib/auth-adapter";
+import { authProtect, currentUser } from "@/lib/auth-adapter";
 
 export default async function DashboardLayout({
   children,
@@ -17,9 +17,12 @@ export default async function DashboardLayout({
     redirect("/onboarding");
   }
 
+  const user = await currentUser();
+  const userEmail = user?.primaryEmailAddress?.emailAddress;
+
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-[color:var(--color-surface-sunken)]">
-      <Sidebar businessName={account.name} />
+      <Sidebar businessName={account.name} userEmail={userEmail} />
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}
         <header className="flex h-14 shrink-0 items-center justify-end border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6">
