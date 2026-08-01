@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 
+
 interface CheckItem {
   found: boolean;
   description: string;
@@ -38,7 +39,45 @@ interface AnalyzeResult {
     hasUrgency: boolean;
     hasABTest: boolean;
   };
+  // Popup generation engine fields
+  brandTokens?: {
+    palette: string[];
+    type_display: string;
+    type_body: string;
+    imagery_style: string;
+    signature_element_suggestion: string;
+  };
+  existingPopup?: {
+    captured: boolean;
+    extracted_copy: { headline: string; subhead: string; cta: string };
+    extracted_structure: { trigger_guess: string; fields: string[]; layout: string };
+  };
+  computedStyles?: {
+    colors_in_use: string[];
+    font_stack: string[];
+    common_border_radius: string;
+  };
 }
+
+interface GeneratedPopup {
+  mode: "IMPROVE_EXISTING" | "CREATE_NEW";
+  baseline: {
+    popup_id: string;
+    diagnosis: Array<{ lever: string; change: string; reason: string }>;
+    spec: {
+      trigger: string;
+      frequency_cap: string;
+      headline: string;
+      subhead: string;
+      cta: string;
+      fields: string[];
+      design_tokens: { palette: string[]; type_display: string; type_body: string };
+    };
+    code: string;
+  };
+  tracking_events: { shown: string; dismissed: string; converted: string };
+}
+
 
 interface CheckMeta {
   key: keyof AnalyzeResult | string;
@@ -164,6 +203,8 @@ export default function AnalyzeResultsPage() {
   const [emailState, setEmailState] = useState<"idle" | "submitting" | "sent">("idle");
   const [emailError, setEmailError] = useState("");
   const emailInputRef = useRef<HTMLInputElement>(null);
+  const [generatedPopup, setGeneratedPopup] = useState<GeneratedPopup | null>(null);
+  const [popupGenerating, setPopupGenerating] = useState(false);
 
   useEffect(() => {
     const raw = sessionStorage.getItem("asmos_analyze_result");
@@ -175,8 +216,31 @@ export default function AnalyzeResultsPage() {
         setResult(data);
         if (captured) setEmailState("sent");
       });
+
+      // Kick off popup generation in the background — don't block the page render
+      const cachedPopup = sessionStorage.getItem("asmos_generated_popup");
+      if (cachedPopup) {
+        try { setGeneratedPopup(JSON.parse(cachedPopup)); } catch { /* ignore */ }
+      } else {
+        setPopupGenerating(true);
+        fetch("/api/analyze/generate-popup", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: raw,
+        })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((popup) => {
+            if (popup?.baseline) {
+              sessionStorage.setItem("asmos_generated_popup", JSON.stringify(popup));
+              setGeneratedPopup(popup as GeneratedPopup);
+            }
+          })
+          .catch(() => { /* silent — fallback renders without AI popup */ })
+          .finally(() => setPopupGenerating(false));
+      }
     } catch { router.replace("/"); }
   }, [router]);
+
 
   const handleEmailSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
@@ -438,42 +502,57 @@ export default function AnalyzeResultsPage() {
           </section>
         )}
 
-        {/* ─────────────── 5. POPUP PREVIEW (blurred teaser) ─────────────── */}
+        {/* ─────────────── 5. POPUP PREVIEW (AI-generated, blurred teaser) ─────────────── */}
         {result.screenshotBase64 && (
           <section className="fi-4">
             <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
               Your Asmos popup
             </h2>
             <div className="relative overflow-hidden rounded-2xl border border-gray-100 bg-white">
-              {/* Popup mockup */}
+
+              {/* Popup content area */}
               <div
                 className="p-4 transition-[filter] duration-700"
                 style={{ filter: emailState === "sent" ? "none" : "blur(6px)", pointerEvents: "none", userSelect: "none" }}
               >
-                <div className="rounded-[18px] overflow-hidden shadow-xl mx-auto max-w-[280px]">
-                  <div className="h-1" style={{ backgroundColor: brandColor }} />
-                  <div className="bg-white px-5 pt-4 pb-5">
-                    <div className="flex justify-end mb-2">
-                      <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
-                        <svg width="7" height="7" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" /></svg>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 mb-3">
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: brandColor }} />
-                      <span className="text-[9px] font-bold tracking-[0.08em] uppercase text-gray-400">{result.storeName.toUpperCase()}</span>
-                    </div>
-                    <h3 className="text-[16px] font-extrabold leading-tight mb-1.5 text-gray-900">Get 10% off your first order</h3>
-                    <p className="text-[12px] text-gray-500 leading-relaxed mb-3">Get 15% off your first order and be the first to hear about new drops and exclusive deals.</p>
-                    <div className="border border-gray-200 rounded-lg px-3 py-2 text-[12px] text-gray-400 mb-2 bg-gray-50">Your email address</div>
-                    <div className="rounded-lg py-2.5 text-[12px] font-bold text-center text-white mb-2" style={{ backgroundColor: brandColor }}>Claim my 10% discount</div>
-                    <div className="flex items-center justify-center gap-3 pt-2 border-t border-gray-100">
-                      {["No spam", "Unsubscribe anytime"].map(l => (
-                        <span key={l} className="text-[9px] text-gray-400">{l}</span>
-                      ))}
+                {popupGenerating && !generatedPopup ? (
+                  /* Skeleton loader while AI generates */
+                  <div className="mx-auto max-w-[280px] rounded-[18px] overflow-hidden shadow-xl animate-pulse">
+                    <div className="h-1 bg-gray-200" />
+                    <div className="bg-white px-5 pt-4 pb-5 space-y-3">
+                      <div className="h-3 w-3/4 bg-gray-100 rounded" />
+                      <div className="h-6 w-full bg-gray-100 rounded" />
+                      <div className="h-4 w-full bg-gray-100 rounded" />
+                      <div className="h-4 w-5/6 bg-gray-100 rounded" />
+                      <div className="h-9 w-full bg-gray-200 rounded-lg" />
+                      <div className="h-9 w-full bg-gray-100 rounded-lg" />
                     </div>
                   </div>
-                </div>
+                ) : generatedPopup?.baseline?.code ? (
+                  /* Real AI-generated popup HTML */
+                  <div
+                    className="mx-auto max-w-[300px]"
+                    dangerouslySetInnerHTML={{ __html: generatedPopup.baseline.code }}
+                  />
+                ) : (
+                  /* Spec-based fallback popup (no AI code available) */
+                  <SpecPopup
+                    headline={generatedPopup?.baseline?.spec?.headline ?? "Get 10% off your first order"}
+                    subhead={generatedPopup?.baseline?.spec?.subhead ?? "Join our list and be the first to know about new drops and exclusive deals."}
+                    cta={generatedPopup?.baseline?.spec?.cta ?? "Claim my discount"}
+                    storeName={result.storeName}
+                    primaryColor={generatedPopup?.baseline?.spec?.design_tokens?.palette?.[0] ?? brandColor}
+                  />
+                )}
               </div>
+
+              {/* AI badge — visible after unlock */}
+              {emailState === "sent" && generatedPopup && (
+                <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-gray-900/80 px-2.5 py-1 backdrop-blur-sm">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                  <span className="text-[10px] font-medium text-white">AI-generated for {result.storeName}</span>
+                </div>
+              )}
 
               {/* Lock overlay — only if email not submitted */}
               {emailState !== "sent" && (
@@ -484,8 +563,14 @@ export default function AnalyzeResultsPage() {
                       <path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
                     </svg>
                   </div>
-                  <p className="text-sm font-bold text-gray-900">Popup ready to publish</p>
-                  <p className="text-xs text-gray-500">Enter your email above to unlock it</p>
+                  <p className="text-sm font-bold text-gray-900">
+                    {popupGenerating ? "Generating your popup..." : "Popup ready to publish"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {popupGenerating
+                      ? "AI is designing a branded popup for your store"
+                      : "Enter your email above to unlock it"}
+                  </p>
                 </div>
               )}
 
@@ -509,3 +594,45 @@ export default function AnalyzeResultsPage() {
     </div>
   );
 }
+
+// ─── Spec-based fallback popup (when AI code is unavailable) ─────────────────
+function SpecPopup({
+  headline,
+  subhead,
+  cta,
+  storeName,
+  primaryColor,
+}: {
+  headline: string;
+  subhead: string;
+  cta: string;
+  storeName: string;
+  primaryColor: string;
+}) {
+  return (
+    <div className="rounded-[18px] overflow-hidden shadow-xl mx-auto max-w-[280px]">
+      <div className="h-1" style={{ backgroundColor: primaryColor }} />
+      <div className="bg-white px-5 pt-4 pb-5">
+        <div className="flex justify-end mb-2">
+          <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+            <svg width="7" height="7" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 mb-3">
+          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: primaryColor }} />
+          <span className="text-[9px] font-bold tracking-[0.08em] uppercase text-gray-400">{storeName.toUpperCase()}</span>
+        </div>
+        <h3 className="text-[16px] font-extrabold leading-tight mb-1.5 text-gray-900">{headline}</h3>
+        <p className="text-[12px] text-gray-500 leading-relaxed mb-3">{subhead}</p>
+        <div className="border border-gray-200 rounded-lg px-3 py-2 text-[12px] text-gray-400 mb-2 bg-gray-50">Your email address</div>
+        <div className="rounded-lg py-2.5 text-[12px] font-bold text-center text-white mb-2" style={{ backgroundColor: primaryColor }}>{cta}</div>
+        <div className="flex items-center justify-center gap-3 pt-2 border-t border-gray-100">
+          {["No spam", "Unsubscribe anytime"].map(l => (
+            <span key={l} className="text-[9px] text-gray-400">{l}</span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+

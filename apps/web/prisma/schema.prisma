@@ -2,8 +2,9 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "library"
 }
 
 datasource db {
@@ -42,6 +43,13 @@ enum CampaignStatus {
   PAUSED
 }
 
+enum VariantStatus {
+  GENERATING
+  ACTIVE
+  ELIMINATED
+  WINNER
+}
+
 enum RewardType {
   COUPON
   DISCOUNT_PERCENT
@@ -59,18 +67,18 @@ enum CampaignEventType {
 
 // A customer business — the tenant boundary for every other model.
 model Account {
-  id        String   @id @default(cuid())
-  name      String
-  industry  String?
+  id         String   @id @default(cuid())
+  name       String
+  industry   String?
   brandColor String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   // Onboarding profile fields (collected during lean onboarding step 1)
-  ownerRole        String?  // founder | marketer | developer | agency | other
-  conversionGoal   String?  // email_capture | discount | contest | lead_gen
-  monthlyTraffic   String?  // lt_1k | 1k_10k | 10k_100k | gt_100k
-  emailPlatform    String?  // klaviyo | mailchimp | omnisend | none | other
+  ownerRole      String? // founder | marketer | developer | agency | other
+  conversionGoal String? // email_capture | discount | contest | lead_gen
+  monthlyTraffic String? // lt_1k | 1k_10k | 10k_100k | gt_100k
+  emailPlatform  String? // klaviyo | mailchimp | omnisend | none | other
 
   consentGdprEnabled Boolean @default(true)
   consentCcpaEnabled Boolean @default(true)
@@ -78,30 +86,30 @@ model Account {
 
   onboardingCompletedAt DateTime?
 
-  webhookUrl     String?  // outbound webhook endpoint
-  webhookSecret  String?  // HMAC-SHA256 signing secret (customer sets this, we sign with it)
-  webhookEnabled Boolean  @default(false)
+  webhookUrl     String? // outbound webhook endpoint
+  webhookSecret  String? // HMAC-SHA256 signing secret (customer sets this, we sign with it)
+  webhookEnabled Boolean @default(false)
 
   planTier           PlanTier           @default(FREE)
   subscriptionStatus SubscriptionStatus @default(TRIALING)
   stripeCustomerId   String?            @unique
 
-  users      User[]
-  websites   Website[]
-  campaigns  Campaign[]
-  invites    Invite[]
+  users         User[]
+  websites      Website[]
+  campaigns     Campaign[]
+  invites       Invite[]
   notifications Notification[]
 }
 
 model User {
-  id           String   @id @default(cuid())
-  accountId    String
-  account      Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  clerkUserId  String   @unique
-  email        String
-  name         String?
-  role         UserRole @default(MEMBER)
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  clerkUserId String   @unique
+  email       String
+  name        String?
+  role        UserRole @default(MEMBER)
+  createdAt   DateTime @default(now())
 
   @@index([accountId])
 }
@@ -114,14 +122,14 @@ enum InviteStatus {
 
 // A pending teammate invite — becomes a User once the invitee signs up and accepts.
 model Invite {
-  id        String       @id @default(cuid())
-  accountId String
-  account   Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  email     String
-  role      UserRole     @default(MEMBER)
-  token     String       @unique
-  status    InviteStatus @default(PENDING)
-  createdAt DateTime     @default(now())
+  id         String       @id @default(cuid())
+  accountId  String
+  account    Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  email      String
+  role       UserRole     @default(MEMBER)
+  token      String       @unique
+  status     InviteStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
   acceptedAt DateTime?
 
   @@index([accountId])
@@ -129,13 +137,13 @@ model Invite {
 
 // A site the customer has installed the widget on.
 model Website {
-  id               String    @id @default(cuid())
-  accountId        String
-  account          Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  url              String
-  installVerified  Boolean   @default(false)
+  id                String    @id @default(cuid())
+  accountId         String
+  account           Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  url               String
+  installVerified   Boolean   @default(false)
   installVerifiedAt DateTime?
-  createdAt        DateTime  @default(now())
+  createdAt         DateTime  @default(now())
 
   campaigns Campaign[]
 
@@ -143,15 +151,16 @@ model Website {
 }
 
 model Campaign {
-  id        String         @id @default(cuid())
+  id        String  @id @default(cuid())
   accountId String
-  account   Account        @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account   Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
   websiteId String
-  website   Website        @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+  website   Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
 
-  name   String
-  type   CampaignType
-  status CampaignStatus @default(DRAFT)
+  name            String
+  type            CampaignType
+  status          CampaignStatus @default(DRAFT)
+  tournamentRound Int            @default(1)
 
   // Set once a customer manually declares a winner (Phase 3 A/B test flow).
   // When set, the widget always serves this variant regardless of trafficPercent splits.
@@ -161,7 +170,7 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  variants Variant[] @relation("CampaignVariants")
+  variants Variant[]         @relation("CampaignVariants")
   insights CampaignInsight[]
 
   @@index([accountId])
@@ -176,10 +185,12 @@ model Variant {
   campaignId String
   campaign   Campaign @relation("CampaignVariants", fields: [campaignId], references: [id], onDelete: Cascade)
 
-  name           String
+  name            String
   // Fixed-split traffic allocation across a campaign's variants (Phase 3 — no bandit yet).
-  trafficPercent Int     @default(100)
-  isControl      Boolean @default(false)
+  trafficPercent  Int           @default(100)
+  isControl       Boolean       @default(false)
+  status          VariantStatus @default(ACTIVE)
+  tournamentRound Int           @default(1)
 
   // Popup builder output: design, form fields, targeting/trigger rules.
   // Kept as JSON rather than normalized tables — no querying needs beyond
@@ -189,13 +200,22 @@ model Variant {
   formFields Json?
   targeting  Json?
 
+  // Schema-driven popup generation output (lib/popupGeneration.ts).
+  // testAxis is the single lever this variant tests — used by the bandit allocator
+  // and PostHog to attribute conversion deltas without ambiguity.
+  testAxis         String? // "trigger | friction | copy | layout | visual"
+  popupSpec        Json?   // Structured AI popup spec (trigger, headline, subhead, cta, fields, design_tokens)
+  generatedCode    String? @db.Text // AI-generated self-contained HTML/CSS popup code
+  hypothesis       String? // One sentence: what this variant tests and why
+  motivatingMetric String? // Plain-language motivating metric for dashboard display
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  rewards      RewardRule[]
-  leads        Lead[]
-  events       CampaignEvent[]
-  wonCampaign  Campaign?       @relation("CampaignWinner")
+  rewards     RewardRule[]
+  leads       Lead[]
+  events      CampaignEvent[]
+  wonCampaign Campaign?       @relation("CampaignWinner")
 
   @@index([campaignId])
 }
@@ -205,11 +225,11 @@ model RewardRule {
   variantId String
   variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
-  label       String
-  type        RewardType
-  couponCode  String?
+  label      String
+  type       RewardType
+  couponCode String?
   // Win probability weight for game-based popups (wheel/scratch card); ignored for plain forms.
-  weight      Int        @default(1)
+  weight     Int        @default(1)
 
   createdAt DateTime @default(now())
 
@@ -226,7 +246,7 @@ model Lead {
   email String?
   phone String?
 
-  consentGiven Boolean  @default(false)
+  consentGiven Boolean   @default(false)
   consentAt    DateTime?
 
   rewardClaimedCode String?
@@ -258,7 +278,7 @@ model CampaignInsight {
   campaignId String
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
-  summary          String  @db.Text
+  summary          String @db.Text
   suggestedVariant Json?
 
   createdAt DateTime @default(now())
@@ -268,14 +288,14 @@ model CampaignInsight {
 
 // In-app notification bell items
 model Notification {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   accountId String
-  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   title     String
-  body      String   @db.Text
-  href      String?  // optional deep-link
+  body      String    @db.Text
+  href      String? // optional deep-link
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([accountId, createdAt])
 }

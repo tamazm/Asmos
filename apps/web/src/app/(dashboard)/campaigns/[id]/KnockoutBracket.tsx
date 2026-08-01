@@ -22,6 +22,7 @@ type BracketVariant = {
   trend: number[];
   color: string;
   eliminated: boolean;
+  status: string;
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -64,6 +65,29 @@ function VariantPill({
   const ring = highlight
     ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]"
     : "border-[color:var(--color-border)] bg-[color:var(--color-surface)]";
+
+  if (variant.status === "GENERATING") {
+    return (
+      <div className="relative flex h-[62px] items-center gap-3 rounded-xl border border-dashed border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]/30 p-3 opacity-80">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[color:var(--color-primary)]/20 text-[11px] font-bold text-[color:var(--color-primary)]">
+          <svg className="h-4 w-4 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline gap-1.5">
+            <span className="animate-pulse text-sm font-semibold text-[color:var(--color-primary)]">
+              Generating...
+            </span>
+          </div>
+          <p className="animate-pulse truncate text-[10px] text-[color:var(--color-primary)]/80">
+            AI is analyzing {variant.name}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -326,17 +350,10 @@ export function KnockoutBracket({ variants }: { variants: VariantStat[] }) {
       isControl: v.isControl,
       trend: seededTrend(v.id),
       color: resolveColor(v.primaryColor, i),
-      eliminated: false,
+      eliminated: v.status === "ELIMINATED",
+      status: v.status,
     }))
     .sort((a, b) => b.conversionRate - a.conversionRate);
-
-  // Mark bottom half as eliminated when we have enough variants for it to be meaningful
-  if (bracketVariants.length >= 3) {
-    const elimCount = Math.floor(bracketVariants.length / 2);
-    for (let i = bracketVariants.length - elimCount; i < bracketVariants.length; i++) {
-      bracketVariants[i].eliminated = true;
-    }
-  }
 
   const confirmedWinner = bracketVariants.find((v) => v.isWinner);
   const leader = confirmedWinner ?? bracketVariants[0];
@@ -365,8 +382,47 @@ export function KnockoutBracket({ variants }: { variants: VariantStat[] }) {
     color: v.color,
   }));
 
+  const isGenerating = bracketVariants.some(v => v.status === "GENERATING");
+  const activeCount = bracketVariants.filter(v => v.status === "ACTIVE" || v.status === "GENERATING").length;
+  
+  let bannerElement = null;
+  if (confirmedWinner) {
+    bannerElement = (
+      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-800">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-200 text-sm">🎉</span>
+        <p className="text-sm font-medium">Round Complete! {confirmedWinner.name} won and is the new Control.</p>
+      </div>
+    );
+  } else if (isGenerating) {
+    bannerElement = (
+      <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-800">
+        <svg className="h-5 w-5 animate-spin text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p className="text-sm font-medium animate-pulse">AI is generating new challengers for this round...</p>
+      </div>
+    );
+  } else if (activeCount > 1) {
+    bannerElement = (
+      <div className="flex items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-200 text-sm">⚔️</span>
+        <p className="text-sm font-medium">Tournament in progress: Gathering data on {activeCount} variants to determine the winner.</p>
+      </div>
+    );
+  } else {
+    bannerElement = (
+      <div className="flex items-center gap-3 rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-purple-800">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-200 text-sm">⏳</span>
+        <p className="text-sm font-medium">Waiting for traffic or AI to generate new challengers...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
+      {bannerElement}
+      
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>

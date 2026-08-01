@@ -464,12 +464,20 @@ async function heuristicAnalysis(url: string) {
 }
 
 // ---------------------------------------------------------------------------
-// Extract brand metadata from HTML
+// Extract brand metadata from HTML (color, font, border-radius, logo, description)
 // ---------------------------------------------------------------------------
-async function extractBrandMeta(url: string): Promise<{ brandColor: string; logoUrl: string; description: string }> {
+async function extractBrandMeta(url: string): Promise<{
+  brandColor: string;
+  logoUrl: string;
+  description: string;
+  fontStack: string[];
+  commonBorderRadius: string;
+}> {
   let brandColor = "#165DFF";
   let logoUrl = "";
   let description = "";
+  let fontStack: string[] = [];
+  let commonBorderRadius = "8px";
   try {
     const res = await fetch(url, { headers: { "User-Agent": "AsmosBot/1.0" }, signal: AbortSignal.timeout(6000) });
     const html = await res.text();
@@ -502,8 +510,147 @@ async function extractBrandMeta(url: string): Promise<{ brandColor: string; logo
     if (ogImage) logoUrl = ogImage;
     const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i)?.[1];
     if (descMatch) description = descMatch.slice(0, 160);
+
+    // ── Font stack extraction ──────────────────────────────────────────────────
+    // Check Google Fonts link tags first (most reliable signal)
+    const googleFontsMatch = html.match(/fonts\.googleapis\.com\/css[^"']*family=([^"'&]+)/i);
+    if (googleFontsMatch) {
+      const rawFamily = decodeURIComponent(googleFontsMatch[1]).replace(/\+/g, " ").split("|")[0].split(":")[0].trim();
+      if (rawFamily) fontStack = [rawFamily, "sans-serif"];
+    }
+    // CSS --font-* custom properties
+    if (fontStack.length === 0) {
+      const fontVarMatch = html.match(/--(?:font-heading|font-display|font-primary|font-family-heading)\s*:\s*["']?([^;"']+)["']?/i)?.[1];
+      if (fontVarMatch) fontStack = [fontVarMatch.trim()];
+    }
+    // Default to system stack
+    if (fontStack.length === 0) fontStack = ["system-ui", "-apple-system", "sans-serif"];
+
+    // ── Border radius extraction ───────────────────────────────────────────────
+    const radiusVarMatch = html.match(/--(?:border-radius|radius|rounded|corner-radius)\s*:\s*([0-9.]+(?:px|rem|em))/i)?.[1];
+    if (radiusVarMatch) commonBorderRadius = radiusVarMatch;
+
   } catch { /* ignore */ }
-  return { brandColor, logoUrl, description };
+  return { brandColor, logoUrl, description, fontStack, commonBorderRadius };
+}
+
+
+// ---------------------------------------------------------------------------
+// Second AI vision pass: brand tokens + existing popup detection
+// Runs after the CRO pass — uses the same screenshot, separate focused prompt.
+// Returns null on any failure so the main flow degrades gracefully.
+// ---------------------------------------------------------------------------
+const BRAND_TOKENS_PROMPT = `You are a brand design analyst. Look at this e-commerce store screenshot and extract brand identity data plus any popup currently visible on screen.
+
+Return ONLY valid JSON (no markdown, no explanation) with this exact shape:
+{
+  "brand_tokens": {
+    "palette": ["#hex1", "#hex2", "#hex3"],
+    "type_display": "font name or stack used for headings",
+    "type_body": "font name or stack used for body text",
+    "imagery_style": "minimal | editorial | product-forward | lifestyle | luxury",
+    "signature_element_suggestion": "one sentence describing a distinctive visual element from the brand to use in a popup"
+  },
+  "existing_popup": {
+    "captured": true,
+    "extracted_copy": { "headline": "", "subhead": "", "cta": "" },
+    "extracted_structure": { "trigger_guess": "exit-intent | page-load | scroll | unknown", "fields": ["email"], "layout": "modal | slide-in | bar | fullscreen" }
+  }
+}
+
+If no popup is visible, set existing_popup.captured to false and leave extracted_copy/structure as empty strings/arrays.
+For palette: extract 3-6 actual brand colors you see used on the page (not white/black backgrounds unless they are signature brand colors).
+Be precise about font names if you can identify them from visual appearance.`;
+
+interface BrandTokensResult {
+  brand_tokens: {
+    palette: string[];
+    type_display: string;
+    type_body: string;
+    imagery_style: string;
+    signature_element_suggestion: string;
+  };
+  existing_popup: {
+    captured: boolean;
+    extracted_copy: { headline: string; subhead: string; cta: string };
+    extracted_structure: { trigger_guess: string; fields: string[]; layout: string };
+  };
+}
+
+async function extractBrandTokens(base64Jpeg: string): Promise<BrandTokensResult | null> {
+  // Reuse same provider cascade as the CRO pass — Bedrock first, then direct Anthropic, then Gemini
+  try {
+    // Try Bedrock first
+    const client = new BedrockRuntimeClient({ region: AWS_REGION });
+    const body = JSON.stringify({
+      anthropic_version: "bedrock-2023-05-31",
+      max_tokens: 1024,
+      system: BRAND_TOKENS_PROMPT,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64Jpeg } },
+          { type: "text", text: "Extract brand tokens and detect any popup. Return only JSON." },
+        ],
+      }],
+    });
+    const command = new InvokeModelCommand({
+      modelId: BEDROCK_MODEL,
+      body: new TextEncoder().encode(body),
+      contentType: "application/json",
+      accept: "application/json",
+    });
+    const response = await client.send(command);
+    const responseBody = JSON.parse(new TextDecoder().decode(response.body));
+    const text: string = responseBody.content?.[0]?.text ?? "";
+    return parseBrandTokensJSON(text);
+  } catch (bedrockErr) {
+    console.warn("[analyze/brand-tokens] Bedrock failed:", bedrockErr instanceof Error ? bedrockErr.message : bedrockErr);
+  }
+
+  // Fallback: direct Anthropic API
+  if (ANTHROPIC_KEY) {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-haiku-4-5",
+          max_tokens: 1024,
+          system: BRAND_TOKENS_PROMPT,
+          messages: [{
+            role: "user",
+            content: [
+              { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64Jpeg } },
+              { type: "text", text: "Extract brand tokens and detect any popup. Return only JSON." },
+            ],
+          }],
+        }),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return parseBrandTokensJSON(data.content?.[0]?.text ?? "");
+      }
+    } catch (anthropicErr) {
+      console.warn("[analyze/brand-tokens] Anthropic failed:", anthropicErr instanceof Error ? anthropicErr.message : anthropicErr);
+    }
+  }
+
+  return null;
+}
+
+function parseBrandTokensJSON(text: string): BrandTokensResult | null {
+  try {
+    const clean = text.replace(/^```json\s*/im, "").replace(/^```\s*/im, "").replace(/```\s*$/im, "").trim();
+    return JSON.parse(clean) as BrandTokensResult;
+  } catch {
+    const match = text.match(/\{[\s\S]+\}/);
+    if (match) {
+      try { return JSON.parse(match[0]) as BrandTokensResult; } catch { /* fall through */ }
+    }
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -537,7 +684,7 @@ async function handler(req: NextRequest) {
     return NextResponse.json(result);
   }
 
-  // 2. AI analysis — Bedrock → Anthropic → Gemini → heuristic
+  // 2. AI analysis — Bedrock → Anthropic → Gemini → heuristic (CRO pass)
   let aiResult: CROResult | null = null;
   let analysisSource: "bedrock" | "anthropic" | "gemini" | "heuristic" = "bedrock";
 
@@ -559,8 +706,51 @@ async function handler(req: NextRequest) {
     return NextResponse.json({ ...heuristic, screenshotBase64 });
   }
 
-  // 3. Enrich with HTML brand metadata
-  const { brandColor, logoUrl, description } = await extractBrandMeta(normalizedUrl);
+  // 3. Run brand token extraction + HTML meta enrichment in parallel
+  const [brandTokensResult, brandMeta] = await Promise.all([
+    extractBrandTokens(screenshotBase64),
+    extractBrandMeta(normalizedUrl),
+  ]);
+
+  const { brandColor, logoUrl, description, fontStack, commonBorderRadius } = brandMeta;
+
+  // Merge: prefer AI-extracted palette over HTML-extracted color
+  const finalPalette = brandTokensResult?.brand_tokens?.palette?.length
+    ? brandTokensResult.brand_tokens.palette
+    : [brandColor];
+
+  const brandTokens = brandTokensResult?.brand_tokens
+    ? {
+        ...brandTokensResult.brand_tokens,
+        palette: finalPalette,
+        // If AI returned generic fonts, prefer HTML-extracted ones
+        type_body: brandTokensResult.brand_tokens.type_body || fontStack.join(", "),
+        type_display: brandTokensResult.brand_tokens.type_display || fontStack[0] || "system-ui",
+      }
+    : {
+        palette: finalPalette,
+        type_display: fontStack[0] || "system-ui",
+        type_body: fontStack.join(", ") || "system-ui",
+        imagery_style: "minimal",
+        signature_element_suggestion: "subtle brand accent bar at popup top using primary brand color",
+      };
+
+  const existingPopup = brandTokensResult?.existing_popup ?? {
+    captured: aiResult.popup?.found ?? false,
+    screenshot_url: null,
+    extracted_copy: { headline: "", subhead: "", cta: "" },
+    extracted_structure: {
+      trigger_guess: aiResult.popup?.found ? "unknown" : "none",
+      fields: aiResult.popup?.found ? ["email"] : [],
+      layout: aiResult.popup?.description ?? "none",
+    },
+  };
+
+  const computedStyles = {
+    colors_in_use: finalPalette,
+    font_stack: fontStack,
+    common_border_radius: commonBorderRadius,
+  };
 
   return NextResponse.json({
     ...aiResult,
@@ -572,5 +762,10 @@ async function handler(req: NextRequest) {
     storeUrl: normalizedUrl,
     screenshotBase64,
     analysisSource,
+    // ── New fields for popup generation engine ──
+    brandTokens,
+    existingPopup,
+    computedStyles,
   });
 }
+

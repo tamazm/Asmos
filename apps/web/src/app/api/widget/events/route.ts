@@ -69,33 +69,72 @@ export async function POST(request: Request) {
 
     after(async () => {
       try {
-        // Fetch the variant to enrich events with campaign context
+        // Fetch the variant to enrich events with campaign context + popup generation metadata
         const variant = await prisma.variant.findUnique({
           where: { id: variantId },
-          select: { name: true, campaignId: true },
+          select: {
+            name: true,
+            campaignId: true,
+            testAxis: true,
+            hypothesis: true,
+            motivatingMetric: true,
+          },
         });
 
-        await fetch("https://eu.i.posthog.com/capture/", {
+        // Map internal event types to schema-required asmos_popup_* names
+        const asmosEventMap: Partial<Record<EventType, string>> = {
+          IMPRESSION: "asmos_popup_shown",
+          DISMISSED: "asmos_popup_dismissed",
+          SUBMISSION: "asmos_popup_converted",
+        };
+        const asmosEventName = asmosEventMap[eventType];
+
+        const sharedProperties = {
+          // Attribution properties — required by the popup generation schema
+          store_id: variant?.campaignId ? `campaign_${variant.campaignId}` : undefined,
+          campaign_id: variant?.campaignId,
+          popup_id: variant?.campaignId,   // popup_id == campaign_id in current schema
+          variant_id: variantId,
+          variant_name: variant?.name,
+          test_axis: variant?.testAxis,
+          hypothesis: variant?.hypothesis,
+          motivating_metric: variant?.motivatingMetric,
+          // Behavioral context
+          page_url: pageUrl,
+          referrer: referrer,
+          utm_source: utmSource,
+          utm_medium: utmMedium,
+          utm_campaign: utmCampaign,
+          scroll_depth_pct: scrollDepthPct,
+          time_on_page_s: timeOnPageSeconds,
+          dismiss_after_ms: dismissAfterMs,
+          $current_url: pageUrl,
+        };
+
+        // Fire both: legacy widget_* name AND schema-required asmos_popup_* name
+        const events = [
+          {
+            event: `widget_${eventType.toLowerCase()}`,
+            distinct_id: `widget_visitor_${variantId}`,
+            properties: sharedProperties,
+          },
+          // Only fire the asmos_* alias for the three canonical event types
+          ...(asmosEventName
+            ? [{
+                event: asmosEventName,
+                distinct_id: `widget_visitor_${variantId}`,
+                properties: sharedProperties,
+              }]
+            : []),
+        ];
+
+        // Batch-send using PostHog's /batch/ endpoint to minimise round trips
+        await fetch("https://eu.i.posthog.com/batch/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             api_key: posthogKey,
-            event: `widget_${eventType.toLowerCase()}`,
-            distinct_id: `widget_visitor_${variantId}`,
-            properties: {
-              campaign_id: variant?.campaignId,
-              variant_id: variantId,
-              variant_name: variant?.name,
-              page_url: pageUrl,
-              referrer: referrer,
-              utm_source: utmSource,
-              utm_medium: utmMedium,
-              utm_campaign: utmCampaign,
-              scroll_depth_pct: scrollDepthPct,
-              time_on_page_s: timeOnPageSeconds,
-              dismiss_after_ms: dismissAfterMs,
-              $current_url: pageUrl,
-            },
+            batch: events,
           }),
         });
       } catch (err) {
