@@ -1,11 +1,11 @@
-import { authProtect } from "@/lib/auth-adapter";
+import { currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
 async function verifySuperadmin() {
-  const user = await authProtect();
+  const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress;
   if (email !== "zaridzezurabi@gmail.com") {
     redirect("/campaigns");
