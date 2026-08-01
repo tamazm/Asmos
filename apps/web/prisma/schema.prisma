@@ -332,3 +332,12 @@ model RateLimit {
 
   @@index([ip])
 }
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  accountId String?
+  level     String   @default("ERROR")
+  message   String
+  details   String?  @db.Text
+  createdAt DateTime @default(now())
+}

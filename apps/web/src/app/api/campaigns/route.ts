@@ -24,16 +24,23 @@ export async function POST(request: Request) {
   };
 
   const account = await getOrCreateAccount();
-  const website = await prisma.website.findFirst({
+  let website = await prisma.website.findFirst({
     where: { accountId: account.id },
     orderBy: { createdAt: "asc" },
   });
 
   if (!website) {
-    return Response.json(
-      { error: "Connect a website before publishing a campaign." },
-      { status: 400 },
-    );
+    const url = body.generationContext?.storeUrl 
+      ? String(body.generationContext.storeUrl) 
+      : "pending-setup.com";
+      
+    website = await prisma.website.create({
+      data: {
+        accountId: account.id,
+        url,
+        installVerified: false,
+      },
+    });
   }
 
   // Spend Protection Check

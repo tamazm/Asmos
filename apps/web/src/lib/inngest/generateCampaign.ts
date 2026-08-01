@@ -12,7 +12,25 @@ import {
 } from "@/lib/popupGeneration";
 
 export const generateCampaign = inngest.createFunction(
-  { id: "generate-campaign", triggers: { event: "campaign.generate" } },
+  { 
+    id: "generate-campaign", 
+    triggers: { event: "campaign.generate" },
+    retries: 2,
+    onFailure: async ({ event, error }) => {
+      const campaignId = event.data.event.data.campaignId;
+      const log = await prisma.systemLog.create({
+        data: {
+          level: "ERROR",
+          message: `Campaign generation failed: ${error.message}`,
+          details: String(error.stack || error.message),
+        }
+      });
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: { status: "FAILED", lastError: log.id }
+      }).catch(() => {});
+    }
+  },
   async ({ event, step }) => {
     const { campaignId } = event.data;
 

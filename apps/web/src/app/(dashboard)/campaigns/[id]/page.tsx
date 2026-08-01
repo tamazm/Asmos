@@ -41,6 +41,52 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
     createdAt: insight.createdAt.toISOString(),
   }));
 
+  if (campaign.status === "GENERATING") {
+    return (
+      <div className="flex flex-col gap-6 p-6 lg:p-10 max-w-[1400px] mx-auto w-full">
+        <PageHeader 
+          title={campaign.name} 
+          subtitle="Campaign generation in progress"
+        />
+        <div className="flex flex-col items-center justify-center gap-6 py-20">
+          <div className="relative flex h-24 w-24 items-center justify-center">
+            <span className="absolute inline-block h-24 w-24 rounded-full border border-[color:var(--color-primary)] opacity-20 animate-ping" />
+            <span className="absolute inline-block h-16 w-16 rounded-full border border-[color:var(--color-primary)]/40" />
+            <span className="inline-block h-6 w-6 rounded-full border-2 border-[color:var(--color-primary)] border-t-transparent animate-spin" />
+          </div>
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-[color:var(--color-text-primary)]">AI is designing your variants</h3>
+            <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+              This usually takes about 30 seconds. Feel free to wait or check back later.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (campaign.status === "FAILED") {
+    return (
+      <div className="flex flex-col gap-6 p-6 lg:p-10 max-w-[1400px] mx-auto w-full">
+        <PageHeader title={campaign.name} />
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 flex flex-col items-center justify-center gap-4 text-center">
+          <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center text-red-600">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <h3 className="font-semibold text-red-900">Campaign Generation Failed</h3>
+            <p className="mt-1 text-sm text-red-700 max-w-lg">
+              We encountered an issue while generating your AI variants. 
+              {campaign.lastError && <span className="block mt-2 font-mono text-xs opacity-80">Error ID: {campaign.lastError}</span>}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const control = campaign.variants.find((v) => v.isControl) ?? campaign.variants[0];
   const controlSample = {
     impressions: control.events.filter((e) => e.type === "IMPRESSION").length,
