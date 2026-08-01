@@ -55,9 +55,12 @@ export default async function CampaignsListPage() {
         actions={
           <Link
             href="/campaigns/new"
-            className="inline-flex items-center justify-center rounded-lg bg-[color:var(--color-primary)] px-4 py-2 h-10 text-sm font-medium text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
+            className="inline-flex items-center gap-2 justify-center rounded-lg bg-[color:var(--color-primary)] px-4 py-2 h-10 text-sm font-medium text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
           >
-            New Campaign
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 1.5L10 5.5L14.5 6.2L11.25 9.3L12 13.8L8 11.7L4 13.8L4.75 9.3L1.5 6.2L6 5.5L8 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+            </svg>
+            New popup
           </Link>
         }
       />
@@ -82,19 +85,22 @@ export default async function CampaignsListPage() {
             </div>
           </div>
           <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">
-            No campaigns yet
+            No popups yet
           </p>
           <p
             className="mt-1 max-w-xs text-sm text-[color:var(--color-text-secondary)]"
             style={{ textWrap: "pretty" } as React.CSSProperties}
           >
-            Create your first popup to start collecting leads and running A/B tests.
+            Enter your store URL and Asmos will design and launch a branded popup in seconds — no manual setup needed.
           </p>
           <Link
             href="/campaigns/new"
             className="mt-5 inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-4 h-10 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
           >
-            New Campaign
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M8 1.5L10 5.5L14.5 6.2L11.25 9.3L12 13.8L8 11.7L4 13.8L4.75 9.3L1.5 6.2L6 5.5L8 1.5z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+            </svg>
+            Design my first popup
           </Link>
         </div>
       ) : (

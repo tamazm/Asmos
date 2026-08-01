@@ -2,756 +2,229 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { Button } from "@/components/ui/Button";
-import { cn } from "@/lib/cn";
 import { campaignCreated } from "@/lib/analytics";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type CampaignType = "WHEEL" | "SCRATCH_CARD" | "FORM";
-type TriggerType = "exit_intent" | "time_delay" | "scroll_depth";
-type DeviceTarget = "all" | "mobile" | "desktop";
+type Phase =
+  | "idle"         // URL input
+  | "analyzing"    // /api/analyze running
+  | "generating"   // /api/analyze/generate-popup running
+  | "ready"        // popup ready to preview
+  | "publishing"   // POST /api/campaigns
+  | "done"         // redirect
+  | "error";
 
-interface WizardState {
-  type: CampaignType;
-  name: string;
-  design: {
-    headline: string;
-    body: string;
-    primaryColor: string;
-    ctaText: string;
-  };
-  formFields: string[];
-  targeting: {
-    trigger: TriggerType;
-    delaySeconds: number;
-    urlPattern: string;
-    device: DeviceTarget;
-  };
-  reward: {
-    label: string;
-    type: "COUPON" | "DISCOUNT_PERCENT" | "DISCOUNT_FIXED" | "FREE_SHIPPING";
-    couponCode: string;
+interface AnalyzeResult {
+  storeName?: string;
+  industry?: string;
+  brandColor?: string;
+  storeUrl?: string;
+  brandTokens?: unknown;
+  existingPopup?: unknown;
+  computedStyles?: unknown;
+  score?: number;
+}
+
+interface GeneratedPopup {
+  mode: string;
+  baseline: {
+    popup_id: string;
+    spec: {
+      headline: string;
+      subhead: string;
+      cta: string;
+      trigger: string;
+      fields: string[];
+      frequency_cap: string;
+      design_tokens: { palette: string[]; type_display: string; type_body: string };
+    };
+    code: string;
+    diagnosis: Array<{ lever: string; change: string; reason: string }>;
   };
 }
 
-const defaultState: WizardState = {
-  type: "FORM",
-  name: "",
-  design: {
-    headline: "Get 10% off your first order",
-    body: "Join our list and we'll send you a discount code right away.",
-    primaryColor: "#165DFF",
-    ctaText: "Get my discount",
-  },
-  formFields: ["email"],
-  targeting: {
-    trigger: "time_delay",
-    delaySeconds: 5,
-    urlPattern: "",
-    device: "all",
-  },
-  reward: {
-    label: "10% Off",
-    type: "DISCOUNT_PERCENT",
-    couponCode: "",
-  },
-};
-
-// ─── Step indicator ───────────────────────────────────────────────────────────
+// ─── Animated steps indicator ─────────────────────────────────────────────────
 
 const STEPS = [
-  { id: 1, label: "Type" },
-  { id: 2, label: "Design" },
-  { id: 3, label: "Form" },
-  { id: 4, label: "Targeting" },
-  { id: 5, label: "Publish" },
+  { id: "analyzing", label: "Scanning your store", icon: "🔍" },
+  { id: "generating", label: "Designing your popup", icon: "✨" },
+  { id: "ready", label: "Ready to publish", icon: "🚀" },
 ];
 
-function StepBar({ current }: { current: number }) {
+function StepProgress({ phase }: { phase: Phase }) {
+  const stepIndex =
+    phase === "analyzing" ? 0 :
+    phase === "generating" ? 1 :
+    phase === "ready" || phase === "publishing" || phase === "done" ? 2 : -1;
+
+  if (stepIndex < 0) return null;
+
   return (
-    <ol className="flex items-center gap-0">
+    <div className="flex flex-col gap-3 w-full max-w-md mx-auto">
       {STEPS.map((step, i) => {
-        const done = current > step.id;
-        const active = current === step.id;
+        const done = stepIndex > i;
+        const active = stepIndex === i;
         return (
-          <li key={step.id} className="flex items-center">
-            <div className="flex flex-col items-center gap-1">
-              {/* Double-Bezel step indicator */}
-              <div
-                className={cn(
-                  "rounded-[0.625rem] p-0.5 transition-colors duration-300",
-                  done || active
-                    ? "bg-[color:var(--color-primary)]/15"
-                    : "bg-[color:var(--color-surface-sunken)]",
-                )}
-              >
-                <div
-                  className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-[0.5rem] text-xs font-semibold transition-colors duration-300",
-                    done || active
-                      ? "bg-[color:var(--color-primary)] text-white"
-                      : "bg-[color:var(--color-neutral-badge)] text-[color:var(--color-text-secondary)]",
-                  )}
-                  style={done || active ? { boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)" } : {}}
-                >
-                  {done ? (
-                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                      <path d="M3.5 8L6.5 11L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  ) : (
-                    step.id
-                  )}
-                </div>
-              </div>
-              <span className={cn("hidden text-xs sm:block", active ? "font-medium text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]")}>{
-                step.label
-              }</span>
+          <div key={step.id} className="flex items-center gap-3">
+            <div
+              className={[
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm transition-all duration-500",
+                done ? "bg-emerald-500 text-white" :
+                active ? "bg-[color:var(--color-primary)] text-white" :
+                "bg-[color:var(--color-surface-sunken)] text-[color:var(--color-text-secondary)]",
+              ].join(" ")}
+            >
+              {done ? (
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8l3.5 3.5L13 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              ) : active ? (
+                <span className="inline-block h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              ) : (
+                <span className="text-xs font-mono">{i + 1}</span>
+              )}
             </div>
-            {i < STEPS.length - 1 && (
-              <div className={cn("mx-2 h-0.5 w-8 rounded-full transition-colors duration-300", done ? "bg-[color:var(--color-primary)]" : "bg-[color:var(--color-border)]")} aria-hidden="true" />
-            )}
-          </li>
+            <div className="flex flex-col">
+              <p className={["text-sm font-medium transition-colors", active ? "text-[color:var(--color-text-primary)]" : done ? "text-emerald-600" : "text-[color:var(--color-text-secondary)]"].join(" ")}>
+                {step.label}
+              </p>
+            </div>
+          </div>
         );
       })}
-    </ol>
-  );
-}
-
-// ─── Step 1: Type selection ───────────────────────────────────────────────────
-
-const CAMPAIGN_TYPES = [
-  {
-    value: "FORM" as CampaignType,
-    label: "Lead form",
-    description: "A clean popup with a form to capture emails and other fields.",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-        <rect x="4" y="8" width="24" height="16" rx="3" stroke="#165DFF" strokeWidth="1.8" />
-        <line x1="9" y1="14" x2="23" y2="14" stroke="#165DFF" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="9" y1="18" x2="17" y2="18" stroke="#165DFF" strokeWidth="1.5" strokeLinecap="round" />
-      </svg>
-    ),
-  },
-  {
-    value: "WHEEL" as CampaignType,
-    label: "Spin to win",
-    description: "Gamified spin wheel with configurable reward prizes.",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-        <circle cx="16" cy="16" r="12" stroke="#165DFF" strokeWidth="1.8" />
-        <line x1="16" y1="4" x2="16" y2="28" stroke="#165DFF" strokeWidth="1.5" />
-        <line x1="4" y1="16" x2="28" y2="16" stroke="#165DFF" strokeWidth="1.5" />
-        <line x1="7.5" y1="7.5" x2="24.5" y2="24.5" stroke="#165DFF" strokeWidth="1.5" />
-        <line x1="24.5" y1="7.5" x2="7.5" y2="24.5" stroke="#165DFF" strokeWidth="1.5" />
-        <circle cx="16" cy="16" r="3" fill="#165DFF" />
-      </svg>
-    ),
-  },
-  {
-    value: "SCRATCH_CARD" as CampaignType,
-    label: "Scratch card",
-    description: "Users scratch to reveal a reward. High engagement.",
-    icon: (
-      <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-        <rect x="4" y="8" width="24" height="16" rx="3" stroke="#165DFF" strokeWidth="1.8" />
-        <path d="M10 20 Q14 14 18 20 Q22 26 26 18" stroke="#165DFF" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-      </svg>
-    ),
-  },
-] as const;
-
-function Step1TypeSelect({ state, update }: { state: WizardState; update: (s: Partial<WizardState>) => void }) {
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">Choose a campaign type</h2>
-        <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">You can run A/B variants of any type after publishing.</p>
-      </div>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        {CAMPAIGN_TYPES.map((opt) => {
-          const active = state.type === opt.value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => update({ type: opt.value })}
-              className={cn(
-                "flex flex-col items-start gap-3 rounded-2xl border p-5 text-left transition-[border-color,background-color,box-shadow] duration-200 cursor-pointer",
-                active
-                  ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] shadow-sm"
-                  : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] hover:border-[color:var(--color-primary)]/40 hover:shadow-sm",
-              )}
-              aria-pressed={active}
-            >
-              {/* Double-Bezel icon well */}
-              <div className={cn(
-                "rounded-[0.875rem] p-1 transition-colors duration-200",
-                active ? "bg-[color:var(--color-primary)]/10" : "bg-[color:var(--color-surface-sunken)]",
-              )}>
-                <div
-                  className="flex h-11 w-11 items-center justify-center rounded-[0.625rem] bg-[color:var(--color-primary-light)]"
-                  style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.8)" }}
-                >
-                  {opt.icon}
-                </div>
-              </div>
-              <div>
-                <p className={cn("font-semibold", active ? "text-[color:var(--color-primary)]" : "text-[color:var(--color-text-primary)]")}>{opt.label}</p>
-                <p className="mt-0.5 text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{opt.description}</p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      <div>
-        <label htmlFor="campaign-name" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
-          Campaign name
-        </label>
-        <input
-          id="campaign-name"
-          type="text"
-          value={state.name}
-          onChange={(e) => update({ name: e.target.value })}
-          placeholder="e.g. Summer Sale Email Capture"
-          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
-        />
-      </div>
     </div>
   );
 }
 
-// ─── Step 2: Design editor + live preview ─────────────────────────────────────
+// ─── Popup code preview ───────────────────────────────────────────────────────
 
-/** Full-fidelity popup preview that mirrors asmos-widget.js v2 design */
-function PopupPreview({ state }: { state: WizardState }) {
-  const primary = state.design.primaryColor || "#165DFF";
-  const storeName = "Your Store";
-
-  // Determine text color for button (white on dark, dark on light)
-  function hexLuminance(hex: string) {
-    const s = hex.trim();
-    let r = 22, g = 93, b = 255;
-    if (s[0] === "#") {
-      const full = s.length === 4
-        ? "#" + s[1] + s[1] + s[2] + s[2] + s[3] + s[3]
-        : s;
-      r = parseInt(full.slice(1, 3), 16);
-      g = parseInt(full.slice(3, 5), 16);
-      b = parseInt(full.slice(5, 7), 16);
-    }
-    const vals = [r, g, b].map((v) => {
-      const n = v / 255;
-      return n <= 0.03928 ? n / 12.92 : Math.pow((n + 0.055) / 1.055, 2.4);
-    });
-    return 0.2126 * vals[0] + 0.7152 * vals[1] + 0.0722 * vals[2];
-  }
-  const btnTextColor = hexLuminance(primary) < 0.35 ? "#ffffff" : "#0d0d10";
-  const focusRingColor = primary + "2e"; // 18% opacity approx
-
-  const inputIds = state.formFields;
-
-  return (
-    <div className="rounded-2xl border border-[color:var(--color-border)] bg-[#e8edf5] p-5 flex items-end justify-center">
-      {/* Mimics the widget card in desktop mode */}
+function PopupCodePreview({ code, spec, primaryColor }: { code: string; spec: GeneratedPopup["baseline"]["spec"]; primaryColor: string }) {
+  if (code) {
+    return (
       <div
-        className="w-full max-w-[360px] rounded-[20px] bg-white overflow-hidden relative"
-        style={{
-          boxShadow: "0 24px 80px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08)",
-          fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif",
-        }}
-      >
-        {/* Accent bar */}
-        <div className="h-1" style={{ backgroundColor: primary }} />
-
-        <div className="px-6 pt-4 pb-5">
-          {/* Close button */}
-          <div className="flex justify-end mb-2">
-            <div className="w-6 h-6 rounded-full bg-[#f3f4f6] flex items-center justify-center">
-              <svg width="8" height="8" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                <path d="M1 1l8 8M9 1L1 9" stroke="#6b7280" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Brand row */}
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: primary }} />
-            <span
-              className="text-[10px] font-bold tracking-[0.06em] uppercase"
-              style={{ color: "#9ca3af" }}
-            >
-              {storeName.toUpperCase()}
-            </span>
-          </div>
-
-          {/* Headline */}
-          <h3
-            className="text-[18px] font-extrabold leading-snug mb-1.5 tracking-tight"
-            style={{ color: "#0d0d10" }}
-          >
-            {state.design.headline || "Your headline here"}
-          </h3>
-
-          {/* Body */}
-          <p className="text-[13px] leading-relaxed mb-4" style={{ color: "#6b7280" }}>
-            {state.design.body || "Your body copy goes here."}
-          </p>
-
-          {/* Wheel/scratch preview block */}
-          {state.type !== "FORM" && (
-            <div
-              className="rounded-xl border p-3 mb-4 text-center"
-              style={{ background: "#f9fafb", borderColor: "#e5e7eb" }}
-            >
-              <p className="text-[10px] font-semibold uppercase tracking-wide mb-2" style={{ color: "#9ca3af" }}>
-                You could win
-              </p>
-              <ul className="space-y-1">
-                {[state.reward.label || "Special reward"].map((label, i) => (
-                  <li key={i} className="flex items-center gap-1.5 text-[12px] justify-center" style={{ color: "#374151" }}>
-                    <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: primary }} />
-                    {label}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Form inputs */}
-          <div className="flex flex-col gap-2 mb-3">
-            {inputIds.map((f) => (
-              <div
-                key={f}
-                className="w-full border rounded-[10px] px-3 py-2.5 text-[13px]"
-                style={{
-                  borderColor: "#e5e7eb",
-                  background: "#fafafa",
-                  color: "#9ca3af",
-                }}
-              >
-                {f === "email" ? "Your email address"
-                  : f === "phone" ? "Phone number"
-                  : f === "name" ? "Your name"
-                  : f.charAt(0).toUpperCase() + f.slice(1)}
-              </div>
-            ))}
-          </div>
-
-          {/* CTA button */}
-          <button
-            type="button"
-            tabIndex={-1}
-            className="w-full rounded-[10px] py-3 text-[13px] font-bold tracking-[0.01em] mb-3 transition-transform"
-            style={{
-              backgroundColor: primary,
-              color: btnTextColor,
-              border: "none",
-              boxShadow: `0 0 0 0px ${focusRingColor}`,
-            }}
-          >
-            {state.design.ctaText || "Get my offer"}
-          </button>
-
-          {/* Trust row */}
-          <div
-            className="flex items-center justify-center gap-4 pt-3 flex-wrap"
-            style={{ borderTop: "1px solid #f3f4f6" }}
-          >
-            {[
-              { icon: (
-                <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
-                  <path d="M8 1.5 10 5.5 14.5 6.2 11.25 9.3 12 13.8 8 11.7 4 13.8 4.75 9.3 1.5 6.2 6 5.5 8 1.5z" stroke="#9ca3af" strokeWidth="1.2" strokeLinejoin="round" />
-                </svg>
-              ), label: "No spam" },
-              { icon: (
-                <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
-                  <rect x="2" y="6" width="12" height="9" rx="2" stroke="#9ca3af" strokeWidth="1.2" />
-                  <path d="M5 6V4.5a3 3 0 016 0V6" stroke="#9ca3af" strokeWidth="1.2" />
-                </svg>
-              ), label: "Unsubscribe anytime" },
-              { icon: (
-                <svg viewBox="0 0 16 16" fill="none" width="10" height="10">
-                  <circle cx="8" cy="8" r="6" stroke="#9ca3af" strokeWidth="1.2" />
-                  <path d="M5.5 8.5 7 10 10.5 6" stroke="#9ca3af" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              ), label: "Instant reward" },
-            ].map(({ icon, label }) => (
-              <span key={label} className="flex items-center gap-1 text-[10px] whitespace-nowrap" style={{ color: "#9ca3af" }}>
-                {icon}{label}
-              </span>
-            ))}
-          </div>
-
-          {/* Dismiss link */}
-          <button
-            type="button"
-            tabIndex={-1}
-            className="block w-full text-center text-[11px] mt-3 underline underline-offset-2"
-            style={{ color: "#9ca3af", background: "none", border: "none", cursor: "pointer" }}
-          >
-            No thanks, I&apos;ll pay full price
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-const PRESET_COLORS = ["#165DFF", "#10B981", "#F97316", "#EC4899", "#8B5CF6", "#EAB308", "#0D0D10"];
-
-function Step2Design({ state, update }: { state: WizardState; update: (s: Partial<WizardState>) => void }) {
-  function updateDesign(d: Partial<WizardState["design"]>) {
-    update({ design: { ...state.design, ...d } });
+        className="mx-auto max-w-[300px] pointer-events-none"
+        dangerouslySetInnerHTML={{ __html: code }}
+      />
+    );
   }
+  // Spec fallback
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_260px]">
-      <div className="flex flex-col gap-5">
-        <div>
-          <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">Design your popup</h2>
-          <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">Customize the copy and look. Preview updates live.</p>
-        </div>
-
-        {[
-          { id: "headline", label: "Headline", placeholder: "Get 10% off your first order" },
-          { id: "body", label: "Body text", placeholder: "Join our list for exclusive offers." },
-          { id: "ctaText", label: "Button text", placeholder: "Get my discount" },
-        ].map((field) => (
-          <div key={field.id}>
-            <label htmlFor={`design-${field.id}`} className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">{field.label}</label>
-            <input
-              id={`design-${field.id}`}
-              type="text"
-              value={state.design[field.id as keyof WizardState["design"]]}
-              onChange={(e) => updateDesign({ [field.id]: e.target.value })}
-              placeholder={field.placeholder}
-              className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
-            />
-          </div>
-        ))}
-
-        <div>
-          <p className="mb-2 text-sm font-medium text-[color:var(--color-text-primary)]">Accent color</p>
-          <div className="flex flex-wrap gap-2">
-            {PRESET_COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => updateDesign({ primaryColor: c })}
-                className={cn("h-8 w-8 rounded-lg border-2 cursor-pointer transition-transform duration-100", state.design.primaryColor === c ? "border-[color:var(--color-text-primary)] scale-110" : "border-transparent hover:scale-105")}
-                style={{ backgroundColor: c }}
-                aria-label={`Color ${c}`}
-              />
-            ))}
-            <input
-              type="color"
-              value={state.design.primaryColor}
-              onChange={(e) => updateDesign({ primaryColor: e.target.value })}
-              className="h-8 w-8 cursor-pointer rounded-lg border border-[color:var(--color-border)] p-0.5"
-              aria-label="Custom color"
-            />
+    <div className="mx-auto max-w-[280px] rounded-[18px] overflow-hidden shadow-xl">
+      <div className="h-1" style={{ backgroundColor: primaryColor }} />
+      <div className="bg-white px-5 pt-4 pb-5">
+        <div className="flex justify-end mb-2">
+          <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center">
+            <svg width="7" height="7" viewBox="0 0 10 10" fill="none"><path d="M1 1l8 8M9 1L1 9" stroke="#9ca3af" strokeWidth="1.8" strokeLinecap="round" /></svg>
           </div>
         </div>
-
-        {(state.type === "WHEEL" || state.type === "SCRATCH_CARD") && (
-          <div className="flex flex-col gap-3 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4">
-            <p className="text-sm font-medium text-[color:var(--color-text-primary)]">Reward</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="mb-1 block text-xs text-[color:var(--color-text-secondary)]">Reward label</label>
-                <input
-                  type="text"
-                  value={state.reward.label}
-                  onChange={(e) => update({ reward: { ...state.reward, label: e.target.value } })}
-                  placeholder="e.g. 10% Off"
-                  className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-[color:var(--color-text-secondary)]">Coupon code (optional)</label>
-                <input
-                  type="text"
-                  value={state.reward.couponCode}
-                  onChange={(e) => update({ reward: { ...state.reward, couponCode: e.target.value } })}
-                  placeholder="e.g. SUMMER10"
-                  className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm font-mono outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="lg:sticky lg:top-6 self-start">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Preview</p>
-        <PopupPreview state={state} />
+        <h3 className="text-[16px] font-extrabold leading-tight mb-1.5 text-gray-900">{spec.headline}</h3>
+        <p className="text-[12px] text-gray-500 leading-relaxed mb-3">{spec.subhead}</p>
+        <div className="border border-gray-200 rounded-lg px-3 py-2 text-[12px] text-gray-400 mb-2 bg-gray-50">Your email address</div>
+        <div className="rounded-lg py-2.5 text-[12px] font-bold text-center text-white mb-2" style={{ backgroundColor: primaryColor }}>{spec.cta}</div>
       </div>
     </div>
   );
 }
 
-// ─── Step 3: Form fields ──────────────────────────────────────────────────────
+// ─── Main page ────────────────────────────────────────────────────────────────
 
-const AVAILABLE_FIELDS = ["email", "name", "phone", "company"];
-
-function Step3FormFields({ state, update }: { state: WizardState; update: (s: Partial<WizardState>) => void }) {
-  function toggleField(f: string) {
-    const current = state.formFields;
-    if (current.includes(f)) {
-      if (current.length === 1) return; // keep at least one
-      update({ formFields: current.filter((x) => x !== f) });
-    } else {
-      update({ formFields: [...current, f] });
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">Form fields</h2>
-        <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">Choose what information to collect. Email is required.</p>
-      </div>
-      <div className="flex flex-col gap-2">
-        {AVAILABLE_FIELDS.map((f) => {
-          const checked = state.formFields.includes(f);
-          const required = f === "email";
-          return (
-            <label
-              key={f}
-              className={cn(
-                "flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition-colors duration-150",
-                checked ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/40",
-              )}
-            >
-              <input
-                type="checkbox"
-                checked={checked}
-                disabled={required}
-                onChange={() => !required && toggleField(f)}
-                className="accent-[color:var(--color-primary)] h-4 w-4 rounded"
-              />
-              <div>
-                <p className="text-sm font-medium capitalize text-[color:var(--color-text-primary)]">{f}</p>
-                {required && <p className="text-xs text-[color:var(--color-text-secondary)]">Required</p>}
-              </div>
-            </label>
-          );
-        })}
-      </div>
-      <div>
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Preview</p>
-        <PopupPreview state={state} />
-      </div>
-    </div>
-  );
-}
-
-// ─── Step 4: Targeting + triggers ─────────────────────────────────────────────
-
-const TRIGGERS = [
-  { value: "time_delay" as TriggerType, label: "Time delay", description: "Show after X seconds on the page" },
-  { value: "exit_intent" as TriggerType, label: "Exit intent", description: "Show when the user moves to leave" },
-  { value: "scroll_depth" as TriggerType, label: "Scroll depth", description: "Show after scrolling 50% down" },
-];
-
-const DEVICES: { value: DeviceTarget; label: string }[] = [
-  { value: "all", label: "All devices" },
-  { value: "mobile", label: "Mobile only" },
-  { value: "desktop", label: "Desktop only" },
-];
-
-function Step4Targeting({ state, update }: { state: WizardState; update: (s: Partial<WizardState>) => void }) {
-  function updateTarget(t: Partial<WizardState["targeting"]>) {
-    update({ targeting: { ...state.targeting, ...t } });
-  }
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">Targeting and triggers</h2>
-        <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">Control when and where the popup appears.</p>
-      </div>
-
-      <div>
-        <p className="mb-2 text-sm font-medium text-[color:var(--color-text-primary)]">Trigger</p>
-        <div className="flex flex-col gap-2">
-          {TRIGGERS.map((t) => {
-            const active = state.targeting.trigger === t.value;
-            return (
-              <label
-                key={t.value}
-                className={cn(
-                  "flex cursor-pointer items-center gap-3 rounded-2xl border p-4 transition-colors duration-150",
-                  active ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/40",
-                )}
-              >
-                <input
-                  type="radio"
-                  name="trigger"
-                  checked={active}
-                  onChange={() => updateTarget({ trigger: t.value })}
-                  className="accent-[color:var(--color-primary)] h-4 w-4"
-                />
-                <div>
-                  <p className="text-sm font-medium text-[color:var(--color-text-primary)]">{t.label}</p>
-                  <p className="text-xs text-[color:var(--color-text-secondary)]">{t.description}</p>
-                </div>
-              </label>
-            );
-          })}
-        </div>
-      </div>
-
-      {state.targeting.trigger === "time_delay" && (
-        <div>
-          <label htmlFor="delay-seconds" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
-            Delay (seconds)
-          </label>
-          <input
-            id="delay-seconds"
-            type="number"
-            min={0}
-            max={60}
-            value={state.targeting.delaySeconds}
-            onChange={(e) => updateTarget({ delaySeconds: parseInt(e.target.value) || 0 })}
-            className="w-32 rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm tabular-nums outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
-          />
-        </div>
-      )}
-
-      <div>
-        <p className="mb-2 text-sm font-medium text-[color:var(--color-text-primary)]">Devices</p>
-        <div className="flex flex-wrap gap-2">
-          {DEVICES.map((d) => (
-            <button
-              key={d.value}
-              type="button"
-              onClick={() => updateTarget({ device: d.value })}
-              className={cn(
-                "rounded-lg border px-4 py-2 text-sm font-medium transition-colors duration-150 cursor-pointer",
-                state.targeting.device === d.value
-                  ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
-                  : "border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/40",
-              )}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <label htmlFor="url-pattern" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
-          URL rules <span className="font-normal text-[color:var(--color-text-secondary)]">(optional)</span>
-        </label>
-        <input
-          id="url-pattern"
-          type="text"
-          value={state.targeting.urlPattern}
-          onChange={(e) => updateTarget({ urlPattern: e.target.value })}
-          placeholder="e.g. /products/ or yourstore.com/sale"
-          className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
-        />
-        <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">Leave blank to show on all pages.</p>
-      </div>
-    </div>
-  );
-}
-
-// ─── Step 5: Review + publish ─────────────────────────────────────────────────
-
-function ReviewRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-start justify-between gap-4 py-3 border-b border-[color:var(--color-border)] last:border-0">
-      <span className="text-sm text-[color:var(--color-text-secondary)] shrink-0 w-28">{label}</span>
-      <span className="text-sm text-[color:var(--color-text-primary)] font-medium text-right">{value}</span>
-    </div>
-  );
-}
-
-function Step5Review({ state }: { state: WizardState }) {
-  const triggerLabels: Record<TriggerType, string> = {
-    exit_intent: "Exit intent",
-    time_delay: `${state.targeting.delaySeconds}s delay`,
-    scroll_depth: "50% scroll",
-  };
-
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold text-[color:var(--color-text-primary)]">Review and publish</h2>
-        <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">Confirm your campaign settings before going live.</p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Campaign</p>
-          <ReviewRow label="Name" value={state.name || "Untitled"} />
-          <ReviewRow label="Type" value={{ FORM: "Lead form", WHEEL: "Spin to win", SCRATCH_CARD: "Scratch card" }[state.type]} />
-          <ReviewRow label="Fields" value={state.formFields.join(", ")} />
-        </div>
-        <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Targeting</p>
-          <ReviewRow label="Trigger" value={triggerLabels[state.targeting.trigger]} />
-          <ReviewRow label="Devices" value={{ all: "All devices", mobile: "Mobile only", desktop: "Desktop only" }[state.targeting.device]} />
-          <ReviewRow label="URL rules" value={state.targeting.urlPattern || "All pages"} />
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
-        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Popup preview</p>
-        <PopupPreview state={state} />
-      </div>
-
-      <div className="flex items-center gap-3 rounded-2xl border border-[color:var(--color-success-bg)] bg-[color:var(--color-success-bg)] px-4 py-3">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M3 8l3.5 3.5L13 4.5" stroke="#22C55E" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-        <p className="text-sm text-[color:var(--color-success)]">Ready to publish. The campaign will go live immediately.</p>
-      </div>
-    </div>
-  );
-}
-
-// ─── Wizard shell ─────────────────────────────────────────────────────────────
-
-export default function NewCampaignPage() {
+export default function NewCampaignAutonomous() {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [state, setState] = useState<WizardState>({ ...defaultState });
-  const [publishing, setPublishing] = useState(false);
-  const [publishError, setPublishError] = useState<string | null>(null);
+  const [url, setUrl] = useState("");
+  const [campaignName, setCampaignName] = useState("");
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResult | null>(null);
+  const [popup, setPopup] = useState<GeneratedPopup | null>(null);
+  const [showManual, setShowManual] = useState(false);
 
-  function update(partial: Partial<WizardState>) {
-    setState((s) => ({ ...s, ...partial }));
-  }
+  const primaryColor = popup?.baseline?.spec?.design_tokens?.palette?.[0]
+    ?? analyzeResult?.brandColor
+    ?? "#165DFF";
 
-  function canAdvance() {
-    if (step === 1) return !!state.name.trim();
-    return true;
+  async function launch() {
+    const raw = url.trim();
+    if (!raw) return;
+    let normalized = raw;
+    if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+      normalized = "https://" + normalized;
+    }
+
+    setError(null);
+    setPhase("analyzing");
+
+    // Step 1: Analyze
+    let result: AnalyzeResult;
+    try {
+      const res = await fetch(`/api/analyze?url=${encodeURIComponent(normalized)}`);
+      if (!res.ok) throw new Error("Could not analyze store");
+      result = await res.json();
+      setAnalyzeResult(result);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Store analysis failed");
+      setPhase("error");
+      return;
+    }
+
+    setPhase("generating");
+
+    // Step 2: Generate popup
+    let gen: GeneratedPopup;
+    try {
+      const res = await fetch("/api/analyze/generate-popup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(result),
+      });
+      if (!res.ok) throw new Error("Popup generation failed");
+      gen = await res.json();
+      if (!gen?.baseline) throw new Error("No baseline returned");
+      setPopup(gen);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Popup generation failed");
+      setPhase("error");
+      return;
+    }
+
+    // Auto-fill campaign name from store name if not set
+    if (!campaignName.trim() && result.storeName) {
+      setCampaignName(`${result.storeName} — Email Capture`);
+    }
+
+    setPhase("ready");
   }
 
   async function publish() {
-    setPublishing(true);
-    setPublishError(null);
-    try {
-      const payload = {
-        name: state.name,
-        type: state.type,
-        design: state.design,
-        formFields: state.formFields,
-        targeting: state.targeting,
-        rewards: state.type !== "FORM"
-          ? [{ label: state.reward.label, type: state.reward.type, couponCode: state.reward.couponCode || null, weight: 1 }]
-          : [],
-      };
+    if (!popup || !analyzeResult) return;
+    setPhase("publishing");
+    setError(null);
 
+    const name = campaignName.trim() || `${analyzeResult.storeName ?? "My Store"} — Email Capture`;
+
+    try {
       const res = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          name,
+          type: "FORM",
+          design: {
+            headline: popup.baseline.spec.headline,
+            body: popup.baseline.spec.subhead,
+            primaryColor,
+            ctaText: popup.baseline.spec.cta,
+          },
+          formFields: popup.baseline.spec.fields,
+          targeting: { trigger: popup.baseline.spec.trigger, delaySeconds: null },
+          rewards: [],
+          // Pass the full popup spec so it gets stored on the variant
+          popupSpec: {
+            spec: popup.baseline.spec,
+            code: popup.baseline.code,
+            popup_id: popup.baseline.popup_id,
+          },
+        }),
       });
 
       if (!res.ok) {
@@ -761,79 +234,265 @@ export default function NewCampaignPage() {
 
       const created = await res.json().catch(() => ({}));
       campaignCreated({
-        campaignId: created.id ?? "unknown",
-        campaignType: state.type,
-        name: state.name,
+        campaignId: created.campaign?.id ?? "unknown",
+        campaignType: "FORM",
+        name,
       });
 
-      router.push("/campaigns");
+      router.push(`/campaigns/${created.campaign?.id ?? ""}`);
     } catch (e) {
-      setPublishError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setPublishing(false);
+      setError(e instanceof Error ? e.message : "Something went wrong");
+      setPhase("ready"); // allow retry
     }
   }
 
-  const stepComponents: Record<number, React.ReactNode> = {
-    1: <Step1TypeSelect state={state} update={update} />,
-    2: <Step2Design state={state} update={update} />,
-    3: <Step3FormFields state={state} update={update} />,
-    4: <Step4Targeting state={state} update={update} />,
-    5: <Step5Review state={state} />,
-  };
+  function reset() {
+    setPhase("idle");
+    setError(null);
+    setPopup(null);
+    setAnalyzeResult(null);
+  }
+
+  const isWorking = phase === "analyzing" || phase === "generating" || phase === "publishing";
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="New campaign"
-        backHref="/campaigns"
-        backLabel="Back to campaigns"
-      />
-
-      <div className="flex justify-center">
-        <StepBar current={step} />
+    <div className="flex flex-col gap-8 max-w-2xl mx-auto">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-3 mb-1">
+          <button
+            onClick={() => router.push("/campaigns")}
+            className="text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <span className="text-sm text-[color:var(--color-text-secondary)]">Pop-ups</span>
+        </div>
+        <h1 className="text-2xl font-bold text-[color:var(--color-text-primary)]">Launch a popup</h1>
+        <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+          Enter your store URL — Asmos scans your brand and designs a popup in seconds.
+        </p>
       </div>
 
-      {/* Double-Bezel wizard container */}
-      <div className="mx-auto w-full max-w-3xl">
-        <div className="rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5 shadow-sm">
-          <div
-            className="rounded-[1rem] bg-[color:var(--color-surface)] p-6 animate-page-enter"
-            style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}
-          >
-            {stepComponents[step]}
-          </div>
-        </div>
-      </div>
+      {/* Main card */}
+      <div className="rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5 shadow-sm">
+        <div className="rounded-[1rem] bg-[color:var(--color-surface)] p-6 flex flex-col gap-6">
 
-      {publishError && (
-        <div className="mx-auto w-full max-w-3xl rounded-2xl border border-red-200 bg-red-50 px-4 py-3">
-          <p className="text-sm text-red-600">{publishError}</p>
-        </div>
-      )}
+          {/* ── IDLE / URL input phase ── */}
+          {phase === "idle" && (
+            <>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label htmlFor="store-url" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                    Store URL
+                  </label>
+                  <input
+                    id="store-url"
+                    type="url"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && url.trim() && launch()}
+                    placeholder="yourstore.com"
+                    autoFocus
+                    className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="campaign-name" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                    Campaign name <span className="font-normal text-[color:var(--color-text-secondary)]">(optional — auto-filled from store)</span>
+                  </label>
+                  <input
+                    id="campaign-name"
+                    type="text"
+                    value={campaignName}
+                    onChange={(e) => setCampaignName(e.target.value)}
+                    placeholder="e.g. Summer Email Capture"
+                    className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
+                  />
+                </div>
+              </div>
 
-      <div className="mx-auto flex w-full max-w-3xl items-center justify-between gap-3">
-        <Button
-          variant="secondary"
-          onClick={() => (step > 1 ? setStep(step - 1) : router.push("/campaigns"))}
-        >
-          {step === 1 ? "Cancel" : "Back"}
-        </Button>
-        {step < STEPS.length ? (
-          <Button
-            onClick={() => setStep(step + 1)}
-            className={!canAdvance() ? "opacity-50 pointer-events-none" : ""}
-          >
-            Continue
-          </Button>
-        ) : (
-          <Button
-            onClick={publish}
-            className={publishing ? "opacity-60 pointer-events-none" : ""}
-          >
-            {publishing ? "Publishing..." : "Publish campaign"}
-          </Button>
-        )}
+              {/* What AI does */}
+              <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 py-3 flex flex-col gap-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--color-text-secondary)]">What Asmos does automatically</p>
+                {[
+                  "Scans your homepage for brand colors, typography, and style",
+                  "Detects any existing popups and improves them — or creates from scratch",
+                  "Writes personalized headline, subhead and CTA for your store category",
+                  "Generates a self-contained popup — live in one click",
+                  "Auto-tests variants via the bandit — no manual A/B setup needed",
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-2">
+                    <svg className="mt-0.5 shrink-0 text-emerald-500" width="12" height="12" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8l3.5 3.5L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <p className="text-xs text-[color:var(--color-text-secondary)]">{item}</p>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={launch}
+                disabled={!url.trim()}
+                className="w-full rounded-lg bg-[color:var(--color-primary)] py-3 text-sm font-bold text-white transition-[background-color,transform,opacity] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Design my popup →
+              </button>
+
+              {/* Manual escape hatch */}
+              <div className="text-center">
+                <button
+                  onClick={() => setShowManual(true)}
+                  className="text-xs text-[color:var(--color-text-secondary)] underline underline-offset-2 hover:text-[color:var(--color-text-primary)] transition-colors"
+                >
+                  Prefer to set it up manually?
+                </button>
+              </div>
+
+              {showManual && (
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 py-3 text-center">
+                  <p className="text-sm text-[color:var(--color-text-secondary)] mb-2">
+                    The manual campaign wizard gives you full control over type, design, targeting, and rewards.
+                  </p>
+                  <a
+                    href="/campaigns/new/manual"
+                    className="inline-flex items-center gap-1.5 text-sm text-[color:var(--color-primary)] font-medium hover:underline"
+                  >
+                    Open manual wizard →
+                  </a>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── WORKING phases ── */}
+          {(phase === "analyzing" || phase === "generating") && (
+            <div className="flex flex-col items-center gap-8 py-4">
+              <div className="relative flex h-20 w-20 items-center justify-center">
+                {/* Pulsing ring */}
+                <span className="absolute inline-block h-20 w-20 rounded-full border-2 border-[color:var(--color-primary)] opacity-20 animate-ping" />
+                <span className="absolute inline-block h-14 w-14 rounded-full border border-[color:var(--color-primary)]/30" />
+                <svg className="text-[color:var(--color-primary)]" width="28" height="28" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <StepProgress phase={phase} />
+              <p className="text-xs text-[color:var(--color-text-secondary)] text-center">
+                {phase === "analyzing"
+                  ? "Fetching your homepage and running vision analysis…"
+                  : "Generating brand-accurate popup design with Claude…"}
+              </p>
+            </div>
+          )}
+
+          {/* ── READY — popup preview + publish ── */}
+          {phase === "ready" && popup && analyzeResult && (
+            <>
+              {/* Store pill */}
+              <div className="flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+                  {analyzeResult.storeName ?? "Your Store"}
+                </p>
+                <span className="text-xs text-[color:var(--color-text-secondary)]">· AI-designed popup ready</span>
+              </div>
+
+              {/* Popup preview */}
+              <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4">
+                <PopupCodePreview
+                  code={popup.baseline.code}
+                  spec={popup.baseline.spec}
+                  primaryColor={primaryColor}
+                />
+              </div>
+
+              {/* Diagnosis pills */}
+              {popup.baseline.diagnosis.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {popup.baseline.diagnosis.map((d, i) => (
+                    <span key={i} className="inline-flex items-center rounded-full bg-blue-50 border border-blue-100 px-2.5 py-1 text-[10px] font-medium text-blue-700">
+                      {d.lever}: {d.change}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Campaign name field */}
+              <div>
+                <label htmlFor="pub-campaign-name" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                  Campaign name
+                </label>
+                <input
+                  id="pub-campaign-name"
+                  type="text"
+                  value={campaignName}
+                  onChange={(e) => setCampaignName(e.target.value)}
+                  placeholder="e.g. Summer Email Capture"
+                  className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
+                />
+              </div>
+
+              {/* What happens next */}
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 flex items-start gap-2">
+                <svg className="mt-0.5 shrink-0 text-emerald-500" width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 8l3.5 3.5L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <p className="text-xs text-emerald-800 leading-relaxed">
+                  Publishes immediately. Asmos will autonomously create A/B test variants and optimise traffic allocation — you don&apos;t need to do anything else.
+                </p>
+              </div>
+
+              {error && (
+                <p className="text-sm text-red-600 rounded-lg border border-red-100 bg-red-50 px-3 py-2">{error}</p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={publish}
+                  disabled={isWorking}
+                  className="flex-1 rounded-lg bg-[color:var(--color-primary)] py-3 text-sm font-bold text-white transition-[background-color,transform,opacity] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.98] disabled:opacity-60"
+                >
+                  {phase === "publishing" ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="inline-block h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      Publishing…
+                    </span>
+                  ) : "Publish campaign →"}
+                </button>
+                <button
+                  onClick={reset}
+                  className="rounded-lg border border-[color:var(--color-border)] px-4 py-3 text-sm font-medium text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/40 transition-colors"
+                >
+                  Start over
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ── ERROR phase ── */}
+          {phase === "error" && (
+            <div className="flex flex-col items-center gap-4 py-4 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 border border-red-100">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-red-500">
+                  <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-[color:var(--color-text-primary)]">Something went wrong</p>
+                <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">{error}</p>
+              </div>
+              <button
+                onClick={reset}
+                className="rounded-lg bg-[color:var(--color-primary)] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
