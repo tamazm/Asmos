@@ -126,7 +126,7 @@ export default async function AnalyticsPage() {
     funnelCounts[row.type] = row._count._all;
   }
 
-  const rows: CampaignRow[] = campaigns.map((campaign) => {
+  const rows: CampaignRow[] = campaigns.map((campaign: any) => {
     const impressions = countFor(campaign.id, "IMPRESSION");
     const submissions = countFor(campaign.id, "SUBMISSION");
     return {

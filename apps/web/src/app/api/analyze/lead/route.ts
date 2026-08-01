@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: NextRequest) {
@@ -44,6 +45,20 @@ export async function POST(req: NextRequest) {
           grade: grade ?? null,
         },
       });
+    });
+
+    // Send the report email asynchronously
+    after(async () => {
+      try {
+        const { sendReportEmail } = await import("@/lib/email");
+        await sendReportEmail({
+          to: lead.email,
+          storeName: lead.storeName ?? undefined,
+          storeUrl: lead.storeUrl,
+        });
+      } catch (err) {
+        console.error("[analyze/lead] Failed to send report email:", err);
+      }
     });
 
     return NextResponse.json({ ok: true, id: lead.id });

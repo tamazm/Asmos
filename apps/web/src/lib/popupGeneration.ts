@@ -525,12 +525,15 @@ async function generateWithGemini(input: PopupGenerationInput): Promise<PopupGen
   if (!call) {
     // Try parsing text as JSON fallback
     const text = response.text ?? "";
-    const match = text.match(/\{[\s\S]+\}/);
-    if (match) {
+    const firstBrace = text.indexOf("{");
+    const lastBrace = text.lastIndexOf("}");
+    
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
       try {
-        return JSON.parse(match[0]) as PopupGenerationOutput;
-      } catch {
-        // fall through to error
+        const jsonStr = text.substring(firstBrace, lastBrace + 1);
+        return JSON.parse(jsonStr) as PopupGenerationOutput;
+      } catch (err) {
+        throw new Error(`[popupGeneration] Failed to parse fallback JSON: ${(err as Error).message}`);
       }
     }
     throw new Error("[popupGeneration] Gemini did not return generate_popup call");

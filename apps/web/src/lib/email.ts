@@ -35,3 +35,22 @@ export async function sendRewardEmail(params: {
       : `<p>You got: <strong>${rewardLabel}</strong></p><p>${brandName} will be in touch.</p>`,
   });
 }
+
+export async function sendReportEmail(params: {
+  to: string;
+  storeName: string | null;
+  storeUrl: string;
+}) {
+  const { to, storeName, storeUrl } = params;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
+  const displayStoreName = storeName ?? storeUrl;
+  const loginUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/sign-up` : 'https://asmos.com/sign-up';
+
+  await resend.emails.send({
+    from: "Asmos <onboarding@resend.dev>",
+    to,
+    subject: `Your CRO report for ${displayStoreName} is ready`,
+    html: `<p>Hi there,</p><p>We have finished analyzing <strong>${displayStoreName}</strong>.</p><p><a href="${loginUrl}">Click here to view your CRO report and your AI-generated popup.</a></p>`,
+  });
+}

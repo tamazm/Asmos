@@ -18,6 +18,8 @@ export async function POST(request: Request) {
       code: string;
       popup_id: string;
     };
+    status?: string;
+    generationContext?: Record<string, unknown>;
   };
 
   const account = await getOrCreateAccount();
@@ -60,8 +62,9 @@ export async function POST(request: Request) {
       websiteId: website.id,
       name: body.name,
       type: "FORM", // schema-driven generation always produces FORM popups
-      status: "ACTIVE",
-      variants: {
+      status: body.status === "GENERATING" ? "GENERATING" : "ACTIVE",
+      generationContext: body.generationContext as Prisma.InputJsonValue | undefined,
+      variants: body.status === "GENERATING" ? undefined : {
         create: {
           name: "Control",
           isControl: true,

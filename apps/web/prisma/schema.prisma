@@ -39,8 +39,10 @@ enum CampaignType {
 
 enum CampaignStatus {
   DRAFT
+  GENERATING
   ACTIVE
   PAUSED
+  FAILED
 }
 
 enum VariantStatus {
@@ -169,6 +171,9 @@ model Campaign {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  lastError         String? @db.Text
+  generationContext Json?
 
   variants Variant[]         @relation("CampaignVariants")
   insights CampaignInsight[]
