@@ -1,8 +1,8 @@
 -- DropForeignKey
-ALTER TABLE "RewardRule" DROP CONSTRAINT "RewardRule_variantId_fkey";
+ALTER TABLE "RewardRule" DROP CONSTRAINT IF EXISTS "RewardRule_variantId_fkey";
 
 -- DropIndex
-DROP INDEX "RewardRule_variantId_idx";
+DROP INDEX IF EXISTS "RewardRule_variantId_idx";
 
 -- AlterTable
 -- 1. Add the column as nullable first
