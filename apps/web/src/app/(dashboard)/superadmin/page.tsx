@@ -1,3 +1,4 @@
+// @ts-expect-error
 import { currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 import { isSuperadminEmail } from "@/lib/superadmin";

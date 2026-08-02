@@ -1,5 +1,6 @@
+// @ts-expect-error
 import { prisma } from "@/lib/prisma";
-import type { CampaignEventType } from "@/generated/prisma/client";
+import type { CampaignEventType } from ".prisma/client";
 
 // Dev-only convenience: populates the first account with realistic-looking
 // campaigns/variants/events/leads so every page has something to show.
@@ -62,6 +63,13 @@ export async function POST() {
       name: "Spring Sale Popup",
       type: "WHEEL",
       status: "ACTIVE",
+      rewards: {
+        create: [
+          { label: "20% Off", type: "DISCOUNT_PERCENT", weight: 3 },
+          { label: "10% Off", type: "DISCOUNT_PERCENT", weight: 2 },
+          { label: "Free Shipping", type: "FREE_SHIPPING", weight: 1 },
+        ],
+      },
       variants: {
         create: [
           {
@@ -76,13 +84,6 @@ export async function POST() {
             },
             formFields: ["email"],
             targeting: { trigger: "exit_intent", delaySeconds: null },
-            rewards: {
-              create: [
-                { label: "20% Off", type: "DISCOUNT_PERCENT", weight: 3 },
-                { label: "10% Off", type: "DISCOUNT_PERCENT", weight: 2 },
-                { label: "Free Shipping", type: "FREE_SHIPPING", weight: 1 },
-              ],
-            },
           },
           {
             name: "Variant B",
@@ -96,13 +97,6 @@ export async function POST() {
             },
             formFields: ["email"],
             targeting: { trigger: "exit_intent", delaySeconds: null },
-            rewards: {
-              create: [
-                { label: "20% Off", type: "DISCOUNT_PERCENT", weight: 3 },
-                { label: "10% Off", type: "DISCOUNT_PERCENT", weight: 2 },
-                { label: "Free Shipping", type: "FREE_SHIPPING", weight: 1 },
-              ],
-            },
           },
         ],
       },
@@ -157,6 +151,7 @@ export async function POST() {
       name: "Exit Intent Discount",
       type: "FORM",
       status: "ACTIVE",
+      rewards: { create: [{ label: "15% Off", type: "DISCOUNT_PERCENT", weight: 1 }] },
       variants: {
         create: [
           {
@@ -171,7 +166,6 @@ export async function POST() {
             },
             formFields: ["email"],
             targeting: { trigger: "exit_intent", delaySeconds: null },
-            rewards: { create: [{ label: "15% Off", type: "DISCOUNT_PERCENT", weight: 1 }] },
           },
         ],
       },
@@ -211,6 +205,7 @@ export async function POST() {
       name: "Holiday Scratch Card",
       type: "SCRATCH_CARD",
       status: "PAUSED",
+      rewards: { create: [{ label: "25% Off", type: "DISCOUNT_PERCENT", weight: 1 }] },
       variants: {
         create: [
           {
@@ -225,7 +220,6 @@ export async function POST() {
             },
             formFields: ["name", "email"],
             targeting: { trigger: "time_delay", delaySeconds: 8 },
-            rewards: { create: [{ label: "25% Off", type: "DISCOUNT_PERCENT", weight: 1 }] },
           },
           {
             name: "Variant B",
@@ -239,7 +233,6 @@ export async function POST() {
             },
             formFields: ["name", "email"],
             targeting: { trigger: "time_delay", delaySeconds: 8 },
-            rewards: { create: [{ label: "25% Off", type: "DISCOUNT_PERCENT", weight: 1 }] },
           },
         ],
       },

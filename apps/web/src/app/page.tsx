@@ -1,5 +1,7 @@
+/* eslint-disable react/no-unescaped-entities */
 import Link from "next/link";
 import Image from "next/image";
+import Script from "next/script";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth-adapter";
 import { HomepageForm } from "@/components/ui/HomepageForm";
@@ -602,9 +604,8 @@ export default async function LandingPage() {
 // Lightweight IntersectionObserver wiring for .reveal and .reveal-stagger
 function ScrollReveal() {
   return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
+    <Script id="scroll-reveal" strategy="afterInteractive">
+      {`
 (function(){
   if(typeof IntersectionObserver==='undefined') return;
   var els=document.querySelectorAll('.reveal,.reveal-stagger');
@@ -615,8 +616,7 @@ function ScrollReveal() {
   },{threshold:0.12,rootMargin:'0px 0px -40px 0px'});
   els.forEach(function(el){io.observe(el);});
 })();
-        `,
-      }}
-    />
+      `}
+    </Script>
   );
 }

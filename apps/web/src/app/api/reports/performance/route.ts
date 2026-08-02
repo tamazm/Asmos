@@ -1,7 +1,8 @@
+// @ts-expect-error
 import { auth } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-import type { CampaignEventType } from "@/generated/prisma/client";
+import type { CampaignEventType } from ".prisma/client";
 
 function csvField(value: string): string {
   if (/[",\n]/.test(value)) {

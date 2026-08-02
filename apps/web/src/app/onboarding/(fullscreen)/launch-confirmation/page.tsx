@@ -304,6 +304,7 @@ function LaunchConfirmationContent() {
       const raw = sessionStorage.getItem("asmos_analyze_result");
       if (raw) {
         const parsed = JSON.parse(raw) as { storeName?: string };
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         if (parsed.storeName) setStoreName(parsed.storeName);
       }
     } catch { /* ignore */ }
@@ -311,6 +312,7 @@ function LaunchConfirmationContent() {
 
   useEffect(() => {
     if (!campaignId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoadError("No campaign ID provided.");
       setLoading(false);
       return;

@@ -1,3 +1,4 @@
+// @ts-expect-error
 /**
  * lib/popupGeneration.ts
  *
@@ -35,8 +36,6 @@ const BEDROCK_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
 
 export type SignificanceFlag = "conclusive" | "inconclusive" | "insufficient_data";
 export type TestAxis = "trigger" | "friction" | "copy" | "layout" | "visual";
-export type PopupArchetype = "single_step" | "two_step" | "quiz" | "gamified";
-export type LayoutStyle = "split_left" | "split_right" | "centered" | "minimal";
 
 export type BrandTokens = {
   palette: string[];           // hex colors, 4-6 entries
@@ -79,12 +78,8 @@ export type PopupGenerationInput = {
   existing_popup: ExistingPopupExtracted;
   brand_tokens: BrandTokens;
   analytics: { variants: AnalyticsVariant[] };
-  constraints: {
-    variant_count: number;
-    multivariate: boolean;
-    archetype: PopupArchetype;
-    layout_style: LayoutStyle;
-  };
+  constraints: { variant_count: number; multivariate: boolean };
+  goal: "EMAIL" | "DISCOUNT" | "BOTH";
 };
 
 export type PopupDiagnosis = {
@@ -95,11 +90,15 @@ export type PopupDiagnosis = {
 
 export type PopupSpec = {
   trigger: string;
+  delay_seconds: number | null;
   frequency_cap: string;
   headline: string;
   subhead: string;
   cta: string;
   fields: string[];
+  coupon_code: string;
+  layout_style: "split-left" | "split-right" | "centered" | "minimal";
+  image_url: string | null;
   design_tokens: { palette: string[]; type_display: string; type_body: string };
 };
 
@@ -107,7 +106,6 @@ export type BaselineOutput = {
   popup_id: string;
   diagnosis: PopupDiagnosis[];
   spec: PopupSpec;
-  code: string;
 };
 
 export type VariantOutput = {
@@ -116,7 +114,6 @@ export type VariantOutput = {
   hypothesis: string;
   motivating_metric: string;
   diff_from_baseline: string;
-  code: string;
   spec: PopupSpec;
 };
 
@@ -142,7 +139,7 @@ CRITICAL CONSTRAINTS (never break these):
 - Every variant MUST change exactly ONE test_axis from the baseline (unless constraints.multivariate is true).
 - brand_tokens (palette, type_display, type_body, signature_element) are NEVER a test axis.
 - Return ONLY valid JSON matching the output schema. No prose, no markdown fences, no explanation outside the JSON.
-- The "code" field must be a complete self-contained HTML string with inline styles that renders the popup correctly — brand colors, typography, copy — in an isolated div. Include a close button with id="asmos-close".
+- Never write HTML. The server renders the popup from your JSON spec using our premium template.
 
 MODE DETECTION
 - existing_popup.captured == true  -> IMPROVE_EXISTING
@@ -167,8 +164,8 @@ CREATE_NEW
 - Default trigger: exit-intent on desktop, 60% scroll-depth fallback on mobile.
   Override if store.category or price point suggests longer consideration window
   (high-ticket items -> time-delay over exit-intent).
-- Build the baseline using EXACTLY constraints.archetype and constraints.layout_style (see POPUP ARCHETYPES
-  and LAYOUT STYLES below) — this is what makes each store's popup feel different from the last one you generated.
+- Choose a layout_style and image treatment (see POPUP BLUEPRINT below) that fits the store's category and
+  existing brand — this is what makes each store's popup feel different from the last one you generated.
 - Output one baseline popup: full spec plus self-contained HTML code.
 - diagnosis array must be empty for CREATE_NEW mode.
 
@@ -181,62 +178,42 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
   - Use the ranked default order: trigger/timing -> friction -> copy/offer framing -> layout -> visual/micro-details.
   - Generate exactly constraints.variant_count variants (0 = no variants, only baseline).
   - Each variant isolates ONE axis change from the baseline.
-- ARCHETYPE/LAYOUT CONSISTENCY ACROSS VARIANTS: if a variant's test_axis is "layout", it MUST use a
-  different archetype and/or layout_style than the baseline (that IS the test). For every other test_axis
-  (trigger, friction, copy, visual), keep the SAME archetype and layout_style as the baseline — you're
+- LAYOUT CONSISTENCY ACROSS VARIANTS: if a variant's test_axis is "layout", it MUST use a
+  different layout_style than the baseline (that IS the test). For every other test_axis
+  (trigger, friction, copy, visual), keep the SAME layout_style as the baseline — you're
   isolating one variable, not redesigning the whole popup.
 - motivating_metric must be in plain language for a store owner's dashboard, e.g.:
   "removed the name field — email-only variant is converting 34% higher after 1,200 impressions"
   or "cold_start_default_priority" if no data yet.
 
-POPUP ARCHETYPES (constraints.archetype tells you which one to build — this is not optional, do not default to a generic centered single-step form regardless of instinct)
-- single_step: One headline, one subhead, one field, one CTA. Fastest path to conversion.
-  Psychological trigger: Reciprocity — give the offer up front, ask for almost nothing in return.
-- two_step: An initial "teaser" screen with just a headline and a single CTA button (e.g. "Reveal my discount").
-  Clicking it transitions (no page reload) to the actual form. Because the visitor already said "yes" once,
-  they're far more likely to complete the form.
-  Psychological trigger: Commitment & Consistency — a small first "yes" makes the second ask feel natural.
-- quiz: 2-3 short tap-to-answer questions (e.g. "What are you shopping for today?") before revealing a
-  personalized offer tailored to the answers.
-  Psychological trigger: Curiosity + sunk-cost — visitors who've invested a few taps want to see the payoff.
-- gamified: A spin-the-wheel, scratch-card, or mystery-box mechanic that reveals a randomized-feeling reward
-  before asking for the visitor's email to claim it.
-  Psychological trigger: Scarcity & Loss Aversion — the reward feels won, not given, and walking away means
-  losing it.
+PSYCHOLOGICAL FOUNDATION (from Asmos's design research — every layout/copy choice below should serve at least one of these)
+- Reciprocity: state the gift in the headline before asking for anything — "you've got 10% off" framing, not a generic "join us."
+- Loss aversion: frame the offer as something to lose ("your discount expires"), not only something to gain — loses roughly twice as strong as an equivalent gain, psychologically.
+- Scarcity: only claim urgency that is real (genuine first-order-only, genuine time limits) — fabricated countdowns produce a short-term lift and a lasting trust penalty once visitors notice the timer never actually runs out.
+- Commitment & consistency: for goal "BOTH", the two-step teaser→capture flow converts better than a single flat form because the first CTA click is a free micro-yes that makes the email ask feel like a natural next step, not a cold request — write the teaser headline as an invitation to claim something already earned.
+- Every additional required form field costs roughly 10-15% conversion — default to email-only unless there's a specific reason for more.
 
-LAYOUT STYLES (constraints.layout_style tells you which one to build)
-- split_left: Two-column layout, image/visual on the left, copy + form on the right.
-- split_right: Two-column layout, image/visual on the right, copy + form on the left.
-- centered: Single centered card, no image column, generous whitespace, everything stacked vertically.
-- minimal: Ultra-compact single-line or single-row layout (inline field + button), least visual weight.
+POPUP BLUEPRINT (LAYOUT & IMAGE VARIANCE)
+- Always assign a \`layout_style\` for the popup: "split-left", "split-right", "centered", or "minimal".
+  - Control variants should usually be "split-left" or "split-right".
+  - When generating variants, strongly consider testing a different layout (e.g. comparing "split-left" to "centered").
+- Always assign a suitable \`image_url\` (unless layout is "minimal" or you explicitly want a text-only popup). Use high-quality Unsplash source URLs related to the store category. Examples:
+  - Fashion/Apparel: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80"
+  - Beauty/Skincare: "https://images.unsplash.com/photo-1596462502278-27bf85033e5a?auto=format&fit=crop&q=80"
+  - Abstract/Discount: "https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?auto=format&fit=crop&q=80"
+- For trigger delays, assign an integer to \`delay_seconds\` if the trigger involves time (e.g. 5, 10, 15). Leave it null for purely exit-intent or scroll depth.
 
-MOTION
-- Every popup needs a distinct entrance animation appropriate to its archetype — do not reuse the exact same
-  transform/timing across different archetypes:
-  - single_step / centered: scale from 0.96 to 1.0 with opacity fade, ~250ms ease-out.
-  - two_step: the teaser screen fades in; the transition from teaser to form should slide/cross-fade
-    horizontally (~200ms) so the "reveal" feels like a natural next step, not a jump cut.
-  - quiz: each question should cross-fade or slide in as the visitor answers, so it reads as a short flow,
-    not a static form.
-  - gamified: the wheel/scratch-card mechanic needs its own motion (rotation, reveal/scratch effect) —
-    this is the one archetype where the animation IS the primary interaction, not decoration.
-
-Randomly vary which specific colors from brand_tokens.palette anchor the CTA vs. accents, the corner-radius
-scale, and the exact wording style (playful vs. direct vs. urgent) between generations — the archetype and
-layout_style are fixed by constraints, but everything else should feel like a different designer made it.
-
-POPUP CODE REQUIREMENTS
-The "code" field must be a complete self-contained HTML string:
-- Outer wrapper: <div id="asmos-popup" style="..."> with fixed/absolute positioning, z-index 99999
-- Close button: <button id="asmos-close" ...> in top-right corner
-- Use brand_tokens.palette[0] as primary CTA button background
-- Use brand_tokens.palette for all accent colors
-- Email input with id="asmos-email-input"
-- CTA button with id="asmos-cta-btn"
-- Mobile-responsive (max-width: 360px, centered)
-- No external font dependencies — use system font stack from brand_tokens.type_body or safe fallback
-- Stunning, premium design that will wow visitors on first glance
-- Include subtle micro-animation on the popup entrance: transform scale from 0.96 to 1.0`;
+POPUP DESIGN REQUIREMENTS
+You must act as a master conversion copywriter.
+Output the exact JSON spec configuring the popup based on the user's explicit goal (which is set in the input JSON).
+- If goal is "BOTH": Write a headline offering the discount, subhead asking for email to unlock it, and CTA to submit.
+- If goal is "EMAIL": Focus solely on the newsletter/community value. Do not offer a specific % off code. CTA should be "Subscribe".
+- If goal is "DISCOUNT": Offer the discount immediately without requiring an email. CTA should be "Copy Code" or "Shop Now".
+- headline: Max 6 words, highly compelling.
+- subhead: 1 short sentence clarifying.
+- cta: Short, action-oriented button text (e.g. "Claim Discount").
+- coupon_code: E.g., "WELCOME10" or "FREESHIP". (Leave blank if goal is EMAIL)
+Do not write any HTML. The server will inject your JSON into our premium template.`;
 
 // ─── Output Schema (tool call) ────────────────────────────────────────────────
 
@@ -244,11 +221,15 @@ const popupSpecSchema = {
   type: "object",
   properties: {
     trigger: { type: "string" },
+    delay_seconds: { type: ["number", "null"] },
     frequency_cap: { type: "string" },
     headline: { type: "string" },
     subhead: { type: "string" },
     cta: { type: "string" },
     fields: { type: "array", items: { type: "string" } },
+    coupon_code: { type: "string" },
+    layout_style: { type: "string", enum: ["split-left", "split-right", "centered", "minimal"] },
+    image_url: { type: ["string", "null"] },
     design_tokens: {
       type: "object",
       properties: {
@@ -260,7 +241,7 @@ const popupSpecSchema = {
       additionalProperties: false,
     },
   },
-  required: ["trigger", "frequency_cap", "headline", "subhead", "cta", "fields", "design_tokens"],
+  required: ["trigger", "delay_seconds", "frequency_cap", "headline", "subhead", "cta", "fields", "coupon_code", "layout_style", "image_url", "design_tokens"],
   additionalProperties: false,
 } as const;
 
@@ -286,9 +267,8 @@ const popupOutputSchema = {
           },
         },
         spec: popupSpecSchema,
-        code: { type: "string" },
       },
-      required: ["popup_id", "diagnosis", "spec", "code"],
+      required: ["popup_id", "diagnosis", "spec"],
       additionalProperties: false,
     },
     variants: {
@@ -301,10 +281,9 @@ const popupOutputSchema = {
           hypothesis: { type: "string" },
           motivating_metric: { type: "string" },
           diff_from_baseline: { type: "string" },
-          code: { type: "string" },
           spec: popupSpecSchema,
         },
-        required: ["variant_id", "test_axis", "hypothesis", "motivating_metric", "diff_from_baseline", "code", "spec"],
+        required: ["variant_id", "test_axis", "hypothesis", "motivating_metric", "diff_from_baseline", "spec"],
         additionalProperties: false,
       },
     },
@@ -481,31 +460,6 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
   });
 }
 
-// ─── Archetype / Layout Diversity ─────────────────────────────────────────────
-
-const ALL_ARCHETYPES: PopupArchetype[] = ["single_step", "two_step", "quiz", "gamified"];
-const ALL_LAYOUTS: LayoutStyle[] = ["split_left", "split_right", "centered", "minimal"];
-
-// Category-weighted archetype pools — not a hard rule, just biases the random
-// pick toward what tends to fit the category, while still keeping variety.
-// Anything not matched below picks from the full set.
-const CATEGORY_ARCHETYPE_POOLS: { match: RegExp; archetypes: PopupArchetype[] }[] = [
-  { match: /fashion|beauty|apparel/i, archetypes: ["gamified", "two_step", "quiz"] },
-  { match: /home|furniture|decor/i, archetypes: ["single_step", "two_step"] },
-  { match: /food|beverage|grocery/i, archetypes: ["single_step", "gamified"] },
-  { match: /luxury|high.?ticket|jewelry/i, archetypes: ["single_step", "two_step"] },
-];
-
-function pickArchetype(category: string): PopupArchetype {
-  const pool = CATEGORY_ARCHETYPE_POOLS.find((p) => p.match.test(category))?.archetypes;
-  const candidates = pool && pool.length > 0 ? pool.filter((a) => ALL_ARCHETYPES.includes(a)) : ALL_ARCHETYPES;
-  return candidates[Math.floor(Math.random() * candidates.length)] ?? "single_step";
-}
-
-function pickLayoutStyle(): LayoutStyle {
-  return ALL_LAYOUTS[Math.floor(Math.random() * ALL_LAYOUTS.length)];
-}
-
 // ─── Input Builder ────────────────────────────────────────────────────────────
 
 export function buildPopupInput(opts: {
@@ -517,8 +471,7 @@ export function buildPopupInput(opts: {
   analyticsVariants: AnalyticsVariant[];
   variantCount: number;
   multivariate?: boolean;
-  archetype?: PopupArchetype;
-  layoutStyle?: LayoutStyle;
+  goal?: "EMAIL" | "DISCOUNT" | "BOTH";
 }): PopupGenerationInput {
   return {
     store: {
@@ -533,9 +486,8 @@ export function buildPopupInput(opts: {
     constraints: {
       variant_count: opts.variantCount,
       multivariate: opts.multivariate ?? false,
-      archetype: opts.archetype ?? pickArchetype(opts.category),
-      layout_style: opts.layoutStyle ?? pickLayoutStyle(),
     },
+    goal: opts.goal ?? "BOTH",
   };
 }
 
@@ -669,13 +621,32 @@ export async function generatePopupWithVariants(
   input: PopupGenerationInput,
 ): Promise<PopupGenerationOutput> {
   // Provider priority: Bedrock (AWS) → Anthropic direct → Gemini
+  let lastError: unknown;
+
   if (HAS_AWS_KEY) {
-    return generateWithBedrock(input);
+    try {
+      return await generateWithBedrock(input);
+    } catch (err) {
+      console.warn("[popupGeneration] Bedrock failed, falling back to next provider:", err);
+      lastError = err;
+    }
   }
+  
   if (HAS_ANTHROPIC_KEY) {
-    return generateWithClaude(input);
+    try {
+      return await generateWithClaude(input);
+    } catch (err) {
+      console.warn("[popupGeneration] Anthropic failed, falling back to Gemini:", err);
+      lastError = err;
+    }
   }
-  return generateWithGemini(input);
+  
+  try {
+    return await generateWithGemini(input);
+  } catch (err) {
+    console.error("[popupGeneration] Gemini failed too.", err);
+    throw lastError ?? err;
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

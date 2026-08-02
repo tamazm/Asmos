@@ -19,7 +19,7 @@ export async function GET(
   const { id } = await ctx.params;
   const account = await getOrCreateAccount();
   const reward = await prisma.rewardRule.findFirst({
-    where: { id, variant: { campaign: { accountId: account.id } } },
+    where: { id, campaign: { accountId: account.id } },
   });
   if (!reward) {
     return Response.json({ error: "Reward not found" }, { status: 404 });

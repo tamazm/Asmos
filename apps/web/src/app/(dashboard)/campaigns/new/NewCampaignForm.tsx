@@ -1,0 +1,285 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { campaignCreated } from "@/lib/analytics";
+import Link from "next/link";
+
+type Phase = "idle" | "analyzing" | "error";
+
+export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
+  const router = useRouter();
+  const [url, setUrl] = useState(defaultUrl);
+  const [campaignName, setCampaignName] = useState("");
+  const [goal, setGoal] = useState<"EMAIL" | "DISCOUNT" | "BOTH">("BOTH");
+  const [phase, setPhase] = useState<Phase>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [showManual, setShowManual] = useState(false);
+
+  async function launch() {
+    const raw = url.trim();
+    if (!raw) return;
+    let normalized = raw;
+    if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) {
+      normalized = "https://" + normalized;
+    }
+
+    setError(null);
+    setPhase("analyzing");
+
+    try {
+      // Step 1: Analyze the store URL
+      const resAnalyze = await fetch(`/api/analyze?url=${encodeURIComponent(normalized)}`);
+      if (!resAnalyze.ok) {
+        throw new Error("Could not analyze store. Please check the URL and try again.");
+      }
+      const result = await resAnalyze.json();
+
+      const name = campaignName.trim() || `${result.storeName ?? "My Store"} — Email Capture`;
+
+      // Step 2: Create the campaign immediately with GENERATING status
+      const resCreate = await fetch("/api/campaigns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          status: "GENERATING",
+          generationContext: { ...result, goal },
+        }),
+      });
+
+      if (!resCreate.ok) {
+        const body = await resCreate.json().catch(() => ({}));
+        throw new Error(body.error ?? "Failed to create campaign");
+      }
+
+      const created = await resCreate.json();
+      campaignCreated({
+        campaignId: created.campaign?.id ?? "unknown",
+        campaignType: "FORM",
+        name,
+      });
+
+      // Redirect directly to the campaign page. The background task will finish generation there.
+      router.push(`/campaigns/${created.campaign?.id ?? ""}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+      setPhase("error");
+    }
+  }
+
+  function reset() {
+    setPhase("idle");
+    setError(null);
+  }
+
+  return (
+    <div className="flex flex-col gap-8 max-w-2xl mx-auto">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-3 mb-1">
+          <button
+            onClick={() => router.push("/campaigns")}
+            className="text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M10 3L5 8l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <span className="text-sm text-[color:var(--color-text-secondary)]">Pop-ups</span>
+        </div>
+        <h1 className="text-2xl font-bold text-[color:var(--color-text-primary)]">Launch a popup</h1>
+        <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
+          Enter your store URL — Asmos AI scans your brand and designs a popup in seconds.
+        </p>
+      </div>
+
+      {/* Main card */}
+      <div className="rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5 shadow-sm">
+        <div className="rounded-[1rem] bg-[color:var(--color-surface)] p-6 flex flex-col gap-6">
+
+          {/* ── IDLE / URL input phase ── */}
+          {phase === "idle" && (
+            <>
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label htmlFor="store-url" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                    Store URL
+                  </label>
+                  <input
+                    id="store-url"
+                    type="url"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && url.trim() && launch()}
+                    placeholder="yourstore.com"
+                    autoFocus
+                    className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="campaign-name" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                    Campaign name <span className="font-normal text-[color:var(--color-text-secondary)]">(optional — auto-filled from store)</span>
+                  </label>
+                  <input
+                    id="campaign-name"
+                    type="text"
+                    value={campaignName}
+                    onChange={(e) => setCampaignName(e.target.value)}
+                    placeholder="e.g. Summer Email Capture"
+                    className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
+                  />
+                </div>
+                
+                <div>
+                  <label className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                    Popup Goal
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {/* BOTH: Capture & Offer */}
+                    <label className={`group relative cursor-pointer rounded-lg border p-3 flex flex-col items-center text-center transition-colors ${goal === "BOTH" ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/50"}`}>
+                      <input type="radio" name="goal" value="BOTH" checked={goal === "BOTH"} onChange={() => setGoal("BOTH")} className="sr-only" />
+                      <span className="text-sm font-medium text-[color:var(--color-text-primary)] mb-1">Capture & Offer</span>
+                      <span className="text-xs text-[color:var(--color-text-secondary)]">Collect email to reveal code</span>
+                      
+                      {/* Tooltip */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 rounded-xl bg-gray-900 text-white p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl pointer-events-none">
+                        <div className="text-xs text-left space-y-2">
+                          <p className="font-bold text-indigo-300">The balanced approach</p>
+                          <p><span className="text-green-400 font-bold">Pro:</span> Highly effective. Email-gated discounts convert up to <span className="font-bold">41% higher</span> than standard popups.</p>
+                          <p><span className="text-red-400 font-bold">Con:</span> Requires 2 steps (email, then code), adding slight friction.</p>
+                        </div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </label>
+
+                    {/* EMAIL: Email Only */}
+                    <label className={`group relative cursor-pointer rounded-lg border p-3 flex flex-col items-center text-center transition-colors ${goal === "EMAIL" ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/50"}`}>
+                      <input type="radio" name="goal" value="EMAIL" checked={goal === "EMAIL"} onChange={() => setGoal("EMAIL")} className="sr-only" />
+                      <span className="text-sm font-medium text-[color:var(--color-text-primary)] mb-1">Email Only</span>
+                      <span className="text-xs text-[color:var(--color-text-secondary)]">Newsletter signup focus</span>
+
+                      {/* Tooltip */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 rounded-xl bg-gray-900 text-white p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl pointer-events-none">
+                        <div className="text-xs text-left space-y-2">
+                          <p className="font-bold text-indigo-300">List building focus</p>
+                          <p><span className="text-green-400 font-bold">Pro:</span> Higher long-term subscriber quality (avg <span className="font-bold">3-5%</span> conversion).</p>
+                          <p><span className="text-red-400 font-bold">Con:</span> Lower raw volume compared to discounting. No immediate sales incentive.</p>
+                        </div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </label>
+
+                    {/* DISCOUNT: Discount Only */}
+                    <label className={`group relative cursor-pointer rounded-lg border p-3 flex flex-col items-center text-center transition-colors ${goal === "DISCOUNT" ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/50"}`}>
+                      <input type="radio" name="goal" value="DISCOUNT" checked={goal === "DISCOUNT"} onChange={() => setGoal("DISCOUNT")} className="sr-only" />
+                      <span className="text-sm font-medium text-[color:var(--color-text-primary)] mb-1">Discount Only</span>
+                      <span className="text-xs text-[color:var(--color-text-secondary)]">Give code immediately</span>
+
+                      {/* Tooltip */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 rounded-xl bg-gray-900 text-white p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10 shadow-xl pointer-events-none">
+                        <div className="text-xs text-left space-y-2">
+                          <p className="font-bold text-indigo-300">Maximize immediate sales</p>
+                          <p><span className="text-green-400 font-bold">Pro:</span> Massive immediate conversion rates (<span className="font-bold">8-15%</span>) for purchases.</p>
+                          <p><span className="text-red-400 font-bold">Con:</span> <span className="font-bold">0%</span> email capture rate. Misses out on future marketing reach.</p>
+                        </div>
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* What AI does */}
+              <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 py-3 flex flex-col gap-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--color-text-secondary)]">What Asmos AI does automatically</p>
+                {[
+                  "Scans your homepage for brand colors, typography, and style",
+                  "Detects any existing popups and improves them — or creates from scratch",
+                  "Writes personalized headline, subhead and CTA for your store category",
+                  "Generates a self-contained popup — live in one click",
+                  "Auto-tests variants via the bandit — no manual A/B setup needed",
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-2">
+                    <svg className="mt-0.5 shrink-0 text-emerald-500" width="12" height="12" viewBox="0 0 16 16" fill="none">
+                      <path d="M3 8l3.5 3.5L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    <p className="text-xs text-[color:var(--color-text-secondary)]">{item}</p>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={launch}
+                disabled={!url.trim()}
+                className="w-full rounded-lg bg-[color:var(--color-primary)] py-3 text-sm font-bold text-white transition-[background-color,transform,opacity] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Design my popup →
+              </button>
+
+              {/* Manual escape hatch */}
+              <div className="text-center">
+                <button
+                  onClick={() => setShowManual(true)}
+                  className="text-xs text-[color:var(--color-text-secondary)] underline underline-offset-2 hover:text-[color:var(--color-text-primary)] transition-colors"
+                >
+                  Prefer to set it up manually?
+                </button>
+              </div>
+
+              {showManual && (
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-4 py-3 text-center">
+                  <p className="text-sm text-[color:var(--color-text-secondary)] mb-2">
+                    The manual campaign wizard gives you full control over type, design, targeting, and rewards.
+                  </p>
+                  <Link
+                    href="/campaigns/new/manual"
+                    className="inline-flex items-center gap-1.5 text-sm text-[color:var(--color-primary)] font-medium hover:underline"
+                  >
+                    Open manual wizard →
+                  </Link>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* ── WORKING phase ── */}
+          {phase === "analyzing" && (
+            <div className="flex flex-col items-center gap-8 py-4">
+              <div className="relative flex h-20 w-20 items-center justify-center">
+                <span className="absolute inline-block h-20 w-20 rounded-full border-2 border-[color:var(--color-primary)] opacity-20 animate-ping" />
+                <span className="absolute inline-block h-14 w-14 rounded-full border border-[color:var(--color-primary)]/30" />
+                <span className="inline-block h-6 w-6 rounded-full border-2 border-[color:var(--color-primary)] border-t-transparent animate-spin" />
+              </div>
+              <p className="text-sm font-medium text-[color:var(--color-text-primary)]">
+                Initializing campaign...
+              </p>
+            </div>
+          )}
+
+          {/* ── ERROR phase ── */}
+          {phase === "error" && (
+            <div className="flex flex-col items-center gap-4 py-4 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-50 border border-red-100">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-red-500">
+                  <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </div>
+              <div>
+                <p className="font-semibold text-[color:var(--color-text-primary)]">Something went wrong</p>
+                <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">{error}</p>
+              </div>
+              <button
+                onClick={reset}
+                className="rounded-lg bg-[color:var(--color-primary)] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}

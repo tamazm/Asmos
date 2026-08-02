@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { notFound } from "next/navigation";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";

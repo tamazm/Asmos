@@ -7,11 +7,9 @@ export default async function RewardsPage() {
   const account = await getOrCreateAccount();
 
   const rewards = await prisma.rewardRule.findMany({
-    where: { variant: { campaign: { accountId: account.id } } },
+    where: { campaign: { accountId: account.id } },
     include: {
-      variant: {
-        select: { name: true, campaign: { select: { id: true, name: true } } },
-      },
+      campaign: { select: { id: true, name: true } },
       couponCodes: { select: { usedAt: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -25,9 +23,8 @@ export default async function RewardsPage() {
     type: r.type,
     couponCode: r.couponCode,
     weight: r.weight,
-    campaignId: r.variant.campaign.id,
-    campaignName: r.variant.campaign.name,
-    variantName: r.variant.name,
+    campaignId: r.campaign.id,
+    campaignName: r.campaign.name,
     totalCodes: r.couponCodes.length,
     usedCodes: r.couponCodes.filter((c) => c.usedAt !== null).length,
   }));

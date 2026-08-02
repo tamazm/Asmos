@@ -29,6 +29,16 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/rewards",
+    label: "Rewards",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M8 2L10 6L14 7L11 10L12 14L8 12L4 14L5 10L2 7L6 6L8 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+
+  {
     href: "/analytics",
     label: "Analytics",
     icon: (
@@ -123,6 +133,21 @@ export function Sidebar({
         {NAV_ITEMS.map((item) => {
           const active =
             pathname === item.href || pathname?.startsWith(`${item.href}/`);
+          
+          let displayLabel = item.label;
+          if (active && pathname && pathname !== item.href) {
+            const parts = pathname.replace(item.href, "").split("/").filter(Boolean);
+            if (parts.length > 0) {
+              if (parts.length === 1) {
+                displayLabel = `${item.label} / Overview`;
+              } else {
+                const subPage = parts[parts.length - 1];
+                const capitalized = subPage.charAt(0).toUpperCase() + subPage.slice(1);
+                displayLabel = `${item.label} / ${capitalized}`;
+              }
+            }
+          }
+
           return (
             <Link
               key={item.href}
@@ -136,7 +161,7 @@ export function Sidebar({
               aria-current={active ? "page" : undefined}
             >
               {item.icon}
-              {item.label}
+              <span className="truncate">{displayLabel}</span>
               {active && (
                 <span
                   className="ml-auto h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)] flex-shrink-0"

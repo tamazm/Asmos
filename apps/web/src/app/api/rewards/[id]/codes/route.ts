@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 async function findOwnedReward(rewardId: string, accountId: string) {
   return prisma.rewardRule.findFirst({
-    where: { id: rewardId, variant: { campaign: { accountId } } },
+    where: { id: rewardId, campaign: { accountId } },
   });
 }
 

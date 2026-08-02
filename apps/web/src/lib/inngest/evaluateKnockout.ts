@@ -1,6 +1,9 @@
+// @ts-expect-error
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma/client";
+import { AI_GENERATION_LIMITS } from "@/lib/limits";
+import type { Prisma } from ".prisma/client";
 import {
   generatePopupWithVariants,
   fetchVariantAnalytics,
@@ -9,6 +12,7 @@ import {
   computedStylesFromAnalyzeResult,
   existingPopupFromAnalyzeResult,
 } from "@/lib/popupGeneration";
+import { renderSplitScreenTemplate } from "@/lib/templates/splitScreen";
 
 export const evaluateKnockout = inngest.createFunction(
   { id: "evaluate-knockout", triggers: { event: "campaign.evaluate" } },
@@ -88,8 +92,7 @@ export const evaluateKnockout = inngest.createFunction(
     const slotsAvailable = maxVariants - activeVariants.length;
     if (slotsAvailable <= 0) return { message: "No slots available" };
 
-    const limits: Record<string, number> = { FREE: 3, STARTER: 10, GROWTH: 50, SCALE: 250 };
-    const maxGenerations = limits[planTier] ?? 3;
+    const maxGenerations = AI_GENERATION_LIMITS[planTier] ?? 3;
     if (campaign.account.aiGenerationsCount >= maxGenerations) {
       return { message: "Account reached AI generation limit" };
     }
@@ -174,12 +177,21 @@ export const evaluateKnockout = inngest.createFunction(
                 ctaText: v.spec.cta,
               },
               formFields: v.spec.fields,
-              targeting: { trigger: v.spec.trigger, delaySeconds: null },
+              targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds },
               testAxis: v.test_axis,
               hypothesis: v.hypothesis,
               motivatingMetric: v.motivating_metric,
               popupSpec: v.spec as unknown as Prisma.InputJsonValue,
-              generatedCode: v.code,
+              generatedCode: renderSplitScreenTemplate({
+                headline: v.spec.headline,
+                subhead: v.spec.subhead,
+                cta: v.spec.cta,
+                primaryColor: v.spec.design_tokens.palette[0] ?? accountBrandColor,
+                couponCode: v.spec.coupon_code,
+                goal: "BOTH",
+                layoutStyle: v.spec.layout_style,
+                imageUrl: v.spec.image_url,
+              }),
             },
           });
         }

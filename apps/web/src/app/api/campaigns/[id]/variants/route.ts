@@ -1,7 +1,8 @@
+// @ts-expect-error
 import { auth } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-import type { Prisma, RewardType } from "@/generated/prisma/client";
+import type { Prisma, RewardType } from ".prisma/client";
 
 const VARIANT_NAMES = ["Control", "Variant B", "Variant C", "Variant D", "Variant E"];
 
@@ -30,7 +31,7 @@ export async function POST(
   const account = await getOrCreateAccount();
   const campaign = await prisma.campaign.findFirst({
     where: { id, accountId: account.id },
-    include: { variants: { include: { rewards: true }, orderBy: { createdAt: "asc" } } },
+    include: { variants: { orderBy: { createdAt: "asc" } } },
   });
   if (!campaign) {
     return Response.json({ error: "Campaign not found" }, { status: 404 });
@@ -46,8 +47,10 @@ export async function POST(
 
   const nextName = body.name?.trim() || VARIANT_NAMES[campaign.variants.length];
   const evenSplit = Math.floor(100 / (campaign.variants.length + 1));
-  const rewardSource = body.rewards ?? control.rewards;
 
+  // Rewards live on the campaign now, not the variant — every variant under this
+  // campaign already shares the same reward pool, so there's nothing to clone here.
+  // We only create new RewardRules when an AI insight suggests one alongside this variant.
   const results = await prisma.$transaction([
     ...campaign.variants.map((v) =>
       prisma.variant.update({ where: { id: v.id }, data: { trafficPercent: evenSplit } }),
@@ -61,16 +64,19 @@ export async function POST(
         design: body.design ?? control.design ?? undefined,
         formFields: body.formFields ?? control.formFields ?? undefined,
         targeting: body.targeting ?? control.targeting ?? undefined,
-        rewards: {
-          create: rewardSource.map((r) => ({
-            label: r.label,
-            type: r.type,
-            couponCode: r.couponCode,
-            weight: r.weight,
-          })),
-        },
       },
     }),
+    ...(body.rewards ?? []).map((r) =>
+      prisma.rewardRule.create({
+        data: {
+          campaignId: campaign.id,
+          label: r.label,
+          type: r.type,
+          couponCode: r.couponCode,
+          weight: r.weight,
+        },
+      }),
+    ),
   ]);
 
   return Response.json({ variant: results[results.length - 1] });

@@ -674,7 +674,7 @@ async function handler(req: NextRequest) {
         where: { id: rateLimit.id },
         data: { count: 1, resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }
       });
-    } else if (rateLimit.count >= 5) {
+    } else if (rateLimit.count >= 50) {
       return NextResponse.json({ error: "Rate limit exceeded. Please try again tomorrow." }, { status: 429 });
     } else {
       await prisma.rateLimit.update({
@@ -705,7 +705,7 @@ async function handler(req: NextRequest) {
   if (!screenshotBase64) {
     // No screenshot — use heuristics
     const result = await heuristicAnalysis(normalizedUrl);
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, storeUrl: normalizedUrl });
   }
 
   // 2. AI analysis — Bedrock → Anthropic → Gemini → heuristic (CRO pass)
@@ -727,7 +727,7 @@ async function handler(req: NextRequest) {
   if (!aiResult) {
     // All AI failed — return heuristics but include screenshot
     const heuristic = await heuristicAnalysis(normalizedUrl);
-    return NextResponse.json({ ...heuristic, screenshotBase64 });
+    return NextResponse.json({ ...heuristic, screenshotBase64, storeUrl: normalizedUrl });
   }
 
   // 3. Run brand token extraction + HTML meta enrichment in parallel

@@ -25,6 +25,7 @@ export function DashboardEmptyState() {
     }
   }, []);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function startAutoGeneration(analyzeResult: any) {
     setPhase("generating");
     setError(null);

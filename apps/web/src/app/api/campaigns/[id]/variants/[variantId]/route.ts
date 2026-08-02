@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from ".prisma/client";
 
 type DesignPatch = Record<string, string | number | boolean | null>;
 

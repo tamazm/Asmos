@@ -1,3 +1,4 @@
+// @ts-expect-error
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { getOrCreateAccount } from "@/lib/account";

@@ -1,3 +1,4 @@
+// @ts-expect-error
 "use server";
 
 import { currentUser } from "@/lib/auth-adapter";

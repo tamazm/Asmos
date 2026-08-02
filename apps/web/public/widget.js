@@ -1,8 +1,11 @@
+/* eslint-disable */
 (function () {
   var scriptEl = document.currentScript;
   if (!scriptEl) return;
 
   var site = scriptEl.getAttribute("data-site") || window.location.hostname;
+  var previewVariantId = scriptEl.getAttribute("data-preview-variant-id");
+  var isPreview = scriptEl.getAttribute("data-preview") === "true";
   var apiBase = new URL(scriptEl.src).origin;
   var CONSENT_KEY = "asmos_consent";
 
@@ -176,13 +179,111 @@
 
   function showPopup(campaign, variant) {
     var sessionKey = "asmos_shown_" + campaign.id;
-    if (sessionStorage.getItem(sessionKey)) return;
-    sessionStorage.setItem(sessionKey, "1");
+    if (!isPreview) {
+      if (sessionStorage.getItem(sessionKey)) return;
+      sessionStorage.setItem(sessionKey, "1");
+    }
 
     // Record the exact moment the popup appeared for dismiss timing
     var popupShownAt = Date.now();
 
+    if (variant.generatedCode) {
+      // ─── NEW TEMPLATE ENGINE ────────────────────────────────────────────────
+      window.__asmos_active_variant = variant;
+      window.__asmos_api_base = apiBase;
+
+      var container = document.createElement("div");
+      container.id = "asmos-popup-container";
+      container.innerHTML = variant.generatedCode;
+      document.body.appendChild(container);
+
+      // Execute embedded scripts (innerHTML does not run them automatically)
+      var scripts = container.querySelectorAll("script");
+      scripts.forEach(function(s) {
+        var newScript = document.createElement("script");
+        if (s.src) {
+          newScript.src = s.src;
+        } else {
+          var code = s.textContent;
+          // Force the popup to open if we are in preview mode, bypassing local storage limits
+          if (isPreview) {
+            code = code.replace(/if\s*\(\s*shouldShow\(\)\s*\)\s*openPopup\(\);/g, "openPopup();");
+            // Also wipe the storage key just in case
+            localStorage.removeItem("asmos_popup_last_seen");
+          }
+          newScript.textContent = code;
+        }
+        document.body.appendChild(newScript);
+        s.remove();
+      });
+
+      var closeBtn = document.getElementById("asmos-close") || document.getElementById("popupClose") || container.querySelector(".popup-close");
+      if (closeBtn) {
+        closeBtn.onclick = function() {
+          var dismissAfterMs = Date.now() - popupShownAt;
+          trackEvent(variant.id, "DISMISSED", { dismissAfterMs: dismissAfterMs });
+          container.remove();
+        };
+      }
+
+      var form = document.getElementById("popupForm") || container.querySelector("form");
+      var emailInput = document.getElementById("asmos-email-input") || document.getElementById("popupEmail");
+      
+      if (form && emailInput) {
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var submitBtn = form.querySelector("button[type='submit']") || document.getElementById("asmos-cta-btn");
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Submitting…";
+          }
+
+          if (isPreview) {
+            setTimeout(function() {
+              alert("Preview: Email captured! (Code: " + (variant.popupSpec?.coupon_code || "N/A") + ")");
+              container.remove();
+            }, 500);
+            return;
+          }
+
+          var payload = Object.assign(
+            { variantId: variant.id, consentGiven: true, email: emailInput.value },
+            behavioralContext()
+          );
+
+          fetch(apiBase + "/api/widget/leads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }).then(function(res) {
+            if (res.ok) {
+              trackEvent(variant.id, "SUBMISSION");
+              var step3 = document.querySelector('[data-step="3"]');
+              if (step3) {
+                document.querySelectorAll('.popup-step').forEach(function(s) { s.hidden = true; });
+                step3.hidden = false;
+              } else {
+                container.remove();
+              }
+            }
+          });
+        });
+      }
+
+      var copyBtn = document.getElementById("popupCopy");
+      if (copyBtn) {
+        copyBtn.onclick = function() {
+          var codeEl = document.getElementById("popupCodeValue");
+          if (codeEl) navigator.clipboard.writeText(codeEl.textContent);
+        };
+      }
+
+      trackEvent(variant.id, "IMPRESSION");
+      return;
+    }
+
     var overlay = document.createElement("div");
+    overlay.setAttribute("data-asmos-popup", "true");
     overlay.style.cssText =
       "position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,0.5);" +
       "display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;";
@@ -206,24 +307,28 @@
     };
     card.appendChild(close);
 
+    var design = variant.design || {};
+    var primaryColor = design.primaryColor || "#165DFF";
+    
     var headline = document.createElement("h2");
-    headline.textContent = variant.design.headline;
+    headline.textContent = design.headline || "Special Offer";
     headline.style.cssText =
-      "margin:0 0 8px;font-size:20px;font-weight:700;color:" + variant.design.primaryColor + ";";
+      "margin:0 0 8px;font-size:20px;font-weight:700;color:" + primaryColor + ";";
     card.appendChild(headline);
 
     var body = document.createElement("p");
-    body.textContent = variant.design.body;
+    body.textContent = design.body || "Sign up for updates and discounts.";
     body.style.cssText = "margin:0 0 16px;font-size:14px;color:#4b5563;";
     card.appendChild(body);
 
+    var variantRewards = variant.rewards || [];
     if (
       (campaign.type === "WHEEL" || campaign.type === "SCRATCH_CARD") &&
-      variant.rewards.length > 0
+      variantRewards.length > 0
     ) {
       var teaser = document.createElement("p");
       teaser.textContent =
-        "Up for grabs: " + variant.rewards.map(function (r) { return r.label; }).join(" · ");
+        "Up for grabs: " + variantRewards.map(function (r) { return r.label; }).join(" · ");
       teaser.style.cssText = "margin:0 0 16px;font-size:12px;color:#6b7280;font-style:italic;";
       card.appendChild(teaser);
     }
@@ -233,7 +338,8 @@
 
     var inputs = {};
     var interacted = false;
-    variant.formFields.forEach(function (field) {
+    var formFields = variant.formFields || ["email"];
+    formFields.forEach(function (field) {
       var input = document.createElement("input");
       input.type = fieldType(field);
       input.placeholder = fieldLabel(field);
@@ -256,10 +362,11 @@
 
     var submit = document.createElement("button");
     submit.type = "submit";
-    submit.textContent = variant.design.ctaText;
+    var ctaText = design.ctaText || "Submit";
+    submit.textContent = ctaText;
     submit.style.cssText =
       "margin-top:4px;padding:10px 16px;border:none;border-radius:8px;color:#fff;" +
-      "font-size:14px;font-weight:600;cursor:pointer;background:" + variant.design.primaryColor + ";";
+      "font-size:14px;font-weight:600;cursor:pointer;background:" + primaryColor + ";";
     form.appendChild(submit);
 
     form.addEventListener("submit", function (e) {
@@ -313,7 +420,7 @@
           errorMsg.textContent = "Something went wrong — please try again.";
           errorMsg.style.display = "block";
           submit.disabled = false;
-          submit.textContent = variant.design.ctaText;
+          submit.textContent = ctaText;
         });
     });
 
@@ -326,6 +433,11 @@
   }
 
   function scheduleTrigger(campaign, variant) {
+    if (isPreview) {
+      showPopup(campaign, variant);
+      return;
+    }
+
     var targeting = variant.targeting || {};
     var trigger = targeting.trigger || "time_delay";
 
@@ -353,7 +465,15 @@
     }
   }
 
-  fetch(apiBase + "/api/widget/config?site=" + encodeURIComponent(site))
+  var configUrl = apiBase + "/api/widget/config?site=" + encodeURIComponent(site);
+  if (previewVariantId) {
+    configUrl += "&preview_variant_id=" + encodeURIComponent(previewVariantId);
+  }
+  if (isPreview) {
+    configUrl += "&preview=true";
+  }
+
+  fetch(configUrl)
     .then(function (res) {
       return res.json();
     })

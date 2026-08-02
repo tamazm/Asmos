@@ -2,9 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider   = "prisma-client"
-  output     = "../src/generated/prisma"
-  engineType = "library"
+  provider   = "prisma-client-js"
+  engineType = "binary"
 }
 
 datasource db {
@@ -180,6 +179,7 @@ model Campaign {
 
   variants Variant[]         @relation("CampaignVariants")
   insights CampaignInsight[]
+  rewards  RewardRule[]
 
   @@index([accountId])
   @@index([websiteId])
@@ -220,7 +220,6 @@ model Variant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  rewards     RewardRule[]
   leads       Lead[]
   events      CampaignEvent[]
   wonCampaign Campaign?       @relation("CampaignWinner")
@@ -229,9 +228,9 @@ model Variant {
 }
 
 model RewardRule {
-  id        String  @id @default(cuid())
-  variantId String
-  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   label       String
   // Free-text grouping for the Rewards dashboard (e.g. "Welcome offers", "Holiday").
@@ -247,7 +246,7 @@ model RewardRule {
 
   createdAt DateTime @default(now())
 
-  @@index([variantId])
+  @@index([campaignId])
 }
 
 // A pool of individual, single-use codes for a RewardRule — imported via CSV,
@@ -358,4 +357,13 @@ model RateLimit {
   createdAt DateTime @default(now())
 
   @@index([ip])
+}
+
+model SystemLog {
+  id        String   @id @default(cuid())
+  accountId String?
+  level     String   @default("ERROR")
+  message   String
+  details   String?  @db.Text
+  createdAt DateTime @default(now())
 }

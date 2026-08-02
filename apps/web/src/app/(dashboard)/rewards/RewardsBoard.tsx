@@ -16,7 +16,6 @@ export type RewardRow = {
   weight: number;
   campaignId: string;
   campaignName: string;
-  variantName: string;
   totalCodes: number;
   usedCodes: number;
 };
@@ -156,7 +155,7 @@ function RewardCard({ row }: { row: RewardRow }) {
             <Badge variant="neutral">{row.type.replace(/_/g, " ").toLowerCase()}</Badge>
           </div>
           <p className="mt-0.5 text-xs text-[color:var(--color-text-secondary)]">
-            {row.campaignName} · {row.variantName}
+            {row.campaignName}
           </p>
           {row.description && (
             <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">{row.description}</p>

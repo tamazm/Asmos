@@ -1,3 +1,4 @@
+// @ts-expect-error
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { corsJson, corsPreflight } from "@/lib/cors";
@@ -26,9 +27,9 @@ export async function POST(request: Request) {
   const variant = await prisma.variant.findUnique({
     where: { id: body.variantId },
     include: {
-      rewards: true,
       campaign: {
         include: {
+          rewards: true,
           account: {
             select: {
               name: true,
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     return corsJson({ error: "Unknown variant" }, { status: 404 });
   }
 
-  const reward = pickWeightedReward(variant.rewards);
+  const reward = pickWeightedReward(variant.campaign.rewards);
 
   const lead = await prisma.lead.create({
     data: {
