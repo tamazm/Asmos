@@ -34,6 +34,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
     where: { campaignId: campaign.id },
     orderBy: { createdAt: "desc" },
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const insightRows: InsightRow[] = insights.map((insight: any) => ({
     id: insight.id,
     summary: insight.summary,

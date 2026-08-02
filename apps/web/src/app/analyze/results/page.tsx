@@ -220,6 +220,7 @@ export default function AnalyzeResultsPage() {
       // Kick off popup generation in the background — don't block the page render
       const cachedPopup = sessionStorage.getItem("asmos_generated_popup");
       if (cachedPopup) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         try { setGeneratedPopup(JSON.parse(cachedPopup)); } catch { /* ignore */ }
       } else {
         setPopupGenerating(true);

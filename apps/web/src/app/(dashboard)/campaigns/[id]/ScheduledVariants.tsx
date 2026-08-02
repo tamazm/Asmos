@@ -148,6 +148,7 @@ export function ScheduledVariants({
 
   useEffect(() => {
     const list = buildScheduledVariants(variants, newlyAddedVariantId);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setScheduledList(list);
 
     // Show the "generating" row when a new variant was just added

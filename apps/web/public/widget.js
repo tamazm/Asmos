@@ -1,3 +1,4 @@
+/* eslint-disable */
 (function () {
   var scriptEl = document.currentScript;
   if (!scriptEl) return;

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { campaignCreated } from "@/lib/analytics";
+import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -356,12 +357,12 @@ export default function NewCampaignAutonomous() {
                   <p className="text-sm text-[color:var(--color-text-secondary)] mb-2">
                     The manual campaign wizard gives you full control over type, design, targeting, and rewards.
                   </p>
-                  <a
+                  <Link
                     href="/campaigns/new/manual"
                     className="inline-flex items-center gap-1.5 text-sm text-[color:var(--color-primary)] font-medium hover:underline"
                   >
                     Open manual wizard →
-                  </a>
+                  </Link>
                 </div>
               )}
             </>

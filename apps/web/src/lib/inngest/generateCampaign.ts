@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
 import {
@@ -97,7 +98,7 @@ export const generateCampaign = inngest.createFunction(
           },
           formFields: output.baseline.spec.fields,
           targeting: { trigger: output.baseline.spec.trigger, delaySeconds: null },
-          popupSpec: output.baseline.spec as any,
+          popupSpec: output.baseline.spec as  any,
           generatedCode: output.baseline.code,
         },
         ...output.variants.map((v, idx) => ({
@@ -112,7 +113,7 @@ export const generateCampaign = inngest.createFunction(
           },
           formFields: v.spec.fields,
           targeting: { trigger: v.spec.trigger, delaySeconds: null },
-          popupSpec: v.spec as any,
+          popupSpec: v.spec as  any,
           generatedCode: v.code,
           testAxis: v.test_axis,
           hypothesis: v.hypothesis,

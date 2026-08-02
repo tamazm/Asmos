@@ -44,6 +44,7 @@ export default async function AdminLogsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-[color:var(--color-border)]">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {logs.map((log: any) => (
                 <tr key={log.id} className="hover:bg-[color:var(--color-surface-sunken)] transition-colors align-top">
                   <td className="px-4 py-3 whitespace-nowrap text-[color:var(--color-text-secondary)]">

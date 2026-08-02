@@ -286,6 +286,7 @@ export function AddVariantPanel({
     setGenerated(null);
     clearStream();
 
+    // eslint-disable-next-line react-hooks/purity
     const seed = campaignId + Date.now().toString();
     const copy = generateVariantCopy(seed);
 

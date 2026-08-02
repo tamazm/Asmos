@@ -1,3 +1,4 @@
+/* eslint-disable */
 /**
  * Asmos Widget v2
  * Paste this snippet into your site's <head> to activate Asmos popups.

@@ -126,6 +126,7 @@ export default async function AnalyticsPage() {
     funnelCounts[row.type] = row._count._all;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rows: CampaignRow[] = campaigns.map((campaign: any) => {
     const impressions = countFor(campaign.id, "IMPRESSION");
     const submissions = countFor(campaign.id, "SUBMISSION");

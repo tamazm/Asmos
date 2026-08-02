@@ -12,7 +12,7 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     if (!POSTHOG_KEY) return; // skip init when no key is configured
     posthog.init(POSTHOG_KEY, {
       api_host: POSTHOG_HOST,
-      // @ts-ignore - added per user config
+      // @ts-expect-error - added per user config
       defaults: '2026-05-30',
       person_profiles: "identified_only",
       capture_pageview: false, // we fire page_view manually via PostHogPageView
