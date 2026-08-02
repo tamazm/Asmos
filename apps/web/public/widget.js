@@ -307,24 +307,28 @@
     };
     card.appendChild(close);
 
+    var design = variant.design || {};
+    var primaryColor = design.primaryColor || "#165DFF";
+    
     var headline = document.createElement("h2");
-    headline.textContent = variant.design.headline;
+    headline.textContent = design.headline || "Special Offer";
     headline.style.cssText =
-      "margin:0 0 8px;font-size:20px;font-weight:700;color:" + variant.design.primaryColor + ";";
+      "margin:0 0 8px;font-size:20px;font-weight:700;color:" + primaryColor + ";";
     card.appendChild(headline);
 
     var body = document.createElement("p");
-    body.textContent = variant.design.body;
+    body.textContent = design.body || "Sign up for updates and discounts.";
     body.style.cssText = "margin:0 0 16px;font-size:14px;color:#4b5563;";
     card.appendChild(body);
 
+    var variantRewards = variant.rewards || [];
     if (
       (campaign.type === "WHEEL" || campaign.type === "SCRATCH_CARD") &&
-      variant.rewards.length > 0
+      variantRewards.length > 0
     ) {
       var teaser = document.createElement("p");
       teaser.textContent =
-        "Up for grabs: " + variant.rewards.map(function (r) { return r.label; }).join(" · ");
+        "Up for grabs: " + variantRewards.map(function (r) { return r.label; }).join(" · ");
       teaser.style.cssText = "margin:0 0 16px;font-size:12px;color:#6b7280;font-style:italic;";
       card.appendChild(teaser);
     }
@@ -334,7 +338,8 @@
 
     var inputs = {};
     var interacted = false;
-    variant.formFields.forEach(function (field) {
+    var formFields = variant.formFields || ["email"];
+    formFields.forEach(function (field) {
       var input = document.createElement("input");
       input.type = fieldType(field);
       input.placeholder = fieldLabel(field);
@@ -357,10 +362,11 @@
 
     var submit = document.createElement("button");
     submit.type = "submit";
-    submit.textContent = variant.design.ctaText;
+    var ctaText = design.ctaText || "Submit";
+    submit.textContent = ctaText;
     submit.style.cssText =
       "margin-top:4px;padding:10px 16px;border:none;border-radius:8px;color:#fff;" +
-      "font-size:14px;font-weight:600;cursor:pointer;background:" + variant.design.primaryColor + ";";
+      "font-size:14px;font-weight:600;cursor:pointer;background:" + primaryColor + ";";
     form.appendChild(submit);
 
     form.addEventListener("submit", function (e) {
@@ -414,7 +420,7 @@
           errorMsg.textContent = "Something went wrong — please try again.";
           errorMsg.style.display = "block";
           submit.disabled = false;
-          submit.textContent = variant.design.ctaText;
+          submit.textContent = ctaText;
         });
     });
 
