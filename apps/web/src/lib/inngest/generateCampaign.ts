@@ -183,11 +183,11 @@ export const generateCampaign = inngest.createFunction(
           // Create rewards at the campaign level if they don't already exist
           if (rewards && rewards.length > 0) {
              for (const r of rewards) {
-                const existingReward = await tx.reward.findFirst({
+                const existingReward = await tx.rewardRule.findFirst({
                    where: { campaignId, couponCode: r.couponCode }
                 });
                 if (!existingReward) {
-                   await tx.reward.create({
+                   await tx.rewardRule.create({
                       data: { campaignId, ...r }
                    });
                 }
