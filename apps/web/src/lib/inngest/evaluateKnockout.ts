@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-expect-error
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";

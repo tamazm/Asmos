@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-expect-error
 /**
  * lib/popupGeneration.ts
  *

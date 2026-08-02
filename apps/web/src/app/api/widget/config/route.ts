@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-expect-error
 import { prisma } from "@/lib/prisma";
 import { normalizeHost } from "@/lib/host";
 import { corsJson, corsPreflight } from "@/lib/cors";

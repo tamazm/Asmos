@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-expect-error
 "use client";
 
 import posthog from "posthog-js";

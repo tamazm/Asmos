@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-expect-error
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { StatCard } from "@/components/ui/StatCard";
 import Link from "next/link";

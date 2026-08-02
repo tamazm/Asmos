@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-expect-error
 import { prisma } from "@/lib/prisma";
 import type { CampaignEventType } from ".prisma/client";
 

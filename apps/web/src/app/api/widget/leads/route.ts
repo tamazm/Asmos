@@ -1,4 +1,4 @@
-// @ts-nocheck
+// @ts-expect-error
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { corsJson, corsPreflight } from "@/lib/cors";
