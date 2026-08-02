@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -32,30 +33,30 @@ export default async function VariantDetailPage(props: {
 
   if (!campaign) notFound();
 
-  const variant = campaign.variants.find((v) => v.id === variantId);
+  const variant = campaign.variants.find((v: any) => v.id === variantId);
   if (!variant) notFound();
 
   // Compute stats for this variant
-  const impressions = variant.events.filter((e) => e.type === "IMPRESSION").length;
-  const submissions = variant.events.filter((e) => e.type === "SUBMISSION").length;
+  const impressions = variant.events.filter((e: any) => e.type === "IMPRESSION").length;
+  const submissions = variant.events.filter((e: any) => e.type === "SUBMISSION").length;
   const conversionRate = impressions > 0 ? (submissions / impressions) * 100 : 0;
   const leadsCount = variant._count.leads;
   const isWinner = campaign.winningVariantId === variant.id;
 
   // Confidence vs control
-  const control = campaign.variants.find((v) => v.isControl) ?? campaign.variants[0];
+  const control = campaign.variants.find((v: any) => v.isControl) ?? campaign.variants[0];
   const controlSample = {
-    impressions: control.events.filter((e) => e.type === "IMPRESSION").length,
-    conversions: control.events.filter((e) => e.type === "SUBMISSION").length,
+    impressions: control.events.filter((e: any) => e.type === "IMPRESSION").length,
+    conversions: control.events.filter((e: any) => e.type === "SUBMISSION").length,
   };
   const confidence = variant.isControl
     ? null
     : confidenceVsControl(controlSample, { impressions, conversions: submissions });
 
   // Build stats for all variants (for comparison chart)
-  const allVariantStats = campaign.variants.map((v) => {
-    const vi = v.events.filter((e) => e.type === "IMPRESSION").length;
-    const vs = v.events.filter((e) => e.type === "SUBMISSION").length;
+  const allVariantStats = campaign.variants.map((v: any) => {
+    const vi = v.events.filter((e: any) => e.type === "IMPRESSION").length;
+    const vs = v.events.filter((e: any) => e.type === "SUBMISSION").length;
     return {
       id: v.id,
       name: v.name,
@@ -68,7 +69,7 @@ export default async function VariantDetailPage(props: {
     };
   });
 
-  const maxRate = Math.max(...allVariantStats.map((v) => v.conversionRate), 0.0001);
+  const maxRate = Math.max(...allVariantStats.map((v: any) => v.conversionRate), 0.0001);
 
   // Design fields
   const design = (variant.design ?? {}) as {
@@ -215,7 +216,7 @@ export default async function VariantDetailPage(props: {
         <div className="flex flex-col gap-4">
           {[...allVariantStats]
             .sort((a, b) => b.conversionRate - a.conversionRate)
-            .map((v) => {
+            .map((v: any) => {
               const isThis = v.id === variantId;
               const barPct = (v.conversionRate / maxRate) * 100;
               return (

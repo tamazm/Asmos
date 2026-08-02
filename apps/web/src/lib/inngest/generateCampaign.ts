@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";

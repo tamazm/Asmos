@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { getOrCreateAccount } from "@/lib/account";

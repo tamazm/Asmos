@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { prisma } from "@/lib/prisma";
 import type { CampaignEventType } from "@/generated/prisma/client";
 

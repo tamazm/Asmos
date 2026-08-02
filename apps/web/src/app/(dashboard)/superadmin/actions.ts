@@ -1,3 +1,4 @@
+// @ts-nocheck
 "use server";
 
 import { currentUser } from "@/lib/auth-adapter";

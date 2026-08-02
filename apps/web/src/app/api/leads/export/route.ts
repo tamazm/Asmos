@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { auth } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";

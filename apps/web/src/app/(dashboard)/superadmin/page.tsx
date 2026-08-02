@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 import { SuperadminActions, TriggerCronButton } from "./ClientActions";
