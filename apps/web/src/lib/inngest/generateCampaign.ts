@@ -176,12 +176,23 @@ export const generateCampaign = inngest.createFunction(
           await tx.variant.create({ 
             data: { 
               campaignId, 
-              ...restData,
-              rewards: {
-                create: rewards
-              }
+              ...restData
             } 
           });
+          
+          // Create rewards at the campaign level if they don't already exist
+          if (rewards && rewards.length > 0) {
+             for (const r of rewards) {
+                const existingReward = await tx.reward.findFirst({
+                   where: { campaignId, couponCode: r.couponCode }
+                });
+                if (!existingReward) {
+                   await tx.reward.create({
+                      data: { campaignId, ...r }
+                   });
+                }
+             }
+          }
         }
         await tx.campaign.update({
           where: { id: campaignId },
