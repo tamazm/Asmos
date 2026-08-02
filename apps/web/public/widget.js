@@ -463,6 +463,9 @@
   if (previewVariantId) {
     configUrl += "&preview_variant_id=" + encodeURIComponent(previewVariantId);
   }
+  if (isPreview) {
+    configUrl += "&preview=true";
+  }
 
   fetch(configUrl)
     .then(function (res) {

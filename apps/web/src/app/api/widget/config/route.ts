@@ -85,8 +85,12 @@ export async function GET(request: Request) {
     bannerText: website.account.consentBannerText,
   };
 
+  const isPreview = url.searchParams.get("preview") === "true";
   const campaign = await prisma.campaign.findFirst({
-    where: { websiteId: website.id, status: "ACTIVE" },
+    where: { 
+      websiteId: website.id, 
+      status: isPreview ? { notIn: ["DRAFT", "FAILED", "GENERATING"] } : "ACTIVE" 
+    },
     orderBy: { createdAt: "desc" },
     include: {
       rewards: { select: { id: true, label: true, type: true } },
