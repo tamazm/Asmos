@@ -1,0 +1,33 @@
+name: Prisma Migrate
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/web/prisma/schema.prisma'
+      - 'apps/web/prisma/migrations/**'
+  workflow_dispatch: # Allows you to manually trigger it from the GitHub UI
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        working-directory: ./apps/web
+        run: npm ci
+
+      - name: Run Prisma Migrate
+        working-directory: ./apps/web
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
