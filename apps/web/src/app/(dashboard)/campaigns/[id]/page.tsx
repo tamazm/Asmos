@@ -13,6 +13,7 @@ import { KnockoutBracketWithVariants } from "./KnockoutBracketWithVariants";
 import { PerformanceTable } from "./PerformanceTable";
 import { CampaignTabs } from "./CampaignTabs";
 import { CampaignRowActions } from "../CampaignRowActions";
+import { GenerationStatusScreen } from "./GenerationStatusScreen";
 
 export default async function CampaignDetailPage(props: PageProps<"/campaigns/[id]">) {
   const { id } = await props.params;
@@ -29,6 +30,24 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
   });
 
   if (!campaign) notFound();
+
+  if (campaign.status === "GENERATING" || campaign.status === "FAILED") {
+    return (
+      <div className="flex flex-col gap-6">
+        <PageHeader
+          title={campaign.name}
+          backHref="/campaigns"
+          backLabel="Back to Pop-ups"
+          status={campaign.status}
+        />
+        <GenerationStatusScreen
+          campaignId={campaign.id}
+          status={campaign.status}
+          lastError={campaign.lastError}
+        />
+      </div>
+    );
+  }
 
   const insights = await prisma.campaignInsight.findMany({
     where: { campaignId: campaign.id },

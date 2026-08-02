@@ -3,13 +3,14 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { AccountsTable } from "@/components/admin/AccountsTable";
+import { isSuperadminEmail } from "@/lib/superadmin";
 
 export default async function AdminDashboardPage() {
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress;
-  
+
   // Strictly enforce superadmin on backend page load
-  if (email !== "zaridzezurabi@gmail.com" && email !== "test@asmos.dev") {
+  if (!isSuperadminEmail(email)) {
     redirect("/dashboard");
   }
 

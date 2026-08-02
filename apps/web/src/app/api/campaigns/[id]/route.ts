@@ -3,6 +3,7 @@ import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { after } from "next/server";
 import { dispatchWebhook } from "@/lib/webhook";
+import { inngest } from "@/lib/inngest/client";
 
 export async function GET(
   _request: Request,
@@ -44,6 +45,7 @@ export async function PATCH(
   const body = (await request.json()) as {
     status?: string;
     winningVariantId?: string | null;
+    retry?: boolean;
   };
 
   const { id } = await ctx.params;
@@ -63,6 +65,18 @@ export async function PATCH(
   });
   if (!campaign) {
     return Response.json({ error: "Campaign not found" }, { status: 404 });
+  }
+
+  if (body.retry) {
+    if (campaign.status !== "FAILED") {
+      return Response.json({ error: "Only a failed campaign can be retried" }, { status: 400 });
+    }
+    const retried = await prisma.campaign.update({
+      where: { id: campaign.id },
+      data: { status: "GENERATING", lastError: null },
+    });
+    await inngest.send({ name: "campaign.generate", data: { campaignId: campaign.id } });
+    return Response.json({ campaign: retried }, { status: 202 });
   }
 
   const data: { status?: "ACTIVE" | "PAUSED"; winningVariantId?: string | null } = {};

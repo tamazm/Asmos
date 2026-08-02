@@ -233,15 +233,40 @@ model RewardRule {
   variantId String
   variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
-  label      String
-  type       RewardType
-  couponCode String?
+  label       String
+  // Free-text grouping for the Rewards dashboard (e.g. "Welcome offers", "Holiday").
+  category    String?
+  description String?
+  type        RewardType
+  // Legacy single shared code — still supported, used when no CouponCode pool exists.
+  couponCode  String?
   // Win probability weight for game-based popups (wheel/scratch card); ignored for plain forms.
-  weight     Int        @default(1)
+  weight      Int        @default(1)
+
+  couponCodes CouponCode[]
 
   createdAt DateTime @default(now())
 
   @@index([variantId])
+}
+
+// A pool of individual, single-use codes for a RewardRule — imported via CSV,
+// bulk-generated, or both. When present, claiming this reward hands out one
+// unused code instead of the shared RewardRule.couponCode.
+model CouponCode {
+  id           String     @id @default(cuid())
+  rewardRuleId String
+  rewardRule   RewardRule @relation(fields: [rewardRuleId], references: [id], onDelete: Cascade)
+
+  code   String
+  usedAt DateTime?
+  leadId String?
+  lead   Lead?     @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@unique([rewardRuleId, code])
+  @@index([rewardRuleId, usedAt])
 }
 
 // A captured name/email/phone submission from the widget.
@@ -260,6 +285,8 @@ model Lead {
   rewardClaimedCode String?
 
   createdAt DateTime @default(now())
+
+  claimedCoupons CouponCode[]
 
   @@index([variantId])
 }

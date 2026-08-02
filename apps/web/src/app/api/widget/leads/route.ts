@@ -46,11 +46,8 @@ export async function POST(request: Request) {
   }
 
   const reward = pickWeightedReward(variant.rewards);
-  const couponCode = reward
-    ? reward.couponCode ?? (reward.type === "COUPON" ? generateCouponCode() : null)
-    : null;
 
-  await prisma.lead.create({
+  const lead = await prisma.lead.create({
     data: {
       variantId: variant.id,
       name: body.name || null,
@@ -58,9 +55,32 @@ export async function POST(request: Request) {
       phone: body.phone || null,
       consentGiven: Boolean(body.consentGiven),
       consentAt: body.consentGiven ? new Date() : null,
-      rewardClaimedCode: couponCode,
     },
   });
+
+  // Prefer an imported/generated code from the pool (see /rewards) over the
+  // legacy single shared code, so bulk-imported/generated codes actually get
+  // handed out one-per-lead instead of sitting unused.
+  let couponCode: string | null = null;
+  if (reward) {
+    const candidate = await prisma.couponCode.findFirst({
+      where: { rewardRuleId: reward.id, usedAt: null },
+      orderBy: { createdAt: "asc" },
+    });
+    if (candidate) {
+      const claim = await prisma.couponCode.updateMany({
+        where: { id: candidate.id, usedAt: null },
+        data: { usedAt: new Date(), leadId: lead.id },
+      });
+      if (claim.count === 1) couponCode = candidate.code;
+    }
+    if (!couponCode) {
+      couponCode = reward.couponCode ?? (reward.type === "COUPON" ? generateCouponCode() : null);
+    }
+    if (couponCode) {
+      await prisma.lead.update({ where: { id: lead.id }, data: { rewardClaimedCode: couponCode } });
+    }
+  }
 
   await prisma.campaignEvent.create({
     data: { variantId: variant.id, type: "SUBMISSION" },

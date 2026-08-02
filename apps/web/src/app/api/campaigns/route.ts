@@ -115,7 +115,10 @@ export async function POST(request: Request) {
     });
   }
 
-  return Response.json({ campaign: created });
+  return Response.json(
+    { campaign: created },
+    { status: body.status === "GENERATING" ? 202 : 200 },
+  );
 }
 
 

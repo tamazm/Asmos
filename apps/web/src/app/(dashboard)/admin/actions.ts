@@ -4,11 +4,12 @@ import { currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import type { PlanTier } from "@/generated/prisma/client";
+import { isSuperadminEmail } from "@/lib/superadmin";
 
 async function verifySuperadmin() {
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress;
-  if (email !== "zaridzezurabi@gmail.com" && email !== "test@asmos.dev") {
+  if (!isSuperadminEmail(email)) {
     throw new Error("Unauthorized: Superadmin access required.");
   }
 }

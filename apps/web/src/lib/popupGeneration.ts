@@ -35,6 +35,8 @@ const BEDROCK_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
 
 export type SignificanceFlag = "conclusive" | "inconclusive" | "insufficient_data";
 export type TestAxis = "trigger" | "friction" | "copy" | "layout" | "visual";
+export type PopupArchetype = "single_step" | "two_step" | "quiz" | "gamified";
+export type LayoutStyle = "split_left" | "split_right" | "centered" | "minimal";
 
 export type BrandTokens = {
   palette: string[];           // hex colors, 4-6 entries
@@ -77,7 +79,12 @@ export type PopupGenerationInput = {
   existing_popup: ExistingPopupExtracted;
   brand_tokens: BrandTokens;
   analytics: { variants: AnalyticsVariant[] };
-  constraints: { variant_count: number; multivariate: boolean };
+  constraints: {
+    variant_count: number;
+    multivariate: boolean;
+    archetype: PopupArchetype;
+    layout_style: LayoutStyle;
+  };
 };
 
 export type PopupDiagnosis = {
@@ -160,6 +167,8 @@ CREATE_NEW
 - Default trigger: exit-intent on desktop, 60% scroll-depth fallback on mobile.
   Override if store.category or price point suggests longer consideration window
   (high-ticket items -> time-delay over exit-intent).
+- Build the baseline using EXACTLY constraints.archetype and constraints.layout_style (see POPUP ARCHETYPES
+  and LAYOUT STYLES below) — this is what makes each store's popup feel different from the last one you generated.
 - Output one baseline popup: full spec plus self-contained HTML code.
 - diagnosis array must be empty for CREATE_NEW mode.
 
@@ -172,9 +181,49 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
   - Use the ranked default order: trigger/timing -> friction -> copy/offer framing -> layout -> visual/micro-details.
   - Generate exactly constraints.variant_count variants (0 = no variants, only baseline).
   - Each variant isolates ONE axis change from the baseline.
+- ARCHETYPE/LAYOUT CONSISTENCY ACROSS VARIANTS: if a variant's test_axis is "layout", it MUST use a
+  different archetype and/or layout_style than the baseline (that IS the test). For every other test_axis
+  (trigger, friction, copy, visual), keep the SAME archetype and layout_style as the baseline — you're
+  isolating one variable, not redesigning the whole popup.
 - motivating_metric must be in plain language for a store owner's dashboard, e.g.:
   "removed the name field — email-only variant is converting 34% higher after 1,200 impressions"
   or "cold_start_default_priority" if no data yet.
+
+POPUP ARCHETYPES (constraints.archetype tells you which one to build — this is not optional, do not default to a generic centered single-step form regardless of instinct)
+- single_step: One headline, one subhead, one field, one CTA. Fastest path to conversion.
+  Psychological trigger: Reciprocity — give the offer up front, ask for almost nothing in return.
+- two_step: An initial "teaser" screen with just a headline and a single CTA button (e.g. "Reveal my discount").
+  Clicking it transitions (no page reload) to the actual form. Because the visitor already said "yes" once,
+  they're far more likely to complete the form.
+  Psychological trigger: Commitment & Consistency — a small first "yes" makes the second ask feel natural.
+- quiz: 2-3 short tap-to-answer questions (e.g. "What are you shopping for today?") before revealing a
+  personalized offer tailored to the answers.
+  Psychological trigger: Curiosity + sunk-cost — visitors who've invested a few taps want to see the payoff.
+- gamified: A spin-the-wheel, scratch-card, or mystery-box mechanic that reveals a randomized-feeling reward
+  before asking for the visitor's email to claim it.
+  Psychological trigger: Scarcity & Loss Aversion — the reward feels won, not given, and walking away means
+  losing it.
+
+LAYOUT STYLES (constraints.layout_style tells you which one to build)
+- split_left: Two-column layout, image/visual on the left, copy + form on the right.
+- split_right: Two-column layout, image/visual on the right, copy + form on the left.
+- centered: Single centered card, no image column, generous whitespace, everything stacked vertically.
+- minimal: Ultra-compact single-line or single-row layout (inline field + button), least visual weight.
+
+MOTION
+- Every popup needs a distinct entrance animation appropriate to its archetype — do not reuse the exact same
+  transform/timing across different archetypes:
+  - single_step / centered: scale from 0.96 to 1.0 with opacity fade, ~250ms ease-out.
+  - two_step: the teaser screen fades in; the transition from teaser to form should slide/cross-fade
+    horizontally (~200ms) so the "reveal" feels like a natural next step, not a jump cut.
+  - quiz: each question should cross-fade or slide in as the visitor answers, so it reads as a short flow,
+    not a static form.
+  - gamified: the wheel/scratch-card mechanic needs its own motion (rotation, reveal/scratch effect) —
+    this is the one archetype where the animation IS the primary interaction, not decoration.
+
+Randomly vary which specific colors from brand_tokens.palette anchor the CTA vs. accents, the corner-radius
+scale, and the exact wording style (playful vs. direct vs. urgent) between generations — the archetype and
+layout_style are fixed by constraints, but everything else should feel like a different designer made it.
 
 POPUP CODE REQUIREMENTS
 The "code" field must be a complete self-contained HTML string:
@@ -432,6 +481,31 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
   });
 }
 
+// ─── Archetype / Layout Diversity ─────────────────────────────────────────────
+
+const ALL_ARCHETYPES: PopupArchetype[] = ["single_step", "two_step", "quiz", "gamified"];
+const ALL_LAYOUTS: LayoutStyle[] = ["split_left", "split_right", "centered", "minimal"];
+
+// Category-weighted archetype pools — not a hard rule, just biases the random
+// pick toward what tends to fit the category, while still keeping variety.
+// Anything not matched below picks from the full set.
+const CATEGORY_ARCHETYPE_POOLS: { match: RegExp; archetypes: PopupArchetype[] }[] = [
+  { match: /fashion|beauty|apparel/i, archetypes: ["gamified", "two_step", "quiz"] },
+  { match: /home|furniture|decor/i, archetypes: ["single_step", "two_step"] },
+  { match: /food|beverage|grocery/i, archetypes: ["single_step", "gamified"] },
+  { match: /luxury|high.?ticket|jewelry/i, archetypes: ["single_step", "two_step"] },
+];
+
+function pickArchetype(category: string): PopupArchetype {
+  const pool = CATEGORY_ARCHETYPE_POOLS.find((p) => p.match.test(category))?.archetypes;
+  const candidates = pool && pool.length > 0 ? pool.filter((a) => ALL_ARCHETYPES.includes(a)) : ALL_ARCHETYPES;
+  return candidates[Math.floor(Math.random() * candidates.length)] ?? "single_step";
+}
+
+function pickLayoutStyle(): LayoutStyle {
+  return ALL_LAYOUTS[Math.floor(Math.random() * ALL_LAYOUTS.length)];
+}
+
 // ─── Input Builder ────────────────────────────────────────────────────────────
 
 export function buildPopupInput(opts: {
@@ -443,6 +517,8 @@ export function buildPopupInput(opts: {
   analyticsVariants: AnalyticsVariant[];
   variantCount: number;
   multivariate?: boolean;
+  archetype?: PopupArchetype;
+  layoutStyle?: LayoutStyle;
 }): PopupGenerationInput {
   return {
     store: {
@@ -457,6 +533,8 @@ export function buildPopupInput(opts: {
     constraints: {
       variant_count: opts.variantCount,
       multivariate: opts.multivariate ?? false,
+      archetype: opts.archetype ?? pickArchetype(opts.category),
+      layout_style: opts.layoutStyle ?? pickLayoutStyle(),
     },
   };
 }

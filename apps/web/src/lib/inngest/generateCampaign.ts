@@ -1,5 +1,6 @@
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@/generated/prisma/client";
 import {
   generatePopupWithVariants,
   buildPopupInput,
@@ -9,10 +10,14 @@ import {
   type BrandTokens,
   type ExistingPopupExtracted,
   type ComputedStyles,
+  type PopupGenerationOutput,
 } from "@/lib/popupGeneration";
 
 export const generateCampaign = inngest.createFunction(
-  { id: "generate-campaign", triggers: { event: "campaign.generate" } },
+  // Terminal on failure by design — the campaign detail page shows lastError
+  // with an explicit "Retry" button rather than silently auto-retrying,
+  // which would flicker the UI between FAILED and ACTIVE unpredictably.
+  { id: "generate-campaign", triggers: { event: "campaign.generate" }, retries: 0 },
   async ({ event, step }) => {
     const { campaignId } = event.data;
 
@@ -25,7 +30,26 @@ export const generateCampaign = inngest.createFunction(
 
     if (!campaign) return { message: "Skipping" };
 
-    const context = campaign.generationContext as Record<string, unknown> | null;
+    try {
+      return await runGeneration(step, campaignId, campaign.generationContext as Record<string, unknown> | null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Generation failed for an unknown reason";
+      console.error(`[generateCampaign] campaign ${campaignId} failed:`, err);
+      await prisma.campaign.update({
+        where: { id: campaignId },
+        data: { status: "FAILED", lastError: message },
+      });
+      return { message: "Generation failed", error: message };
+    }
+  },
+);
+
+async function runGeneration(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Inngest's step-tools type is generated per-call-site and not easily named standalone; this is an internal helper, not a public API.
+  step: any,
+  campaignId: string,
+  context: Record<string, unknown> | null,
+) {
     if (!context) throw new Error("Missing generationContext");
 
     const brandTokens = brandTokensFromAnalyzeResult({
@@ -51,7 +75,7 @@ export const generateCampaign = inngest.createFunction(
     let domain = storeUrl;
     try { domain = new URL(storeUrl).hostname.replace(/^www\./, ""); } catch {}
 
-    const output = await step.run("generate-ai", async () => {
+    const output: PopupGenerationOutput = await step.run("generate-ai", async () => {
       const input = buildPopupInput({
         domain,
         category,
@@ -59,7 +83,7 @@ export const generateCampaign = inngest.createFunction(
         existingPopup,
         computedStyles,
         analyticsVariants: [],
-        variantCount: 1, 
+        variantCount: 1,
         multivariate: false,
       });
       return generatePopupWithVariants(input);
@@ -79,7 +103,7 @@ export const generateCampaign = inngest.createFunction(
           },
           formFields: output.baseline.spec.fields,
           targeting: { trigger: output.baseline.spec.trigger, delaySeconds: null },
-          popupSpec: output.baseline.spec as any,
+          popupSpec: output.baseline.spec as unknown as Prisma.InputJsonValue,
           generatedCode: output.baseline.code,
         },
         ...output.variants.map((v, idx) => ({
@@ -94,7 +118,7 @@ export const generateCampaign = inngest.createFunction(
           },
           formFields: v.spec.fields,
           targeting: { trigger: v.spec.trigger, delaySeconds: null },
-          popupSpec: v.spec as any,
+          popupSpec: v.spec as unknown as Prisma.InputJsonValue,
           generatedCode: v.code,
           testAxis: v.test_axis,
           hypothesis: v.hypothesis,
@@ -123,5 +147,4 @@ export const generateCampaign = inngest.createFunction(
     });
 
     return { message: "Campaign generated" };
-  }
-);
+}

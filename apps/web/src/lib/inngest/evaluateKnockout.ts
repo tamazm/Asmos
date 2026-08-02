@@ -8,10 +8,6 @@ import {
   brandTokensFromAnalyzeResult,
   computedStylesFromAnalyzeResult,
   existingPopupFromAnalyzeResult,
-  type AnalyticsVariant,
-  type BrandTokens,
-  type ComputedStyles,
-  type ExistingPopupExtracted
 } from "@/lib/popupGeneration";
 
 export const evaluateKnockout = inngest.createFunction(
@@ -49,6 +45,40 @@ export const evaluateKnockout = inngest.createFunction(
         ]);
       });
       return { message: "Round advanced" };
+    }
+
+    // The round is full but still has multiple contenders — eliminate anyone
+    // conclusively worse than the current control before doing anything else.
+    // This is what actually narrows a round down to the single winner that
+    // the advance-round branch above is waiting for.
+    if (roundVariants.length >= maxVariants && activeVariants.length > 1) {
+      const controlVariant = roundVariants.find((v) => v.isControl) ?? activeVariants[0];
+      const analyticsVariants = await step.run("fetch-analytics-for-elimination", async () =>
+        fetchVariantAnalytics(campaign.id),
+      );
+      const statsById = new Map(analyticsVariants.map((a) => [a.variant_id, a]));
+      const controlRate = statsById.get(controlVariant.id)?.conversion_rate ?? 0;
+
+      const toEliminate = activeVariants.filter((v) => {
+        if (v.id === controlVariant.id) return false;
+        const stats = statsById.get(v.id);
+        return stats?.significance_flag === "conclusive" && stats.conversion_rate < controlRate;
+      });
+
+      if (toEliminate.length > 0) {
+        await step.run("eliminate-underperformers", async () => {
+          await prisma.variant.updateMany({
+            where: { id: { in: toEliminate.map((v) => v.id) } },
+            data: { status: "ELIMINATED", trafficPercent: 0 },
+          });
+        });
+        console.log(
+          `[evaluateKnockout] campaign ${campaign.id} round ${currentRound}: eliminated ${toEliminate.length} variant(s) — ${toEliminate.map((v) => v.name).join(", ")}`,
+        );
+        return { message: "Eliminated underperforming variants", eliminated: toEliminate.length };
+      }
+
+      return { message: "Round full, no conclusive underperformer yet" };
     }
 
     if (roundVariants.length >= maxVariants) return { message: "Max variants reached" };
@@ -178,6 +208,7 @@ export const evaluateKnockout = inngest.createFunction(
 
       return { message: "Generation complete" };
     } catch (genErr) {
+      console.error(`[evaluateKnockout] campaign ${campaign.id} round ${currentRound} generation failed:`, genErr);
       await step.run("cleanup-placeholders", async () => {
         for (const p of placeholders) {
           await prisma.variant.delete({ where: { id: p.id } }).catch(() => {});

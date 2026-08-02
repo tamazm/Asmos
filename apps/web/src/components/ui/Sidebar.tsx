@@ -49,6 +49,18 @@ const NAV_ITEMS = [
     ),
   },
   {
+    href: "/rewards",
+    label: "Rewards",
+    icon: (
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <rect x="1.5" y="6" width="13" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M1.5 9h13" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M8 6v8" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M8 6c-1.5 0-2.5-.9-2.5-2S6.2 2.5 7 3c.6.4 1 1.3 1 3zM8 6c1.5 0 2.5-.9 2.5-2S9.8 2.5 9 3c-.6.4-1 1.3-1 3z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     href: "/reports",
     label: "Reports",
     icon: (
@@ -83,10 +95,14 @@ const NAV_ITEMS = [
   },
 ];
 
-export function Sidebar({ businessName, userEmail }: { businessName?: string; userEmail?: string | null }) {
+export function Sidebar({
+  businessName,
+  isSuperadmin = false,
+}: {
+  businessName?: string;
+  isSuperadmin?: boolean;
+}) {
   const pathname = usePathname();
-
-  const isSuperadmin = userEmail === "zaridzezurabi@gmail.com" || userEmail === "test@asmos.dev";
 
   return (
     <aside className="flex h-full w-56 flex-shrink-0 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)]">

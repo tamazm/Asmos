@@ -1,11 +1,12 @@
 import { currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
+import { isSuperadminEmail } from "@/lib/superadmin";
 import { SuperadminActions, TriggerCronButton } from "./ClientActions";
 
 export default async function SuperadminPage() {
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress;
-  if (email !== "zaridzezurabi@gmail.com") {
+  if (!isSuperadminEmail(email)) {
     return (
       <div className="flex items-center justify-center h-[50vh] text-red-500 font-medium">
         Access Denied. Superadmin only.
