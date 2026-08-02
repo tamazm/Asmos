@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { uploadCoupons, exportCoupons } from "./actions";
 
@@ -9,6 +10,11 @@ export function PoolRow({ reward }: { reward: any }) {
   const [isExporting, setIsExporting] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [couponText, setCouponText] = useState("");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const total = reward._count?.coupons || 0;
   const used = reward.coupons?.length || 0;
@@ -87,7 +93,7 @@ export function PoolRow({ reward }: { reward: any }) {
         </td>
       </tr>
 
-      {showModal && (
+      {mounted && showModal && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-2">Upload Coupons for {reward.label}</h2>
@@ -116,7 +122,8 @@ export function PoolRow({ reward }: { reward: any }) {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
