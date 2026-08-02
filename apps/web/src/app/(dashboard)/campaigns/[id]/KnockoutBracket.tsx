@@ -377,6 +377,7 @@ export function KnockoutBracket({ variants }: { variants: VariantStat[] }) {
   const avgRate = bracketVariants.reduce((s, v) => s + v.conversionRate, 0) / bracketVariants.length;
 
   const trafficSegments = bracketVariants.map((v) => ({
+    id: v.id,
     label: v.initials,
     value: v.trafficPercent,
     color: v.color,
@@ -525,7 +526,7 @@ export function KnockoutBracket({ variants }: { variants: VariantStat[] }) {
             <DonutChart segments={trafficSegments} />
             <div className="mt-3 flex flex-col gap-1.5">
               {trafficSegments.map((seg) => (
-                <div key={seg.label} className="flex items-center justify-between text-xs">
+                <div key={seg.id} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5">
                     <span
                       className="h-2 w-2 rounded-full shrink-0"
