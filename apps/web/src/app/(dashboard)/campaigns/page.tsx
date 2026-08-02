@@ -1,4 +1,3 @@
-// @ts-expect-error
 import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DataTable } from "@/components/ui/DataTable";
@@ -36,16 +35,16 @@ export default async function CampaignsListPage() {
     include: { variants: { include: { events: true } } },
   });
 
-  const rows: CampaignRow[] = campaigns.map((campaign) => {
-    const events = campaign.variants.flatMap((v) => v.events);
+  const rows: CampaignRow[] = campaigns.map((campaign: any) => {
+    const events = campaign.variants.flatMap((v: any) => v.events);
     return {
       id: campaign.id,
       name: campaign.name,
       type: campaign.type,
       status: campaign.status,
       variantCount: campaign.variants.length,
-      impressions: events.filter((e) => e.type === "IMPRESSION").length,
-      conversions: events.filter((e) => e.type === "SUBMISSION").length,
+      impressions: events.filter((e: any) => e.type === "IMPRESSION").length,
+      conversions: events.filter((e: any) => e.type === "SUBMISSION").length,
     };
   });
 
