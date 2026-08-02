@@ -144,7 +144,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
             key: "overview",
             label: "Overview",
             content: (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div key="overview-content" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <StatCard label="Variants" value={variantStats.length.toLocaleString()} />
                 <StatCard label="Impressions" value={totals.impressions.toLocaleString()} />
                 <StatCard label="Submissions" value={totals.submissions.toLocaleString()} />
@@ -159,7 +159,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
             key: "knockout-bracket",
             label: "Knockout Bracket",
             content: (
-              <div className="flex flex-col gap-12">
+              <div key="knockout-content" className="flex flex-col gap-12">
                 <div>
                   <h3 className="mb-4 text-lg font-semibold text-[color:var(--color-text-primary)]">
                     Current Round (Round {campaign.tournamentRound})
@@ -197,13 +197,14 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
           {
             key: "analytics",
             label: "Analytics",
-            content: <AnalyticsTab variants={variantStats} />,
+            content: <AnalyticsTab key="analytics-content" variants={variantStats} />,
           },
           {
             key: "variants",
             label: "Variants",
             content: (
               <VariantManager
+                key="variants-content"
                 campaignId={campaign.id}
                 hasWinner={Boolean(campaign.winningVariantId)}
                 variants={variantStats}
@@ -213,13 +214,13 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
           {
             key: "performance",
             label: "Performance",
-            content: <PerformanceTable variants={variantStats} />,
+            content: <PerformanceTable key="performance-content" variants={variantStats} />,
           },
           {
             key: "insights",
             label: "Insights",
             content: (
-              <div className="flex flex-col gap-4">
+              <div key="insights-content" className="flex flex-col gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-sm text-[color:var(--color-text-secondary)]">
                     Recent insights. For the full history and deeper analysis, open the dedicated
@@ -240,7 +241,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
             key: "settings",
             label: "Settings",
             content: (
-              <div className="flex flex-col gap-3 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+              <div key="settings-content" className="flex flex-col gap-3 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-[color:var(--color-text-primary)]">
