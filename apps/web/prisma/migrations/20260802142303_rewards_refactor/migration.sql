@@ -1,10 +1,3 @@
-/*
-  Warnings:
-
-  - You are about to drop the column `variantId` on the `RewardRule` table. All the data in the column will be lost.
-  - Added the required column `campaignId` to the `RewardRule` table without a default value. This is not possible if the table is not empty.
-
-*/
 -- DropForeignKey
 ALTER TABLE "RewardRule" DROP CONSTRAINT "RewardRule_variantId_fkey";
 
@@ -12,8 +5,23 @@ ALTER TABLE "RewardRule" DROP CONSTRAINT "RewardRule_variantId_fkey";
 DROP INDEX "RewardRule_variantId_idx";
 
 -- AlterTable
-ALTER TABLE "RewardRule" DROP COLUMN "variantId",
-ADD COLUMN     "campaignId" TEXT NOT NULL;
+-- 1. Add the column as nullable first
+ALTER TABLE "RewardRule" ADD COLUMN "campaignId" TEXT;
+
+-- 2. Backfill existing reward rules with the campaignId from their variant
+UPDATE "RewardRule"
+SET "campaignId" = (
+  SELECT "campaignId" FROM "Variant" WHERE "Variant"."id" = "RewardRule"."variantId"
+);
+
+-- 3. Delete any orphaned reward rules that couldn't be backfilled
+DELETE FROM "RewardRule" WHERE "campaignId" IS NULL;
+
+-- 4. Make the column required
+ALTER TABLE "RewardRule" ALTER COLUMN "campaignId" SET NOT NULL;
+
+-- 5. Drop the old column
+ALTER TABLE "RewardRule" DROP COLUMN "variantId";
 
 -- CreateTable
 CREATE TABLE "Coupon" (

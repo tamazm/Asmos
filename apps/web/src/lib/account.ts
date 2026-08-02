@@ -21,43 +21,55 @@ export async function getOrCreateAccount() {
     orderBy: { createdAt: "desc" },
   }) : null;
 
-  const account = await prisma.account.create({
-    data: {
-      name: name ?? lead?.storeName ?? email ?? "New Account",
-      users: {
-        create: { clerkUserId: user.id, email, name },
-      },
-      // If we have a lead, consider onboarding done
-      onboardingCompletedAt: lead ? new Date() : null,
-      websites: lead?.storeUrl ? {
-        create: { url: lead.storeUrl, installVerified: false }
-      } : undefined,
-    },
-    include: { websites: true },
-  });
-
-  // Auto-generate campaign if lead exists
-  if (lead && lead.storeUrl && account.websites[0]) {
-    const campaign = await prisma.campaign.create({
+  try {
+    const account = await prisma.account.create({
       data: {
-        accountId: account.id,
-        websiteId: account.websites[0].id,
-        name: `${lead.storeName ?? lead.storeUrl} — Email Capture`,
-        type: "FORM",
-        status: "GENERATING",
-        generationContext: { 
-          storeUrl: lead.storeUrl,
-          storeName: lead.storeName,
-          industry: lead.industry,
+        name: name ?? lead?.storeName ?? email ?? "New Account",
+        users: {
+          create: { clerkUserId: user.id, email, name },
+        },
+        // If we have a lead, consider onboarding done
+        onboardingCompletedAt: lead ? new Date() : null,
+        websites: lead?.storeUrl ? {
+          create: { url: lead.storeUrl, installVerified: false }
+        } : undefined,
+      },
+      include: { websites: true },
+    });
+
+    // Auto-generate campaign if lead exists
+    if (lead && lead.storeUrl && account.websites[0]) {
+      const campaign = await prisma.campaign.create({
+        data: {
+          accountId: account.id,
+          websiteId: account.websites[0].id,
+          name: `${lead.storeName ?? lead.storeUrl} — Email Capture`,
+          type: "FORM",
+          status: "GENERATING",
+          generationContext: { 
+            storeUrl: lead.storeUrl,
+            storeName: lead.storeName,
+            industry: lead.industry,
+          }
         }
-      }
-    });
+      });
 
-    await inngest.send({
-      name: "campaign.generate",
-      data: { campaignId: campaign.id },
-    });
+      await inngest.send({
+        name: "campaign.generate",
+        data: { campaignId: campaign.id },
+      });
+    }
+
+    return account;
+  } catch (err: any) {
+    if (err.code === 'P2002') {
+      // Race condition: another request created the user/account first
+      const retryUser = await prisma.user.findUnique({
+        where: { clerkUserId: user.id },
+        include: { account: { include: { websites: true } } },
+      });
+      if (retryUser) return retryUser.account;
+    }
+    throw err;
   }
-
-  return account;
 }
