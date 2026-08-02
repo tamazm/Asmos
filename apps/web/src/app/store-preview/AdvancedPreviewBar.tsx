@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Badge } from "@/components/ui/Badge";
+import Link from "next/link";
 import { useState, useEffect, Suspense } from "react";
 
 export type PreviewVariant = {
@@ -106,7 +106,7 @@ function AdvancedPreviewBarInner({ campaigns }: { campaigns: PreviewCampaign[] }
       </div>
       
       <div className="flex items-center gap-4">
-        <a href="/campaigns" className="text-sm text-gray-400 hover:text-white underline underline-offset-4">Back to Dashboard</a>
+        <Link href="/campaigns" className="text-sm text-gray-400 hover:text-white underline underline-offset-4">Back to Dashboard</Link>
       </div>
     </div>
   );
