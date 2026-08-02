@@ -1,8 +1,9 @@
 "use client";
 
 import { useTransition } from "react";
-import { updatePlanTier, resetAIGenerations } from "@/app/(dashboard)/admin/actions";
-import type { PlanTier } from "@/generated/prisma/client";
+import { updatePlanTier, updateAIGenerationsCount } from "@/app/(dashboard)/admin/actions";
+import type { PlanTier } from ".prisma/client";
+import { AI_GENERATION_LIMITS } from "@/lib/limits";
 
 type AccountItem = {
   id: string;
@@ -24,12 +25,12 @@ export function AccountsTable({ accounts }: { accounts: AccountItem[] }) {
     }
   };
 
-  const handleResetCredits = (accountId: string) => {
-    if (confirm("Reset AI Generation count to 0?")) {
-      startTransition(() => {
-        resetAIGenerations(accountId);
-      });
-    }
+  const handleUpdateGensLeft = (accountId: string, newGensLeft: number, tier: PlanTier) => {
+    const limit = AI_GENERATION_LIMITS[tier] ?? 3;
+    const newCount = Math.max(0, limit - newGensLeft);
+    startTransition(() => {
+      updateAIGenerationsCount(accountId, newCount);
+    });
   };
 
   return (
@@ -40,7 +41,7 @@ export function AccountsTable({ accounts }: { accounts: AccountItem[] }) {
             <th className="px-6 py-4 font-semibold">Account</th>
             <th className="px-6 py-4 font-semibold">Industry</th>
             <th className="px-6 py-4 font-semibold">Plan Tier</th>
-            <th className="px-6 py-4 font-semibold">AI Gens</th>
+            <th className="px-6 py-4 font-semibold">Gens Left</th>
             <th className="px-6 py-4 font-semibold text-right">Actions</th>
           </tr>
         </thead>
@@ -65,17 +66,26 @@ export function AccountsTable({ accounts }: { accounts: AccountItem[] }) {
                 </select>
               </td>
               <td className="px-6 py-4">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--color-surface-sunken)] px-2.5 py-0.5 text-xs font-medium">
-                  {acc.aiGenerationsCount}
-                </span>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="number"
+                    disabled={isPending}
+                    defaultValue={(AI_GENERATION_LIMITS[acc.planTier] ?? 3) - acc.aiGenerationsCount}
+                    onBlur={(e) => handleUpdateGensLeft(acc.id, parseInt(e.target.value) || 0, acc.planTier)}
+                    className="w-20 rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-2 py-1 text-sm text-[color:var(--color-text)] focus:border-[color:var(--color-primary)] focus:outline-none focus:ring-1 focus:ring-[color:var(--color-primary)]"
+                  />
+                  <span className="text-xs text-[color:var(--color-text-secondary)]">
+                    / {AI_GENERATION_LIMITS[acc.planTier] ?? 3}
+                  </span>
+                </div>
               </td>
               <td className="px-6 py-4 text-right">
                 <button
                   disabled={isPending || acc.aiGenerationsCount === 0}
-                  onClick={() => handleResetCredits(acc.id)}
+                  onClick={() => handleUpdateGensLeft(acc.id, AI_GENERATION_LIMITS[acc.planTier] ?? 3, acc.planTier)}
                   className="rounded-md bg-[color:var(--color-surface-sunken)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text)] hover:bg-[color:var(--color-border)] disabled:opacity-50"
                 >
-                  Reset Credits
+                  Reset Full
                 </button>
               </td>
             </tr>

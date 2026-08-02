@@ -2,7 +2,8 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@/generated/prisma/client";
+import { AI_GENERATION_LIMITS } from "@/lib/limits";
+import type { Prisma } from ".prisma/client";
 import {
   generatePopupWithVariants,
   fetchVariantAnalytics,
@@ -60,8 +61,7 @@ export const evaluateKnockout = inngest.createFunction(
     const slotsAvailable = maxVariants - activeVariants.length;
     if (slotsAvailable <= 0) return { message: "No slots available" };
 
-    const limits: Record<string, number> = { FREE: 3, STARTER: 10, GROWTH: 50, SCALE: 250 };
-    const maxGenerations = limits[planTier] ?? 3;
+    const maxGenerations = AI_GENERATION_LIMITS[planTier] ?? 3;
     if (campaign.account.aiGenerationsCount >= maxGenerations) {
       return { message: "Account reached AI generation limit" };
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { campaignCreated } from "@/lib/analytics";
 
@@ -10,13 +10,15 @@ export default function ManualCampaignWizard() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isCreatingRef = useRef(false);
 
   async function create() {
-    if (!name.trim() || !url.trim()) {
-      setError("Please fill out all fields.");
+    if (!name.trim() || !url.trim() || isCreatingRef.current) {
+      if (!isCreatingRef.current) setError("Please fill out all fields.");
       return;
     }
 
+    isCreatingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -48,6 +50,7 @@ export default function ManualCampaignWizard() {
       // Redirect directly to the campaign page where they can add variants manually
       router.push(`/campaigns/${created.campaign.id}`);
     } catch (e) {
+      isCreatingRef.current = false;
       setError(e instanceof Error ? e.message : "Something went wrong");
       setLoading(false);
     }

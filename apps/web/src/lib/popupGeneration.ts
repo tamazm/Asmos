@@ -79,6 +79,7 @@ export type PopupGenerationInput = {
   brand_tokens: BrandTokens;
   analytics: { variants: AnalyticsVariant[] };
   constraints: { variant_count: number; multivariate: boolean };
+  goal: "EMAIL" | "DISCOUNT" | "BOTH";
 };
 
 export type PopupDiagnosis = {
@@ -89,11 +90,15 @@ export type PopupDiagnosis = {
 
 export type PopupSpec = {
   trigger: string;
+  delay_seconds: number | null;
   frequency_cap: string;
   headline: string;
   subhead: string;
   cta: string;
   fields: string[];
+  coupon_code: string;
+  layout_style: "split-left" | "split-right" | "centered" | "minimal";
+  image_url: string | null;
   design_tokens: { palette: string[]; type_display: string; type_body: string };
 };
 
@@ -101,7 +106,6 @@ export type BaselineOutput = {
   popup_id: string;
   diagnosis: PopupDiagnosis[];
   spec: PopupSpec;
-  code: string;
 };
 
 export type VariantOutput = {
@@ -110,7 +114,6 @@ export type VariantOutput = {
   hypothesis: string;
   motivating_metric: string;
   diff_from_baseline: string;
-  code: string;
   spec: PopupSpec;
 };
 
@@ -177,18 +180,27 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
   "removed the name field — email-only variant is converting 34% higher after 1,200 impressions"
   or "cold_start_default_priority" if no data yet.
 
-POPUP CODE REQUIREMENTS
-The "code" field must be a complete self-contained HTML string:
-- Outer wrapper: <div id="asmos-popup" style="..."> with fixed/absolute positioning, z-index 99999
-- Close button: <button id="asmos-close" ...> in top-right corner
-- Use brand_tokens.palette[0] as primary CTA button background
-- Use brand_tokens.palette for all accent colors
-- Email input with id="asmos-email-input"
-- CTA button with id="asmos-cta-btn"
-- Mobile-responsive (max-width: 360px, centered)
-- No external font dependencies — use system font stack from brand_tokens.type_body or safe fallback
-- Stunning, premium design that will wow visitors on first glance
-- Include subtle micro-animation on the popup entrance: transform scale from 0.96 to 1.0`;
+POPUP BLUEPRINT (LAYOUT & IMAGE VARIANCE)
+- Always assign a \`layout_style\` for the popup: "split-left", "split-right", "centered", or "minimal".
+  - Control variants should usually be "split-left" or "split-right".
+  - When generating variants, strongly consider testing a different layout (e.g. comparing "split-left" to "centered").
+- Always assign a suitable \`image_url\` (unless layout is "minimal" or you explicitly want a text-only popup). Use high-quality Unsplash source URLs related to the store category. Examples:
+  - Fashion/Apparel: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80"
+  - Beauty/Skincare: "https://images.unsplash.com/photo-1596462502278-27bf85033e5a?auto=format&fit=crop&q=80"
+  - Abstract/Discount: "https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?auto=format&fit=crop&q=80"
+- For trigger delays, assign an integer to \`delay_seconds\` if the trigger involves time (e.g. 5, 10, 15). Leave it null for purely exit-intent or scroll depth.
+
+POPUP DESIGN REQUIREMENTS
+You must act as a master conversion copywriter.
+Output the exact JSON spec configuring the popup based on the user's explicit goal (which is set in the input JSON).
+- If goal is "BOTH": Write a headline offering the discount, subhead asking for email to unlock it, and CTA to submit.
+- If goal is "EMAIL": Focus solely on the newsletter/community value. Do not offer a specific % off code. CTA should be "Subscribe".
+- If goal is "DISCOUNT": Offer the discount immediately without requiring an email. CTA should be "Copy Code" or "Shop Now".
+- headline: Max 6 words, highly compelling.
+- subhead: 1 short sentence clarifying.
+- cta: Short, action-oriented button text (e.g. "Claim Discount").
+- coupon_code: E.g., "WELCOME10" or "FREESHIP". (Leave blank if goal is EMAIL)
+Do not write any HTML. The server will inject your JSON into our premium template.`;
 
 // ─── Output Schema (tool call) ────────────────────────────────────────────────
 
@@ -196,11 +208,15 @@ const popupSpecSchema = {
   type: "object",
   properties: {
     trigger: { type: "string" },
+    delay_seconds: { type: ["number", "null"] },
     frequency_cap: { type: "string" },
     headline: { type: "string" },
     subhead: { type: "string" },
     cta: { type: "string" },
     fields: { type: "array", items: { type: "string" } },
+    coupon_code: { type: "string" },
+    layout_style: { type: "string", enum: ["split-left", "split-right", "centered", "minimal"] },
+    image_url: { type: ["string", "null"] },
     design_tokens: {
       type: "object",
       properties: {
@@ -212,7 +228,7 @@ const popupSpecSchema = {
       additionalProperties: false,
     },
   },
-  required: ["trigger", "frequency_cap", "headline", "subhead", "cta", "fields", "design_tokens"],
+  required: ["trigger", "delay_seconds", "frequency_cap", "headline", "subhead", "cta", "fields", "coupon_code", "layout_style", "image_url", "design_tokens"],
   additionalProperties: false,
 } as const;
 
@@ -238,9 +254,8 @@ const popupOutputSchema = {
           },
         },
         spec: popupSpecSchema,
-        code: { type: "string" },
       },
-      required: ["popup_id", "diagnosis", "spec", "code"],
+      required: ["popup_id", "diagnosis", "spec"],
       additionalProperties: false,
     },
     variants: {
@@ -253,10 +268,9 @@ const popupOutputSchema = {
           hypothesis: { type: "string" },
           motivating_metric: { type: "string" },
           diff_from_baseline: { type: "string" },
-          code: { type: "string" },
           spec: popupSpecSchema,
         },
-        required: ["variant_id", "test_axis", "hypothesis", "motivating_metric", "diff_from_baseline", "code", "spec"],
+        required: ["variant_id", "test_axis", "hypothesis", "motivating_metric", "diff_from_baseline", "spec"],
         additionalProperties: false,
       },
     },
@@ -444,6 +458,7 @@ export function buildPopupInput(opts: {
   analyticsVariants: AnalyticsVariant[];
   variantCount: number;
   multivariate?: boolean;
+  goal?: "EMAIL" | "DISCOUNT" | "BOTH";
 }): PopupGenerationInput {
   return {
     store: {
@@ -459,6 +474,7 @@ export function buildPopupInput(opts: {
       variant_count: opts.variantCount,
       multivariate: opts.multivariate ?? false,
     },
+    goal: opts.goal ?? "BOTH",
   };
 }
 
@@ -592,13 +608,32 @@ export async function generatePopupWithVariants(
   input: PopupGenerationInput,
 ): Promise<PopupGenerationOutput> {
   // Provider priority: Bedrock (AWS) → Anthropic direct → Gemini
+  let lastError: unknown;
+
   if (HAS_AWS_KEY) {
-    return generateWithBedrock(input);
+    try {
+      return await generateWithBedrock(input);
+    } catch (err) {
+      console.warn("[popupGeneration] Bedrock failed, falling back to next provider:", err);
+      lastError = err;
+    }
   }
+  
   if (HAS_ANTHROPIC_KEY) {
-    return generateWithClaude(input);
+    try {
+      return await generateWithClaude(input);
+    } catch (err) {
+      console.warn("[popupGeneration] Anthropic failed, falling back to Gemini:", err);
+      lastError = err;
+    }
   }
-  return generateWithGemini(input);
+  
+  try {
+    return await generateWithGemini(input);
+  } catch (err) {
+    console.error("[popupGeneration] Gemini failed too.", err);
+    throw lastError ?? err;
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

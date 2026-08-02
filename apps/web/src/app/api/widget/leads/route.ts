@@ -27,9 +27,9 @@ export async function POST(request: Request) {
   const variant = await prisma.variant.findUnique({
     where: { id: body.variantId },
     include: {
-      rewards: true,
       campaign: {
         include: {
+          rewards: true,
           account: {
             select: {
               name: true,
@@ -46,10 +46,28 @@ export async function POST(request: Request) {
     return corsJson({ error: "Unknown variant" }, { status: 404 });
   }
 
-  const reward = pickWeightedReward(variant.rewards);
-  const couponCode = reward
-    ? reward.couponCode ?? (reward.type === "COUPON" ? generateCouponCode() : null)
-    : null;
+  const reward = pickWeightedReward(variant.campaign.rewards);
+  let couponCode = null;
+  
+  if (reward) {
+    if (reward.type === "COUPON") {
+      const poolCoupon = await prisma.coupon.findFirst({
+        where: { rewardRuleId: reward.id, isUsed: false },
+        orderBy: { createdAt: "asc" },
+      });
+      if (poolCoupon) {
+        couponCode = poolCoupon.code;
+        await prisma.coupon.update({
+          where: { id: poolCoupon.id },
+          data: { isUsed: true, usedAt: new Date(), usedByEmail: body.email || null },
+        });
+      } else {
+        couponCode = reward.couponCode ?? generateCouponCode();
+      }
+    } else {
+      couponCode = reward.couponCode;
+    }
+  }
 
   await prisma.lead.create({
     data: {

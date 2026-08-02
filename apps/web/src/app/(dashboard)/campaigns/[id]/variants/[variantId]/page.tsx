@@ -10,6 +10,7 @@ import { prisma } from "@/lib/prisma";
 import { confidenceVsControl } from "@/lib/stats";
 import { VariantDetailActions } from "./VariantDetailActions";
 import { PopupPreviewCard } from "./PopupPreviewCard";
+import { VisualEditor } from "./VisualEditor";
 
 export default async function VariantDetailPage(props: {
   params: Promise<{ id: string; variantId: string }>;
@@ -77,8 +78,8 @@ export default async function VariantDetailPage(props: {
     body?: string;
     ctaText?: string;
     primaryColor?: string;
+    imageUrl?: string;
   };
-  const hasDesign = !!(design.headline || design.body || design.ctaText || design.primaryColor);
 
   const statusLabel = isWinner ? "Winner" : variant.isControl ? "Control" : "Variant";
 
@@ -139,65 +140,13 @@ export default async function VariantDetailPage(props: {
         </div>
       </div>
 
-      {/* Variant Design card */}
-      <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold text-[color:var(--color-text-primary)]">
-          Variant Design
-        </h2>
-        {!hasDesign ? (
-          <p className="text-sm text-[color:var(--color-text-secondary)]">No design data</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            {design.headline && (
-              <div>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">
-                  Headline
-                </p>
-                <p className="text-sm text-[color:var(--color-text-primary)]">
-                  {design.headline}
-                </p>
-              </div>
-            )}
-            {design.body && (
-              <div>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">
-                  Body
-                </p>
-                <p className="text-sm text-[color:var(--color-text-primary)]">
-                  {design.body}
-                </p>
-              </div>
-            )}
-            {design.ctaText && (
-              <div>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">
-                  CTA Text
-                </p>
-                <p className="text-sm text-[color:var(--color-text-primary)]">
-                  {design.ctaText}
-                </p>
-              </div>
-            )}
-            {design.primaryColor && (
-              <div>
-                <p className="mb-1 text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">
-                  Primary Color
-                </p>
-                <div className="flex items-center gap-2">
-                  <span
-                    className="h-5 w-5 rounded-md border border-[color:var(--color-border)]"
-                    style={{ backgroundColor: design.primaryColor }}
-                    aria-hidden="true"
-                  />
-                  <span className="font-mono text-sm text-[color:var(--color-text-primary)]">
-                    {design.primaryColor}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+      {/* Variant Design Editor */}
+      <VisualEditor 
+        campaignId={campaignId}
+        variantId={variantId}
+        brandColor={account.brandColor || "#165DFF"}
+        initialDesign={design}
+      />
 
       {/* Popup Preview */}
       <PopupPreviewCard
@@ -206,6 +155,7 @@ export default async function VariantDetailPage(props: {
         ctaText={design.ctaText}
         primaryColor={design.primaryColor}
         campaignName={campaign.name}
+        generatedCode={variant.generatedCode}
       />
 
       {/* Performance vs Other Variants */}

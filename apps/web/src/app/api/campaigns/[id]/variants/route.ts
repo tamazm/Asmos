@@ -2,7 +2,7 @@
 import { auth } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
-import type { Prisma, RewardType } from "@/generated/prisma/client";
+import type { Prisma, RewardType } from ".prisma/client";
 
 const VARIANT_NAMES = ["Control", "Variant B", "Variant C", "Variant D", "Variant E"];
 

@@ -21,6 +21,7 @@ import {
   type ExistingPopupExtracted,
   type ComputedStyles,
 } from "@/lib/popupGeneration";
+import { logSystemError } from "@/app/actions/logError";
 
 // ─── Simple in-memory cache (per domain, 1h TTL) ──────────────────────────────
 type CacheEntry = { result: unknown; expiresAt: number };
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
         where: { id: rateLimit.id },
         data: { count: 1, resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }
       });
-    } else if (rateLimit.count >= 15) { // Allow up to 15 generations per day per IP pre-signup
+    } else if (rateLimit.count >= 50) { // Allow up to 50 generations per day per IP pre-signup
       return NextResponse.json({ error: "Rate limit exceeded. Please try again tomorrow." }, { status: 429 });
     } else {
       await prisma.rateLimit.update({
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result);
   } catch (err) {
     console.error("[analyze/generate-popup] Generation failed:", err);
+    await logSystemError(`API Error: /analyze/generate-popup - ${err instanceof Error ? err.message : "Unknown"}`, err);
     // Return a minimal fallback so the results page still works
     return NextResponse.json(
       { error: "Popup generation failed", details: err instanceof Error ? err.message : "Unknown error" },

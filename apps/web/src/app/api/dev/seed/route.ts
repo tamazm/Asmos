@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { prisma } from "@/lib/prisma";
-import type { CampaignEventType } from "@/generated/prisma/client";
+import type { CampaignEventType } from ".prisma/client";
 
 // Dev-only convenience: populates the first account with realistic-looking
 // campaigns/variants/events/leads so every page has something to show.

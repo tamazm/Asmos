@@ -3,7 +3,7 @@ import { auth, currentUser } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { sendInviteEmail } from "@/lib/email";
-import type { UserRole } from "@/generated/prisma/client";
+import type { UserRole } from ".prisma/client";
 
 export async function GET() {
   const { userId } = await auth();

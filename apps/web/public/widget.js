@@ -4,6 +4,8 @@
   if (!scriptEl) return;
 
   var site = scriptEl.getAttribute("data-site") || window.location.hostname;
+  var previewVariantId = scriptEl.getAttribute("data-preview-variant-id");
+  var isPreview = scriptEl.getAttribute("data-preview") === "true";
   var apiBase = new URL(scriptEl.src).origin;
   var CONSENT_KEY = "asmos_consent";
 
@@ -177,13 +179,111 @@
 
   function showPopup(campaign, variant) {
     var sessionKey = "asmos_shown_" + campaign.id;
-    if (sessionStorage.getItem(sessionKey)) return;
-    sessionStorage.setItem(sessionKey, "1");
+    if (!isPreview) {
+      if (sessionStorage.getItem(sessionKey)) return;
+      sessionStorage.setItem(sessionKey, "1");
+    }
 
     // Record the exact moment the popup appeared for dismiss timing
     var popupShownAt = Date.now();
 
+    if (variant.generatedCode) {
+      // ─── NEW TEMPLATE ENGINE ────────────────────────────────────────────────
+      window.__asmos_active_variant = variant;
+      window.__asmos_api_base = apiBase;
+
+      var container = document.createElement("div");
+      container.id = "asmos-popup-container";
+      container.innerHTML = variant.generatedCode;
+      document.body.appendChild(container);
+
+      // Execute embedded scripts (innerHTML does not run them automatically)
+      var scripts = container.querySelectorAll("script");
+      scripts.forEach(function(s) {
+        var newScript = document.createElement("script");
+        if (s.src) {
+          newScript.src = s.src;
+        } else {
+          var code = s.textContent;
+          // Force the popup to open if we are in preview mode, bypassing local storage limits
+          if (isPreview) {
+            code = code.replace(/if\s*\(\s*shouldShow\(\)\s*\)\s*openPopup\(\);/g, "openPopup();");
+            // Also wipe the storage key just in case
+            localStorage.removeItem("asmos_popup_last_seen");
+          }
+          newScript.textContent = code;
+        }
+        document.body.appendChild(newScript);
+        s.remove();
+      });
+
+      var closeBtn = document.getElementById("asmos-close") || document.getElementById("popupClose") || container.querySelector(".popup-close");
+      if (closeBtn) {
+        closeBtn.onclick = function() {
+          var dismissAfterMs = Date.now() - popupShownAt;
+          trackEvent(variant.id, "DISMISSED", { dismissAfterMs: dismissAfterMs });
+          container.remove();
+        };
+      }
+
+      var form = document.getElementById("popupForm") || container.querySelector("form");
+      var emailInput = document.getElementById("asmos-email-input") || document.getElementById("popupEmail");
+      
+      if (form && emailInput) {
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          var submitBtn = form.querySelector("button[type='submit']") || document.getElementById("asmos-cta-btn");
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Submitting…";
+          }
+
+          if (isPreview) {
+            setTimeout(function() {
+              alert("Preview: Email captured! (Code: " + (variant.popupSpec?.coupon_code || "N/A") + ")");
+              container.remove();
+            }, 500);
+            return;
+          }
+
+          var payload = Object.assign(
+            { variantId: variant.id, consentGiven: true, email: emailInput.value },
+            behavioralContext()
+          );
+
+          fetch(apiBase + "/api/widget/leads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }).then(function(res) {
+            if (res.ok) {
+              trackEvent(variant.id, "SUBMISSION");
+              var step3 = document.querySelector('[data-step="3"]');
+              if (step3) {
+                document.querySelectorAll('.popup-step').forEach(function(s) { s.hidden = true; });
+                step3.hidden = false;
+              } else {
+                container.remove();
+              }
+            }
+          });
+        });
+      }
+
+      var copyBtn = document.getElementById("popupCopy");
+      if (copyBtn) {
+        copyBtn.onclick = function() {
+          var codeEl = document.getElementById("popupCodeValue");
+          if (codeEl) navigator.clipboard.writeText(codeEl.textContent);
+        };
+      }
+
+      trackEvent(variant.id, "IMPRESSION");
+      return;
+    }
+
     var overlay = document.createElement("div");
+    overlay.setAttribute("data-asmos-popup", "true");
     overlay.style.cssText =
       "position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,0.5);" +
       "display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;";
@@ -327,6 +427,11 @@
   }
 
   function scheduleTrigger(campaign, variant) {
+    if (isPreview) {
+      showPopup(campaign, variant);
+      return;
+    }
+
     var targeting = variant.targeting || {};
     var trigger = targeting.trigger || "time_delay";
 
@@ -354,7 +459,12 @@
     }
   }
 
-  fetch(apiBase + "/api/widget/config?site=" + encodeURIComponent(site))
+  var configUrl = apiBase + "/api/widget/config?site=" + encodeURIComponent(site);
+  if (previewVariantId) {
+    configUrl += "&preview_variant_id=" + encodeURIComponent(previewVariantId);
+  }
+
+  fetch(configUrl)
     .then(function (res) {
       return res.json();
     })

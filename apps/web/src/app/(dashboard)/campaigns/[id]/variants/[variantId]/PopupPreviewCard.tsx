@@ -32,6 +32,7 @@ interface PopupPreviewCardProps {
   ctaText?: string;
   primaryColor?: string;
   campaignName?: string;
+  generatedCode?: string | null;
 }
 
 // ─── Popup widget ─────────────────────────────────────────────────────────────
@@ -137,6 +138,7 @@ export function PopupPreviewCard({
   ctaText = "Claim my discount",
   primaryColor = "#165DFF",
   campaignName = "Your Store",
+  generatedCode,
 }: PopupPreviewCardProps) {
   const [view, setView] = useState<"desktop" | "mobile">("desktop");
 
@@ -186,40 +188,51 @@ export function PopupPreviewCard({
       </div>
 
       {/* Outer wrapper — centered, constrained */}
-      <div className="flex items-center justify-center py-4">
+      <div className="flex items-center justify-center py-4 bg-[color:var(--color-surface-sunken)] rounded-xl mt-4">
         {view === "desktop" ? (
-          /* Desktop: wider preview with browser chrome hint */
-          <div className="w-full max-w-[360px]">
-            {/* Double-Bezel outer shell */}
-            <div
-              className="rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5"
-              style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)" }}
-            >
-              <PopupWidget
-                headline={headline}
-                body={body}
-                ctaText={ctaText}
-                primaryColor={primaryColor}
-                campaignName={campaignName}
+          /* Desktop: wider preview */
+          <div className="w-full" style={{ height: "600px", maxWidth: "1000px" }}>
+            {generatedCode ? (
+              <iframe
+                srcDoc={generatedCode}
+                title="Desktop Popup Preview"
+                className="w-full h-full border-0 rounded-xl"
+                sandbox="allow-scripts allow-same-origin"
               />
-            </div>
+            ) : (
+              <div className="w-full max-w-[360px] mx-auto pt-20">
+                <PopupWidget
+                  headline={headline}
+                  body={body}
+                  ctaText={ctaText}
+                  primaryColor={primaryColor}
+                  campaignName={campaignName}
+                />
+              </div>
+            )}
           </div>
         ) : (
-          /* Mobile: narrower with phone frame hint */
-          <div className="w-full max-w-[240px]">
-            <div
-              className="rounded-[1.375rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-1.5"
-              style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.04)" }}
-            >
-              <PopupWidget
-                headline={headline}
-                body={body}
-                ctaText={ctaText}
-                primaryColor={primaryColor}
-                campaignName={campaignName}
-                compact
+          /* Mobile: narrower preview */
+          <div className="w-full max-w-[375px]" style={{ height: "667px" }}>
+            {generatedCode ? (
+              <iframe
+                srcDoc={generatedCode}
+                title="Mobile Popup Preview"
+                className="w-full h-full border-0 rounded-xl bg-white shadow-lg"
+                sandbox="allow-scripts allow-same-origin"
               />
-            </div>
+            ) : (
+              <div className="w-full max-w-[240px] mx-auto pt-20">
+                <PopupWidget
+                  headline={headline}
+                  body={body}
+                  ctaText={ctaText}
+                  primaryColor={primaryColor}
+                  campaignName={campaignName}
+                  compact
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

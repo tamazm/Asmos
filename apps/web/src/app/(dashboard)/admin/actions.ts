@@ -3,7 +3,7 @@
 import { currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
-import type { PlanTier } from "@/generated/prisma/client";
+import type { PlanTier } from ".prisma/client";
 
 async function verifySuperadmin() {
   const user = await currentUser();
@@ -24,12 +24,12 @@ export async function updatePlanTier(accountId: string, newTier: PlanTier) {
   revalidatePath("/admin");
 }
 
-export async function resetAIGenerations(accountId: string) {
+export async function updateAIGenerationsCount(accountId: string, count: number) {
   await verifySuperadmin();
   
   await prisma.account.update({
     where: { id: accountId },
-    data: { aiGenerationsCount: 0 },
+    data: { aiGenerationsCount: count },
   });
 
   revalidatePath("/admin");

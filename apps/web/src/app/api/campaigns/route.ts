@@ -2,9 +2,11 @@ import { auth } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import type { GeneratedCampaign } from "@/lib/campaignGeneration";
-import type { Prisma } from "@/generated/prisma/client";
+import type { Prisma } from ".prisma/client";
 import type { PopupSpec } from "@/lib/popupGeneration";
 import { inngest } from "@/lib/inngest/client";
+import { AI_GENERATION_LIMITS } from "@/lib/limits";
+import { normalizeHost } from "@/lib/host";
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -30,9 +32,10 @@ export async function POST(request: Request) {
   });
 
   if (!website) {
-    const url = body.generationContext?.storeUrl 
+    const rawUrl = body.generationContext?.storeUrl 
       ? String(body.generationContext.storeUrl) 
       : "pending-setup.com";
+    const url = normalizeHost(rawUrl);
       
     website = await prisma.website.create({
       data: {
@@ -46,8 +49,7 @@ export async function POST(request: Request) {
   // Spend Protection Check
   const isGeneratingAI = body.status === "GENERATING" || Boolean(body.popupSpec?.spec);
   if (isGeneratingAI) {
-    const limits: Record<string, number> = { FREE: 3, STARTER: 10, GROWTH: 50, SCALE: 250 };
-    const max = limits[account.planTier] ?? 3;
+    const max = AI_GENERATION_LIMITS[account.planTier as keyof typeof AI_GENERATION_LIMITS] ?? 3;
     if (account.aiGenerationsCount >= max) {
       return Response.json(
         { error: `You have reached your AI generation limit (${max}) for the ${account.planTier} plan. Please upgrade your plan to generate more variants.` },
@@ -93,22 +95,21 @@ export async function POST(request: Request) {
           design: controlDesign,
           formFields: controlFormFields,
           targeting: controlTargeting,
-          // Store the AI-generated spec and code when available
           ...(hasPopupSpec && spec
             ? {
                 popupSpec: spec as unknown as Prisma.InputJsonValue,
                 generatedCode: body.popupSpec?.code,
               }
             : {}),
-          rewards: {
-            create: body.rewards?.map((reward) => ({
-              label: reward.label,
-              type: reward.type,
-              couponCode: reward.couponCode,
-              weight: reward.weight,
-            })) ?? [],
-          },
         },
+      },
+      rewards: {
+        create: body.rewards?.map((reward) => ({
+          label: reward.label,
+          type: reward.type,
+          couponCode: reward.couponCode,
+          weight: reward.weight,
+        })) ?? [],
       },
     },
     include: { variants: true },

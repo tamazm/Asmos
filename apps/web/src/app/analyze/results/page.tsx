@@ -340,7 +340,7 @@ export default function AnalyzeResultsPage() {
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
                   <span className="text-[10px] text-gray-400">
                     AI vision scan ·{" "}
-                    {result.analysisSource === "bedrock" || result.analysisSource === "anthropic" ? "Claude" : "Gemini"}
+                    {result.analysisSource === "bedrock" || result.analysisSource === "anthropic" ? "Asmos AI" : "Gemini"}
                   </span>
                 </div>
               )}

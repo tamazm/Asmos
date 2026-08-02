@@ -12,6 +12,7 @@ import {
   type ExistingPopupExtracted,
   type ComputedStyles,
 } from "@/lib/popupGeneration";
+import { renderSplitScreenTemplate } from "@/lib/templates/splitScreen";
 
 export const generateCampaign = inngest.createFunction(
   { 
@@ -72,6 +73,8 @@ export const generateCampaign = inngest.createFunction(
     try { domain = new URL(storeUrl).hostname.replace(/^www\./, ""); } catch {}
 
     const output = await step.run("generate-ai", async () => {
+      const goal = (context.goal as "EMAIL" | "DISCOUNT" | "BOTH") ?? "BOTH";
+
       const input = buildPopupInput({
         domain,
         category,
@@ -81,11 +84,13 @@ export const generateCampaign = inngest.createFunction(
         analyticsVariants: [],
         variantCount: 1, 
         multivariate: false,
+        goal,
       });
       return generatePopupWithVariants(input);
     });
 
     await step.run("save-variants", async () => {
+      const goal = (context.goal as "EMAIL" | "DISCOUNT" | "BOTH") ?? "BOTH";
       const newVariants = [
         {
           name: "Control",
@@ -96,11 +101,30 @@ export const generateCampaign = inngest.createFunction(
             body: output.baseline.spec.subhead,
             primaryColor: brandTokens.palette[0] ?? "#165DFF",
             ctaText: output.baseline.spec.cta,
+            imageUrl: output.baseline.spec.image_url,
           },
           formFields: output.baseline.spec.fields,
-          targeting: { trigger: output.baseline.spec.trigger, delaySeconds: null },
+          targeting: { trigger: output.baseline.spec.trigger, delaySeconds: output.baseline.spec.delay_seconds },
           popupSpec: output.baseline.spec as  any,
-          generatedCode: output.baseline.code,
+          generatedCode: renderSplitScreenTemplate({
+            headline: output.baseline.spec.headline,
+            subhead: output.baseline.spec.subhead,
+            cta: output.baseline.spec.cta,
+            primaryColor: brandTokens.palette[0] ?? "#165DFF",
+            couponCode: output.baseline.spec.coupon_code,
+            goal,
+            layoutStyle: output.baseline.spec.layout_style,
+            imageUrl: output.baseline.spec.image_url,
+          }),
+          rewards: output.baseline.spec.coupon_code
+            ? [
+                {
+                  label: "AI Discount",
+                  type: "COUPON",
+                  couponCode: output.baseline.spec.coupon_code,
+                },
+              ]
+            : [],
         },
         ...output.variants.map((v, idx) => ({
           name: `Variant ${idx + 1} (${v.test_axis})`,
@@ -111,11 +135,30 @@ export const generateCampaign = inngest.createFunction(
             body: v.spec.subhead,
             primaryColor: brandTokens.palette[0] ?? "#165DFF",
             ctaText: v.spec.cta,
+            imageUrl: v.spec.image_url,
           },
           formFields: v.spec.fields,
-          targeting: { trigger: v.spec.trigger, delaySeconds: null },
+          targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds },
           popupSpec: v.spec as  any,
-          generatedCode: v.code,
+          generatedCode: renderSplitScreenTemplate({
+            headline: v.spec.headline,
+            subhead: v.spec.subhead,
+            cta: v.spec.cta,
+            primaryColor: brandTokens.palette[0] ?? "#165DFF",
+            couponCode: v.spec.coupon_code,
+            goal,
+            layoutStyle: v.spec.layout_style,
+            imageUrl: v.spec.image_url,
+          }),
+          rewards: v.spec.coupon_code
+            ? [
+                {
+                  label: "AI Discount",
+                  type: "COUPON",
+                  couponCode: v.spec.coupon_code,
+                },
+              ]
+            : [],
           testAxis: v.test_axis,
           hypothesis: v.hypothesis,
           motivatingMetric: v.motivating_metric,
@@ -129,7 +172,16 @@ export const generateCampaign = inngest.createFunction(
       await prisma.$transaction(async (tx) => {
         await tx.variant.deleteMany({ where: { campaignId } });
         for (const variantData of newVariants) {
-          await tx.variant.create({ data: { campaignId, ...variantData } });
+          const { rewards, ...restData } = variantData;
+          await tx.variant.create({ 
+            data: { 
+              campaignId, 
+              ...restData,
+              rewards: {
+                create: rewards
+              }
+            } 
+          });
         }
         await tx.campaign.update({
           where: { id: campaignId },

@@ -92,6 +92,12 @@ export function WebsiteManagement({ websites }: { websites: WebsiteRow[] }) {
                 </Button>
                 <Button
                   variant="secondary"
+                  onClick={() => window.open(`/store-preview?site=${encodeURIComponent(site.url)}`, '_blank')}
+                >
+                  Preview how it looks
+                </Button>
+                <Button
+                  variant="secondary"
                   onClick={() => handleCheck(site.id)}
                   className={checkingId === site.id ? "opacity-60" : ""}
                 >

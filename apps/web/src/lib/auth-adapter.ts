@@ -15,7 +15,12 @@ const MOCK_USER = {
 export async function currentUser() {
   if (isMock) return MOCK_USER;
   const { currentUser: clerkCurrentUser } = await import("@clerk/nextjs/server");
-  return clerkCurrentUser();
+  try {
+    return await clerkCurrentUser();
+  } catch (e) {
+    console.warn("Failed to fetch current user from Clerk:", e instanceof Error ? e.message : e);
+    return null;
+  }
 }
 
 export async function auth() {

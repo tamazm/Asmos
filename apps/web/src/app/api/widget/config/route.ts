@@ -8,13 +8,64 @@ export async function OPTIONS() {
 }
 
 export async function GET(request: Request) {
-  const site = new URL(request.url).searchParams.get("site");
+  const url = new URL(request.url);
+  const site = url.searchParams.get("site");
+  const previewVariantId = url.searchParams.get("preview_variant_id");
+  if (previewVariantId) {
+    const previewVariant = await prisma.variant.findUnique({
+      where: { id: previewVariantId },
+      include: {
+        campaign: {
+          include: {
+            website: {
+              include: { account: true }
+            },
+            rewards: { select: { id: true, label: true, type: true } }
+          }
+        },
+      },
+    });
+
+    if (previewVariant) {
+      const consent = {
+        required: previewVariant.campaign.website.account.consentGdprEnabled || previewVariant.campaign.website.account.consentCcpaEnabled,
+        bannerText: previewVariant.campaign.website.account.consentBannerText,
+      };
+
+      return corsJson({
+        campaign: {
+          id: previewVariant.campaign.id,
+          type: previewVariant.campaign.type,
+          forcedVariantId: previewVariant.id,
+          variants: [
+            {
+              id: previewVariant.id,
+              name: previewVariant.name,
+              trafficPercent: 100,
+              design: previewVariant.design,
+              formFields: previewVariant.formFields,
+              targeting: previewVariant.targeting,
+              rewards: previewVariant.campaign.rewards,
+              generatedCode: previewVariant.generatedCode,
+            }
+          ],
+        },
+        consent,
+      });
+    }
+  }
+
   if (!site) {
     return corsJson({ error: "site is required" }, { status: 400 });
   }
 
   const website = await prisma.website.findFirst({
-    where: { url: normalizeHost(site) },
+    where: { 
+      OR: [
+        { url: normalizeHost(site) },
+        { url: site }
+      ]
+    },
     include: {
       account: {
         select: {
@@ -38,11 +89,8 @@ export async function GET(request: Request) {
     where: { websiteId: website.id, status: "ACTIVE" },
     orderBy: { createdAt: "desc" },
     include: {
-      variants: {
-        include: {
-          rewards: { select: { id: true, label: true, type: true } },
-        },
-      },
+      rewards: { select: { id: true, label: true, type: true } },
+      variants: true,
     },
   });
 
@@ -62,7 +110,8 @@ export async function GET(request: Request) {
         design: variant.design,
         formFields: variant.formFields,
         targeting: variant.targeting,
-        rewards: variant.rewards,
+        rewards: campaign.rewards,
+        generatedCode: variant.generatedCode,
       })),
     },
     consent,

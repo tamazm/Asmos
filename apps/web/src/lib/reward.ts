@@ -1,4 +1,4 @@
-import type { RewardRule } from "@/generated/prisma/client";
+import type { RewardRule } from ".prisma/client";
 
 export function pickWeightedReward<T extends Pick<RewardRule, "weight">>(
   rewards: T[],

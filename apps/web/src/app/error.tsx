@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import Link from "next/link";
-import { Logo } from "@/components/ui/Logo";
+import { logSystemError } from "./actions/logError";
 
-export default function RootError({
+export default function GlobalError({
   error,
   reset,
 }: {
@@ -12,52 +11,37 @@ export default function RootError({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    // Log the page error to the database via server action
+    logSystemError(`Page Error: ${error.message}`, {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+      digest: error.digest,
+    });
   }, [error]);
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-6 bg-[color:var(--color-surface-sunken)] px-6 text-center">
-      <Logo />
-      <div className="flex flex-col items-center gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-10 shadow-sm max-w-md w-full">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--color-primary-light)]">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path
-              d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"
-              stroke="#165DFF"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </div>
-        <div>
-          <h2 className="text-lg font-bold text-[color:var(--color-text-primary)]">
-            Something went wrong
-          </h2>
-          <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
-            An unexpected error occurred. You can try again or go back to the home page.
-          </p>
-          {error.digest && (
-            <p className="mt-2 text-xs text-[color:var(--color-text-secondary)] font-mono">
-              Error ID: {error.digest}
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-3 w-full justify-center">
-          <button
-            onClick={reset}
-            className="inline-flex items-center justify-center rounded-lg bg-[color:var(--color-primary)] px-4 h-10 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 active:scale-[0.98]"
-          >
-            Try again
-          </button>
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 h-10 text-sm font-medium text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] transition-colors duration-150 active:scale-[0.98]"
-          >
-            Back to home
-          </Link>
-        </div>
+    <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 p-8 text-center">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600 mb-2">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+          <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
       </div>
+      <h2 className="text-xl font-bold text-[color:var(--color-text-primary)]">Something went wrong</h2>
+      <p className="text-sm text-[color:var(--color-text-secondary)] max-w-md">
+        An unexpected error occurred while rendering this page. The system administrator has been notified.
+      </p>
+      {error.digest && (
+        <p className="font-mono text-xs text-[color:var(--color-text-secondary)] opacity-70">
+          Error ID: {error.digest}
+        </p>
+      )}
+      <button
+        onClick={() => reset()}
+        className="mt-4 rounded-lg bg-[color:var(--color-primary)] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors"
+      >
+        Try again
+      </button>
     </div>
   );
 }
