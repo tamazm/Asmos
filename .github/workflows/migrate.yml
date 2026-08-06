@@ -28,7 +28,12 @@ jobs:
         run: npm ci
 
       - name: Run Prisma Migrate
+        if: ${{ secrets.DATABASE_URL != '' }}
         working-directory: ./apps/web
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Skip Prisma Migrate when DATABASE_URL is not configured
+        if: ${{ secrets.DATABASE_URL == '' }}
+        run: echo "DATABASE_URL secret is not configured; skipping Prisma migrate deploy."
