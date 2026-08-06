@@ -29,7 +29,7 @@ const POSTHOG_PROJECT_ID = process.env.POSTHOG_PROJECT_ID ?? "";
 const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com";
 const HAS_ANTHROPIC_KEY = Boolean(process.env.ANTHROPIC_API_KEY);
 const HAS_AWS_KEY = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-const AWS_REGION = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "eu-central-1";
+const AWS_REGION = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "eu-north-1";
 const BEDROCK_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
