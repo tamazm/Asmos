@@ -618,6 +618,29 @@ async function generateWithBedrock(input: PopupGenerationInput): Promise<PopupGe
   return toolUse.input as PopupGenerationOutput;
 }
 
+// None of the SDK calls below set their own timeout, and the AWS SDK's default
+// Node HTTP handler in particular has no request timeout — a Bedrock access/
+// networking misconfiguration can hang instead of erroring. This whole function
+// runs inside a single Inngest step.run() (see lib/inngest/generateCampaign.ts);
+// if it hangs long enough, the Vercel function gets killed by its maxDuration
+// before our own try/catch ever runs, leaving the campaign stuck in GENERATING
+// forever with no error surfaced. Bounding each provider attempt keeps the
+// worst case (all three time out) well under that limit, so a real failure
+// always reaches the caller's catch block and marks the campaign FAILED fast.
+const PROVIDER_TIMEOUT_MS = 45_000;
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`[popupGeneration] ${label} timed out after ${ms}ms`)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer!);
+  }
+}
+
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export async function generatePopupWithVariants(
@@ -628,24 +651,24 @@ export async function generatePopupWithVariants(
 
   if (HAS_AWS_KEY) {
     try {
-      return await generateWithBedrock(input);
+      return await withTimeout(generateWithBedrock(input), PROVIDER_TIMEOUT_MS, "Bedrock");
     } catch (err) {
       console.warn("[popupGeneration] Bedrock failed, falling back to next provider:", err);
       lastError = err;
     }
   }
-  
+
   if (HAS_ANTHROPIC_KEY) {
     try {
-      return await generateWithClaude(input);
+      return await withTimeout(generateWithClaude(input), PROVIDER_TIMEOUT_MS, "Anthropic");
     } catch (err) {
       console.warn("[popupGeneration] Anthropic failed, falling back to Gemini:", err);
       lastError = err;
     }
   }
-  
+
   try {
-    return await generateWithGemini(input);
+    return await withTimeout(generateWithGemini(input), PROVIDER_TIMEOUT_MS, "Gemini");
   } catch (err) {
     console.error("[popupGeneration] Gemini failed too.", err);
     throw lastError ?? err;
