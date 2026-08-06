@@ -72,11 +72,22 @@ export async function PATCH(
     if (campaign.status !== "FAILED") {
       return Response.json({ error: "Only a failed campaign can be retried" }, { status: 400 });
     }
-    const retried = await prisma.campaign.update({
+    let retried = await prisma.campaign.update({
       where: { id: campaign.id },
       data: { status: "GENERATING", lastError: null },
     });
-    await inngest.send({ name: "campaign.generate", data: { campaignId: campaign.id } });
+    try {
+      await inngest.send({ name: "campaign.generate", data: { campaignId: campaign.id } });
+    } catch (err) {
+      console.error("[campaigns/[id]/route] inngest.send failed for campaign.generate retry", err);
+      retried = await prisma.campaign.update({
+        where: { id: campaign.id },
+        data: {
+          status: "FAILED",
+          lastError: "Failed to queue campaign generation. Please retry.",
+        },
+      });
+    }
     return Response.json({ campaign: retried }, { status: 202 });
   }
 

@@ -86,7 +86,9 @@ export async function POST(request: Request) {
       name: body.name,
       type: "FORM", // schema-driven generation always produces FORM popups
       status: body.status === "GENERATING" ? "GENERATING" : "ACTIVE",
-      generationContext: body.generationContext as Prisma.InputJsonValue | undefined,
+      generationContext: body.generationContext 
+        ? { ...body.generationContext, brandColor: account.brandColor ?? body.generationContext.brandColor } as Prisma.InputJsonValue
+        : undefined,
       variants: body.status === "GENERATING" ? undefined : {
         create: {
           name: "Control",
@@ -115,16 +117,34 @@ export async function POST(request: Request) {
     include: { variants: true },
   });
 
+  let responseCampaign = created;
+
   if (isGeneratingAI) {
-    // Send background task to Inngest instead of waiting for a cron
-    await inngest.send({
-      name: "campaign.generate",
-      data: { campaignId: created.id },
-    });
+    // Send background task to Inngest instead of waiting for a cron.
+    // If this fails (no local Inngest Dev Server, or missing
+    // INNGEST_EVENT_KEY/SIGNING_KEY in production), the campaign row
+    // already exists in the DB — mark it FAILED instead of leaving it
+    // stuck in GENERATING forever, and don't 500 the whole request.
+    try {
+      await inngest.send({
+        name: "campaign.generate",
+        data: { campaignId: created.id },
+      });
+    } catch (err) {
+      console.error("[campaigns/route] inngest.send failed for campaign.generate", err);
+      responseCampaign = await prisma.campaign.update({
+        where: { id: created.id },
+        data: {
+          status: "FAILED",
+          lastError: "Failed to queue campaign generation. Please retry.",
+        },
+        include: { variants: true },
+      });
+    }
   }
 
   return Response.json(
-    { campaign: created },
+    { campaign: responseCampaign },
     { status: body.status === "GENERATING" ? 202 : 200 },
   );
 }
