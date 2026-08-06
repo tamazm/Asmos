@@ -497,6 +497,7 @@ async function generateWithClaude(input: PopupGenerationInput): Promise<PopupGen
   const response = await anthropic.messages.create({
     model: "claude-haiku-4-5",
     max_tokens: 8000,
+    temperature: 0.8,
     system: POPUP_GENERATION_SYSTEM_PROMPT,
     tools: [GENERATE_POPUP_TOOL],
     tool_choice: { type: "any" },
@@ -536,6 +537,7 @@ async function generateWithGemini(input: PopupGenerationInput): Promise<PopupGen
       },
     ],
     config: {
+      temperature: 0.8,
       tools: [
         {
           functionDeclarations: [
@@ -581,6 +583,7 @@ async function generateWithBedrock(input: PopupGenerationInput): Promise<PopupGe
   const bedrockBody = {
     anthropic_version: "bedrock-2023-05-31",
     max_tokens: 8000,
+    temperature: 0.8,
     system: POPUP_GENERATION_SYSTEM_PROMPT,
     tools: [GENERATE_POPUP_TOOL],
     tool_choice: { type: "any" },
