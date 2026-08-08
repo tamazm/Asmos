@@ -61,3 +61,20 @@ export const MAX_CODES_PER_IMPORT_REQUEST: Record<PlanTier, number> = {
   GROWTH: 2500,
   SCALE: 5000,
 };
+
+// A popup must never go live with nothing to actually give away (see
+// generateCampaign.ts's reward-attachment step + the "no reward -> don't
+// show" gate in api/widget/config/route.ts). When a new campaign's offer is
+// a plain discount code, this many codes are generated automatically so
+// there's real one-time-use inventory from day one, not just a single
+// shared code. Always additionally clamped against
+// MAX_CODES_PER_GENERATE_REQUEST and the account's remaining
+// MAX_COUPON_CODES_PER_ACCOUNT budget, so this can never itself violate
+// either limit.
+export const DEFAULT_NEW_CAMPAIGN_CODE_COUNT = 40;
+
+// Default redemption cap for a merchant-described "fixed prize" (free gift,
+// tote bag, sample, etc.) attached at campaign creation when they didn't
+// specify their own quantity. Physical/limited-inventory rewards should
+// never silently default to unlimited.
+export const DEFAULT_GIFT_REDEMPTIONS = 40;

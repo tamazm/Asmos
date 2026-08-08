@@ -681,12 +681,18 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
 
 // ─── Input Builder ────────────────────────────────────────────────────────────
 
-// Platform-wide safety ceiling on any AI-suggested percentage discount —
-// see the CONTENT & COMPLIANCE GUARDRAILS prompt section and
-// applyContentGuardrails below, which enforces this server-side regardless
-// of what the model outputs. Callers can pass a lower (merchant-chosen) cap
-// via buildPopupInput's maxDiscountPercent, but never a higher one.
-export const DEFAULT_MAX_DISCOUNT_PERCENT = 20;
+// Default cap on any AI-suggested percentage discount when the merchant
+// hasn't set their own — not a platform-wide ceiling. Merchants can set
+// max_discount_percent to anything they want via the campaign creation
+// form's "Percentage off" option (buildPopupInput's maxDiscountPercent);
+// whatever they choose (or this default, if they didn't) is what
+// applyContentGuardrails enforces server-side against the model's output.
+export const DEFAULT_MAX_DISCOUNT_PERCENT = 15;
+
+// Basic sanity bounds on the discount input itself — not a business rule,
+// just rejecting nonsensical values (negative, or literally "unlimited%").
+const MIN_SANE_DISCOUNT_PERCENT = 1;
+const MAX_SANE_DISCOUNT_PERCENT = 100;
 
 export function buildPopupInput(opts: {
   domain: string;
@@ -718,8 +724,8 @@ export function buildPopupInput(opts: {
       variant_count: opts.variantCount,
       multivariate: opts.multivariate ?? false,
       max_discount_percent: Math.min(
-        opts.maxDiscountPercent ?? DEFAULT_MAX_DISCOUNT_PERCENT,
-        DEFAULT_MAX_DISCOUNT_PERCENT,
+        Math.max(opts.maxDiscountPercent ?? DEFAULT_MAX_DISCOUNT_PERCENT, MIN_SANE_DISCOUNT_PERCENT),
+        MAX_SANE_DISCOUNT_PERCENT,
       ),
       offer_preference: {
         type: opts.offerPreference?.type ?? "ai_choice",
@@ -988,7 +994,10 @@ export async function generatePopupWithVariants(
   input: PopupGenerationInput,
 ): Promise<PopupGenerationOutput> {
   const systemPrompt = POPUP_GENERATION_SYSTEM_PROMPT + (await getLearnedPatternsSection());
-  const maxDiscountPercent = Math.min(input.constraints.max_discount_percent, DEFAULT_MAX_DISCOUNT_PERCENT);
+  // Whatever the merchant configured (or DEFAULT_MAX_DISCOUNT_PERCENT if
+  // they didn't) — already sanity-bounded in buildPopupInput, not re-capped
+  // against a platform ceiling here.
+  const maxDiscountPercent = input.constraints.max_discount_percent;
 
   // Provider priority: Bedrock (AWS) → Anthropic direct → Gemini
   let lastError: unknown;

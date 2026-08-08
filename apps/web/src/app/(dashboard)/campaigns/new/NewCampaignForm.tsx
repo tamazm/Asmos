@@ -9,7 +9,11 @@ type Phase = "idle" | "analyzing" | "error";
 type DiscountPreference = "ai_choice" | "percentage" | "free_shipping" | "fixed_prize";
 type PageTargetMode = "all" | "include" | "exclude";
 
-const MAX_DISCOUNT_PERCENT_CEILING = 20; // mirrors DEFAULT_MAX_DISCOUNT_PERCENT in lib/popupGeneration.ts
+// No platform-wide cap — merchants can set whatever max discount they want.
+// This is just a sanity bound on the input itself (mirrors
+// MAX_SANE_DISCOUNT_PERCENT in lib/popupGeneration.ts), not a business rule.
+const DISCOUNT_PERCENT_INPUT_MAX = 100;
+const DEFAULT_MAX_DISCOUNT_PERCENT = 15; // mirrors lib/popupGeneration.ts's default
 
 export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
   const router = useRouter();
@@ -24,10 +28,54 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
   // "show everywhere" so skipping this section doesn't slow anyone down).
   const [showPersonalize, setShowPersonalize] = useState(false);
   const [discountPreference, setDiscountPreference] = useState<DiscountPreference>("ai_choice");
-  const [maxDiscountPercent, setMaxDiscountPercent] = useState(15);
+  const [maxDiscountPercent, setMaxDiscountPercent] = useState(DEFAULT_MAX_DISCOUNT_PERCENT);
   const [fixedPrizeDescription, setFixedPrizeDescription] = useState("");
+  // Optional quantity caps — left blank/0 means "unlimited" for free
+  // shipping, or the platform default (see DEFAULT_GIFT_REDEMPTIONS in
+  // lib/limits.ts) for a fixed prize, since a physical/limited-inventory
+  // reward should never silently default to unlimited.
+  const [freeShippingLimit, setFreeShippingLimit] = useState("");
+  const [fixedPrizeLimit, setFixedPrizeLimit] = useState("");
   const [pageTargetMode, setPageTargetMode] = useState<PageTargetMode>("all");
   const [pageTargetPatterns, setPageTargetPatterns] = useState("");
+  const [scrapedPages, setScrapedPages] = useState<string[] | null>(null);
+  const [scrapingPages, setScrapingPages] = useState(false);
+  const [scrapeError, setScrapeError] = useState<string | null>(null);
+
+  const selectedPatterns = pageTargetPatterns
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  function togglePagePattern(path: string) {
+    setPageTargetPatterns((prev) => {
+      const list = prev.split(",").map((p) => p.trim()).filter(Boolean);
+      const next = list.includes(path) ? list.filter((p) => p !== path) : [...list, path];
+      return next.join(", ");
+    });
+  }
+
+  async function scrapePages() {
+    if (!url.trim()) {
+      setScrapeError("Enter your store URL first.");
+      return;
+    }
+    setScrapingPages(true);
+    setScrapeError(null);
+    try {
+      const res = await fetch(`/api/campaigns/scrape-pages?url=${encodeURIComponent(url.trim())}`);
+      if (!res.ok) {
+        const b = await res.json().catch(() => ({}));
+        throw new Error(b.error ?? "Could not scan your site for pages.");
+      }
+      const data = await res.json();
+      setScrapedPages(Array.isArray(data.pages) ? data.pages : []);
+    } catch (e) {
+      setScrapeError(e instanceof Error ? e.message : "Could not scan your site for pages.");
+    } finally {
+      setScrapingPages(false);
+    }
+  }
 
   async function launch() {
     const raw = url.trim();
@@ -78,10 +126,18 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
             discountPreference,
             maxDiscountPercent:
               discountPreference === "percentage"
-                ? Math.min(Math.max(1, maxDiscountPercent), MAX_DISCOUNT_PERCENT_CEILING)
+                ? Math.min(Math.max(1, maxDiscountPercent), DISCOUNT_PERCENT_INPUT_MAX)
                 : undefined,
             fixedPrizeDescription:
               discountPreference === "fixed_prize" ? fixedPrizeDescription.trim() : undefined,
+            freeShippingLimit:
+              discountPreference === "free_shipping" && freeShippingLimit.trim()
+                ? Math.max(1, Math.floor(Number(freeShippingLimit)))
+                : undefined,
+            fixedPrizeLimit:
+              discountPreference === "fixed_prize" && fixedPrizeLimit.trim()
+                ? Math.max(1, Math.floor(Number(fixedPrizeLimit)))
+                : undefined,
             pageTargeting,
           },
         }),
@@ -285,30 +341,75 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                             id="max-discount"
                             type="number"
                             min={1}
-                            max={MAX_DISCOUNT_PERCENT_CEILING}
+                            max={DISCOUNT_PERCENT_INPUT_MAX}
                             value={maxDiscountPercent}
                             onChange={(e) =>
                               setMaxDiscountPercent(
-                                Math.max(1, Math.min(MAX_DISCOUNT_PERCENT_CEILING, Number(e.target.value) || 1)),
+                                Math.max(1, Math.min(DISCOUNT_PERCENT_INPUT_MAX, Number(e.target.value) || 1)),
                               )
                             }
                             className="w-20 rounded-lg border border-[color:var(--color-border)] px-2 py-1.5 text-sm outline-none focus:border-[color:var(--color-primary)]"
                           />
                           <span className="text-sm text-[color:var(--color-text-secondary)]">
-                            % (platform max {MAX_DISCOUNT_PERCENT_CEILING}%)
+                            % — the AI will never suggest more than this
+                          </span>
+                        </div>
+                      )}
+
+                      {discountPreference === "free_shipping" && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <label htmlFor="free-shipping-limit" className="text-sm text-[color:var(--color-text-secondary)]">
+                            Limit to:
+                          </label>
+                          <input
+                            id="free-shipping-limit"
+                            type="number"
+                            min={1}
+                            value={freeShippingLimit}
+                            onChange={(e) => setFreeShippingLimit(e.target.value.replace(/[^0-9]/g, ""))}
+                            placeholder="Unlimited"
+                            className="w-28 rounded-lg border border-[color:var(--color-border)] px-2 py-1.5 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                          />
+                          <span className="text-sm text-[color:var(--color-text-secondary)]">
+                            redemptions (blank = unlimited)
                           </span>
                         </div>
                       )}
 
                       {discountPreference === "fixed_prize" && (
-                        <input
-                          type="text"
-                          value={fixedPrizeDescription}
-                          onChange={(e) => setFixedPrizeDescription(e.target.value)}
-                          placeholder="e.g. Free tote bag with any order over $50"
-                          className="mt-2 w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
-                        />
+                        <div className="mt-2 flex flex-col gap-2">
+                          <input
+                            type="text"
+                            value={fixedPrizeDescription}
+                            onChange={(e) => setFixedPrizeDescription(e.target.value)}
+                            placeholder="e.g. Free tote bag with any order over $50"
+                            className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                          />
+                          <div className="flex items-center gap-2">
+                            <label htmlFor="fixed-prize-limit" className="text-sm text-[color:var(--color-text-secondary)]">
+                              Limit to:
+                            </label>
+                            <input
+                              id="fixed-prize-limit"
+                              type="number"
+                              min={1}
+                              value={fixedPrizeLimit}
+                              onChange={(e) => setFixedPrizeLimit(e.target.value.replace(/[^0-9]/g, ""))}
+                              placeholder="40"
+                              className="w-28 rounded-lg border border-[color:var(--color-border)] px-2 py-1.5 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                            />
+                            <span className="text-sm text-[color:var(--color-text-secondary)]">
+                              redemptions (defaults to 40 — prizes are finite)
+                            </span>
+                          </div>
+                        </div>
                       )}
+
+                      <p className="mt-2 text-xs text-[color:var(--color-text-secondary)]">
+                        A popup never shows if its campaign has no reward left to give — Asmos
+                        automatically stocks a starting batch of codes/redemptions when you launch, and
+                        you can top these up any time from the Rewards page.
+                      </p>
                     </div>
 
                     {/* Page targeting */}
@@ -340,13 +441,56 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                       </div>
 
                       {pageTargetMode !== "all" && (
-                        <input
-                          type="text"
-                          value={pageTargetPatterns}
-                          onChange={(e) => setPageTargetPatterns(e.target.value)}
-                          placeholder="e.g. /, /product/*  (comma-separated)"
-                          className="mt-2 w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
-                        />
+                        <div className="mt-2 flex flex-col gap-2">
+                          <input
+                            type="text"
+                            value={pageTargetPatterns}
+                            onChange={(e) => setPageTargetPatterns(e.target.value)}
+                            placeholder="e.g. /, /product/*  (comma-separated)"
+                            className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                          />
+
+                          <button
+                            type="button"
+                            onClick={scrapePages}
+                            disabled={scrapingPages}
+                            className="self-start text-xs font-medium text-[color:var(--color-primary)] hover:underline disabled:opacity-50"
+                          >
+                            {scrapingPages
+                              ? "Scanning your site…"
+                              : scrapedPages
+                              ? "Rescan my pages"
+                              : "Scrape my pages to choose interactively"}
+                          </button>
+                          {scrapeError && <p className="text-xs text-red-600">{scrapeError}</p>}
+
+                          {scrapedPages && (
+                            <div className="max-h-48 overflow-y-auto rounded-lg border border-[color:var(--color-border)] p-2">
+                              {scrapedPages.length === 0 ? (
+                                <p className="p-2 text-xs text-[color:var(--color-text-secondary)]">
+                                  Couldn&apos;t find any pages automatically — enter paths manually above.
+                                </p>
+                              ) : (
+                                <div className="flex flex-col gap-1">
+                                  {scrapedPages.map((path) => (
+                                    <label
+                                      key={path}
+                                      className="flex items-center gap-2 rounded-md px-2 py-1 text-sm text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] cursor-pointer"
+                                    >
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedPatterns.includes(path)}
+                                        onChange={() => togglePagePattern(path)}
+                                        className="rounded border-[color:var(--color-border)]"
+                                      />
+                                      <span className="font-mono text-xs">{path}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

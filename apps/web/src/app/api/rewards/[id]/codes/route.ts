@@ -20,6 +20,86 @@ function randomCode(prefix: string): string {
   return prefix ? `${prefix}-${suffix}` : suffix;
 }
 
+// Lists codes for the "manage codes" batch-select panel on the rewards
+// page. Capped at 500 per request — this is a management UI, not the CSV
+// export (which streams all of them via codes/export/route.ts).
+export async function GET(
+  request: Request,
+  ctx: RouteContext<"/api/rewards/[id]/codes">,
+) {
+  const { userId } = await auth();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await ctx.params;
+  const account = await getOrCreateAccount();
+  const reward = await findOwnedReward(id, account.id);
+  if (!reward) {
+    return Response.json({ error: "Reward not found" }, { status: 404 });
+  }
+
+  const status = new URL(request.url).searchParams.get("status") ?? "all";
+  const where =
+    status === "used"
+      ? { rewardRuleId: reward.id, usedAt: { not: null } }
+      : status === "unused"
+        ? { rewardRuleId: reward.id, usedAt: null }
+        : { rewardRuleId: reward.id };
+
+  const codes = await prisma.couponCode.findMany({
+    where,
+    orderBy: { createdAt: "asc" },
+    take: 500,
+    select: { id: true, code: true, usedAt: true, createdAt: true },
+  });
+  const total = await prisma.couponCode.count({ where: { rewardRuleId: reward.id } });
+
+  return Response.json({ codes, total, truncated: total > codes.length });
+}
+
+// Batch removal — either specific code ids, or a bulk "clear all unused"
+// sweep. Deleting a used code is allowed too (it's just historical
+// bookkeeping at that point; the lead's claimed code text is preserved on
+// the Lead row regardless via rewardClaimedCode).
+export async function DELETE(
+  request: Request,
+  ctx: RouteContext<"/api/rewards/[id]/codes">,
+) {
+  const { userId } = await auth();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await ctx.params;
+  const account = await getOrCreateAccount();
+  const reward = await findOwnedReward(id, account.id);
+  if (!reward) {
+    return Response.json({ error: "Reward not found" }, { status: 404 });
+  }
+
+  const body = (await request.json().catch(() => ({}))) as {
+    codeIds?: string[];
+    mode?: "unused";
+  };
+
+  if (body.mode === "unused") {
+    const result = await prisma.couponCode.deleteMany({
+      where: { rewardRuleId: reward.id, usedAt: null },
+    });
+    return Response.json({ deleted: result.count });
+  }
+
+  const ids = Array.isArray(body.codeIds) ? body.codeIds.filter((x) => typeof x === "string") : [];
+  if (ids.length === 0) {
+    return Response.json({ error: "Provide codeIds or mode: 'unused'" }, { status: 400 });
+  }
+  const result = await prisma.couponCode.deleteMany({
+    where: { id: { in: ids }, rewardRuleId: reward.id },
+  });
+  return Response.json({ deleted: result.count });
+}
+
 export async function POST(
   request: Request,
   ctx: RouteContext<"/api/rewards/[id]/codes">,

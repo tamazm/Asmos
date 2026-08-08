@@ -2,6 +2,7 @@
 import { prisma } from "@/lib/prisma";
 import { normalizeHost } from "@/lib/host";
 import { corsJson, corsPreflight } from "@/lib/cors";
+import { campaignHasAvailableReward } from "@/lib/reward";
 
 // AI popup variation roadmap (Phase 1): lets widget.js decide whether to load
 // posthog-js (with session replay/rage-click/dead-click detection) on the
@@ -100,13 +101,25 @@ export async function GET(request: Request) {
 
   const isPreview = url.searchParams.get("preview") === "true";
   const campaign = await prisma.campaign.findFirst({
-    where: { 
-      websiteId: website.id, 
-      status: isPreview ? { notIn: ["DRAFT", "FAILED", "GENERATING"] } : "ACTIVE" 
+    where: {
+      websiteId: website.id,
+      status: isPreview ? { notIn: ["DRAFT", "FAILED", "GENERATING"] } : "ACTIVE"
     },
     orderBy: { createdAt: "desc" },
     include: {
-      rewards: { select: { id: true, label: true, type: true } },
+      rewards: {
+        select: {
+          id: true,
+          label: true,
+          type: true,
+          couponCode: true,
+          weight: true,
+          active: true,
+          maxRedemptions: true,
+          redemptionsCount: true,
+          couponCodes: { where: { usedAt: null }, select: { id: true } },
+        },
+      },
       variants: true,
     },
   });
@@ -114,6 +127,22 @@ export async function GET(request: Request) {
   if (!campaign || campaign.variants.length === 0) {
     return corsJson({ campaign: null, consent });
   }
+
+  // A popup must never go live promising a reward it can't actually give
+  // out. Campaigns whose goal is pure email capture are exempt — they're
+  // designed to have zero rewards, that's not a broken state for them.
+  // Real merchant previews (isPreview) always bypass this, same as the
+  // page-targeting rule below — a merchant checking their own popup should
+  // never see "nothing" just because they haven't stocked codes yet.
+  const goal = (campaign.generationContext as { goal?: string } | null)?.goal ?? "BOTH";
+  if (!isPreview && goal !== "EMAIL" && !campaignHasAvailableReward(campaign.rewards)) {
+    return corsJson({ campaign: null, consent });
+  }
+
+  // Public payload — just what the widget needs to render (label/type),
+  // not the internal availability bookkeeping (active/maxRedemptions/
+  // couponCodes) used only for the server-side gate above.
+  const publicRewards = campaign.rewards.map((r) => ({ id: r.id, label: r.label, type: r.type }));
 
   return corsJson({
     campaign: {
@@ -127,7 +156,7 @@ export async function GET(request: Request) {
         design: variant.design,
         formFields: variant.formFields,
         targeting: variant.targeting,
-        rewards: campaign.rewards,
+        rewards: publicRewards,
         generatedCode: variant.generatedCode,
       })),
     },

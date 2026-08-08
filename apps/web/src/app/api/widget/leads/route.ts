@@ -36,7 +36,11 @@ export async function POST(request: Request) {
     include: {
       campaign: {
         include: {
-          rewards: true,
+          // Only unused pool codes count toward "does this reward have
+          // anything left to give out" — see lib/reward.ts's
+          // isRewardAvailable, which treats couponCodes.length as the
+          // available count.
+          rewards: { include: { couponCodes: { where: { usedAt: null }, select: { id: true } } } },
           account: {
             select: {
               name: true,
@@ -85,9 +89,17 @@ export async function POST(request: Request) {
     if (!couponCode) {
       couponCode = reward.couponCode ?? (reward.type === "COUPON" ? generateCouponCode() : null);
     }
-    if (couponCode) {
-      await prisma.lead.update({ where: { id: lead.id }, data: { rewardClaimedCode: couponCode } });
-    }
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: { rewardClaimedCode: couponCode, rewardRuleId: reward.id },
+    });
+    // Generic redemption counter — tracked for every reward type (not just
+    // COUPON's own usedAt-based pool accounting) so maxRedemptions works
+    // uniformly for FREE_SHIPPING/GIFT/etc. too. Best-effort: a failure here
+    // shouldn't break lead capture, which has already succeeded above.
+    await prisma.rewardRule
+      .update({ where: { id: reward.id }, data: { redemptionsCount: { increment: 1 } } })
+      .catch((err) => console.error("[reward] redemptionsCount increment failed", err));
   }
 
   const conversionDetails = {
