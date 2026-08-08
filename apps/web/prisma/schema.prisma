@@ -176,6 +176,9 @@ model Campaign {
 
   lastError         String? @db.Text
   generationContext Json?
+  // Fine-grained progress within status=GENERATING (see generateCampaign.ts).
+  // Null while queued/unset or once generation leaves the GENERATING state.
+  generationStage   String?
 
   variants Variant[]         @relation("CampaignVariants")
   insights CampaignInsight[]

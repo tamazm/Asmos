@@ -86,7 +86,8 @@ export async function POST(request: Request) {
       name: body.name,
       type: "FORM", // schema-driven generation always produces FORM popups
       status: body.status === "GENERATING" ? "GENERATING" : "ACTIVE",
-      generationContext: body.generationContext 
+      generationStage: body.status === "GENERATING" ? "QUEUED" : undefined,
+      generationContext: body.generationContext
         ? { ...body.generationContext, brandColor: account.brandColor ?? body.generationContext.brandColor } as Prisma.InputJsonValue
         : undefined,
       variants: body.status === "GENERATING" ? undefined : {

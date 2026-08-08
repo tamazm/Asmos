@@ -13,6 +13,21 @@ import {
   type PopupGenerationOutput,
 } from "@/lib/popupGeneration";
 import { renderSplitScreenTemplate } from "@/lib/templates/splitScreen";
+import type { CampaignGenerationStageCode } from "@/lib/campaignGenerationStages";
+
+// Marks progress within status=GENERATING so the UI can show something more
+// useful than a static "Generating…" (and, on failure, which stage it died
+// in). Left as-is when generation fails — that last-known stage is what the
+// UI reads to say e.g. "Failed while: Structure is forming".
+async function setStage(campaignId: string, stage: CampaignGenerationStageCode) {
+  await prisma.campaign.update({
+    where: { id: campaignId },
+    data: { generationStage: stage },
+  }).catch((err) => {
+    // Non-fatal — a missed status update shouldn't abort generation itself.
+    console.error(`[generateCampaign] failed to set stage=${stage} for campaign ${campaignId}:`, err);
+  });
+}
 
 export const generateCampaign = inngest.createFunction(
   // Terminal on failure by design — the campaign detail page shows lastError
@@ -83,6 +98,8 @@ async function runGeneration(
     let domain = storeUrl;
     try { domain = new URL(storeUrl).hostname.replace(/^www\./, ""); } catch {}
 
+    await setStage(campaignId, "AI_THINKING");
+
     const output: PopupGenerationOutput = await step.run("generate-ai", async () => {
       const goal = (context.goal as "EMAIL" | "DISCOUNT" | "BOTH") ?? "BOTH";
 
@@ -99,6 +116,8 @@ async function runGeneration(
       });
       return generatePopupWithVariants(input);
     });
+
+    await setStage(campaignId, "STRUCTURING");
 
     await step.run("save-variants", async () => {
       const goal = (context.goal as "EMAIL" | "DISCOUNT" | "BOTH") ?? "BOTH";
@@ -180,6 +199,8 @@ async function runGeneration(
       newVariants.forEach(v => { v.trafficPercent = split; });
       newVariants[0].trafficPercent += (100 - split * newVariants.length);
 
+      await setStage(campaignId, "SAVING");
+
       await prisma.$transaction(async (tx) => {
         await tx.variant.deleteMany({ where: { campaignId } });
         for (const variantData of newVariants) {
@@ -210,6 +231,7 @@ async function runGeneration(
           data: {
             status: "ACTIVE",
             lastError: null,
+            generationStage: null,
             account: { update: { aiGenerationsCount: { increment: 1 } } }
           }
         });

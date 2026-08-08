@@ -74,7 +74,7 @@ export async function PATCH(
     }
     let retried = await prisma.campaign.update({
       where: { id: campaign.id },
-      data: { status: "GENERATING", lastError: null },
+      data: { status: "GENERATING", lastError: null, generationStage: "QUEUED" },
     });
     try {
       await inngest.send({ name: "campaign.generate", data: { campaignId: campaign.id } });
