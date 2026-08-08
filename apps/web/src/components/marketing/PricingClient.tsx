@@ -23,24 +23,25 @@ export function PricingClient() {
 
   return (
     <div>
-      {/* Billing toggle */}
-      <div className="mb-8 flex items-center justify-center gap-3">
-        <span className={`text-sm font-medium ${!annual ? "text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]"}`}>Monthly</span>
+      {/* Billing toggle — flex-wrap + shrink-0 on the switch so this never
+          clips on narrow screens; it drops to two lines instead of cutting
+          off "Annual" mid-word. */}
+      <div className="mb-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-4 text-center">
+        <span className={`shrink-0 whitespace-nowrap text-sm font-medium ${!annual ? "text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]"}`}>Monthly</span>
         <button
           type="button"
           role="switch"
           aria-checked={annual}
           onClick={() => setAnnual((a) => !a)}
-          className="relative h-7 w-13 shrink-0 rounded-full bg-[color:var(--color-border)] transition-colors duration-200 data-[on=true]:bg-[color:var(--color-primary)]"
+          className="relative h-7 w-[52px] shrink-0 rounded-full bg-[color:var(--color-border)] transition-colors duration-200 data-[on=true]:bg-[color:var(--color-primary)]"
           data-on={annual}
-          style={{ width: "52px" }}
         >
           <span
             className="absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
             style={{ transform: annual ? "translateX(28px)" : "translateX(4px)" }}
           />
         </button>
-        <span className={`text-sm font-medium ${annual ? "text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]"}`}>
+        <span className={`shrink-0 whitespace-nowrap text-sm font-medium ${annual ? "text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]"}`}>
           Annual <span className="text-[color:var(--color-primary)]">— Save 20%</span>
         </span>
       </div>
@@ -130,9 +131,9 @@ export function PricingClient() {
           ) : (
             <div className="rounded-[1.375rem] border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary-light)] p-1.5 shadow-lg">
               <div className="flex h-full flex-col rounded-[1rem] bg-[color:var(--color-surface)] p-7" style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}>
-                <div className="mb-1 flex items-center justify-between">
+                <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">{bracket!.tier} + Managed Success</p>
-                  <span className="rounded-full bg-[color:var(--color-primary)] px-2 py-0.5 text-[9px] font-semibold text-white">Hands-On Support</span>
+                  <span className="shrink-0 whitespace-nowrap rounded-full bg-[color:var(--color-primary)] px-2 py-0.5 text-[9px] font-semibold text-white">Hands-On Support</span>
                 </div>
                 <div className="mb-1 flex items-baseline gap-1.5">
                   <span className="text-4xl font-bold tracking-tight text-[color:var(--color-text-primary)] tabular-nums">

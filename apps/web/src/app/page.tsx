@@ -34,7 +34,9 @@ function Arrow({ className }: { className?: string }) {
   );
 }
 
-const HERO_LOOP = ["Store", "Analyze", "Generate", "Test", "Learn", "Uplift"];
+// The hero's live product loop is narrated by three tags (Analyze → Generate
+// → Test) placed around the animated KnockoutBracketPreview widget itself —
+// see the hero section markup below — rather than a separate static strip.
 const PROBLEM_OLD = ["Build", "Guess", "Test", "Analyze", "Rebuild", "Repeat"];
 const PROBLEM_NEW = ["Analyze", "Generate", "Test", "Learn", "Optimize"];
 
@@ -83,64 +85,65 @@ export default async function LandingPage() {
           style={{ background: "radial-gradient(ellipse 80% 50% at 50% -10%, oklch(48% 0.255 258 / 0.07) 0%, transparent 65%)" }}
         />
         <div className="relative mx-auto max-w-6xl">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3.5 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] shadow-sm animate-page-enter">
-            <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)] shrink-0" aria-hidden="true" />
-            Autonomous conversion optimization for ecommerce
-          </div>
-
-          <h1
-            className="mb-5 max-w-3xl text-[2.3rem] leading-[1.08] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-[3.1rem] lg:text-[3.6rem] animate-page-enter-delay-1"
-            style={{ textWrap: "balance" } as React.CSSProperties}
-          >
-            AI that continuously improves your ecommerce conversions.
-          </h1>
-
-          <p
-            className="mb-8 max-w-xl text-base sm:text-lg text-[color:var(--color-text-secondary)] leading-relaxed animate-page-enter-delay-2"
-            style={{ textWrap: "pretty" } as React.CSSProperties}
-          >
-            Asmos analyzes your store, generates conversion experiments, tests variants, learns from visitor behavior, and continuously improves performance.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-4 animate-page-enter-delay-2">
-            <Link
-              href={CTA.primary.href}
-              className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
-            >
-              {CTA.primary.label}
-            </Link>
-            <Link
-              href={CTA.secondary.href}
-              className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]"
-            >
-              {CTA.secondary.label}
-            </Link>
-            <Link
-              href={CTA.tertiary.href}
-              className="text-sm font-medium text-[color:var(--color-text-secondary)] underline decoration-[color:var(--color-border)] underline-offset-4 transition-colors duration-200 hover:text-[color:var(--color-primary)]"
-            >
-              {CTA.tertiary.label}
-            </Link>
-          </div>
-
-          {/* Hero product loop visual */}
-          <div className="mt-14 animate-page-enter-delay-3">
-            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 sm:p-7 shadow-sm overflow-x-auto">
-              <div className="flex min-w-[560px] items-center justify-between gap-1">
-                {HERO_LOOP.map((step, i) => (
-                  <div key={step} className="flex items-center gap-1 flex-1">
-                    <div className="flex flex-1 flex-col items-center gap-2 text-center">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] text-xs font-bold text-[color:var(--color-primary)] tabular-nums">
-                        {String(i + 1).padStart(2, "0")}
-                      </div>
-                      <span className="text-xs font-medium text-[color:var(--color-text-secondary)]">{step}</span>
-                    </div>
-                    {i < HERO_LOOP.length - 1 && (
-                      <Arrow className="text-[color:var(--color-border)] shrink-0 mb-6" />
-                    )}
-                  </div>
-                ))}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-12 lg:gap-10 items-center">
+            {/* Left: copy + CTAs */}
+            <div>
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3.5 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] shadow-sm animate-page-enter">
+                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)] shrink-0" aria-hidden="true" />
+                Autonomous conversion optimization for ecommerce
               </div>
+
+              <h1
+                className="mb-5 text-[2.3rem] leading-[1.08] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-[3.1rem] lg:text-[3.4rem] animate-page-enter-delay-1"
+                style={{ textWrap: "balance" } as React.CSSProperties}
+              >
+                AI that continuously improves your ecommerce conversions.
+              </h1>
+
+              <p
+                className="mb-8 max-w-xl text-base sm:text-lg text-[color:var(--color-text-secondary)] leading-relaxed animate-page-enter-delay-2"
+                style={{ textWrap: "pretty" } as React.CSSProperties}
+              >
+                Asmos analyzes your store, generates conversion experiments, tests variants, learns from visitor behavior, and continuously improves performance.
+              </p>
+
+              <div className="flex flex-wrap items-center gap-4 animate-page-enter-delay-2">
+                <Link
+                  href={CTA.primary.href}
+                  className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
+                >
+                  {CTA.primary.label}
+                </Link>
+                <Link
+                  href={CTA.secondary.href}
+                  className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]"
+                >
+                  {CTA.secondary.label}
+                </Link>
+                <Link
+                  href={CTA.tertiary.href}
+                  className="text-sm font-medium text-[color:var(--color-text-secondary)] underline decoration-[color:var(--color-border)] underline-offset-4 transition-colors duration-200 hover:text-[color:var(--color-primary)]"
+                >
+                  {CTA.tertiary.label}
+                </Link>
+              </div>
+            </div>
+
+            {/* Right: live knockout-bracket demo — this IS the product.
+                Store → Analyze → Generate feed into it; Test/Learn/Uplift
+                are what the animation itself shows happening in real time. */}
+            <div className="flex flex-col items-center gap-3 animate-page-enter-delay-3">
+              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--color-text-secondary)]">
+                <span>Store</span>
+                <Arrow className="h-2.5 w-2.5 text-[color:var(--color-border)]" />
+                <span>Analyze</span>
+                <Arrow className="h-2.5 w-2.5 text-[color:var(--color-border)]" />
+                <span className="text-[color:var(--color-primary)]">Generate</span>
+              </div>
+              <KnockoutBracketPreview animated />
+              <p className="max-w-[300px] text-center text-[11px] leading-relaxed text-[color:var(--color-text-secondary)]">
+                Four popup variants enter. Asmos shifts traffic toward the strongest performer in real time and eliminates the rest — this is what &ldquo;Test&rdquo; means at Asmos.
+              </p>
             </div>
           </div>
         </div>
@@ -253,25 +256,20 @@ export default async function LandingPage() {
 
       {/* ── 6. Autonomous optimization ──────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)] overflow-hidden">
-        <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-12 items-center">
-          <div className="reveal">
-            <h2 className="mb-4 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
-              Let the strongest experience win.
-            </h2>
-            <p className="mb-6 text-sm text-[color:var(--color-text-secondary)] leading-relaxed max-w-md">
-              Asmos continuously evaluates performance, reduces exposure to weaker experiences, and gives stronger variants more opportunity to convert.
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              {["Many variants", "Stronger variants remain", "Traffic concentrates", "Winner emerges", "New generation begins"].map((s, i, arr) => (
-                <span key={s} className="flex items-center gap-2">
-                  <span className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)]">{s}</span>
-                  {i < arr.length - 1 && <Arrow className="h-3 w-3 text-[color:var(--color-border)]" />}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div className="flex justify-center reveal-eager">
-            <KnockoutBracketPreview animated />
+        <div className="mx-auto max-w-2xl text-center reveal">
+          <h2 className="mb-4 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Let the strongest experience win.
+          </h2>
+          <p className="mb-6 text-sm text-[color:var(--color-text-secondary)] leading-relaxed max-w-md mx-auto">
+            The knockout tournament shown at the top of this page is exactly what happens inside every live campaign: Asmos continuously evaluates performance, reduces exposure to weaker experiences, and gives stronger variants more opportunity to convert.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {["Many variants", "Stronger variants remain", "Traffic concentrates", "Winner emerges", "New generation begins"].map((s, i, arr) => (
+              <span key={s} className="flex items-center gap-2">
+                <span className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)]">{s}</span>
+                {i < arr.length - 1 && <Arrow className="h-3 w-3 text-[color:var(--color-border)]" />}
+              </span>
+            ))}
           </div>
         </div>
       </section>

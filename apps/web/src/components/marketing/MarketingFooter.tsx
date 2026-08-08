@@ -1,10 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { FOOTER_LINKS } from "@/lib/site";
+import { ScrollReveal } from "./ScrollReveal";
 
 export function MarketingFooter() {
   return (
     <footer className="border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-5 py-14">
+      <ScrollReveal />
       <div className="mx-auto max-w-6xl">
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-6">
           <div className="col-span-2 sm:col-span-3 lg:col-span-1">
