@@ -58,6 +58,11 @@ export type ComputedStyles = {
   common_border_radius: string;
 };
 
+export type FunnelStepCount = {
+  step: string; // e.g. "2" (teaser -> capture) or "email_field_focus"
+  count: number;
+};
+
 export type AnalyticsVariant = {
   variant_id: string;
   test_axis: TestAxis | null;
@@ -66,6 +71,16 @@ export type AnalyticsVariant = {
   conversion_rate: number;
   dismiss_rate: number;
   significance_flag: SignificanceFlag;
+  // Added for the AI popup variation roadmap (Phase 0/2): how long people
+  // took to give up (null if no dismissals with timing data yet), and how
+  // far they got through the popup's own funnel before dropping off — the
+  // detail that turns "conversion is low" into "people open it but never
+  // reach the email field" or "they focus the email field, then leave."
+  avg_dismiss_after_ms: number | null;
+  funnel: FunnelStepCount[];
+  // Pre-classified from the fields above (see classifyFailurePatterns) so the
+  // model doesn't have to re-derive the same heuristic on every call.
+  failure_patterns: FailurePattern[];
 };
 
 export type PopupGenerationInput = {
@@ -88,6 +103,8 @@ export type PopupDiagnosis = {
   reason: string;
 };
 
+export type TemplateId = "split-screen" | "corner-toast" | "fullscreen-takeover";
+
 export type PopupSpec = {
   trigger: string;
   delay_seconds: number | null;
@@ -97,6 +114,11 @@ export type PopupSpec = {
   cta: string;
   fields: string[];
   coupon_code: string;
+  // Which physical template renders this spec (see lib/templates/index.ts).
+  // Added for the AI popup variation roadmap (Phase 3) — previously every
+  // popup used the same split-screen template regardless of what the AI
+  // chose, with layout_style only varying its CSS within that one skeleton.
+  template_id: TemplateId;
   layout_style: "split-left" | "split-right" | "centered" | "minimal";
   image_url: string | null;
   design_tokens: { palette: string[]; type_display: string; type_body: string };
@@ -139,7 +161,7 @@ CRITICAL CONSTRAINTS (never break these):
 - Every variant MUST change exactly ONE test_axis from the baseline (unless constraints.multivariate is true).
 - brand_tokens (palette, type_display, type_body, signature_element) are NEVER a test axis.
 - Return ONLY valid JSON matching the output schema. No prose, no markdown fences, no explanation outside the JSON.
-- Never write HTML. The server renders the popup from your JSON spec using our premium template.
+- Never write HTML. The server renders the popup from your JSON spec using the template named by template_id.
 
 MODE DETECTION
 - existing_popup.captured == true  -> IMPROVE_EXISTING
@@ -174,6 +196,21 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
   - Read each variant's significance_flag. Never re-test a test_axis marked "conclusive" unless explicitly instructed via constraints.
   - Identify the highest-leverage axis (see ranked list above) that is either "inconclusive" or entirely untested.
   - Generate variants against that axis. Each variant must cite the specific metric that motivated it in motivating_metric.
+  - READING BEHAVIORAL DETAIL (failure_patterns, funnel, avg_dismiss_after_ms): conversion_rate and
+    dismiss_rate alone only tell you THAT something is failing, not WHY. Use the richer fields to pick
+    a more precise fix within whichever axis you've already identified as highest-leverage:
+    - "low_offer_appeal" (few people engage with the popup at all beyond it appearing) -> points at
+      trigger axis (wrong moment/too easy to ignore) or copy axis (headline/offer isn't compelling) —
+      prefer whichever the funnel array suggests: near-zero engagement at any step points at trigger;
+      some engagement but stalling immediately after points at copy.
+    - "form_friction" (people reach the email field but don't convert) -> friction axis: cut fields,
+      question whether goal=BOTH's two-step flow is adding friction rather than reducing it here.
+    - "premature_dismissal" (avg_dismiss_after_ms is low and dismiss_rate is high) -> trigger axis:
+      the popup is very likely firing at the wrong moment or feels intrusive — test a later/gentler
+      trigger before touching copy or layout.
+    - "insufficient_data" -> fall back to the cold-start ranked order below; don't over-fit to noise.
+    - Prefer citing a failure_pattern + its concrete evidence in motivating_metric over a bare
+      percentage — that's the difference between "this is what's happening" and "this is why."
 - If analytics.variants is empty (cold start):
   - Use the ranked default order: trigger/timing -> friction -> copy/offer framing -> layout -> visual/micro-details.
   - Generate exactly constraints.variant_count variants (0 = no variants, only baseline).
@@ -183,8 +220,10 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
   (trigger, friction, copy, visual), keep the SAME layout_style as the baseline — you're
   isolating one variable, not redesigning the whole popup.
 - motivating_metric must be in plain language for a store owner's dashboard, e.g.:
-  "removed the name field — email-only variant is converting 34% higher after 1,200 impressions"
-  or "cold_start_default_priority" if no data yet.
+  "62% of visitors who open this popup never reach the email field (form_friction) — testing a
+  one-field, no-name variant" or "people who dismiss are gone in under 2s on average (premature_dismissal)
+  — testing a later trigger" — cite the behavioral pattern and its evidence, not just a conversion delta.
+  Use "cold_start_default_priority" if no data yet.
 
 PSYCHOLOGICAL FOUNDATION (from Asmos's design research — every layout/copy choice below should serve at least one of these)
 - Reciprocity: state the gift in the headline before asking for anything — "you've got 10% off" framing, not a generic "join us."
@@ -193,9 +232,25 @@ PSYCHOLOGICAL FOUNDATION (from Asmos's design research — every layout/copy cho
 - Commitment & consistency: for goal "BOTH", the two-step teaser→capture flow converts better than a single flat form because the first CTA click is a free micro-yes that makes the email ask feel like a natural next step, not a cold request — write the teaser headline as an invitation to claim something already earned.
 - Every additional required form field costs roughly 10-15% conversion — default to email-only unless there's a specific reason for more.
 
-POPUP BLUEPRINT (LAYOUT & IMAGE VARIANCE)
+POPUP BLUEPRINT (TEMPLATE, LAYOUT & IMAGE VARIANCE)
+- Always assign a \`template_id\`: "split-screen", "corner-toast", or "fullscreen-takeover". This is the
+  physical structure rendered — a much bigger lever than layout_style, which only varies CSS within
+  split-screen. Pick based on how intrusive the moment should feel:
+  - "split-screen" (default for most stores): balanced, image + copy side by side. Good general-purpose
+    control choice for goal "BOTH" or "EMAIL".
+  - "corner-toast": small, non-blocking, slides in from a corner. Use for low-friction/gentle brand voice,
+    high-traffic pages where a full overlay would feel aggressive, or as a "friction" or "trigger" axis
+    variant testing a less intrusive alternative to a baseline overlay.
+  - "fullscreen-takeover": maximum visual impact, edge-to-edge. Use for high-value/urgent offers
+    (flash sales, high-ticket value propositions), or as a "visual" axis variant testing whether more
+    prominence beats a quieter baseline.
+  - When a variant's test_axis is "layout", changing template_id (not just layout_style) is the
+    strongest version of that test — a template swap IS a layout test.
 - Always assign a \`layout_style\` for the popup: "split-left", "split-right", "centered", or "minimal".
-  - Control variants should usually be "split-left" or "split-right".
+  This only has visible effect within the "split-screen" template — for "corner-toast" and
+  "fullscreen-takeover" still set a reasonable value (their own layout is closer to "centered"/"minimal"
+  in spirit) since the field is required, but don't expect it to change their rendering.
+  - Control variants should usually be "split-left" or "split-right" (when template_id is "split-screen").
   - When generating variants, strongly consider testing a different layout (e.g. comparing "split-left" to "centered").
 - Always assign a suitable \`image_url\` (unless layout is "minimal" or you explicitly want a text-only popup). Use high-quality Unsplash source URLs related to the store category. Examples:
   - Fashion/Apparel: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80"
@@ -213,7 +268,7 @@ Output the exact JSON spec configuring the popup based on the user's explicit go
 - subhead: 1 short sentence clarifying.
 - cta: Short, action-oriented button text (e.g. "Claim Discount").
 - coupon_code: E.g., "WELCOME10" or "FREESHIP". (Leave blank if goal is EMAIL)
-Do not write any HTML. The server will inject your JSON into our premium template.`;
+Do not write any HTML. The server will inject your JSON into the template you chose via template_id.`;
 
 // ─── Output Schema (tool call) ────────────────────────────────────────────────
 
@@ -228,6 +283,7 @@ const popupSpecSchema = {
     cta: { type: "string" },
     fields: { type: "array", items: { type: "string" } },
     coupon_code: { type: "string" },
+    template_id: { type: "string", enum: ["split-screen", "corner-toast", "fullscreen-takeover"] },
     layout_style: { type: "string", enum: ["split-left", "split-right", "centered", "minimal"] },
     image_url: { type: ["string", "null"] },
     design_tokens: {
@@ -241,7 +297,7 @@ const popupSpecSchema = {
       additionalProperties: false,
     },
   },
-  required: ["trigger", "delay_seconds", "frequency_cap", "headline", "subhead", "cta", "fields", "coupon_code", "layout_style", "image_url", "design_tokens"],
+  required: ["trigger", "delay_seconds", "frequency_cap", "headline", "subhead", "cta", "fields", "coupon_code", "template_id", "layout_style", "image_url", "design_tokens"],
   additionalProperties: false,
 } as const;
 
@@ -310,6 +366,49 @@ const GENERATE_POPUP_TOOL: Anthropic.Tool = {
   strict: true,
 };
 
+// ─── Failure-Pattern Taxonomy (AI popup variation roadmap, Phase 1) ───────────
+//
+// Turns the raw numbers in AnalyticsVariant into named, human-readable
+// diagnoses — the difference between "conversion is low" and "people open it
+// but only 1 in 20 ever reach the email field." Deliberately built only from
+// signals we actually capture today (funnel steps, dismiss timing). Once
+// Phase 1's session recording is enabled for an account, PostHog's own
+// rage-click/dead-click events would sharpen "cant_find_or_use_cta" beyond
+// this heuristic — that's a natural follow-up once real replay data exists,
+// not something to fake from aggregate counts alone.
+
+const MIN_SAMPLE_FOR_PATTERN = 30; // lower bar than significance — these are diagnostic hints, not a/b conclusions
+
+export type FailurePattern =
+  | "low_offer_appeal"      // shown a lot, almost nobody engages with the teaser/CTA at all
+  | "form_friction"         // people reach the form, but don't complete it
+  | "premature_dismissal"   // people close it almost immediately after it appears
+  | "insufficient_data";
+
+export function classifyFailurePatterns(v: Omit<AnalyticsVariant, "failure_patterns">): FailurePattern[] {
+  if (v.impressions < MIN_SAMPLE_FOR_PATTERN) return ["insufficient_data"];
+
+  const patterns: FailurePattern[] = [];
+
+  const engagedCount = v.funnel.reduce((sum, f) => (f.step !== "1" ? sum + f.count : sum), 0);
+  const engagementRate = v.impressions > 0 ? engagedCount / v.impressions : 0;
+  const emailFocusCount = v.funnel.find((f) => f.step === "email_field_focus")?.count ?? 0;
+
+  if (v.funnel.length > 0 && engagementRate < 0.1) {
+    patterns.push("low_offer_appeal");
+  }
+
+  if (emailFocusCount >= MIN_SAMPLE_FOR_PATTERN && v.conversion_rate < 0.1) {
+    patterns.push("form_friction");
+  }
+
+  if (v.avg_dismiss_after_ms !== null && v.avg_dismiss_after_ms < 2000 && v.dismiss_rate > 0.3) {
+    patterns.push("premature_dismissal");
+  }
+
+  return patterns;
+}
+
 // ─── Significance Flag ────────────────────────────────────────────────────────
 
 const MIN_SAMPLE_FOR_SIGNIFICANCE = 100;
@@ -346,42 +445,71 @@ export async function fetchVariantAnalytics(campaignId: string): Promise<Analyti
   return fetchFromPostgres(campaignId);
 }
 
-async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]> {
-  // Use PostHog Events API to aggregate asmos_popup_* events per variant
-  const query = {
-    query: {
-      kind: "HogQLQuery",
-      query: `
-        SELECT
-          properties.variant_id AS variant_id,
-          countIf(event = 'asmos_popup_shown') AS impressions,
-          countIf(event = 'asmos_popup_converted') AS conversions,
-          countIf(event = 'asmos_popup_dismissed') AS dismissals
-        FROM events
-        WHERE
-          properties.campaign_id = '${campaignId}'
-          AND event IN ('asmos_popup_shown', 'asmos_popup_converted', 'asmos_popup_dismissed')
-          AND timestamp > now() - interval 90 day
-        GROUP BY variant_id
-      `,
-    },
-  };
-
+async function postHogQuery<T = unknown>(hogql: string): Promise<T[]> {
   const res = await fetch(`${POSTHOG_HOST}/api/projects/${POSTHOG_PROJECT_ID}/query/`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${POSTHOG_PERSONAL_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(query),
+    body: JSON.stringify({ query: { kind: "HogQLQuery", query: hogql } }),
     signal: AbortSignal.timeout(10000),
   });
-
   if (!res.ok) throw new Error(`PostHog query failed: ${res.status}`);
   const data = await res.json();
+  return (data.results ?? []) as T[];
+}
 
-  const rows: Array<[string, number, number, number]> = data.results ?? [];
+async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]> {
+  // Use PostHog Events API to aggregate asmos_popup_* events per variant.
+  // avg_dismiss_ms added for the AI popup variation roadmap (Phase 0) —
+  // dismiss_after_ms is only present on asmos_popup_dismissed events, so
+  // avgIf naturally ignores rows where it's null.
+  const rows = await postHogQuery<[string, number, number, number, number | null]>(`
+    SELECT
+      properties.variant_id AS variant_id,
+      countIf(event = 'asmos_popup_shown') AS impressions,
+      countIf(event = 'asmos_popup_converted') AS conversions,
+      countIf(event = 'asmos_popup_dismissed') AS dismissals,
+      avgIf(toFloat(properties.dismiss_after_ms), event = 'asmos_popup_dismissed') AS avg_dismiss_ms
+    FROM events
+    WHERE
+      properties.campaign_id = '${campaignId}'
+      AND event IN ('asmos_popup_shown', 'asmos_popup_converted', 'asmos_popup_dismissed')
+      AND timestamp > now() - interval 90 day
+    GROUP BY variant_id
+  `);
+
   if (rows.length === 0) return [];
+
+  // Funnel-step breakdown: widget_interaction is fired (see
+  // /api/widget/events) whenever a template reports a step transition or
+  // field-level engagement (funnel_step property). Separate query since it's
+  // a different event name/shape than the asmos_popup_* aggregate above.
+  let funnelRows: Array<[string, string, number]> = [];
+  try {
+    funnelRows = await postHogQuery<[string, string, number]>(`
+      SELECT
+        properties.variant_id AS variant_id,
+        properties.funnel_step AS step,
+        count() AS n
+      FROM events
+      WHERE
+        properties.campaign_id = '${campaignId}'
+        AND event = 'widget_interaction'
+        AND properties.funnel_step IS NOT NULL
+        AND timestamp > now() - interval 90 day
+      GROUP BY variant_id, step
+    `);
+  } catch (err) {
+    console.warn("[popupGeneration] PostHog funnel query failed, continuing without it:", err);
+  }
+  const funnelByVariant = new Map<string, FunnelStepCount[]>();
+  for (const [variantId, step, n] of funnelRows) {
+    const list = funnelByVariant.get(variantId) ?? [];
+    list.push({ step: String(step), count: n });
+    funnelByVariant.set(variantId, list);
+  }
 
   // Find control variant stats for significance computation
   const controlVariant = await prisma.variant.findFirst({
@@ -400,7 +528,7 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
   });
   const variantMap = new Map(variants.map((v) => [v.id, v]));
 
-  return rows.map(([variant_id, impressions, conversions, dismissals]) => {
+  return rows.map(([variant_id, impressions, conversions, dismissals, avg_dismiss_ms]) => {
     const v = variantMap.get(variant_id) as { id: string; testAxis: string | null; design: unknown } | undefined;
     const conversion_rate = impressions > 0 ? conversions / impressions : 0;
     const dismiss_rate = impressions > 0 ? dismissals / impressions : 0;
@@ -408,7 +536,7 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
       { impressions: controlImpressions, conversions: controlConversions },
       { impressions, conversions },
     );
-    return {
+    const base = {
       variant_id,
       test_axis: (v?.testAxis ?? null) as TestAxis | null,
       config: (v?.design ?? {}) as Record<string, unknown>,
@@ -416,7 +544,10 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
       conversion_rate,
       dismiss_rate,
       significance_flag,
+      avg_dismiss_after_ms: typeof avg_dismiss_ms === "number" ? Math.round(avg_dismiss_ms) : null,
+      funnel: funnelByVariant.get(variant_id) ?? [],
     };
+    return { ...base, failure_patterns: classifyFailurePatterns(base) };
   });
 }
 
@@ -428,7 +559,7 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
       testAxis: true,
       design: true,
       isControl: true,
-      events: { select: { type: true } },
+      events: { select: { type: true, details: true } },
     },
   });
 
@@ -439,16 +570,35 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
   const controlConversions = controlVariant?.events.filter((e) => e.type === "SUBMISSION").length ?? 0;
 
   return variants.map((v) => {
-    const impressions = v.events.filter((e: { type: string }) => e.type === "IMPRESSION").length;
-    const conversions = v.events.filter((e: { type: string }) => e.type === "SUBMISSION").length;
-    const dismissals = v.events.filter((e: { type: string }) => e.type === "DISMISSED").length;
+    const impressions = v.events.filter((e) => e.type === "IMPRESSION").length;
+    const conversions = v.events.filter((e) => e.type === "SUBMISSION").length;
+    const dismissedEvents = v.events.filter((e) => e.type === "DISMISSED");
+    const dismissals = dismissedEvents.length;
     const conversion_rate = impressions > 0 ? conversions / impressions : 0;
     const dismiss_rate = impressions > 0 ? dismissals / impressions : 0;
     const significance_flag = computeSignificanceFlag(
       { impressions: controlImpressions, conversions: controlConversions },
       { impressions, conversions },
     );
-    return {
+
+    const dismissTimings = dismissedEvents
+      .map((e) => (e.details as { dismissAfterMs?: number } | null)?.dismissAfterMs)
+      .filter((ms): ms is number => typeof ms === "number");
+    const avg_dismiss_after_ms = dismissTimings.length > 0
+      ? Math.round(dismissTimings.reduce((sum, ms) => sum + ms, 0) / dismissTimings.length)
+      : null;
+
+    const funnelCounts = new Map<string, number>();
+    for (const e of v.events) {
+      if (e.type !== "INTERACTION") continue;
+      const step = (e.details as { step?: number | string } | null)?.step;
+      if (step === undefined || step === null) continue;
+      const key = String(step);
+      funnelCounts.set(key, (funnelCounts.get(key) ?? 0) + 1);
+    }
+    const funnel: FunnelStepCount[] = Array.from(funnelCounts.entries()).map(([step, count]) => ({ step, count }));
+
+    const base = {
       variant_id: v.id,
       test_axis: (v.testAxis ?? null) as TestAxis | null,
       config: (v.design ?? {}) as Record<string, unknown>,
@@ -456,7 +606,10 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
       conversion_rate,
       dismiss_rate,
       significance_flag,
+      avg_dismiss_after_ms,
+      funnel,
     };
+    return { ...base, failure_patterns: classifyFailurePatterns(base) };
   });
 }
 
@@ -493,12 +646,12 @@ export function buildPopupInput(opts: {
 
 // ─── Generation — Claude Haiku ────────────────────────────────────────────────
 
-async function generateWithClaude(input: PopupGenerationInput): Promise<PopupGenerationOutput> {
+async function generateWithClaude(input: PopupGenerationInput, systemPrompt: string): Promise<PopupGenerationOutput> {
   const response = await anthropic.messages.create({
     model: "claude-haiku-4-5",
     max_tokens: 8000,
     temperature: 0.8,
-    system: POPUP_GENERATION_SYSTEM_PROMPT,
+    system: systemPrompt,
     tools: [GENERATE_POPUP_TOOL],
     tool_choice: { type: "any" },
     messages: [
@@ -523,7 +676,7 @@ async function generateWithClaude(input: PopupGenerationInput): Promise<PopupGen
 
 // ─── Generation — Gemini fallback ────────────────────────────────────────────
 
-async function generateWithGemini(input: PopupGenerationInput): Promise<PopupGenerationOutput> {
+async function generateWithGemini(input: PopupGenerationInput, systemPrompt: string): Promise<PopupGenerationOutput> {
   const response = await gemini.models.generateContent({
     model: GEMINI_MODEL,
     contents: [
@@ -531,7 +684,7 @@ async function generateWithGemini(input: PopupGenerationInput): Promise<PopupGen
         role: "user",
         parts: [
           {
-            text: `${POPUP_GENERATION_SYSTEM_PROMPT}\n\nGenerate a popup design for this store. Return the result by calling generate_popup.\n\n${JSON.stringify(input, null, 2)}`,
+            text: `${systemPrompt}\n\nGenerate a popup design for this store. Return the result by calling generate_popup.\n\n${JSON.stringify(input, null, 2)}`,
           },
         ],
       },
@@ -576,7 +729,7 @@ async function generateWithGemini(input: PopupGenerationInput): Promise<PopupGen
 
 // ─── Generation — Bedrock (primary when AWS keys present) ────────────────────
 
-async function generateWithBedrock(input: PopupGenerationInput): Promise<PopupGenerationOutput> {
+async function generateWithBedrock(input: PopupGenerationInput, systemPrompt: string): Promise<PopupGenerationOutput> {
   const client = new BedrockRuntimeClient({ region: AWS_REGION });
 
   // Bedrock uses the same Anthropic message format but via InvokeModel
@@ -584,7 +737,7 @@ async function generateWithBedrock(input: PopupGenerationInput): Promise<PopupGe
     anthropic_version: "bedrock-2023-05-31",
     max_tokens: 8000,
     temperature: 0.8,
-    system: POPUP_GENERATION_SYSTEM_PROMPT,
+    system: systemPrompt,
     tools: [GENERATE_POPUP_TOOL],
     tool_choice: { type: "any" },
     messages: [
@@ -641,17 +794,45 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
   }
 }
 
+// AI popup variation roadmap, Phase 4: append human-approved cross-account
+// patterns (see lib/inngest/mineCrossAccountPatterns.ts and
+// /admin/learned-patterns) to the base system prompt at generation time.
+// Best-effort — a DB hiccup here should never block generation, it just
+// means this call runs on the base prompt without the extra patterns.
+async function getLearnedPatternsSection(): Promise<string> {
+  try {
+    const patterns = await prisma.learnedPattern.findMany({
+      where: { status: "APPROVED" },
+      orderBy: { createdAt: "desc" },
+      take: 30,
+      select: { description: true },
+    });
+    if (patterns.length === 0) return "";
+    return (
+      "\n\nLEARNED PATTERNS (mined across all Asmos accounts, human-approved — treat as extra prior\n" +
+      "knowledge to weigh alongside this store's own analytics, not a replacement for them; this\n" +
+      "store's own data always wins if it conflicts with a pattern below):\n" +
+      patterns.map((p) => `- ${p.description}`).join("\n")
+    );
+  } catch (err) {
+    console.warn("[popupGeneration] failed to fetch learned patterns, continuing without them:", err);
+    return "";
+  }
+}
+
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export async function generatePopupWithVariants(
   input: PopupGenerationInput,
 ): Promise<PopupGenerationOutput> {
+  const systemPrompt = POPUP_GENERATION_SYSTEM_PROMPT + (await getLearnedPatternsSection());
+
   // Provider priority: Bedrock (AWS) → Anthropic direct → Gemini
   let lastError: unknown;
 
   if (HAS_AWS_KEY) {
     try {
-      return await withTimeout(generateWithBedrock(input), PROVIDER_TIMEOUT_MS, "Bedrock");
+      return await withTimeout(generateWithBedrock(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Bedrock");
     } catch (err) {
       console.warn("[popupGeneration] Bedrock failed, falling back to next provider:", err);
       lastError = err;
@@ -660,7 +841,7 @@ export async function generatePopupWithVariants(
 
   if (HAS_ANTHROPIC_KEY) {
     try {
-      return await withTimeout(generateWithClaude(input), PROVIDER_TIMEOUT_MS, "Anthropic");
+      return await withTimeout(generateWithClaude(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Anthropic");
     } catch (err) {
       console.warn("[popupGeneration] Anthropic failed, falling back to Gemini:", err);
       lastError = err;
@@ -668,7 +849,7 @@ export async function generatePopupWithVariants(
   }
 
   try {
-    return await withTimeout(generateWithGemini(input), PROVIDER_TIMEOUT_MS, "Gemini");
+    return await withTimeout(generateWithGemini(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Gemini");
   } catch (err) {
     console.error("[popupGeneration] Gemini failed too.", err);
     throw lastError ?? err;

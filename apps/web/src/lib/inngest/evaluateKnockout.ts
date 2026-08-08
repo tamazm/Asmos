@@ -12,7 +12,7 @@ import {
   computedStylesFromAnalyzeResult,
   existingPopupFromAnalyzeResult,
 } from "@/lib/popupGeneration";
-import { renderSplitScreenTemplate } from "@/lib/templates/splitScreen";
+import { renderPopupTemplate } from "@/lib/templates";
 
 export const evaluateKnockout = inngest.createFunction(
   { id: "evaluate-knockout", triggers: { event: "campaign.evaluate" } },
@@ -182,7 +182,7 @@ export const evaluateKnockout = inngest.createFunction(
               hypothesis: v.hypothesis,
               motivatingMetric: v.motivating_metric,
               popupSpec: v.spec as unknown as Prisma.InputJsonValue,
-              generatedCode: renderSplitScreenTemplate({
+              generatedCode: renderPopupTemplate(v.spec.template_id, {
                 headline: v.spec.headline,
                 subhead: v.spec.subhead,
                 cta: v.spec.cta,

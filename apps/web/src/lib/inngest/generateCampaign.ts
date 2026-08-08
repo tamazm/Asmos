@@ -12,7 +12,7 @@ import {
   type ComputedStyles,
   type PopupGenerationOutput,
 } from "@/lib/popupGeneration";
-import { renderSplitScreenTemplate } from "@/lib/templates/splitScreen";
+import { renderPopupTemplate } from "@/lib/templates";
 import type { CampaignGenerationStageCode } from "@/lib/campaignGenerationStages";
 
 // Marks progress within status=GENERATING so the UI can show something more
@@ -144,7 +144,7 @@ async function runGeneration(
           formFields: output.baseline.spec.fields,
           targeting: { trigger: output.baseline.spec.trigger, delaySeconds: output.baseline.spec.delay_seconds },
           popupSpec: output.baseline.spec as unknown as Prisma.InputJsonValue,
-          generatedCode: renderSplitScreenTemplate({
+          generatedCode: renderPopupTemplate(output.baseline.spec.template_id, {
             headline: output.baseline.spec.headline,
             subhead: output.baseline.spec.subhead,
             cta: output.baseline.spec.cta,
@@ -178,7 +178,7 @@ async function runGeneration(
           formFields: v.spec.fields,
           targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds },
           popupSpec: v.spec as unknown as Prisma.InputJsonValue,
-          generatedCode: renderSplitScreenTemplate({
+          generatedCode: renderPopupTemplate(v.spec.template_id, {
             headline: v.spec.headline,
             subhead: v.spec.subhead,
             cta: v.spec.cta,

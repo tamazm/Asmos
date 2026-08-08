@@ -1,13 +1,5 @@
-export interface PopupTemplateProps {
-  headline: string;
-  subhead: string;
-  cta: string;
-  primaryColor: string;
-  couponCode?: string | null;
-  imageUrl?: string | null;
-  goal?: "EMAIL" | "DISCOUNT" | "BOTH";
-  layoutStyle?: "split-left" | "split-right" | "centered" | "minimal";
-}
+import type { PopupTemplateProps } from "./types";
+export type { PopupTemplateProps };
 
 export function renderSplitScreenTemplate({
   headline,
@@ -369,13 +361,31 @@ export function renderSplitScreenTemplate({
     const form = document.getElementById('asmosPopupForm');
     const timerEls = overlay.querySelectorAll('.asmos-timer');
     const copyBtn = document.getElementById('asmosPopupCopy');
+    const emailInputEl = document.getElementById('asmosPopupEmail');
+    if (emailInputEl) {
+      emailInputEl.addEventListener('focus', () => {
+        __asmosTrack('INTERACTION', { step: 'email_field_focus' });
+      }, { once: true });
+    }
     
     let lastFocusedEl = null;
     let timerInterval = null;
     let remaining = DURATION_SECONDS;
-    
+
     // The goal string determines flow behavior
     const currentGoal = "${goal}";
+
+    // Behavioral tracking (AI popup variation roadmap, Phase 0). These globals
+    // are set by widget.js before this script runs — guard every call since
+    // this template can also be rendered standalone (e.g. store-preview).
+    let __asmosOpenedAt = null;
+    let __asmosConverted = false;
+    let __asmosEmailFocusTracked = false;
+    function __asmosTrack(type, extra) {
+      if (typeof window.__asmos_track_event === 'function') {
+        window.__asmos_track_event(type, extra);
+      }
+    }
 
     function shouldShow() {
       // In the preview iframe or store-preview page, we always want to show it.
@@ -422,6 +432,7 @@ export function renderSplitScreenTemplate({
     }
 
     function openPopup() {
+      __asmosOpenedAt = Date.now();
       lastFocusedEl = document.activeElement;
       overlay.hidden = false;
       requestAnimationFrame(() => overlay.classList.add('is-open'));
@@ -436,6 +447,14 @@ export function renderSplitScreenTemplate({
     }
 
     function closePopup() {
+      // Only a real "gave up" signal if they didn't already convert — the
+      // reward/success screen has its own dismiss buttons, and closing those
+      // isn't a failure to count against this variant.
+      if (!__asmosConverted) {
+        __asmosTrack('DISMISSED', {
+          dismissAfterMs: __asmosOpenedAt ? Date.now() - __asmosOpenedAt : undefined,
+        });
+      }
       overlay.classList.remove('is-open');
       document.body.style.overflow = '';
       clearInterval(timerInterval);
@@ -454,6 +473,10 @@ export function renderSplitScreenTemplate({
       const currentStep = overlay.querySelector('.popup-step:not([hidden])');
       const nextStep = overlay.querySelector('.popup-step[data-step="' + stepNum + '"]');
       if (!currentStep || !nextStep || currentStep === nextStep) return;
+
+      // Funnel-step signal (AI popup variation roadmap, Phase 0) — e.g. did
+      // they even make it from the teaser to the email-capture step.
+      __asmosTrack('INTERACTION', { step: stepNum });
 
       currentStep.classList.add('is-exiting');
       setTimeout(() => {
@@ -488,28 +511,47 @@ export function renderSplitScreenTemplate({
         const emailInput = document.getElementById('asmosPopupEmail');
         const email = emailInput ? emailInput.value : '';
         const submitBtn = form.querySelector('button[type="submit"]');
-        
+
         if (submitBtn) {
           submitBtn.disabled = true;
           submitBtn.textContent = "Submitting...";
         }
-        
+
         const variant = window.__asmos_active_variant;
         const apiBase = window.__asmos_api_base || "";
-        
+
+        // Dashboard variant preview — simulate success, don't create a real
+        // lead/event against a real campaign.
+        if (window.__asmos_preview_mode) {
+          setTimeout(() => {
+            alert('Preview: Email captured! (Code: ' + ((variant && variant.popupSpec && variant.popupSpec.coupon_code) || 'N/A') + ')');
+          }, 300);
+          __asmosConverted = true;
+          if (currentGoal === "EMAIL") { goToStep(4); } else { goToStep(3); }
+          return;
+        }
+
         if (variant) {
           try {
+            const behavioral = typeof window.__asmos_behavioral_context === 'function'
+              ? window.__asmos_behavioral_context()
+              : {};
             const res = await fetch(apiBase + '/api/widget/leads', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
+              body: JSON.stringify(Object.assign({
                 variantId: variant.id,
                 email: email,
                 consentGiven: true
-              })
+              }, behavioral))
             });
             const data = await res.json();
-            
+
+            // The lead endpoint creates the SUBMISSION event server-side (so
+            // it's never missed/duplicated) — mark converted locally just to
+            // suppress the DISMISSED-on-close signal below.
+            __asmosConverted = true;
+
             // Inject the dynamic coupon code into the Reveal step if available
             if (data.reward && data.reward.couponCode) {
                const codeEl = document.getElementById('asmosPopupCodeValue');
@@ -519,7 +561,7 @@ export function renderSplitScreenTemplate({
             console.error('Lead submission failed', err);
           }
         }
-        
+
         if (currentGoal === "EMAIL") {
           goToStep(4);
         } else {

@@ -14,6 +14,26 @@
   var referrer = document.referrer || "";
   var pageLoadTime = Date.now();
 
+  // Persistent first-party per-visitor id (AI popup variation roadmap, Phase 0).
+  // Used as the PostHog distinct_id so funnels/cohorts/replay actually work —
+  // previously every visitor of a variant shared one synthetic id.
+  var VISITOR_ID_KEY = "asmos_visitor_id";
+  function getVisitorId() {
+    try {
+      var existing = localStorage.getItem(VISITOR_ID_KEY);
+      if (existing) return existing;
+      var id = (window.crypto && window.crypto.randomUUID)
+        ? window.crypto.randomUUID()
+        : "v_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
+      localStorage.setItem(VISITOR_ID_KEY, id);
+      return id;
+    } catch (e) {
+      // Storage unavailable (privacy mode, etc.) — fall back to a per-load id.
+      return "v_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
+    }
+  }
+  var visitorId = getVisitorId();
+
   // Parse UTM params from the current URL query string
   var utmParams = (function () {
     var params = {};
@@ -46,6 +66,7 @@
   // Build behavioral context payload to attach to every event
   function behavioralContext(extraProps) {
     var ctx = {
+      visitorId: visitorId,
       pageUrl: pageUrl,
       referrer: referrer || undefined,
       utmSource: utmParams.utmSource,
@@ -62,6 +83,39 @@
       }
     }
     return ctx;
+  }
+
+  // ── Optional rich session capture (AI popup variation roadmap, Phase 1) ──────
+  // Loads posthog-js directly on the merchant's page — gives us autocapture,
+  // rage-click/dead-click detection, and (if enabled server-side) session
+  // replay, correlated to the same visitorId used for our own custom events.
+  // Only ever called after consent is granted (see below). Best-effort: never
+  // let a tracking failure break the popup itself.
+  function loadPostHog(tracking) {
+    if (!tracking || !tracking.posthogKey || window.posthog) return;
+    try {
+      /* eslint-disable */
+      !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagResult isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+      /* eslint-enable */
+
+      window.posthog.init(tracking.posthogKey, {
+        api_host: tracking.posthogHost,
+        defaults: "2026-05-30",
+        // Server-side kill switch (see /api/widget/config) — recording real
+        // visitor sessions on merchant sites is opt-in, not automatic just
+        // because a PostHog key is configured.
+        disable_session_recording: !tracking.sessionRecordingEnabled,
+        // Align with the visitorId already used for our own custom events
+        // (see behavioralContext) so replay/autocapture data and our
+        // asmos_popup_* events correlate to the same PostHog person.
+        bootstrap: { distinctID: visitorId },
+        loaded: function (ph) {
+          try { ph.register({ asmos_site: site }); } catch (e) {}
+        },
+      });
+    } catch (e) {
+      // Tracking is best-effort — never let it break the popup itself.
+    }
   }
 
   function post(path, body) {
@@ -192,6 +246,24 @@
       window.__asmos_active_variant = variant;
       window.__asmos_api_base = apiBase;
 
+      // Templates own their own DOM (ids/classes vary by template — see
+      // lib/templates/*.ts), so guessing selectors here is fragile and was
+      // silently broken for the current split-screen template (its close
+      // button, form, and email input ids never matched what this file was
+      // looking for — DISMISSED never fired, and the submit handler below
+      // never ran). Instead, expose tracking as globals and let each
+      // template's own inline script call them for its own DOM events.
+      // IMPRESSION and SUBMISSION-via-lead-capture are unambiguous regardless
+      // of template, so they're still handled centrally here.
+      window.__asmos_track_event = function (type, extraContext) {
+        trackEvent(variant.id, type, extraContext);
+      };
+      window.__asmos_behavioral_context = behavioralContext;
+      // Templates must check this before actually submitting a lead — preview
+      // mode (dashboard variant preview) should simulate success, not create
+      // real leads/events against real campaigns.
+      window.__asmos_preview_mode = isPreview;
+
       var container = document.createElement("div");
       container.id = "asmos-popup-container";
       container.innerHTML = variant.generatedCode;
@@ -216,67 +288,6 @@
         document.body.appendChild(newScript);
         s.remove();
       });
-
-      var closeBtn = document.getElementById("asmos-close") || document.getElementById("popupClose") || container.querySelector(".popup-close");
-      if (closeBtn) {
-        closeBtn.onclick = function() {
-          var dismissAfterMs = Date.now() - popupShownAt;
-          trackEvent(variant.id, "DISMISSED", { dismissAfterMs: dismissAfterMs });
-          container.remove();
-        };
-      }
-
-      var form = document.getElementById("popupForm") || container.querySelector("form");
-      var emailInput = document.getElementById("asmos-email-input") || document.getElementById("popupEmail");
-      
-      if (form && emailInput) {
-        form.addEventListener("submit", function (e) {
-          e.preventDefault();
-          var submitBtn = form.querySelector("button[type='submit']") || document.getElementById("asmos-cta-btn");
-          if (submitBtn) {
-            submitBtn.disabled = true;
-            submitBtn.textContent = "Submitting…";
-          }
-
-          if (isPreview) {
-            setTimeout(function() {
-              alert("Preview: Email captured! (Code: " + (variant.popupSpec?.coupon_code || "N/A") + ")");
-              container.remove();
-            }, 500);
-            return;
-          }
-
-          var payload = Object.assign(
-            { variantId: variant.id, consentGiven: true, email: emailInput.value },
-            behavioralContext()
-          );
-
-          fetch(apiBase + "/api/widget/leads", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }).then(function(res) {
-            if (res.ok) {
-              trackEvent(variant.id, "SUBMISSION");
-              var step3 = document.querySelector('[data-step="3"]');
-              if (step3) {
-                document.querySelectorAll('.popup-step').forEach(function(s) { s.hidden = true; });
-                step3.hidden = false;
-              } else {
-                container.remove();
-              }
-            }
-          });
-        });
-      }
-
-      var copyBtn = document.getElementById("popupCopy");
-      if (copyBtn) {
-        copyBtn.onclick = function() {
-          var codeEl = document.getElementById("popupCodeValue");
-          if (codeEl) navigator.clipboard.writeText(codeEl.textContent);
-        };
-      }
 
       trackEvent(variant.id, "IMPRESSION");
       return;
@@ -479,6 +490,7 @@
     })
     .then(function (data) {
       showConsentBanner(data.consent, function () {
+        if (data.tracking) loadPostHog(data.tracking);
         if (data.campaign) scheduleTrigger(data.campaign, pickVariant(data.campaign));
       });
     })

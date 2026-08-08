@@ -27,6 +27,74 @@
   var chosenVariant = null;
   var shown = false;
 
+  // ─── Behavioral context (AI popup variation roadmap, Phase 0) ──────────────
+  // Persistent first-party per-visitor id — used as the PostHog distinct_id
+  // (see /api/widget/events) so funnels/cohorts/replay correlate correctly,
+  // instead of every visitor of a variant sharing one synthetic id.
+  var VISITOR_ID_KEY = "asmos_visitor_id";
+  function getVisitorId() {
+    try {
+      var existing = localStorage.getItem(VISITOR_ID_KEY);
+      if (existing) return existing;
+      var id = (window.crypto && window.crypto.randomUUID)
+        ? window.crypto.randomUUID()
+        : "v_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
+      localStorage.setItem(VISITOR_ID_KEY, id);
+      return id;
+    } catch (e) {
+      return "v_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
+    }
+  }
+  var visitorId = getVisitorId();
+  var pageLoadTime = Date.now();
+
+  // Parse UTM params from the current URL query string
+  var utmParams = (function () {
+    var params = {};
+    try {
+      var search = new URLSearchParams(window.location.search);
+      params.utmSource = search.get("utm_source") || undefined;
+      params.utmMedium = search.get("utm_medium") || undefined;
+      params.utmCampaign = search.get("utm_campaign") || undefined;
+    } catch (e) { /* ignore */ }
+    return params;
+  })();
+
+  var maxScrollDepthPct = 0;
+  var scrollDebounceTimer = null;
+  function updateScrollDepth() {
+    var scrolled = window.scrollY + window.innerHeight;
+    var full = document.documentElement.scrollHeight;
+    if (full > 0) {
+      var pct = Math.round((scrolled / full) * 100);
+      if (pct > maxScrollDepthPct) maxScrollDepthPct = Math.min(pct, 100);
+    }
+  }
+  window.addEventListener("scroll", function () {
+    clearTimeout(scrollDebounceTimer);
+    scrollDebounceTimer = setTimeout(updateScrollDepth, 150);
+  }, { passive: true });
+  updateScrollDepth(); // capture initial value
+
+  function behavioralContext(extra) {
+    var ctx = {
+      visitorId: visitorId,
+      pageUrl: window.location.href,
+      referrer: document.referrer || undefined,
+      utmSource: utmParams.utmSource,
+      utmMedium: utmParams.utmMedium,
+      utmCampaign: utmParams.utmCampaign,
+      scrollDepthPct: maxScrollDepthPct,
+      timeOnPageSeconds: Math.round((Date.now() - pageLoadTime) / 1000),
+    };
+    if (extra) {
+      for (var k in extra) {
+        if (Object.prototype.hasOwnProperty.call(extra, k)) ctx[k] = extra[k];
+      }
+    }
+    return ctx;
+  }
+
   // ─── Helpers ──────────────────────────────────────────────────────────────
   function fetchConfig() {
     var url = API_BASE + "/api/widget/config?site=" + encodeURIComponent(window.location.hostname);
@@ -37,7 +105,7 @@
 
   function postEvent(variantId, type, extra) {
     var url = API_BASE + "/api/widget/events";
-    var body = Object.assign({ variantId: variantId, type: type }, extra || {});
+    var body = Object.assign({ variantId: variantId, type: type }, behavioralContext(extra));
     navigator.sendBeacon
       ? navigator.sendBeacon(url, JSON.stringify(body))
       : fetch(url, {
@@ -47,6 +115,78 @@
           keepalive: true,
           credentials: "omit",
         });
+  }
+
+  // Exposed for AI-generated template scripts (variant.generatedCode) to
+  // call directly — see lib/templates/*.ts. Same contract as public/widget.js.
+  window.__asmos_track_event = function (type, extra) {
+    if (chosenVariant) postEvent(chosenVariant.id, type, extra);
+  };
+  window.__asmos_behavioral_context = behavioralContext;
+
+  // ─── Optional rich session capture (AI popup variation roadmap, Phase 1) ───
+  function loadPostHog(tracking) {
+    if (!tracking || !tracking.posthogKey || window.posthog) return;
+    try {
+      /* eslint-disable */
+      !function(t,e){var o,n,p,r;e.__SV||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}(p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r);var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],u.toString=function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e},u.people.toString=function(){return u.toString(1)+".people (stub)"},o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagResult isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+      /* eslint-enable */
+      window.posthog.init(tracking.posthogKey, {
+        api_host: tracking.posthogHost,
+        defaults: "2026-05-30",
+        disable_session_recording: !tracking.sessionRecordingEnabled,
+        bootstrap: { distinctID: visitorId },
+      });
+    } catch (e) {
+      // Tracking is best-effort — never let it break the popup itself.
+    }
+  }
+
+  // ─── Consent banner ──────────────────────────────────────────────────────
+  var CONSENT_KEY = "asmos_consent";
+  function showConsentBanner(consent, onAccept) {
+    try {
+      var existing = localStorage.getItem(CONSENT_KEY);
+      if (existing) { if (existing === "accepted") onAccept(); return; }
+    } catch (e) { /* storage unavailable — fall through to asking */ }
+
+    if (consent && consent.required === false) { onAccept(); return; }
+
+    var banner = document.createElement("div");
+    banner.style.cssText =
+      "position:fixed;bottom:0;left:0;right:0;z-index:2147483647;" +
+      "background:#111827;color:#fff;padding:14px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;" +
+      "font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;";
+
+    var text = document.createElement("span");
+    text.textContent = (consent && consent.bannerText) ||
+      "We use cookies to personalize your experience and show relevant offers.";
+    banner.appendChild(text);
+
+    var actions = document.createElement("div");
+    actions.style.cssText = "display:flex;gap:8px;flex-shrink:0;";
+
+    var decline = document.createElement("button");
+    decline.textContent = "Decline";
+    decline.style.cssText = "background:transparent;border:1px solid #4b5563;color:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;";
+    decline.onclick = function () {
+      try { localStorage.setItem(CONSENT_KEY, "declined"); } catch (e) {}
+      banner.remove();
+    };
+
+    var accept = document.createElement("button");
+    accept.textContent = "Accept";
+    accept.style.cssText = "background:#6366f1;border:none;color:#fff;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:600;";
+    accept.onclick = function () {
+      try { localStorage.setItem(CONSENT_KEY, "accepted"); } catch (e) {}
+      banner.remove();
+      onAccept();
+    };
+
+    actions.appendChild(decline);
+    actions.appendChild(accept);
+    banner.appendChild(actions);
+    document.body.appendChild(banner);
   }
 
   // ─── Variant selection (weighted) ─────────────────────────────────────────
@@ -122,7 +262,8 @@
       .replace(/"/g, "&quot;");
   }
 
-  // ─── Styles ───────────────────────────────────────────────────────────────
+  // ─── Styles (legacy card fallback — used when a variant has no AI-rendered
+  // generatedCode, e.g. WHEEL/SCRATCH_CARD types or older data) ─────────────
   function injectStyles(primary) {
     if (document.getElementById("asmos-styles")) return;
 
@@ -226,7 +367,7 @@
     );
   }
 
-  // ─── Popup HTML ───────────────────────────────────────────────────────────
+  // ─── Popup HTML (legacy card fallback) ─────────────────────────────────────
   function buildPopupHTML(variant, cfg) {
     var design   = variant.design || {};
     var headline = design.headline || "Get an exclusive offer";
@@ -286,7 +427,7 @@
     );
   }
 
-  // ─── Success state ────────────────────────────────────────────────────────
+  // ─── Success state (legacy card fallback) ──────────────────────────────────
   function showSuccess(rewards) {
     var coupon = (rewards && rewards[0] && rewards[0].couponCode) ? rewards[0].couponCode : null;
     var card = document.getElementById("asmos-card");
@@ -308,12 +449,51 @@
   }
 
   // ─── Show popup ───────────────────────────────────────────────────────────
+  var popupShownAt = null;
+  var converted = false;
+
   function showPopup(cfg) {
-    if (shown || document.getElementById("asmos-overlay")) return;
+    if (shown || document.getElementById("asmos-overlay") || document.getElementById("asmos-popup-container")) return;
     shown = true;
+    popupShownAt = Date.now();
+    converted = false;
 
     chosenVariant = pickVariant(cfg.variants, cfg.forcedVariantId);
 
+    // AI popup variation roadmap, Phase 0/3: render the AI-designed template
+    // (split-screen / corner-toast / fullscreen-takeover — see
+    // lib/templates/*.ts) when the variant has one, instead of always
+    // falling back to the generic hardcoded card below. The generated
+    // template's own inline script handles its own DOM/tracking via the
+    // window.__asmos_* globals set here.
+    if (chosenVariant.generatedCode) {
+      window.__asmos_active_variant = chosenVariant;
+      window.__asmos_api_base = API_BASE;
+      window.__asmos_preview_mode = false;
+
+      var container = document.createElement("div");
+      container.id = "asmos-popup-container";
+      container.innerHTML = chosenVariant.generatedCode;
+      document.body.appendChild(container);
+
+      var scripts = container.querySelectorAll("script");
+      scripts.forEach(function (s) {
+        var newScript = document.createElement("script");
+        if (s.src) {
+          newScript.src = s.src;
+        } else {
+          newScript.textContent = s.textContent;
+        }
+        document.body.appendChild(newScript);
+        s.remove();
+      });
+
+      postEvent(chosenVariant.id, "IMPRESSION");
+      return;
+    }
+
+    // ─── Legacy card fallback (WHEEL/SCRATCH_CARD, or variants predating
+    // the AI template engine) ────────────────────────────────────────────
     var primary = (chosenVariant.design && chosenVariant.design.primaryColor) ||
                   cfg.primaryColor || "#165DFF";
 
@@ -343,13 +523,18 @@
     });
   }
 
-  // ─── Close popup ─────────────────────────────────────────────────────────
+  // ─── Close popup (legacy card fallback) ────────────────────────────────────
   function closePopup() {
+    if (!converted && chosenVariant) {
+      postEvent(chosenVariant.id, "DISMISSED", {
+        dismissAfterMs: popupShownAt ? Date.now() - popupShownAt : undefined,
+      });
+    }
     var el = document.getElementById("asmos-overlay");
     if (el) el.remove();
   }
 
-  // ─── Form submit ──────────────────────────────────────────────────────────
+  // ─── Form submit (legacy card fallback) ────────────────────────────────────
   function handleSubmit(e) {
     e.preventDefault();
     var form = e.target;
@@ -363,20 +548,26 @@
     btn.disabled = true;
     btn.textContent = "One moment...";
 
+    // Fields must be flat (email/name/phone) — /api/widget/leads reads them
+    // as top-level body properties, not nested under a "fields" object.
+    var payload = Object.assign(
+      { variantId: chosenVariant.id, consentGiven: true },
+      data,
+      behavioralContext()
+    );
+
     fetch(API_BASE + "/api/widget/leads", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "omit",
-      body: JSON.stringify({
-        variantId: chosenVariant.id,
-        siteKey: SITE_KEY,
-        fields: data,
-        page: window.location.href,
-      }),
+      body: JSON.stringify(payload),
     })
-      .then(function () {
-        postEvent(chosenVariant.id, "SUBMISSION");
-        showSuccess(chosenVariant.rewards);
+      .then(function (res) { return res.json().catch(function () { return {}; }); })
+      .then(function (resData) {
+        // /api/widget/leads already creates the SUBMISSION CampaignEvent
+        // server-side — don't also fire one from here, that would double-count.
+        converted = true;
+        showSuccess(resData.reward ? [resData.reward] : chosenVariant.rewards);
       })
       .catch(function () {
         btn.disabled = false;
@@ -430,8 +621,12 @@
       if (!data || !data.campaign) return;
       var c = data.campaign;
       if (!c.variants || !c.variants.length) return;
-      markSeen();
-      setupTriggers(Object.assign({ trigger: "time_delay", delaySeconds: 5 }, c));
+
+      showConsentBanner(data.consent, function () {
+        if (data.tracking) loadPostHog(data.tracking);
+        markSeen();
+        setupTriggers(Object.assign({ trigger: "time_delay", delaySeconds: 5 }, c));
+      });
     });
   }
 

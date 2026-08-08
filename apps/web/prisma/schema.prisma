@@ -296,14 +296,26 @@ model Lead {
 // Simple counters for the Phase 1 analytics dashboard (impressions, conversions,
 // emails captured). Full clickstream/behavioral event storage is Phase 2 (ClickHouse),
 // not this table.
+//
+// visitorId/details added for the AI popup variation roadmap (Phase 0): a
+// first-party per-visitor id (set by widget.js, also used as the PostHog
+// distinct_id — previously every visitor of a variant shared one synthetic
+// id, which broke funnels/cohorts) plus flexible behavioral context (scroll
+// depth, dismiss timing, funnel step reached, referrer/UTMs). Kept as JSON
+// rather than a wide column set since this signal set is expected to grow
+// (Phase 1: rage clicks, field-level abandonment, etc.) before it's worth
+// promoting to a dedicated store.
 model CampaignEvent {
   id        String            @id @default(cuid())
   variantId String
   variant   Variant           @relation(fields: [variantId], references: [id], onDelete: Cascade)
   type      CampaignEventType
   createdAt DateTime          @default(now())
+  visitorId String?
+  details   Json?
 
   @@index([variantId, type, createdAt])
+  @@index([visitorId])
 }
 
 // Periodic AI-generated performance review for a campaign (Phase 6 — see
@@ -369,4 +381,39 @@ model SystemLog {
   message   String
   details   String?  @db.Text
   createdAt DateTime @default(now())
+}
+
+enum LearnedPatternStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+}
+
+// AI popup variation roadmap, Phase 4: candidate patterns mined across ALL
+// accounts by the mine-cross-account-patterns cron (see
+// lib/inngest/mineCrossAccountPatterns.ts) — e.g. "in the fashion/beauty
+// category, popups with a 'premature_dismissal' pattern conclusively improve
+// after switching the trigger axis, across N independent campaigns."
+//
+// Deliberately human-gated: rows are created as DRAFT and never
+// auto-promoted. Only APPROVED rows get woven into the live system prompt
+// (see popupGeneration.ts's getLearnedPatternsSection) — a bad pattern with
+// a false-positive read would otherwise degrade every customer's popups at
+// once, so a human reviews each candidate before it affects generation.
+model LearnedPattern {
+  id             String               @id @default(cuid())
+  // testAxis/failurePattern are free strings (matching Variant.testAxis'
+  // existing convention) rather than Prisma enums, mirroring the TS union
+  // types (TestAxis, FailurePattern) they're drawn from in lib/popupGeneration.ts.
+  testAxis       String
+  failurePattern String
+  category       String
+  description    String               @db.Text
+  sampleSize     Int
+  status         LearnedPatternStatus @default(DRAFT)
+  createdAt      DateTime             @default(now())
+  reviewedAt     DateTime?
+  reviewedBy     String?
+
+  @@index([status])
 }

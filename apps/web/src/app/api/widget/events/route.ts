@@ -14,6 +14,10 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     variantId?: string;
     type?: string;
+    // First-party per-visitor id, set by widget.js (localStorage) — lets us
+    // correlate events from the same visitor and gives PostHog a real
+    // distinct_id instead of one shared synthetic id per variant.
+    visitorId?: string;
     // Behavioral context (optional)
     pageUrl?: string;
     referrer?: string;
@@ -23,9 +27,13 @@ export async function POST(request: Request) {
     scrollDepthPct?: number;
     timeOnPageSeconds?: number;
     dismissAfterMs?: number;
+    // Funnel step reached at the time of this event — a step number (e.g.
+    // teaser -> capture) or a named milestone (e.g. "email_field_focus"),
+    // set by the popup template's own script.
+    step?: number | string;
   };
 
-  const { variantId, type } = body;
+  const { variantId, type, visitorId } = body;
 
   if (!variantId || !type || !(VALID_TYPES as readonly string[]).includes(type)) {
     return corsJson({ error: "variantId and a valid type are required" }, { status: 400 });
@@ -33,8 +41,26 @@ export async function POST(request: Request) {
 
   const eventType = type as EventType;
 
+  const details = {
+    pageUrl: body.pageUrl,
+    referrer: body.referrer,
+    utmSource: body.utmSource,
+    utmMedium: body.utmMedium,
+    utmCampaign: body.utmCampaign,
+    scrollDepthPct: body.scrollDepthPct,
+    timeOnPageSeconds: body.timeOnPageSeconds,
+    dismissAfterMs: body.dismissAfterMs,
+    step: body.step,
+  };
+  const hasDetails = Object.values(details).some((v) => v !== undefined);
+
   await prisma.campaignEvent.create({
-    data: { variantId, type: eventType },
+    data: {
+      variantId,
+      type: eventType,
+      visitorId: visitorId ?? undefined,
+      details: hasDetails ? details : undefined,
+    },
   });
 
   // Only these two event types feed the bandit — skip the recompute query on
@@ -80,7 +106,13 @@ export async function POST(request: Request) {
       scrollDepthPct,
       timeOnPageSeconds,
       dismissAfterMs,
+      step,
     } = body;
+
+    // Real per-visitor id when the widget sends one; fall back to the old
+    // per-variant synthetic id so events from a not-yet-updated widget.js
+    // don't get dropped or crash — just degrade to the old (broken) grouping.
+    const distinctId = visitorId || `widget_visitor_${variantId}`;
 
     after(async () => {
       try {
@@ -123,6 +155,7 @@ export async function POST(request: Request) {
           scroll_depth_pct: scrollDepthPct,
           time_on_page_s: timeOnPageSeconds,
           dismiss_after_ms: dismissAfterMs,
+          funnel_step: step,
           $current_url: pageUrl,
         };
 
@@ -130,14 +163,14 @@ export async function POST(request: Request) {
         const events = [
           {
             event: `widget_${eventType.toLowerCase()}`,
-            distinct_id: `widget_visitor_${variantId}`,
+            distinct_id: distinctId,
             properties: sharedProperties,
           },
           // Only fire the asmos_* alias for the three canonical event types
           ...(asmosEventName
             ? [{
                 event: asmosEventName,
-                distinct_id: `widget_visitor_${variantId}`,
+                distinct_id: distinctId,
                 properties: sharedProperties,
               }]
             : []),

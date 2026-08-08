@@ -3,6 +3,18 @@ import { prisma } from "@/lib/prisma";
 import { normalizeHost } from "@/lib/host";
 import { corsJson, corsPreflight } from "@/lib/cors";
 
+// AI popup variation roadmap (Phase 1): lets widget.js decide whether to load
+// posthog-js (with session replay/rage-click/dead-click detection) on the
+// merchant's site. Off by default — this loads a third-party script and
+// starts recording sessions, which has privacy/consent and CSP implications
+// beyond a simple feature flag, so it's an explicit opt-in server-side
+// rather than something that turns on the moment a key is present.
+const TRACKING_CONFIG = {
+  posthogKey: process.env.NEXT_PUBLIC_POSTHOG_KEY || null,
+  posthogHost: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://eu.i.posthog.com",
+  sessionRecordingEnabled: process.env.POSTHOG_SESSION_RECORDING_ENABLED === "true",
+};
+
 export async function OPTIONS() {
   return corsPreflight();
 }
@@ -51,6 +63,7 @@ export async function GET(request: Request) {
           ],
         },
         consent,
+        tracking: TRACKING_CONFIG,
       });
     }
   }
@@ -119,5 +132,6 @@ export async function GET(request: Request) {
       })),
     },
     consent,
+    tracking: TRACKING_CONFIG,
   });
 }
