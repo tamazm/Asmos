@@ -20,9 +20,21 @@ export type RewardRow = {
   usedCodes: number;
 };
 
+// Mirrors the backend caps in api/rewards/[id]/codes/route.ts (see
+// lib/limits.ts). Computed server-side in page.tsx from the account's real
+// plan tier + current code count, so the UI always reflects what the
+// backend will actually accept instead of a hardcoded number.
+export type CodeLimits = {
+  planTier: string;
+  generateCap: number;
+  importCap: number;
+  totalCap: number;
+  totalExisting: number;
+};
+
 const UNCATEGORIZED = "Uncategorized";
 
-export function RewardsBoard({ rows }: { rows: RewardRow[] }) {
+export function RewardsBoard({ rows, codeLimits }: { rows: RewardRow[]; codeLimits: CodeLimits }) {
   const grouped = useMemo(() => {
     const map = new Map<string, RewardRow[]>();
     for (const row of rows) {
@@ -64,7 +76,7 @@ export function RewardsBoard({ rows }: { rows: RewardRow[] }) {
           </h2>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             {categoryRows.map((row) => (
-              <RewardCard key={row.id} row={row} />
+              <RewardCard key={row.id} row={row} codeLimits={codeLimits} />
             ))}
           </div>
         </div>
@@ -73,7 +85,7 @@ export function RewardsBoard({ rows }: { rows: RewardRow[] }) {
   );
 }
 
-function RewardCard({ row }: { row: RewardRow }) {
+function RewardCard({ row, codeLimits }: { row: RewardRow; codeLimits: CodeLimits }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
@@ -81,9 +93,21 @@ function RewardCard({ row }: { row: RewardRow }) {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [showGenerate, setShowGenerate] = useState(false);
   const [prefix, setPrefix] = useState("");
-  const [count, setCount] = useState(50);
+
+  // Real per-tier caps from the backend (lib/limits.ts), not a hardcoded
+  // "max 1000" — the account-wide remaining budget is often the tighter of
+  // the two limits once an account has existing codes, so the generate
+  // panel's actual ceiling is whichever is smaller.
+  const remainingBudget = Math.max(0, codeLimits.totalCap - codeLimits.totalExisting);
+  const generateMax = Math.max(1, Math.min(codeLimits.generateCap, remainingBudget || 1));
+  const [count, setCount] = useState(() => Math.min(50, generateMax));
 
   const available = row.totalCodes - row.usedCodes;
+
+  function clampCount(raw: number) {
+    if (!Number.isFinite(raw)) return 1;
+    return Math.max(1, Math.min(generateMax, Math.floor(raw)));
+  }
 
   async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -101,6 +125,20 @@ function RewardCard({ row }: { row: RewardRow }) {
         .split(/\r?\n/)
         .map((line) => line.split(",")[0]?.trim())
         .filter((c): c is string => Boolean(c) && c.toLowerCase() !== "code");
+
+      // Client-side pre-check against the same caps the backend enforces —
+      // saves a round trip for an obviously-oversized file. The backend
+      // check in api/rewards/[id]/codes/route.ts is still the real guard.
+      if (codes.length > codeLimits.importCap) {
+        throw new Error(
+          `File has ${codes.length.toLocaleString()} codes, which is over the ${codeLimits.importCap.toLocaleString()}-per-import limit on the ${codeLimits.planTier} plan.`,
+        );
+      }
+      if (codes.length > remainingBudget) {
+        throw new Error(
+          `Only ${remainingBudget.toLocaleString()} more code(s) can be added on the ${codeLimits.planTier} plan (limit ${codeLimits.totalCap.toLocaleString()} total).`,
+        );
+      }
 
       const res = await fetch(`/api/rewards/${row.id}/codes`, {
         method: "POST",
@@ -191,14 +229,24 @@ function RewardCard({ row }: { row: RewardRow }) {
             <input
               type="number"
               min={1}
-              max={1000}
+              max={generateMax}
               value={count}
-              onChange={(e) => setCount(Number(e.target.value))}
+              onChange={(e) => setCount(clampCount(Number(e.target.value)))}
+              onBlur={(e) => setCount(clampCount(Number(e.target.value)))}
               className="w-20 rounded-lg border border-[color:var(--color-border)] px-2 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
             />
           </div>
+          <p className="text-xs text-[color:var(--color-text-secondary)]">
+            Up to {generateMax.toLocaleString()} per request on the {codeLimits.planTier} plan ·{" "}
+            {remainingBudget.toLocaleString()} of {codeLimits.totalCap.toLocaleString()} total codes remaining
+            account-wide.
+          </p>
           <div className="flex gap-2">
-            <Button onClick={handleGenerate} disabled={busy} className={busy ? "opacity-60" : ""}>
+            <Button
+              onClick={handleGenerate}
+              disabled={busy || remainingBudget <= 0}
+              className={busy || remainingBudget <= 0 ? "opacity-60" : ""}
+            >
               {busy ? "Generating…" : `Generate ${count} codes`}
             </Button>
             <Button variant="secondary" onClick={() => setShowGenerate(false)}>
@@ -218,12 +266,15 @@ function RewardCard({ row }: { row: RewardRow }) {
           <Button
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
-            disabled={busy}
-            className={busy ? "opacity-60" : ""}
+            disabled={busy || remainingBudget <= 0}
+            className={busy || remainingBudget <= 0 ? "opacity-60" : ""}
           >
             Bulk import (CSV)
           </Button>
-          <Button variant="secondary" onClick={() => setShowGenerate(true)} disabled={busy}>
+          <Button
+            variant="secondary"
+            onClick={() => setShowGenerate(true)}
+            disabled={busy || remainingBudget <= 0}>
             Generate promo codes
           </Button>
           <a

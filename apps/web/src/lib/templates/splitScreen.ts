@@ -1,4 +1,5 @@
 import type { PopupTemplateProps } from "./types";
+import { DEFAULT_FALLBACK_IMAGE } from "@/lib/imageLibrary";
 export type { PopupTemplateProps };
 
 export function renderSplitScreenTemplate({
@@ -11,7 +12,7 @@ export function renderSplitScreenTemplate({
   goal = "BOTH",
   layoutStyle = "split-left",
 }: PopupTemplateProps): string {
-  const fallbackImg = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=800&auto=format&fit=crop";
+  const fallbackImg = DEFAULT_FALLBACK_IMAGE;
   const imgToUse = imageUrl || fallbackImg;
   const ctaColor = primaryColor || "#165DFF";
 
@@ -267,7 +268,7 @@ export function renderSplitScreenTemplate({
 
     ${layoutStyle !== 'minimal' ? `
     <div class="asmos-media" aria-hidden="true">
-      <img src="${imgToUse}" alt="" />
+      <img src="${imgToUse}" alt="" onerror="this.onerror=null;this.src='${fallbackImg}';" />
     </div>
     ` : ''}
 

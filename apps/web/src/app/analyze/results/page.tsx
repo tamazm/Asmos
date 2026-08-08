@@ -253,6 +253,18 @@ export default function AnalyzeResultsPage() {
     setEmailState("submitting");
 
     if (result) {
+      // Send the specific findings along with the lead, not just score/grade
+      // — this is what lets the follow-up email (see lib/email.ts's
+      // sendReportEmail) reference this store's actual weaknesses instead
+      // of being a generic "your report is ready" notification. Capped at
+      // the 3 highest-impact misses so the email stays focused.
+      const impactRank: Record<string, number> = { high: 0, medium: 1, low: 2 };
+      const topFindings = failedChecks
+        .slice()
+        .sort((a, b) => impactRank[a.impact] - impactRank[b.impact])
+        .slice(0, 3)
+        .map((c) => ({ label: c.label, headline: c.missingHeadline }));
+
       fetch("/api/analyze/lead", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -263,6 +275,9 @@ export default function AnalyzeResultsPage() {
           industry: result.industry,
           score: result.score,
           grade: result.grade,
+          gradeLabel: result.gradeLabel,
+          topIssue: result.topIssue,
+          topFindings,
         }),
       }).catch(() => {});
     }

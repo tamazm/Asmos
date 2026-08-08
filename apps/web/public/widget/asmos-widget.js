@@ -576,6 +576,26 @@
   }
 
   // ─── Trigger setup ────────────────────────────────────────────────────────
+  // Advanced targeting: show on every page (default), only on specific
+  // pages, or every page except specific ones — set at campaign creation
+  // (see NewCampaignForm.tsx's "Where should this show" question) and
+  // carried through unchanged into variant.targeting.pages by
+  // generateCampaign.ts / evaluateKnockout.ts. Supports exact path match
+  // ("/", "/contact") and a trailing "*" prefix wildcard ("/product/*").
+  function matchesPageTargeting(pages) {
+    if (!pages || pages.mode === "all" || !Array.isArray(pages.patterns) || pages.patterns.length === 0) {
+      return true;
+    }
+    var path = window.location.pathname;
+    var matched = pages.patterns.some(function (p) {
+      if (!p) return false;
+      if (p === "/") return path === "/";
+      if (p.charAt(p.length - 1) === "*") return path.indexOf(p.slice(0, -1)) === 0;
+      return path === p || path === p.replace(/\/$/, "");
+    });
+    return pages.mode === "include" ? matched : !matched;
+  }
+
   function setupTriggers(cfg) {
     var trigger = cfg.trigger || "time_delay";
     var delay   = typeof cfg.delaySeconds === "number" ? cfg.delaySeconds * 1000 : 5000;
@@ -622,10 +642,24 @@
       var c = data.campaign;
       if (!c.variants || !c.variants.length) return;
 
+      // trigger/delaySeconds/page-targeting live in each variant's
+      // `targeting` JSON (not on the campaign object itself), but are set
+      // identically across a campaign's variants at generation time — read
+      // from the forced/first variant as the representative config. (This
+      // also fixes a bug where every campaign silently used the hardcoded
+      // time_delay/5s default regardless of what was actually configured,
+      // since `c` alone never carried trigger/delaySeconds.)
+      var representative =
+        (c.forcedVariantId && c.variants.find(function (v) { return v.id === c.forcedVariantId; })) ||
+        c.variants[0];
+      var targeting = (representative && representative.targeting) || {};
+
+      if (!matchesPageTargeting(targeting.pages)) return;
+
       showConsentBanner(data.consent, function () {
         if (data.tracking) loadPostHog(data.tracking);
         markSeen();
-        setupTriggers(Object.assign({ trigger: "time_delay", delaySeconds: 5 }, c));
+        setupTriggers(Object.assign({ trigger: "time_delay", delaySeconds: 5 }, c, targeting));
       });
     });
   }

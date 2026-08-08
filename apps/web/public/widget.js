@@ -443,6 +443,26 @@
     trackEvent(variant.id, "IMPRESSION");
   }
 
+  // Advanced targeting: show on every page (default), only on specific
+  // pages, or every page except specific ones — set at campaign creation
+  // (see NewCampaignForm.tsx's "Where should this show" question) and
+  // carried through unchanged into variant.targeting.pages by
+  // generateCampaign.ts / evaluateKnockout.ts. Supports exact path match
+  // ("/", "/contact") and a trailing "*" prefix wildcard ("/product/*").
+  function matchesPageTargeting(pages) {
+    if (!pages || pages.mode === "all" || !Array.isArray(pages.patterns) || pages.patterns.length === 0) {
+      return true;
+    }
+    var path = window.location.pathname;
+    var matched = pages.patterns.some(function (p) {
+      if (!p) return false;
+      if (p === "/") return path === "/";
+      if (p.charAt(p.length - 1) === "*") return path.indexOf(p.slice(0, -1)) === 0;
+      return path === p || path === p.replace(/\/$/, "");
+    });
+    return pages.mode === "include" ? matched : !matched;
+  }
+
   function scheduleTrigger(campaign, variant) {
     if (isPreview) {
       showPopup(campaign, variant);
@@ -450,6 +470,7 @@
     }
 
     var targeting = variant.targeting || {};
+    if (!matchesPageTargeting(targeting.pages)) return;
     var trigger = targeting.trigger || "time_delay";
 
     if (trigger === "exit_intent") {

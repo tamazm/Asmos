@@ -29,3 +29,35 @@ export const MAX_VARIANTS_PER_ROUND: Record<PlanTier, number> = {
   GROWTH: 16,
   SCALE: 30,
 };
+
+// Reward/coupon-code generation limits (api/rewards/[id]/codes/route.ts).
+//
+// Previously the only backend guard was a flat "count must be 1-1000" /
+// "import max 5000" check applied the same way to every account regardless
+// of tier — and nothing at all stopped repeated calls from piling up an
+// unbounded number of total codes. A FREE account could hit "generate 1000"
+// in a loop indefinitely. These three limits close that: a per-tier ceiling
+// on a single request (so one click can't burn through a whole tier's
+// budget), and a per-tier ceiling on total codes ever outstanding across the
+// account (so the liability — every code is a promise of a discount — stays
+// bounded no matter how many separate requests someone makes).
+export const MAX_COUPON_CODES_PER_ACCOUNT: Record<PlanTier, number> = {
+  FREE: 100,
+  STARTER: 1000,
+  GROWTH: 5000,
+  SCALE: 20000,
+};
+
+export const MAX_CODES_PER_GENERATE_REQUEST: Record<PlanTier, number> = {
+  FREE: 25,
+  STARTER: 100,
+  GROWTH: 250,
+  SCALE: 500,
+};
+
+export const MAX_CODES_PER_IMPORT_REQUEST: Record<PlanTier, number> = {
+  FREE: 100,
+  STARTER: 1000,
+  GROWTH: 2500,
+  SCALE: 5000,
+};

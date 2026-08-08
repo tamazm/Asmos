@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { updateVariantDesign } from "./actions";
+import { allImageUrls } from "@/lib/imageLibrary";
 
-const PRESET_IMAGES = [
-  "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=800&auto=format&fit=crop", // Default / Home
-  "https://images.unsplash.com/photo-1483985988355-763728e1935b?q=80&w=800&auto=format&fit=crop", // Fashion
-  "https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?q=80&w=800&auto=format&fit=crop", // Sale/Discount
-];
+// Shared with the AI generation prompt (see lib/imageLibrary.ts) so the
+// manual picker offers the same curated, category-organized set instead of
+// its own separate 3-image list.
+const PRESET_IMAGES = allImageUrls(800);
 
 export function VisualEditor({
   campaignId,

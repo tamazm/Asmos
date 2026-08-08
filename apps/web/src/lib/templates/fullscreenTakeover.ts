@@ -1,4 +1,5 @@
 import type { PopupTemplateProps } from "./types";
+import { DEFAULT_FALLBACK_IMAGE } from "@/lib/imageLibrary";
 
 // AI popup variation roadmap (Phase 3): maximum-impact, edge-to-edge overlay
 // for high-value/urgent offers. Same teaser -> capture -> reveal flow and
@@ -12,12 +13,27 @@ export function renderFullscreenTakeoverTemplate({
   couponCode,
   imageUrl,
   goal = "BOTH",
+  layoutStyle = "centered",
 }: PopupTemplateProps): string {
   const ctaColor = primaryColor || "#165DFF";
-  const bgImg = imageUrl || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=1600&auto=format&fit=crop";
+  const bgImg = imageUrl || DEFAULT_FALLBACK_IMAGE;
   const hasCapture = goal === "BOTH" || goal === "EMAIL";
   const hasReveal = goal === "BOTH" || goal === "DISCOUNT";
   const startingStep = goal === "DISCOUNT" ? 3 : (goal === "EMAIL" ? 2 : 1);
+
+  // AI popup variation roadmap: layout_style now has a real, distinct effect
+  // on every template. For a full-bleed takeover, "split" pushes the content
+  // block to one side (so more of the background image shows through
+  // un-obscured) instead of always dead-centering it; "minimal" keeps the
+  // full-bleed image but dials the typography/badge down for a calmer
+  // moment. See popupGeneration.ts's POPUP BLUEPRINT for the full mapping.
+  const isMinimal = layoutStyle === "minimal";
+  const contentAlignCss =
+    layoutStyle === "split-left"
+      ? "align-items: flex-start; text-align: left; padding-left: clamp(32px, 8vw, 120px);"
+      : layoutStyle === "split-right"
+      ? "align-items: flex-end; text-align: right; padding-right: clamp(32px, 8vw, 120px);"
+      : "align-items: center; text-align: center;"; // centered / minimal
 
   const emailHeadline = goal === "EMAIL" ? headline : "Almost there";
   const emailSubhead = goal === "EMAIL" ? subhead : "Enter your email to unlock your code.";
@@ -33,6 +49,10 @@ export function renderFullscreenTakeoverTemplate({
     :root {
       --asmos-accent: ${ctaColor};
       --asmos-accent-fg: #ffffff;
+      /* Swappable via JS if the chosen image fails to load — see the
+         preload check below. Keeps a broken/expired Unsplash URL from ever
+         showing as an empty/broken background on a real merchant's site. */
+      --asmos-bg-image: url('${bgImg}');
     }
     .asmos-overlay {
       position: fixed;
@@ -42,7 +62,7 @@ export function renderFullscreenTakeoverTemplate({
       visibility: hidden;
       transition: opacity 260ms ease-out, visibility 260ms ease-out;
       font-family: system-ui, -apple-system, sans-serif;
-      background-image: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.75) 100%), url('${bgImg}');
+      background-image: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.75) 100%), var(--asmos-bg-image);
       background-size: cover;
       background-position: center;
     }
@@ -71,9 +91,8 @@ export function renderFullscreenTakeoverTemplate({
       height: 100%;
       display: flex;
       flex-direction: column;
-      align-items: center;
       justify-content: center;
-      text-align: center;
+      ${contentAlignCss}
       padding: 32px;
       transform: translateY(16px) scale(0.98);
       opacity: 0;
@@ -81,6 +100,7 @@ export function renderFullscreenTakeoverTemplate({
     }
     .asmos-overlay.is-open .asmos-content { transform: translateY(0) scale(1); opacity: 1; }
     .asmos-eyebrow {
+      ${isMinimal ? "display: none;" : ""}
       font-size: 13px;
       letter-spacing: 0.16em;
       text-transform: uppercase;
@@ -89,8 +109,8 @@ export function renderFullscreenTakeoverTemplate({
       font-weight: 700;
     }
     .asmos-headline {
-      font-size: clamp(32px, 6vw, 64px);
-      line-height: 1.05;
+      font-size: ${isMinimal ? "clamp(24px, 4.5vw, 44px)" : "clamp(32px, 6vw, 64px)"};
+      line-height: 1.1;
       margin: 0 0 16px;
       color: #fff;
       font-weight: 800;
@@ -235,6 +255,18 @@ export function renderFullscreenTakeoverTemplate({
 
     const overlay = document.getElementById('asmosPopupOverlay');
     if (!overlay) return;
+
+    // Preload-check the background image — a CSS background-image that
+    // 404s just fails silently (no broken-image icon), but that also means
+    // a stale/mistyped Unsplash URL would quietly leave the popup with no
+    // image at all. Swap to the known-good default instead if it fails.
+    (function checkBackgroundImage() {
+      const probe = new Image();
+      probe.onerror = function () {
+        overlay.style.setProperty('--asmos-bg-image', "url('${DEFAULT_FALLBACK_IMAGE}')");
+      };
+      probe.src = "${bgImg}";
+    })();
 
     const closeBtn = document.getElementById('asmosPopupClose');
     const dismissBtns = overlay.querySelectorAll('[data-dismiss]');

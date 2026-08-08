@@ -100,6 +100,23 @@ async function runGeneration(
 
     await setStage(campaignId, "AI_THINKING");
 
+    // Personalization inputs collected at campaign creation (see
+    // NewCampaignForm.tsx's "Personalize your popup" section) — optional,
+    // default to "let the AI decide" / "show everywhere" so the fast-path
+    // (just paste a URL) is unaffected for anyone who skips them.
+    const pageTargeting =
+      context.pageTargeting && typeof context.pageTargeting === "object"
+        ? (context.pageTargeting as { mode: "all" | "include" | "exclude"; patterns: string[] })
+        : undefined;
+    const offerPreferenceType =
+      typeof context.discountPreference === "string"
+        ? (context.discountPreference as "ai_choice" | "percentage" | "free_shipping" | "fixed_prize")
+        : "ai_choice";
+    const maxDiscountPercent =
+      typeof context.maxDiscountPercent === "number" ? context.maxDiscountPercent : undefined;
+    const fixedPrizeDescription =
+      typeof context.fixedPrizeDescription === "string" ? context.fixedPrizeDescription : undefined;
+
     const output: PopupGenerationOutput = await step.run("generate-ai", async () => {
       const goal = (context.goal as "EMAIL" | "DISCOUNT" | "BOTH") ?? "BOTH";
 
@@ -121,6 +138,8 @@ async function runGeneration(
         variantCount: 2,
         multivariate: false,
         goal,
+        maxDiscountPercent,
+        offerPreference: { type: offerPreferenceType, fixedPrizeDescription },
       });
       return generatePopupWithVariants(input);
     });
@@ -142,7 +161,11 @@ async function runGeneration(
             imageUrl: output.baseline.spec.image_url,
           },
           formFields: output.baseline.spec.fields,
-          targeting: { trigger: output.baseline.spec.trigger, delaySeconds: output.baseline.spec.delay_seconds },
+          targeting: {
+            trigger: output.baseline.spec.trigger,
+            delaySeconds: output.baseline.spec.delay_seconds,
+            pages: pageTargeting,
+          },
           popupSpec: output.baseline.spec as unknown as Prisma.InputJsonValue,
           generatedCode: renderPopupTemplate(output.baseline.spec.template_id, {
             headline: output.baseline.spec.headline,
@@ -176,7 +199,7 @@ async function runGeneration(
             imageUrl: v.spec.image_url,
           },
           formFields: v.spec.fields,
-          targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds },
+          targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds, pages: pageTargeting },
           popupSpec: v.spec as unknown as Prisma.InputJsonValue,
           generatedCode: renderPopupTemplate(v.spec.template_id, {
             headline: v.spec.headline,

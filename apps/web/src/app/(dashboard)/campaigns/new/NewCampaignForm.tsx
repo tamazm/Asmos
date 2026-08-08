@@ -6,6 +6,10 @@ import { campaignCreated } from "@/lib/analytics";
 import Link from "next/link";
 
 type Phase = "idle" | "analyzing" | "error";
+type DiscountPreference = "ai_choice" | "percentage" | "free_shipping" | "fixed_prize";
+type PageTargetMode = "all" | "include" | "exclude";
+
+const MAX_DISCOUNT_PERCENT_CEILING = 20; // mirrors DEFAULT_MAX_DISCOUNT_PERCENT in lib/popupGeneration.ts
 
 export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
   const router = useRouter();
@@ -15,6 +19,15 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [showManual, setShowManual] = useState(false);
+
+  // Personalization (optional — everything defaults to "let the AI decide" /
+  // "show everywhere" so skipping this section doesn't slow anyone down).
+  const [showPersonalize, setShowPersonalize] = useState(false);
+  const [discountPreference, setDiscountPreference] = useState<DiscountPreference>("ai_choice");
+  const [maxDiscountPercent, setMaxDiscountPercent] = useState(15);
+  const [fixedPrizeDescription, setFixedPrizeDescription] = useState("");
+  const [pageTargetMode, setPageTargetMode] = useState<PageTargetMode>("all");
+  const [pageTargetPatterns, setPageTargetPatterns] = useState("");
 
   async function launch() {
     const raw = url.trim();
@@ -37,6 +50,21 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
 
       const name = campaignName.trim() || `${result.storeName ?? "My Store"} — Email Capture`;
 
+      // Personalization inputs (see the "Personalize your popup" section
+      // below) — undefined/omitted when left at their defaults, so
+      // generateCampaign.ts's "ai_choice"/"show everywhere" defaults apply
+      // exactly as before for anyone who didn't open that section.
+      const pageTargeting =
+        pageTargetMode === "all"
+          ? undefined
+          : {
+              mode: pageTargetMode,
+              patterns: pageTargetPatterns
+                .split(",")
+                .map((p) => p.trim())
+                .filter(Boolean),
+            };
+
       // Step 2: Create the campaign immediately with GENERATING status
       const resCreate = await fetch("/api/campaigns", {
         method: "POST",
@@ -44,7 +72,18 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
         body: JSON.stringify({
           name,
           status: "GENERATING",
-          generationContext: { ...result, goal },
+          generationContext: {
+            ...result,
+            goal,
+            discountPreference,
+            maxDiscountPercent:
+              discountPreference === "percentage"
+                ? Math.min(Math.max(1, maxDiscountPercent), MAX_DISCOUNT_PERCENT_CEILING)
+                : undefined,
+            fixedPrizeDescription:
+              discountPreference === "fixed_prize" ? fixedPrizeDescription.trim() : undefined,
+            pageTargeting,
+          },
         }),
       });
 
@@ -188,6 +227,130 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                     </label>
                   </div>
                 </div>
+              </div>
+
+              {/* Personalize your popup (optional) — discount type/cap + page targeting */}
+              <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+                <button
+                  type="button"
+                  onClick={() => setShowPersonalize((v) => !v)}
+                  className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[color:var(--color-text-primary)]"
+                >
+                  <span>Personalize your popup <span className="font-normal text-[color:var(--color-text-secondary)]">(optional)</span></span>
+                  <svg
+                    width="14" height="14" viewBox="0 0 14 14" fill="none"
+                    className={`transition-transform ${showPersonalize ? "rotate-180" : ""}`}
+                  >
+                    <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+
+                {showPersonalize && (
+                  <div className="flex flex-col gap-5 px-4 pb-4 pt-1 border-t border-[color:var(--color-border)]">
+                    {/* Discount / offer type */}
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                        What&apos;s the offer?
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {([
+                          { value: "ai_choice", label: "Let AI decide" },
+                          { value: "percentage", label: "Percentage off" },
+                          { value: "free_shipping", label: "Free shipping" },
+                          { value: "fixed_prize", label: "Fixed prize / gift" },
+                        ] as const).map((opt) => (
+                          <label
+                            key={opt.value}
+                            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm text-center transition-colors ${discountPreference === opt.value ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5 text-[color:var(--color-text-primary)]" : "border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/50"}`}
+                          >
+                            <input
+                              type="radio"
+                              name="discountPreference"
+                              value={opt.value}
+                              checked={discountPreference === opt.value}
+                              onChange={() => setDiscountPreference(opt.value)}
+                              className="sr-only"
+                            />
+                            {opt.label}
+                          </label>
+                        ))}
+                      </div>
+
+                      {discountPreference === "percentage" && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <label htmlFor="max-discount" className="text-sm text-[color:var(--color-text-secondary)]">
+                            Max discount:
+                          </label>
+                          <input
+                            id="max-discount"
+                            type="number"
+                            min={1}
+                            max={MAX_DISCOUNT_PERCENT_CEILING}
+                            value={maxDiscountPercent}
+                            onChange={(e) =>
+                              setMaxDiscountPercent(
+                                Math.max(1, Math.min(MAX_DISCOUNT_PERCENT_CEILING, Number(e.target.value) || 1)),
+                              )
+                            }
+                            className="w-20 rounded-lg border border-[color:var(--color-border)] px-2 py-1.5 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                          />
+                          <span className="text-sm text-[color:var(--color-text-secondary)]">
+                            % (platform max {MAX_DISCOUNT_PERCENT_CEILING}%)
+                          </span>
+                        </div>
+                      )}
+
+                      {discountPreference === "fixed_prize" && (
+                        <input
+                          type="text"
+                          value={fixedPrizeDescription}
+                          onChange={(e) => setFixedPrizeDescription(e.target.value)}
+                          placeholder="e.g. Free tote bag with any order over $50"
+                          className="mt-2 w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                        />
+                      )}
+                    </div>
+
+                    {/* Page targeting */}
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                        Where should this show?
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          { value: "all", label: "Everywhere" },
+                          { value: "include", label: "Only these pages" },
+                          { value: "exclude", label: "Everywhere except" },
+                        ] as const).map((opt) => (
+                          <label
+                            key={opt.value}
+                            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm text-center transition-colors ${pageTargetMode === opt.value ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5 text-[color:var(--color-text-primary)]" : "border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/50"}`}
+                          >
+                            <input
+                              type="radio"
+                              name="pageTargetMode"
+                              value={opt.value}
+                              checked={pageTargetMode === opt.value}
+                              onChange={() => setPageTargetMode(opt.value)}
+                              className="sr-only"
+                            />
+                            {opt.label}
+                          </label>
+                        ))}
+                      </div>
+
+                      {pageTargetMode !== "all" && (
+                        <input
+                          type="text"
+                          value={pageTargetPatterns}
+                          onChange={(e) => setPageTargetPatterns(e.target.value)}
+                          placeholder="e.g. /, /product/*  (comma-separated)"
+                          className="mt-2 w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                        />
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* What AI does */}

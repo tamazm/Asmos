@@ -16,6 +16,7 @@ import { anthropic } from "@/lib/anthropic";
 import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 import { confidenceVsControl } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
+import { formatImageLibraryForPrompt } from "@/lib/imageLibrary";
 import {
   BedrockRuntimeClient,
   InvokeModelCommand,
@@ -93,8 +94,27 @@ export type PopupGenerationInput = {
   existing_popup: ExistingPopupExtracted;
   brand_tokens: BrandTokens;
   analytics: { variants: AnalyticsVariant[] };
-  constraints: { variant_count: number; multivariate: boolean };
+  constraints: {
+    variant_count: number;
+    multivariate: boolean;
+    max_discount_percent: number;
+    // Merchant's own choice at campaign creation (see NewCampaignForm.tsx's
+    // "What's the offer?" question) — "ai_choice" (default) lets the model
+    // pick per the CREATE_NEW category-inference rules; the others pin the
+    // offer type/amount so the model writes copy around it instead of
+    // inventing its own discount.
+    offer_preference: {
+      type: "ai_choice" | "percentage" | "free_shipping" | "fixed_prize";
+      fixed_prize_description?: string;
+    };
+  };
   goal: "EMAIL" | "DISCOUNT" | "BOTH";
+  // ISO date (YYYY-MM-DD), computed fresh per call (see buildPopupInput) —
+  // NOT baked into the static system prompt, which is a module-level
+  // constant evaluated once at process start and would otherwise go stale.
+  // Referenced by the CONTENT & COMPLIANCE GUARDRAILS section to keep
+  // seasonal/holiday copy from firing outside its actual window.
+  current_date: string;
 };
 
 export type PopupDiagnosis = {
@@ -114,6 +134,12 @@ export type PopupSpec = {
   cta: string;
   fields: string[];
   coupon_code: string;
+  // Structured discount amount, decoupled from freeform copy so it can
+  // actually be validated/clamped server-side (see applyContentGuardrails)
+  // instead of relying on regex-scraping "20%" out of a headline. Null when
+  // the popup isn't offering a percentage discount (e.g. goal="EMAIL", or a
+  // free-shipping/fixed-amount/gift-card offer instead).
+  discount_percent: number | null;
   // Which physical template renders this spec (see lib/templates/index.ts).
   // Added for the AI popup variation roadmap (Phase 3) — previously every
   // popup used the same split-screen template regardless of what the AI
@@ -163,6 +189,22 @@ CRITICAL CONSTRAINTS (never break these):
 - Return ONLY valid JSON matching the output schema. No prose, no markdown fences, no explanation outside the JSON.
 - Never write HTML. The server renders the popup from your JSON spec using the template named by template_id.
 
+CONTENT & COMPLIANCE GUARDRAILS (never break these — enforced server-side too, but get it right here first):
+- Never suggest, imply, or offer anything illegal, regulated, or inappropriate as a discount, prize, or
+  reward — no prescription/controlled substances, no weapons/firearms/ammunition/explosives, no alcohol or
+  tobacco as a giveaway, no adult content. Rewards must always be standard e-commerce fare: a percentage or
+  fixed discount, free shipping, a gift card, or the store's own merchandise.
+- Never mention a real third-party brand, franchise, character, or copyrighted property that isn't the
+  store's own — don't borrow recognizable IP to make an offer sound bigger than it is.
+- Today's date is given at the very top of the user message (as current_date). Only reference a seasonal or
+  holiday moment (Christmas, Black Friday, back-to-school, summer sale, etc.) if it is genuinely near in
+  time to current_date — never write "Christmas" copy in the middle of summer or "summer sale" copy in
+  winter. If in doubt, skip the seasonal framing entirely and write an evergreen offer instead.
+- \`discount_percent\` (see POPUP DESIGN REQUIREMENTS) must never exceed constraints.max_discount_percent.
+  This is a hard ceiling, not a suggestion — if you're tempted to write a bigger number for impact, cap it
+  at constraints.max_discount_percent instead and let the framing (urgency, exclusivity, first-order-only)
+  do the persuasive work.
+
 MODE DETECTION
 - existing_popup.captured == true  -> IMPROVE_EXISTING
 - existing_popup.captured == false -> CREATE_NEW
@@ -177,12 +219,19 @@ IMPROVE_EXISTING
 
 CREATE_NEW
 - Use brand_tokens as ground truth for palette, type, and signature element. Never invent a palette when brand_tokens are supplied.
-- Infer likely offer type from store.category:
-  fashion/beauty -> first-order percentage discount
-  home goods -> free shipping threshold
-  food/beverage -> first-order flat discount
-  high-ticket/luxury -> value proposition (no cheap discounts)
-  default -> 10-15% first order discount
+- Check constraints.offer_preference first — this is the merchant's own explicit choice, and overrides the
+  category-inference below whenever it isn't "ai_choice":
+  - "percentage": write a percentage discount (respecting max_discount_percent). Set discount_percent accordingly.
+  - "free_shipping": the offer IS free shipping — do not also invent a percentage discount. discount_percent = null.
+  - "fixed_prize": the offer is constraints.offer_preference.fixed_prize_description verbatim (a gift card,
+    a specific product, a fixed-dollar credit, etc.) — write copy around exactly that, don't reinterpret it
+    as a percentage. discount_percent = null unless the merchant's description itself states a percentage.
+  - "ai_choice" (default): infer likely offer type from store.category:
+    fashion/beauty -> first-order percentage discount
+    home goods -> free shipping threshold
+    food/beverage -> first-order flat discount
+    high-ticket/luxury -> value proposition (no cheap discounts)
+    default -> 10-15% first order discount
 - Default trigger: exit-intent on desktop, 60% scroll-depth fallback on mobile.
   Override if store.category or price point suggests longer consideration window
   (high-ticket items -> time-delay over exit-intent).
@@ -247,15 +296,28 @@ POPUP BLUEPRINT (TEMPLATE, LAYOUT & IMAGE VARIANCE)
   - When a variant's test_axis is "layout", changing template_id (not just layout_style) is the
     strongest version of that test — a template swap IS a layout test.
 - Always assign a \`layout_style\` for the popup: "split-left", "split-right", "centered", or "minimal".
-  This only has visible effect within the "split-screen" template — for "corner-toast" and
-  "fullscreen-takeover" still set a reasonable value (their own layout is closer to "centered"/"minimal"
-  in spirit) since the field is required, but don't expect it to change their rendering.
-  - Control variants should usually be "split-left" or "split-right" (when template_id is "split-screen").
-  - When generating variants, strongly consider testing a different layout (e.g. comparing "split-left" to "centered").
-- Always assign a suitable \`image_url\` (unless layout is "minimal" or you explicitly want a text-only popup). Use high-quality Unsplash source URLs related to the store category. Examples:
-  - Fashion/Apparel: "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&q=80"
-  - Beauty/Skincare: "https://images.unsplash.com/photo-1596462502278-27bf85033e5a?auto=format&fit=crop&q=80"
-  - Abstract/Discount: "https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?auto=format&fit=crop&q=80"
+  Every template now gives this a real, distinct visual effect (not just split-screen), so treat it as a
+  genuine lever on every generation, not a formality:
+  - split-screen: "split-left"/"split-right" put the image on the left/right half; "centered" drops the
+    image split and centers a narrower card; "minimal" hides the image entirely for a compact text-only card.
+  - corner-toast: "split-left"/"split-right" anchor the toast to the bottom-left/bottom-right corner;
+    "centered" anchors it bottom-center and slightly wider; "minimal" anchors it top-right, smaller, with
+    no eyebrow tag.
+  - fullscreen-takeover: "split-left"/"split-right" shift the content block to the left/right third of the
+    screen (text-aligned to match) instead of dead-center, so more of the background image shows through;
+    "centered" is the balanced default; "minimal" keeps the image but drops the eyebrow tag and scales
+    typography down for a calmer, less shouty full-bleed moment.
+  - Control variants should usually be "split-left", "split-right", or "centered". When generating variants,
+    strongly consider testing a different layout_style than the baseline (e.g. "split-left" -> "centered")
+    even when that's not the variant's primary test_axis — it's a cheap, always-safe source of visual
+    difference between variants shown to the same store.
+- Always assign a suitable \`image_url\` (unless layout_style is "minimal" and you want a text-only/no-image
+  popup, which minimal now genuinely renders as on every template). Pick ONE exact URL from the library
+  below that best matches the store's category — do not invent your own Unsplash URL, since a fabricated
+  photo ID will 404. Vary which exact image you pick across variants/generations within a matching category
+  instead of always reaching for the first one listed:
+${formatImageLibraryForPrompt()}
+  If none of the categories fit the store well, use the General / Abstract / Discount entries.
 - For trigger delays, assign an integer to \`delay_seconds\` if the trigger involves time (e.g. 5, 10, 15). Leave it null for purely exit-intent or scroll depth.
 
 POPUP DESIGN REQUIREMENTS
@@ -268,6 +330,9 @@ Output the exact JSON spec configuring the popup based on the user's explicit go
 - subhead: 1 short sentence clarifying.
 - cta: Short, action-oriented button text (e.g. "Claim Discount").
 - coupon_code: E.g., "WELCOME10" or "FREESHIP". (Leave blank if goal is EMAIL)
+- discount_percent: the numeric discount as a plain integer (e.g. 15 for "15% off"), matching whatever
+  percentage you reference in headline/subhead/cta. Must never exceed constraints.max_discount_percent
+  (see CONTENT & COMPLIANCE GUARDRAILS above). Null if this popup isn't offering a percentage discount.
 Do not write any HTML. The server will inject your JSON into the template you chose via template_id.`;
 
 // ─── Output Schema (tool call) ────────────────────────────────────────────────
@@ -283,6 +348,7 @@ const popupSpecSchema = {
     cta: { type: "string" },
     fields: { type: "array", items: { type: "string" } },
     coupon_code: { type: "string" },
+    discount_percent: { type: ["number", "null"] },
     template_id: { type: "string", enum: ["split-screen", "corner-toast", "fullscreen-takeover"] },
     layout_style: { type: "string", enum: ["split-left", "split-right", "centered", "minimal"] },
     image_url: { type: ["string", "null"] },
@@ -297,7 +363,7 @@ const popupSpecSchema = {
       additionalProperties: false,
     },
   },
-  required: ["trigger", "delay_seconds", "frequency_cap", "headline", "subhead", "cta", "fields", "coupon_code", "template_id", "layout_style", "image_url", "design_tokens"],
+  required: ["trigger", "delay_seconds", "frequency_cap", "headline", "subhead", "cta", "fields", "coupon_code", "discount_percent", "template_id", "layout_style", "image_url", "design_tokens"],
   additionalProperties: false,
 } as const;
 
@@ -615,6 +681,13 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
 
 // ─── Input Builder ────────────────────────────────────────────────────────────
 
+// Platform-wide safety ceiling on any AI-suggested percentage discount —
+// see the CONTENT & COMPLIANCE GUARDRAILS prompt section and
+// applyContentGuardrails below, which enforces this server-side regardless
+// of what the model outputs. Callers can pass a lower (merchant-chosen) cap
+// via buildPopupInput's maxDiscountPercent, but never a higher one.
+export const DEFAULT_MAX_DISCOUNT_PERCENT = 20;
+
 export function buildPopupInput(opts: {
   domain: string;
   category: string;
@@ -625,6 +698,11 @@ export function buildPopupInput(opts: {
   variantCount: number;
   multivariate?: boolean;
   goal?: "EMAIL" | "DISCOUNT" | "BOTH";
+  maxDiscountPercent?: number;
+  offerPreference?: {
+    type: "ai_choice" | "percentage" | "free_shipping" | "fixed_prize";
+    fixedPrizeDescription?: string;
+  };
 }): PopupGenerationInput {
   return {
     store: {
@@ -639,8 +717,17 @@ export function buildPopupInput(opts: {
     constraints: {
       variant_count: opts.variantCount,
       multivariate: opts.multivariate ?? false,
+      max_discount_percent: Math.min(
+        opts.maxDiscountPercent ?? DEFAULT_MAX_DISCOUNT_PERCENT,
+        DEFAULT_MAX_DISCOUNT_PERCENT,
+      ),
+      offer_preference: {
+        type: opts.offerPreference?.type ?? "ai_choice",
+        fixed_prize_description: opts.offerPreference?.fixedPrizeDescription,
+      },
     },
     goal: opts.goal ?? "BOTH",
+    current_date: new Date().toISOString().slice(0, 10),
   };
 }
 
@@ -820,19 +907,96 @@ async function getLearnedPatternsSection(): Promise<string> {
   }
 }
 
+// ─── Content & Compliance Guardrails (server-side safety net) ────────────────
+//
+// The prompt instructs the model not to suggest illegal/regulated/absurd
+// rewards, not to borrow third-party IP, to keep seasonal copy in-season,
+// and to respect max_discount_percent — but a prompt instruction is
+// advisory, not enforcement. This is the actual enforcement: applied to
+// every spec (baseline + every variant) from every provider, right before
+// generatePopupWithVariants returns, so nothing downstream (DB, widget,
+// merchant's live site) ever sees a spec that violates these regardless of
+// what the model actually produced.
+//
+// The blocklist is intentionally short and scoped to genuinely
+// non-negotiable categories (controlled substances, weapons/explosives,
+// alcohol/tobacco as a giveaway) rather than an attempt at general content
+// moderation — broad copyrighted-IP detection isn't something a static list
+// can cover, so that's handled by the prompt instruction alone.
+const BLOCKED_REWARD_TERMS = [
+  "prescription", "opioid", "oxycontin", "xanax", "vicodin", "adderall",
+  "morphine", "fentanyl", "cocaine", "heroin", "methamphetamine",
+  "firearm", "handgun", "rifle", "ammunition", "explosive", "grenade",
+  "cigarette", "vape", "e-cigarette",
+];
+const SAFE_FALLBACK_HEADLINE = "Get an exclusive offer";
+const SAFE_FALLBACK_SUBHEAD = "Enter your email to unlock a special discount.";
+
+function containsBlockedTerm(text: string): boolean {
+  const lower = text.toLowerCase();
+  return BLOCKED_REWARD_TERMS.some((term) => lower.includes(term));
+}
+
+// Downgrades any "NN%" mention in text that exceeds maxPercent to maxPercent
+// — a defensive text-level backstop alongside clamping the structured
+// discount_percent field, since the model could in principle state a bigger
+// number in prose even if the structured field is clamped separately.
+function clampPercentMentions(text: string, maxPercent: number): string {
+  return text.replace(/(\d{1,3})\s*%/g, (match, digits) => {
+    const n = parseInt(digits, 10);
+    return n > maxPercent ? `${maxPercent}%` : match;
+  });
+}
+
+function guardSpec(spec: PopupSpec, maxDiscountPercent: number): PopupSpec {
+  let { headline, subhead, cta, coupon_code, discount_percent } = spec;
+
+  if (typeof discount_percent === "number" && discount_percent > maxDiscountPercent) {
+    discount_percent = maxDiscountPercent;
+  }
+  headline = clampPercentMentions(headline, maxDiscountPercent);
+  subhead = clampPercentMentions(subhead, maxDiscountPercent);
+  cta = clampPercentMentions(cta, maxDiscountPercent);
+
+  if (containsBlockedTerm(headline) || containsBlockedTerm(subhead) || containsBlockedTerm(coupon_code)) {
+    console.warn("[popupGeneration] guardSpec: blocked term detected, replacing with safe fallback copy", {
+      headline: spec.headline,
+    });
+    headline = SAFE_FALLBACK_HEADLINE;
+    subhead = SAFE_FALLBACK_SUBHEAD;
+    coupon_code = "WELCOME10";
+    discount_percent = Math.min(discount_percent ?? 10, maxDiscountPercent);
+  }
+
+  return { ...spec, headline, subhead, cta, coupon_code, discount_percent };
+}
+
+function applyContentGuardrails(
+  output: PopupGenerationOutput,
+  maxDiscountPercent: number,
+): PopupGenerationOutput {
+  return {
+    ...output,
+    baseline: { ...output.baseline, spec: guardSpec(output.baseline.spec, maxDiscountPercent) },
+    variants: output.variants.map((v) => ({ ...v, spec: guardSpec(v.spec, maxDiscountPercent) })),
+  };
+}
+
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export async function generatePopupWithVariants(
   input: PopupGenerationInput,
 ): Promise<PopupGenerationOutput> {
   const systemPrompt = POPUP_GENERATION_SYSTEM_PROMPT + (await getLearnedPatternsSection());
+  const maxDiscountPercent = Math.min(input.constraints.max_discount_percent, DEFAULT_MAX_DISCOUNT_PERCENT);
 
   // Provider priority: Bedrock (AWS) → Anthropic direct → Gemini
   let lastError: unknown;
 
   if (HAS_AWS_KEY) {
     try {
-      return await withTimeout(generateWithBedrock(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Bedrock");
+      const result = await withTimeout(generateWithBedrock(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Bedrock");
+      return applyContentGuardrails(result, maxDiscountPercent);
     } catch (err) {
       console.warn("[popupGeneration] Bedrock failed, falling back to next provider:", err);
       lastError = err;
@@ -841,7 +1005,8 @@ export async function generatePopupWithVariants(
 
   if (HAS_ANTHROPIC_KEY) {
     try {
-      return await withTimeout(generateWithClaude(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Anthropic");
+      const result = await withTimeout(generateWithClaude(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Anthropic");
+      return applyContentGuardrails(result, maxDiscountPercent);
     } catch (err) {
       console.warn("[popupGeneration] Anthropic failed, falling back to Gemini:", err);
       lastError = err;
@@ -849,7 +1014,8 @@ export async function generatePopupWithVariants(
   }
 
   try {
-    return await withTimeout(generateWithGemini(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Gemini");
+    const result = await withTimeout(generateWithGemini(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Gemini");
+    return applyContentGuardrails(result, maxDiscountPercent);
   } catch (err) {
     console.error("[popupGeneration] Gemini failed too.", err);
     throw lastError ?? err;

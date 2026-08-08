@@ -12,11 +12,27 @@ export function renderCornerToastTemplate({
   primaryColor,
   couponCode,
   goal = "BOTH",
+  layoutStyle = "split-right",
 }: PopupTemplateProps): string {
   const ctaColor = primaryColor || "#165DFF";
   const hasCapture = goal === "BOTH" || goal === "EMAIL";
   const hasReveal = goal === "BOTH" || goal === "DISCOUNT";
   const startingStep = goal === "DISCOUNT" ? 3 : (goal === "EMAIL" ? 2 : 1);
+
+  // AI popup variation roadmap: layout_style now has a real, distinct effect
+  // on every template, not just split-screen. For a corner toast that means
+  // which corner it anchors to (and, for "minimal", a smaller/quieter card)
+  // — see popupGeneration.ts's POPUP BLUEPRINT section for the full mapping.
+  const isMinimal = layoutStyle === "minimal";
+  const positionCss =
+    layoutStyle === "split-left"
+      ? "bottom: 20px; left: 20px;"
+      : layoutStyle === "centered"
+      ? "bottom: 20px; left: 50%; transform: translateX(-50%);"
+      : isMinimal
+      ? "top: 20px; right: 20px;"
+      : "bottom: 20px; right: 20px;"; // split-right (default)
+  const toastWidth = layoutStyle === "centered" ? "380px" : isMinimal ? "300px" : "340px";
 
   const emailHeadline = goal === "EMAIL" ? headline : "Almost there";
   const emailSubhead = goal === "EMAIL" ? subhead : "Enter your email to unlock your code.";
@@ -39,13 +55,12 @@ export function renderCornerToastTemplate({
     }
     .asmos-toast-wrap {
       position: fixed;
-      bottom: 20px;
-      right: 20px;
+      ${positionCss}
       z-index: 2147483000;
       font-family: system-ui, -apple-system, sans-serif;
     }
     .asmos-modal {
-      width: min(340px, calc(100vw - 40px));
+      width: min(${toastWidth}, calc(100vw - 40px));
       background: var(--asmos-bg);
       border-radius: var(--asmos-radius);
       box-shadow: 0 10px 40px rgba(0,0,0,0.18);
@@ -78,6 +93,7 @@ export function renderCornerToastTemplate({
     }
     .asmos-close:hover { color: var(--asmos-fg); }
     .asmos-eyebrow {
+      ${isMinimal ? "display: none;" : ""}
       font-size: 10px;
       letter-spacing: 0.1em;
       text-transform: uppercase;
@@ -153,7 +169,10 @@ export function renderCornerToastTemplate({
     .popup-step[hidden] { display: none !important; }
     .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
     @media (max-width: 480px) {
-      .asmos-toast-wrap { left: 12px; right: 12px; bottom: 12px; }
+      /* Always full-width bottom on small screens regardless of layout_style
+         — resets "transform" too since the "centered" layout sets a
+         translateX(-50%) that would otherwise mis-position this override. */
+      .asmos-toast-wrap { top: auto; left: 12px; right: 12px; bottom: 12px; transform: none; }
       .asmos-modal { width: 100%; }
     }
   </style>
