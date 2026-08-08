@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
-import { AI_GENERATION_LIMITS } from "@/lib/limits";
+import { AI_GENERATION_LIMITS, MAX_VARIANTS_PER_ROUND } from "@/lib/limits";
 import type { Prisma } from ".prisma/client";
 import {
   generatePopupWithVariants,
@@ -35,7 +35,7 @@ export const evaluateKnockout = inngest.createFunction(
     }
 
     const planTier = campaign.account.planTier;
-    const maxVariants = planTier === "FREE" ? 1 : planTier === "STARTER" ? 4 : 20;
+    const maxVariants = MAX_VARIANTS_PER_ROUND[planTier];
     const currentRound = campaign.tournamentRound;
     const roundVariants = campaign.variants.filter((v) => v.tournamentRound === currentRound);
     const activeVariants = roundVariants.filter((v) => v.status === "ACTIVE");

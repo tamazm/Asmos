@@ -109,8 +109,16 @@ async function runGeneration(
         brandTokens,
         existingPopup,
         computedStyles,
+        // Cold start (no analytics yet): request 2 variants instead of 1 so a
+        // freshly created campaign already tests two axes (trigger timing +
+        // friction, per the system prompt's ranked cold-start order) against
+        // control, instead of shipping a single variant that — by design —
+        // only differs from control in one respect. Safe on every plan tier:
+        // MAX_VARIANTS_PER_ROUND is >= 3 everywhere (see lib/limits.ts), and
+        // this still only costs 1 unit of the account's AI generation budget
+        // regardless of variant count.
         analyticsVariants: [],
-        variantCount: 1,
+        variantCount: 2,
         multivariate: false,
         goal,
       });
