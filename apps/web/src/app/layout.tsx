@@ -5,6 +5,9 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Suspense } from "react";
 import { PostHogProvider } from "@/lib/posthog";
 import { PostHogPageView } from "@/components/PostHogPageView";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { organizationJsonLd } from "@/lib/seo";
+import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const geist = Geist({
@@ -19,8 +22,13 @@ const barlowCondensed = Barlow_Condensed({
 });
 
 export const metadata: Metadata = {
-  title: "Asmos",
-  description: "Popup + behavioral AI platform",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "Asmos — AI Conversion Optimization for Ecommerce",
+    template: "%s | Asmos",
+  },
+  description:
+    "Asmos analyzes your store, generates conversion experiments, tests variants, learns from visitor behavior, and continuously improves performance.",
 };
 
 export default function RootLayout({
@@ -32,6 +40,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" className={`${geist.variable} ${barlowCondensed.variable} h-full antialiased`}>
         <body className="min-h-full flex flex-col">
+          <JsonLd data={organizationJsonLd()} />
           <PostHogProvider>
             <Suspense fallback={null}>
               <PostHogPageView />

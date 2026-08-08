@@ -36,6 +36,69 @@ export async function sendRewardEmail(params: {
   });
 }
 
+export async function sendContactNotification(params: {
+  name: string;
+  email: string;
+  company: string;
+  website?: string | null;
+  inquiryType: string;
+  message: string;
+}) {
+  const { name, email, company, website, inquiryType, message } = params;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
+  await resend.emails.send({
+    from: "Asmos Contact Form <onboarding@resend.dev>",
+    to: "saba@asmos.io",
+    replyTo: email,
+    subject: `[Contact] ${inquiryType} — ${company || name}`,
+    html: `
+      <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+      <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+      <p><strong>Company:</strong> ${escapeHtml(company)}</p>
+      ${website ? `<p><strong>Website:</strong> ${escapeHtml(website)}</p>` : ""}
+      <p><strong>Inquiry type:</strong> ${escapeHtml(inquiryType)}</p>
+      <p><strong>Message:</strong></p>
+      <p>${escapeHtml(message).replace(/\n/g, "<br/>")}</p>
+    `,
+  });
+}
+
+export async function sendCalculatorReportEmail(params: {
+  to: string;
+  storeUrl: string | null;
+  inputs: Record<string, unknown>;
+  result: Record<string, unknown>;
+}) {
+  const { to, storeUrl, inputs, result } = params;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+
+  await resend.emails.send({
+    from: "Asmos <onboarding@resend.dev>",
+    to,
+    subject: "Your Email Capture Revenue Calculator results",
+    html: `
+      <p>Here's a copy of your Email Capture Revenue Calculator results${storeUrl ? ` for <strong>${escapeHtml(storeUrl)}</strong>` : ""}.</p>
+      <p><strong>Inputs:</strong></p>
+      <pre>${escapeHtml(JSON.stringify(inputs, null, 2))}</pre>
+      <p><strong>Results:</strong></p>
+      <pre>${escapeHtml(JSON.stringify(result, null, 2))}</pre>
+      <p>This is an estimate, not a revenue guarantee. Actual performance varies by store and customer behavior.</p>
+      <p><a href="https://asmos.io/analyze">Try the Free Optimization Analysis</a> to see what Asmos would test on your store.</p>
+    `,
+  });
+}
+
+export async function sendNewsletterNotification(params: { email: string }) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  await resend.emails.send({
+    from: "Asmos Blog <onboarding@resend.dev>",
+    to: "saba@asmos.io",
+    subject: "New blog newsletter signup",
+    html: `<p>New newsletter signup: ${escapeHtml(params.email)}</p>`,
+  });
+}
+
 function escapeHtml(s: string): string {
   return s
     .replace(/&/g, "&amp;")

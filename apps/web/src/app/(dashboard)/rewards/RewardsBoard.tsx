@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
 
 export type RewardRow = {
   id: string;
@@ -507,15 +508,21 @@ function RewardCard({
             >
               Export (CSV)
             </a>
-            <Button variant="secondary" onClick={() => setShowCodes((v) => !v)}>
-              {showCodes ? "Hide codes" : "Manage codes"}
+            <Button variant="secondary" onClick={() => setShowCodes(true)}>
+              Manage codes
             </Button>
           </div>
         )
       )}
 
-      {usesCodePool && showCodes && (
-        <ManageCodesPanel rewardId={row.id} onChanged={() => router.refresh()} />
+      {usesCodePool && (
+        <ManageCodesModal
+          open={showCodes}
+          onClose={() => setShowCodes(false)}
+          rewardId={row.id}
+          rewardLabel={row.label}
+          onChanged={() => router.refresh()}
+        />
       )}
     </div>
   );
@@ -663,37 +670,86 @@ function EditRewardPanel({
 }
 
 type CodeRow = { id: string; code: string; usedAt: string | null; createdAt: string };
+type StatusFilter = "all" | "unused" | "used";
+const PAGE_SIZE_OPTIONS = [25, 50, 100] as const;
 
-function ManageCodesPanel({ rewardId, onChanged }: { rewardId: string; onChanged: () => void }) {
+function ManageCodesModal({
+  open,
+  onClose,
+  rewardId,
+  rewardLabel,
+  onChanged,
+}: {
+  open: boolean;
+  onClose: () => void;
+  rewardId: string;
+  rewardLabel: string;
+  onChanged: () => void;
+}) {
   const [codes, setCodes] = useState<CodeRow[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [totalUnfiltered, setTotalUnfiltered] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(50);
+  const [status, setStatus] = useState<StatusFilter>("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [truncated, setTruncated] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
-  async function load() {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/rewards/${rewardId}/codes?status=all`);
-      if (!res.ok) throw new Error("Could not load codes");
-      const data = await res.json();
-      setCodes(data.codes ?? []);
-      setTruncated(Boolean(data.truncated));
-      setLoaded(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not load codes");
-    } finally {
-      setLoading(false);
-    }
-  }
+  // Debounce the search box so every keystroke doesn't fire a request.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setSearch(searchInput.trim());
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [searchInput]);
 
   useEffect(() => {
-    if (!loaded && !loading) load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded, loading]);
+    if (!open) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      try {
+        const params = new URLSearchParams({
+          status,
+          page: String(page),
+          pageSize: String(pageSize),
+          ...(search ? { search } : {}),
+        });
+        const res = await fetch(`/api/rewards/${rewardId}/codes?${params.toString()}`);
+        if (!res.ok) throw new Error("Could not load codes");
+        const data = await res.json();
+        if (cancelled) return;
+        setCodes(data.codes ?? []);
+        setTotal(data.total ?? 0);
+        setTotalUnfiltered(data.totalUnfiltered ?? 0);
+        setTotalPages(data.totalPages ?? 1);
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Could not load codes");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, rewardId, status, search, page, pageSize, reloadToken]);
+
+  // Reset transient state each time the modal is reopened.
+  useEffect(() => {
+    if (open) {
+      setSelected(new Set());
+      setPage(1);
+    }
+  }, [open]);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -704,9 +760,19 @@ function ManageCodesPanel({ rewardId, onChanged }: { rewardId: string; onChanged
     });
   }
 
-  function toggleAll() {
+  function toggleAllOnPage() {
     if (!codes) return;
-    setSelected((prev) => (prev.size === codes.length ? new Set() : new Set(codes.map((c) => c.id))));
+    const allSelected = codes.every((c) => selected.has(c.id));
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) codes.forEach((c) => next.delete(c.id));
+      else codes.forEach((c) => next.add(c.id));
+      return next;
+    });
+  }
+
+  function refetchCurrentPage() {
+    setReloadToken((t) => t + 1);
   }
 
   async function deleteSelected() {
@@ -725,7 +791,7 @@ function ManageCodesPanel({ rewardId, onChanged }: { rewardId: string; onChanged
         throw new Error(b.error ?? "Delete failed");
       }
       setSelected(new Set());
-      setLoaded(false);
+      refetchCurrentPage();
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
@@ -735,7 +801,7 @@ function ManageCodesPanel({ rewardId, onChanged }: { rewardId: string; onChanged
   }
 
   async function deleteAllUnused() {
-    if (!confirm("Delete every unused code for this reward?")) return;
+    if (!confirm("Delete every unused code for this reward? This ignores the current search/filter.")) return;
     setBusy(true);
     setError(null);
     try {
@@ -749,7 +815,8 @@ function ManageCodesPanel({ rewardId, onChanged }: { rewardId: string; onChanged
         throw new Error(b.error ?? "Delete failed");
       }
       setSelected(new Set());
-      setLoaded(false);
+      setPage(1);
+      refetchCurrentPage();
       onChanged();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
@@ -758,60 +825,174 @@ function ManageCodesPanel({ rewardId, onChanged }: { rewardId: string; onChanged
     }
   }
 
+  const allOnPageSelected = Boolean(codes && codes.length > 0 && codes.every((c) => selected.has(c.id)));
+  const rangeStart = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(total, page * pageSize);
+
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-[color:var(--color-border)] p-3">
-      {loading && <p className="text-xs text-[color:var(--color-text-secondary)]">Loading codes…</p>}
-      {error && <p className="text-xs text-red-600">{error}</p>}
-      {codes && codes.length === 0 && !loading && (
-        <p className="text-xs text-[color:var(--color-text-secondary)]">No codes yet.</p>
-      )}
-      {codes && codes.length > 0 && (
-        <>
-          {truncated && (
-            <p className="text-xs text-[color:var(--color-text-secondary)]">
-              Showing the first {codes.length} codes — use Export (CSV) for the full list.
-            </p>
-          )}
-          <div className="flex items-center gap-2 text-xs">
-            <button onClick={toggleAll} className="text-[color:var(--color-primary)] hover:underline">
-              {selected.size === codes.length ? "Deselect all" : "Select all"}
-            </button>
-            <span className="text-[color:var(--color-text-secondary)]">{selected.size} selected</span>
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={`Manage codes — ${rewardLabel}`}
+      subtitle={`${totalUnfiltered.toLocaleString()} total code${totalUnfiltered === 1 ? "" : "s"}`}
+      size="xl"
+    >
+      <div className="flex flex-col gap-3 p-5">
+        {/* Toolbar: search + status filter */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-[220px] flex-1">
+            <svg className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[color:var(--color-text-secondary)]" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <circle cx="6" cy="6" r="4.5" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M9.5 9.5L12.5 12.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            <input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search codes…"
+              className="w-full rounded-lg border border-[color:var(--color-border)] py-2 pl-8 pr-3 text-sm outline-none focus:border-[color:var(--color-primary)]"
+            />
           </div>
-          <div className="max-h-56 overflow-y-auto rounded-lg border border-[color:var(--color-border)]">
-            {codes.map((c) => (
-              <label
-                key={c.id}
-                className="flex items-center gap-2 border-b border-[color:var(--color-border)] px-2 py-1.5 text-sm last:border-b-0 hover:bg-[color:var(--color-surface-sunken)] cursor-pointer"
+          <div className="flex items-center gap-1 rounded-lg border border-[color:var(--color-border)] p-0.5">
+            {(["all", "unused", "used"] as StatusFilter[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => { setStatus(s); setPage(1); }}
+                className={`rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors duration-150 ${
+                  status === s
+                    ? "bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
+                    : "text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)]"
+                }`}
               >
-                <input
-                  type="checkbox"
-                  checked={selected.has(c.id)}
-                  onChange={() => toggle(c.id)}
-                  className="rounded border-[color:var(--color-border)]"
-                />
-                <span className="font-mono text-xs flex-1">{c.code}</span>
-                <span className={`text-xs ${c.usedAt ? "text-[color:var(--color-text-secondary)]" : "text-emerald-600"}`}>
-                  {c.usedAt ? "used" : "available"}
-                </span>
-              </label>
+                {s === "all" ? "All" : s === "unused" ? "Available" : "Used"}
+              </button>
             ))}
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="secondary"
-              onClick={deleteSelected}
-              disabled={busy || selected.size === 0}
-              className={busy || selected.size === 0 ? "opacity-60" : ""}
-            >
-              Delete selected
-            </Button>
-            <Button variant="secondary" onClick={deleteAllUnused} disabled={busy} className={busy ? "opacity-60" : ""}>
-              Delete all unused
-            </Button>
+          <select
+            value={pageSize}
+            onChange={(e) => { setPageSize(Number(e.target.value) as (typeof PAGE_SIZE_OPTIONS)[number]); setPage(1); }}
+            className="rounded-lg border border-[color:var(--color-border)] px-2 py-2 text-xs outline-none focus:border-[color:var(--color-primary)]"
+          >
+            {PAGE_SIZE_OPTIONS.map((n) => (
+              <option key={n} value={n}>{n} / page</option>
+            ))}
+          </select>
+        </div>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
+
+        {/* Selection / bulk action bar */}
+        {selected.size > 0 ? (
+          <div className="flex items-center gap-3 rounded-lg bg-[color:var(--color-primary-light)] px-3 py-2 text-xs">
+            <span className="font-medium text-[color:var(--color-primary)]">{selected.size} selected</span>
+            <button onClick={() => setSelected(new Set())} className="text-[color:var(--color-text-secondary)] hover:underline">
+              Clear
+            </button>
+            <div className="ml-auto">
+              <Button variant="secondary" onClick={deleteSelected} disabled={busy} className={busy ? "opacity-60" : ""}>
+                Delete selected
+              </Button>
+            </div>
           </div>
-        </>
-      )}
-    </div>
+        ) : (
+          <div className="flex items-center justify-end">
+            <button
+              onClick={deleteAllUnused}
+              disabled={busy || totalUnfiltered === 0}
+              className="text-xs font-medium text-red-600 hover:underline disabled:opacity-50 disabled:no-underline"
+            >
+              Delete all unused
+            </button>
+          </div>
+        )}
+
+        {/* Table */}
+        <div className="overflow-hidden rounded-lg border border-[color:var(--color-border)]">
+          <div className="max-h-[420px] overflow-y-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead className="sticky top-0 z-10 bg-[color:var(--color-surface-sunken)]">
+                <tr className="border-b border-[color:var(--color-border)]">
+                  <th className="w-9 px-3 py-2">
+                    <input
+                      type="checkbox"
+                      checked={allOnPageSelected}
+                      onChange={toggleAllOnPage}
+                      disabled={!codes || codes.length === 0}
+                      className="rounded border-[color:var(--color-border)]"
+                      aria-label="Select all on page"
+                    />
+                  </th>
+                  <th className="px-3 py-2 text-left text-xs font-semibold text-[color:var(--color-text-secondary)]">Code</th>
+                  <th className="w-28 px-3 py-2 text-left text-xs font-semibold text-[color:var(--color-text-secondary)]">Status</th>
+                  <th className="w-36 px-3 py-2 text-left text-xs font-semibold text-[color:var(--color-text-secondary)]">Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && (!codes || codes.length === 0) && (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-8 text-center text-xs text-[color:var(--color-text-secondary)]">
+                      Loading codes…
+                    </td>
+                  </tr>
+                )}
+                {!loading && codes && codes.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-3 py-8 text-center text-xs text-[color:var(--color-text-secondary)]">
+                      {search || status !== "all" ? "No codes match your search/filter." : "No codes yet."}
+                    </td>
+                  </tr>
+                )}
+                {codes?.map((c) => (
+                  <tr
+                    key={c.id}
+                    className="border-b border-[color:var(--color-border)] last:border-b-0 hover:bg-[color:var(--color-surface-sunken)] cursor-pointer"
+                    onClick={() => toggle(c.id)}
+                  >
+                    <td className="px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(c.id)}
+                        onChange={() => toggle(c.id)}
+                        className="rounded border-[color:var(--color-border)]"
+                      />
+                    </td>
+                    <td className="px-3 py-1.5 font-mono text-xs text-[color:var(--color-text-primary)]">{c.code}</td>
+                    <td className="px-3 py-1.5">
+                      <Badge variant={c.usedAt ? "neutral" : "success"}>{c.usedAt ? "Used" : "Available"}</Badge>
+                    </td>
+                    <td className="px-3 py-1.5 text-xs text-[color:var(--color-text-secondary)]">
+                      {new Date(c.createdAt).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Pagination footer */}
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[color:var(--color-text-secondary)]">
+          <span>
+            {total === 0 ? "0 results" : `Showing ${rangeStart.toLocaleString()}–${rangeEnd.toLocaleString()} of ${total.toLocaleString()}`}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1 || loading}
+              className="rounded-md border border-[color:var(--color-border)] px-2.5 py-1.5 font-medium disabled:opacity-40"
+            >
+              Prev
+            </button>
+            <span className="px-2">Page {page} of {totalPages}</span>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages || loading}
+              className="rounded-md border border-[color:var(--color-border)] px-2.5 py-1.5 font-medium disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    </Modal>
   );
 }

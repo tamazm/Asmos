@@ -1,56 +1,68 @@
-/* eslint-disable react/no-unescaped-entities */
+import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
-import Script from "next/script";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth-adapter";
 import { HomepageForm } from "@/components/ui/HomepageForm";
-import { PopupPreview } from "@/components/ui/PopupPreview";
+import { KnockoutBracketPreview } from "@/components/ui/KnockoutBracketPreview";
+import { MarketingHeader } from "@/components/marketing/MarketingHeader";
+import { MarketingFooter } from "@/components/marketing/MarketingFooter";
+import { CTA } from "@/lib/site";
+import { buildMetadata } from "@/lib/seo";
+import { BLOG_POSTS } from "@/lib/blog/posts";
 
-// ─── Checkmark icon ─────────────────────────────────────────────────────────
+export const metadata: Metadata = buildMetadata({
+  title: "AI Conversion Optimization for Ecommerce",
+  description:
+    "Asmos analyzes your store, generates conversion experiments, tests variants, learns from visitor behavior, and continuously improves performance.",
+  path: "/",
+});
+
 function Check() {
   return (
-    <svg
-      aria-hidden="true"
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      className="shrink-0 mt-0.5 text-[color:var(--color-primary)]"
-    >
+    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-0.5 text-[color:var(--color-primary)]">
       <circle cx="7" cy="7" r="7" fill="currentColor" opacity="0.12" />
-      <path
-        d="M4 7l2 2 4-4"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <path d="M4 7l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-// ─── Arrow icon ──────────────────────────────────────────────────────────────
-function ArrowRight({ className }: { className?: string }) {
+function Arrow({ className }: { className?: string }) {
   return (
-    <svg
-      aria-hidden="true"
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      className={className}
-    >
-      <path
-        d="M3 7h8m0 0L7.5 3.5M11 7L7.5 10.5"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+    <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" className={className}>
+      <path d="M2 8h11m0 0L9 4m4 4l-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
+
+const HERO_LOOP = ["Store", "Analyze", "Generate", "Test", "Learn", "Uplift"];
+const PROBLEM_OLD = ["Build", "Guess", "Test", "Analyze", "Rebuild", "Repeat"];
+const PROBLEM_NEW = ["Analyze", "Generate", "Test", "Learn", "Optimize"];
+
+const HOW_STEPS = [
+  { n: "01", title: "Analyze your store", body: "Asmos understands your brand, offer, audience, and current conversion setup." },
+  { n: "02", title: "Generate conversion experiences", body: "AI creates popup concepts and meaningful testing hypotheses." },
+  { n: "03", title: "Test automatically", body: "Asmos launches variants and reallocates traffic based on performance." },
+  { n: "04", title: "Learn from every visitor", body: "Asmos identifies which copy, layouts, offers, triggers, and experiences perform best." },
+  { n: "05", title: "Continuously improve", body: "Winning traits become the foundation for the next generation of tests." },
+];
+
+const FEATURES = [
+  { title: "AI Store Analysis", body: "Understand brand, offer, audience, and conversion opportunities." },
+  { title: "Autonomous Experimentation", body: "Create and test variants without manually managing every experiment." },
+  { title: "Smart Traffic Allocation", body: "Automatically shift traffic toward stronger performers." },
+  { title: "Deep Behavioral Analytics", body: "Track clicks, dismissals, form interactions, timing, and conversion behavior." },
+  { title: "AI Learnings", body: "Understand what is working and why." },
+  { title: "Email & SMS Integrations", body: "Connect captured leads directly to Klaviyo, Mailchimp, Omnisend, and other lifecycle tools." },
+];
+
+const AI_LEARNINGS = [
+  "Shorter headlines are outperforming on mobile.",
+  "Email-only forms are completing more often.",
+  "Paid social visitors respond better to this offer.",
+  "Variant 23 currently has the highest probability of winning.",
+];
+
+const INTEGRATIONS = ["Shopify", "Klaviyo", "Mailchimp", "Omnisend", "Zapier"];
 
 export default async function LandingPage() {
   const { userId } = await auth();
@@ -61,562 +73,394 @@ export default async function LandingPage() {
 
   return (
     <div className="flex min-h-[100dvh] flex-col bg-[color:var(--color-surface)]">
+      <MarketingHeader />
 
-      {/* ── Header ──────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-20 border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)]/90 backdrop-blur-sm">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
-          <Image
-            src="/assets/asmos-logo-primary-lightbg.webp"
-            alt="Asmos"
-            width={110}
-            height={28}
-            priority
-            className="h-8 w-auto"
-          />
-          <nav className="hidden items-center gap-6 text-sm font-medium text-[color:var(--color-text-secondary)] sm:flex">
-            <Link
-              href="#how-it-works"
-              className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]"
-            >
-              How it works
-            </Link>
-            <Link
-              href="/pricing"
-              className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]"
-            >
-              Pricing
-            </Link>
-          </nav>
-          <div className="flex items-center gap-3 text-sm font-medium">
-            <Link
-              href="/sign-in"
-              className="hidden text-[color:var(--color-text-secondary)] transition-colors duration-200 hover:text-[color:var(--color-text-primary)] sm:block"
-            >
-              Log in
-            </Link>
-            <Link
-              href="/sign-up"
-              className="rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
-            >
-              Get started free
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Hero ────────────────────────────────────────────────────── */}
-      <section className="relative px-5 pt-12 pb-16 sm:pt-20 sm:pb-28 overflow-hidden">
-        {/* Ambient glow — top center */}
+      {/* ── 1. Hero ─────────────────────────────────────────────────── */}
+      <section className="relative px-5 pt-14 pb-16 sm:pt-20 sm:pb-24 overflow-hidden">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(ellipse 80% 50% at 50% -10%, rgba(22,93,255,0.08) 0%, transparent 65%)",
-          }}
+          style={{ background: "radial-gradient(ellipse 80% 50% at 50% -10%, oklch(48% 0.255 258 / 0.07) 0%, transparent 65%)" }}
         />
-
         <div className="relative mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-
-            {/* Left: copy + form */}
-            <div>
-              {/* Eyebrow */}
-              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3.5 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] shadow-sm animate-page-enter">
-                <span
-                  className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)] shrink-0"
-                  aria-hidden="true"
-                  style={{ boxShadow: "0 0 0 3px #dcfce7" }}
-                />
-                Turn more store visitors into paying customers
-              </div>
-
-              <h1
-                className="mb-4 text-[2.1rem] leading-[1.08] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-[2.6rem] lg:text-5xl animate-page-enter-delay-1"
-                style={{ textWrap: "balance" } as React.CSSProperties}
-              >
-                Most visitors leave without buying. Asmos turns them into revenue.
-              </h1>
-
-              <p
-                className="mb-7 text-base sm:text-lg text-[color:var(--color-text-secondary)] leading-relaxed max-w-[480px] animate-page-enter-delay-2"
-                style={{ textWrap: "pretty" } as React.CSSProperties}
-              >
-                Paste your store URL. Asmos reads your brand, builds a popup that captures emails and drives repeat sales — then keeps testing until it converts as well as it possibly can.
-              </p>
-
-              {/* URL form */}
-              <div className="animate-page-enter-delay-2">
-                <HomepageForm />
-              </div>
-
-
-            </div>
-
-            {/* Right: popup preview illustration */}
-            <div className="flex justify-center lg:justify-end animate-page-enter-delay-2 mt-10 lg:mt-0">
-              <PopupPreview />
-            </div>
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3.5 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] shadow-sm animate-page-enter">
+            <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)] shrink-0" aria-hidden="true" />
+            Autonomous conversion optimization for ecommerce
           </div>
-        </div>
-      </section>
 
-      {/* ── Social proof bar ────────────────────────────────────────── */}
-      <div className="border-y border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)]">
-        <div className="mx-auto max-w-6xl px-5 py-5 reveal-stagger">
-          <dl className="grid grid-cols-2 sm:flex sm:flex-row items-center justify-center gap-5 sm:gap-12">
-            {[
-              { value: "4.2M+", label: "popups delivered" },
-              { value: "1,800+", label: "stores growing with Asmos" },
-              { value: "+23%", label: "average revenue lift" },
-              { value: "2 min", label: "to first live popup" },
-            ].map((stat) => (
-              <div key={stat.label} className="flex flex-col items-center gap-0.5 text-center">
-                <dt className="text-xl sm:text-[1.375rem] font-bold tracking-tight text-[color:var(--color-text-primary)] tabular-nums">
-                  {stat.value}
-                </dt>
-                <dd className="text-[11px] sm:text-xs text-[color:var(--color-text-secondary)] font-medium">
-                  {stat.label}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-      </div>
-
-      {/* ── How it works ────────────────────────────────────────────── */}
-      <section id="how-it-works" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface)]">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-2 flex justify-center reveal">
-            <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
-              How it works
-            </span>
-          </div>
-          <h2
-            className="mb-3 text-2xl sm:text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
+          <h1
+            className="mb-5 max-w-3xl text-[2.3rem] leading-[1.08] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-[3.1rem] lg:text-[3.6rem] animate-page-enter-delay-1"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            More sales from the traffic you already have
-          </h2>
-          <p className="text-center text-sm text-[color:var(--color-text-secondary)] mb-10 sm:mb-14 max-w-sm mx-auto reveal">
-            No templates to wrestle with. No designer required. Just paste your store URL.
+            AI that continuously improves your ecommerce conversions.
+          </h1>
+
+          <p
+            className="mb-8 max-w-xl text-base sm:text-lg text-[color:var(--color-text-secondary)] leading-relaxed animate-page-enter-delay-2"
+            style={{ textWrap: "pretty" } as React.CSSProperties}
+          >
+            Asmos analyzes your store, generates conversion experiments, tests variants, learns from visitor behavior, and continuously improves performance.
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 reveal-stagger">
-            {[
-              {
-                n: "01",
-                title: "Paste your store URL",
-                body: "We scan your brand colors, tone, and existing offers in under 10 seconds. No account needed yet.",
-                callout: "Brand-matched in seconds",
-              },
-              {
-                n: "02",
-                title: "Get a popup built for your brand",
-                body: "Asmos builds a popup designed to convert your specific visitors — matched to your brand, offer, and audience. Review it before you commit to anything.",
-                callout: "Live preview, no signup required",
-              },
-              {
-                n: "03",
-                title: "It keeps converting more, automatically",
-                body: "Once live, Asmos tests multiple versions and automatically sends more visitors to the one driving the most sales — no weekly check-ins needed.",
-                callout: "No manual A/B setup needed",
-              },
-            ].map((item) => (
+          <div className="flex flex-wrap items-center gap-4 animate-page-enter-delay-2">
+            <Link
+              href={CTA.primary.href}
+              className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
+            >
+              {CTA.primary.label}
+            </Link>
+            <Link
+              href={CTA.secondary.href}
+              className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]"
+            >
+              {CTA.secondary.label}
+            </Link>
+            <Link
+              href={CTA.tertiary.href}
+              className="text-sm font-medium text-[color:var(--color-text-secondary)] underline decoration-[color:var(--color-border)] underline-offset-4 transition-colors duration-200 hover:text-[color:var(--color-primary)]"
+            >
+              {CTA.tertiary.label}
+            </Link>
+          </div>
+
+          {/* Hero product loop visual */}
+          <div className="mt-14 animate-page-enter-delay-3">
+            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 sm:p-7 shadow-sm overflow-x-auto">
+              <div className="flex min-w-[560px] items-center justify-between gap-1">
+                {HERO_LOOP.map((step, i) => (
+                  <div key={step} className="flex items-center gap-1 flex-1">
+                    <div className="flex flex-1 flex-col items-center gap-2 text-center">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] text-xs font-bold text-[color:var(--color-primary)] tabular-nums">
+                        {String(i + 1).padStart(2, "0")}
+                      </div>
+                      <span className="text-xs font-medium text-[color:var(--color-text-secondary)]">{step}</span>
+                    </div>
+                    {i < HERO_LOOP.length - 1 && (
+                      <Arrow className="text-[color:var(--color-border)] shrink-0 mb-6" />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 2. Social proof ─────────────────────────────────────────── */}
+      <section className="border-y border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-5 py-10">
+        <div className="mx-auto max-w-6xl text-center reveal">
+          <p className="text-sm font-medium text-[color:var(--color-text-secondary)] mb-5">
+            Built for ecommerce teams focused on measurable growth.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            {[1, 2, 3, 4, 5].map((i) => (
               <div
-                key={item.n}
-                className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-7 flex flex-col gap-5"
+                key={i}
+                className="flex h-10 w-32 items-center justify-center rounded-lg border border-dashed border-[color:var(--color-border)] text-[11px] text-[color:var(--color-text-secondary)]"
               >
-                <span className="text-3xl font-bold tabular-nums text-[color:var(--color-primary)] opacity-20 tracking-tight leading-none">
-                  {item.n}
-                </span>
-                <div>
-                  <h3 className="text-base font-semibold text-[color:var(--color-text-primary)] mb-2">
-                    {item.title}
-                  </h3>
-                  <p
-                    className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed"
-                    style={{ textWrap: "pretty" } as React.CSSProperties}
-                  >
-                    {item.body}
-                  </p>
-                </div>
-                <div className="mt-auto pt-3 border-t border-[color:var(--color-border)] flex items-center gap-2">
-                  <Check />
-                  <span className="text-xs font-medium text-[color:var(--color-text-secondary)]">
-                    {item.callout}
+                Design partner
+              </div>
+            ))}
+          </div>
+          <p className="mt-4 text-[11px] text-[color:var(--color-text-secondary)]">
+            Logos and performance metrics will appear here as design partners go live.
+          </p>
+        </div>
+      </section>
+
+      {/* ── 3. Problem ──────────────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl">
+          <h2
+            className="mb-10 sm:mb-14 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
+            style={{ textWrap: "balance" } as React.CSSProperties}
+          >
+            Conversion optimization is still too manual.
+          </h2>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 reveal-stagger">
+            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-7">
+              <p className="mb-5 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">The old way</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {PROBLEM_OLD.map((step, i) => (
+                  <span key={step} className="flex items-center gap-2">
+                    <span className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)]">
+                      {step}
+                    </span>
+                    {i < PROBLEM_OLD.length - 1 && <Arrow className="h-3 w-3 text-[color:var(--color-border)]" />}
                   </span>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-[color:var(--color-primary)]/25 bg-[color:var(--color-primary-light)] p-7">
+              <p className="mb-5 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">With Asmos</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {PROBLEM_NEW.map((step, i) => (
+                  <span key={step} className="flex items-center gap-2">
+                    <span className="rounded-full bg-[color:var(--color-primary)] px-3 py-1.5 text-xs font-medium text-white">
+                      {step}
+                    </span>
+                    {i < PROBLEM_NEW.length - 1 && <Arrow className="h-3 w-3 text-[color:var(--color-primary)]/50" />}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 4. How Asmos Works ──────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+            How Asmos works
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 reveal-stagger mb-10">
+            {HOW_STEPS.map((s) => (
+              <div key={s.n} className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
+                <span className="text-2xl font-bold tabular-nums text-[color:var(--color-primary)] opacity-25">{s.n}</span>
+                <h3 className="mt-3 mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{s.title}</h3>
+                <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{s.body}</p>
+              </div>
+            ))}
+          </div>
+          <div className="text-center">
+            <Link href={CTA.primary.href} className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+              {CTA.primary.label} <Arrow className="h-3.5 w-3.5 text-white/80" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 5. Core product features ────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Everything you need to optimize conversion, automatically
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 reveal-stagger">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)]">
+                  <Check />
                 </div>
+                <h3 className="mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{f.title}</h3>
+                <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{f.body}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Results section ─────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-12 items-center">
-            {/* Left: copy */}
-            <div className="reveal">
-              <div className="mb-4">
-                <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
-                  Results
+      {/* ── 6. Autonomous optimization ──────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)] overflow-hidden">
+        <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-12 items-center">
+          <div className="reveal">
+            <h2 className="mb-4 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+              Let the strongest experience win.
+            </h2>
+            <p className="mb-6 text-sm text-[color:var(--color-text-secondary)] leading-relaxed max-w-md">
+              Asmos continuously evaluates performance, reduces exposure to weaker experiences, and gives stronger variants more opportunity to convert.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {["Many variants", "Stronger variants remain", "Traffic concentrates", "Winner emerges", "New generation begins"].map((s, i, arr) => (
+                <span key={s} className="flex items-center gap-2">
+                  <span className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)]">{s}</span>
+                  {i < arr.length - 1 && <Arrow className="h-3 w-3 text-[color:var(--color-border)]" />}
                 </span>
-              </div>
-              <h2
-                className="mb-4 text-2xl sm:text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)]"
-                style={{ textWrap: "balance" } as React.CSSProperties}
-              >
-                Most stores are converting 1–2% of visitors. The rest leave and never come back.
-              </h2>
-              <p
-                className="mb-8 text-sm text-[color:var(--color-text-secondary)] leading-relaxed max-w-sm"
-                style={{ textWrap: "pretty" } as React.CSSProperties}
-              >
-                Asmos captures those visitors before they go — then keeps testing which offer, headline, and timing drives the most sales. It shifts budget to the winning version automatically. No spreadsheets. No guessing.
-              </p>
-              <ul className="space-y-3">
-                {[
-                  "Captures visitors who would have left empty-handed",
-                  "Adapts to device, time of day, and traffic source",
-                  "Stops wasting impressions on underperforming variants early",
-                  "Full history of every test — see exactly what drove results",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm text-[color:var(--color-text-secondary)]">
-                    <Check />
-                    <span style={{ textWrap: "pretty" } as React.CSSProperties}>{item}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-8 sm:mt-10">
-                <Link
-                  href="/sign-up"
-                  className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
-                >
-                  Start converting more visitors
-                  <ArrowRight className="text-white/80" />
-                </Link>
-                <p className="mt-2.5 text-xs text-[color:var(--color-text-secondary)]">
-                  Free to start, no credit card.
-                </p>
-              </div>
-            </div>
-
-            {/* Right: metric cards */}
-            <div className="grid grid-cols-2 gap-3 sm:gap-4 reveal-stagger">
-              {[
-                {
-                  metric: "+23%",
-                  label: "Average revenue lift in the first 30 days",
-                  accent: false,
-                },
-                {
-                  metric: "8x",
-                  label: "More versions tested per campaign than any manual A/B tool",
-                  accent: true,
-                },
-                {
-                  metric: "~60s",
-                  label: "From store URL to a branded popup live on your site",
-                  accent: false,
-                },
-                {
-                  metric: "0",
-                  label: "Manual tweaks required. It runs itself and keeps improving.",
-                  accent: false,
-                },
-              ].map((card) => (
-                <div
-                  key={card.metric}
-                  className={[
-                    "rounded-2xl border p-4 sm:p-6 flex flex-col gap-2",
-                    card.accent
-                      ? "border-[color:var(--color-primary)]/25 bg-[color:var(--color-primary-light)]"
-                      : "border-[color:var(--color-border)] bg-[color:var(--color-surface)]",
-                  ].join(" ")}
-                >
-                  <span
-                    className={[
-                      "text-2xl sm:text-3xl font-bold tabular-nums tracking-tight",
-                      card.accent
-                        ? "text-[color:var(--color-primary)]"
-                        : "text-[color:var(--color-text-primary)]",
-                    ].join(" ")}
-                  >
-                    {card.metric}
-                  </span>
-                  <p
-                    className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed"
-                    style={{ textWrap: "pretty" } as React.CSSProperties}
-                  >
-                    {card.label}
-                  </p>
-                </div>
               ))}
             </div>
           </div>
+          <div className="flex justify-center reveal-eager">
+            <KnockoutBracketPreview animated />
+          </div>
         </div>
       </section>
 
-      {/* ── Testimonials ────────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)]">
+      {/* ── 7. Analytics ─────────────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-2 flex justify-center reveal">
-            <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
-              From store owners
-            </span>
-          </div>
-          <h2
-            className="mb-10 sm:mb-14 text-2xl sm:text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
-            style={{ textWrap: "balance" } as React.CSSProperties}
-          >
-            Stores that stopped leaving money on the table
+          <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+            See exactly what Asmos is learning.
           </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 reveal-stagger">
-            {[
-              {
-                quote:
-                  "We went from converting 2.1% of visitors to 5.8% in three weeks. The popup just kept improving on its own.",
-                name: "Sara M.",
-                role: "Owner, apparel brand",
-              },
-              {
-                quote:
-                  "Set it up in under 5 minutes. Didn't touch it for a month. Sales from returning customers were up 31% compared to before.",
-                name: "Dmitri V.",
-                role: "Marketing lead, home goods store",
-              },
-              {
-                quote:
-                  "The brand-match is genuinely impressive. First popup looked like we designed it ourselves — and it started converting on day one.",
-                name: "Priya K.",
-                role: "Founder, skincare brand",
-              },
-            ].map((t) => (
-              <figure
-                key={t.name}
-                className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-7 flex flex-col gap-5"
-              >
-                {/* Star row */}
-                <div className="flex gap-0.5" aria-label="5 stars">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <svg key={i} aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="#165DFF">
-                      <path d="M6 1l1.24 2.51L10 3.93l-2 1.95.47 2.75L6 7.27 3.53 8.63 4 5.88 2 3.93l2.76-.42L6 1z" />
-                    </svg>
-                  ))}
+          <p className="mb-10 text-sm text-[color:var(--color-text-secondary)] text-center reveal">Illustrative product interface</p>
+          <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 sm:p-8 shadow-sm reveal-eager">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+              {[
+                { label: "Impressions", value: "—" },
+                { label: "Leads", value: "—" },
+                { label: "CVR", value: "—%" },
+                { label: "Conversion uplift", value: "—%" },
+                { label: "Active variants", value: "—" },
+                { label: "Traffic allocation", value: "—" },
+                { label: "Winning variant", value: "—" },
+                { label: "AI insights", value: "—" },
+              ].map((stat) => (
+                <div key={stat.label} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4">
+                  <p className="text-lg font-bold tabular-nums text-[color:var(--color-text-primary)]">{stat.value}</p>
+                  <p className="text-[11px] text-[color:var(--color-text-secondary)]">{stat.label}</p>
                 </div>
-                <blockquote>
-                  <p
-                    className="text-sm text-[color:var(--color-text-primary)] leading-relaxed"
-                    style={{ textWrap: "pretty" } as React.CSSProperties}
-                  >
-                    "{t.quote}"
-                  </p>
-                </blockquote>
-                <figcaption className="mt-auto flex items-center gap-3">
-                  {/* Avatar placeholder */}
-                  <div
-                    className="h-8 w-8 rounded-full bg-[color:var(--color-primary-light)] border border-[color:var(--color-border)] flex items-center justify-center shrink-0"
-                  >
-                    <span className="text-[11px] font-semibold text-[color:var(--color-primary)]">
-                      {t.name[0]}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-[color:var(--color-text-primary)]">{t.name}</p>
-                    <p className="text-[11px] text-[color:var(--color-text-secondary)]">{t.role}</p>
-                  </div>
-                </figcaption>
-              </figure>
+              ))}
+            </div>
+            <p className="text-center text-[11px] text-[color:var(--color-text-secondary)]">
+              Live numbers populate automatically once your store is connected — nothing here is a real customer result.
+            </p>
+          </div>
+          <div className="mt-8 text-center">
+            <Link href={CTA.primary.href} className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+              {CTA.primary.label} <Arrow className="h-3.5 w-3.5 text-white/80" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 8. AI Learnings ─────────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="mb-10 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Asmos doesn&apos;t just find winners. It learns why they win.
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 reveal-stagger max-w-3xl mx-auto">
+            {AI_LEARNINGS.map((insight) => (
+              <div key={insight} className="flex items-start gap-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)] text-[10px] font-bold">AI</div>
+                <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{insight}</p>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-center text-[11px] text-[color:var(--color-text-secondary)]">Example insights — actual learnings are generated from your store&apos;s data.</p>
+        </div>
+      </section>
+
+      {/* ── 9. Integrations ─────────────────────────────────────────── */}
+      <section id="integrations" className="px-5 py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl text-center">
+          <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Works with the tools you already use.
+          </h2>
+          <p className="mb-10 text-sm text-[color:var(--color-text-secondary)] max-w-lg mx-auto reveal">
+            Asmos optimizes lead capture while you keep using your existing email and SMS systems for follow-up.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 reveal-stagger">
+            {INTEGRATIONS.map((name) => (
+              <span key={name} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-medium text-[color:var(--color-text-primary)]">
+                {name}
+              </span>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Pricing ─────────────────────────────────────────────────── */}
-      <section id="pricing" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-t border-[color:var(--color-border)]">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-2 flex justify-center reveal">
-            <span className="inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
-              Pricing
-            </span>
-          </div>
-          <h2
-            className="mb-3 text-2xl sm:text-[1.875rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
-            style={{ textWrap: "balance" } as React.CSSProperties}
-          >
-            Start free. Upgrade when you outgrow it.
+      {/* ── 10. Free Optimization Analysis (supporting, lighter CTA) ── */}
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+        <div className="mx-auto max-w-3xl text-center reveal">
+          <span className="mb-4 inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
+            Free Tool
+          </span>
+          <h2 className="mb-3 text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Not ready to start? Analyze your store first.
           </h2>
-          <p className="text-sm text-[color:var(--color-text-secondary)] text-center mb-10 sm:mb-14 max-w-xs mx-auto reveal">
-            The free plan doesn't expire. No credit card, no trial clock.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 max-w-2xl mx-auto reveal-stagger">
-            {/* Starter */}
-            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-8 flex flex-col">
-              <div className="mb-7">
-                <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)] mb-3">
-                  Starter
-                </p>
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-4xl font-bold tracking-tight text-[color:var(--color-text-primary)] tabular-nums">
-                    Free
-                  </span>
-                </div>
-                <p className="mt-1.5 text-xs text-[color:var(--color-text-secondary)]">
-                  No credit card required
-                </p>
-              </div>
-
-              <ul className="space-y-3 mb-8 flex-1">
-                {[
-                  "Up to 1,000 impressions / month",
-                  "1 active campaign",
-                  "AI brand analysis",
-                  "AI-generated popup",
-                ].map((feature) => (
-                  <li key={feature} className="flex items-start gap-2.5 text-sm text-[color:var(--color-text-secondary)]">
-                    <Check />
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href="/sign-up"
-                className="block w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2.5 text-center text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]"
-              >
-                Get started free
-              </Link>
-              <p className="mt-2.5 text-center text-xs text-[color:var(--color-text-secondary)]">
-                No expiry on the free plan
-              </p>
-            </div>
-
-            {/* Growth — featured */}
-            <div className="rounded-[1.375rem] border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary-light)] p-1.5 shadow-lg">
-              <div
-                className="flex flex-col rounded-[1rem] bg-[color:var(--color-surface)] p-7 h-full"
-                style={{ boxShadow: "inset 0 1px 1px rgba(255,255,255,0.95)" }}
-              >
-                <div className="mb-7">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">
-                      Growth
-                    </p>
-                    <span className="rounded-full bg-[color:var(--color-primary)] px-2.5 py-0.5 text-[10px] font-semibold text-white">
-                      Most popular
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-4xl font-bold tracking-tight text-[color:var(--color-text-primary)] tabular-nums">
-                      $29
-                    </span>
-                    <span className="text-sm text-[color:var(--color-text-secondary)]">/ mo</span>
-                  </div>
-                  <p className="mt-1.5 text-xs text-[color:var(--color-text-secondary)]">
-                    Cancel anytime. No contracts.
-                  </p>
-                </div>
-
-                <ul className="space-y-3 mb-8 flex-1">
-                  {[
-                    "Unlimited impressions",
-                    "Unlimited campaigns",
-                    "AI optimization, always on",
-                    "Bandit-based A/B testing",
-                    "Analytics dashboard",
-                    "Priority support",
-                  ].map((feature) => (
-                    <li key={feature} className="flex items-start gap-2.5 text-sm text-[color:var(--color-text-secondary)]">
-                      <Check />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href="/sign-up"
-                  className="block w-full rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
-                >
-                  Start 14-day free trial
-                </Link>
-                <p className="mt-2.5 text-center text-xs text-[color:var(--color-text-secondary)]">
-                  No credit card needed to start
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Final CTA ───────────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface)] border-t border-[color:var(--color-border)]">
-        <div className="mx-auto max-w-2xl text-center reveal">
-          <h2
-            className="mb-4 text-2xl sm:text-[2rem] font-bold tracking-tight text-[color:var(--color-text-primary)]"
-            style={{ textWrap: "balance" } as React.CSSProperties}
-          >
-            See exactly how much revenue your store is leaving on the table
-          </h2>
-          <p className="mb-8 text-sm text-[color:var(--color-text-secondary)] max-w-sm mx-auto">
-            Paste your store URL. We'll scan it, score it, and show you a popup built to convert — in under 60 seconds. No account needed.
+          <p className="mb-6 text-sm text-[color:var(--color-text-secondary)] max-w-md mx-auto">
+            Paste your store URL and get a limited conversion analysis with actionable optimization opportunities — no account required.
           </p>
           <HomepageForm />
+          <p className="mt-4 text-xs text-[color:var(--color-text-secondary)]">
+            Also want to model the revenue impact? Try the{" "}
+            <Link href="/tools/email-capture-calculator" className="text-[color:var(--color-primary)] underline underline-offset-2">Email Capture Revenue Calculator</Link>.
+          </p>
         </div>
       </section>
 
-      {/* ── Footer ──────────────────────────────────────────────────── */}
-      <footer className="border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-5 py-8">
-        <div className="mx-auto max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[color:var(--color-text-secondary)]">
-          <div className="flex items-center gap-3">
-            <Image
-              src="/assets/asmos-logo-primary-lightbg.webp"
-              alt="Asmos"
-              width={72}
-              height={18}
-              className="h-4 w-auto opacity-60"
-            />
-            <span>&copy; 2026 Asmos</span>
-          </div>
-          <nav className="flex items-center gap-5">
-            <Link href="/pricing" className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]">
-              Pricing
-            </Link>
-            <Link href="/privacy" className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]">
-              Privacy
-            </Link>
-            <Link href="/terms" className="transition-colors duration-200 hover:text-[color:var(--color-text-primary)]">
-              Terms
-            </Link>
-          </nav>
+      {/* ── 11. Pricing preview ─────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24">
+        <div className="mx-auto max-w-2xl text-center reveal">
+          <h2 className="mb-3 text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Flexible pricing built around your traffic.
+          </h2>
+          <p className="mb-2 text-sm text-[color:var(--color-text-secondary)]">Choose your monthly traffic volume and pay only for the capacity you need.</p>
+          <p className="mb-7 text-xs text-[color:var(--color-text-secondary)]">Every plan includes the full Asmos platform. Pricing scales with your traffic and level of support — not locked features.</p>
+          <Link href="/pricing" className="inline-flex items-center gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
+            View Pricing <Arrow className="h-3.5 w-3.5" />
+          </Link>
         </div>
-      </footer>
+      </section>
 
-      {/* ── Scroll reveal wiring ────────────────────────────────────── */}
-      <ScrollReveal />
+      {/* ── 12. Managed Success ─────────────────────────────────────── */}
+      <section id="managed-success" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+        <div className="mx-auto max-w-2xl text-center reveal">
+          <h2 className="mb-3 text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Prefer a hands-on experience?
+          </h2>
+          <p className="mb-7 text-sm text-[color:var(--color-text-secondary)] max-w-md mx-auto">
+            Add Managed Success for white-glove onboarding, hands-on optimization support, and a dedicated Customer Success Manager.
+          </p>
+          <Link href="/why-asmos#managed-success" className="inline-flex items-center gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
+            Learn About Managed Success <Arrow className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </section>
+
+      {/* ── 13. Case studies ────────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="mb-10 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Results from stores using Asmos
+          </h2>
+          <div className="rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-10 text-center reveal-eager">
+            <p className="text-sm text-[color:var(--color-text-secondary)] max-w-md mx-auto">
+              Case studies are coming soon as early Asmos customers complete their first optimization cycles. Check back for baseline CVR, uplift, and incremental revenue results.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 14. Blog / resources preview ────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-10 flex items-end justify-between reveal">
+            <h2 className="text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+              From the blog
+            </h2>
+            <Link href="/blog" className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-[color:var(--color-primary)]">
+              Explore Resources <Arrow className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 reveal-stagger">
+            {BLOG_POSTS.slice(0, 3).map((post) => (
+              <Link key={post.slug} href={`/blog/${post.slug}`} className="group rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 transition-shadow duration-200 hover:shadow-md">
+                <span className="mb-3 inline-block rounded-full bg-[color:var(--color-primary-light)] px-2.5 py-1 text-[10px] font-semibold text-[color:var(--color-primary)]">{post.category}</span>
+                <h3 className="mb-2 text-sm font-semibold text-[color:var(--color-text-primary)] leading-snug group-hover:text-[color:var(--color-primary)] transition-colors duration-200">{post.title}</h3>
+                <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed line-clamp-3">{post.excerpt}</p>
+                <p className="mt-3 text-[11px] text-[color:var(--color-text-secondary)]">{post.readTime}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 15. Final CTA ────────────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24">
+        <div className="mx-auto max-w-2xl text-center reveal">
+          <h2 className="mb-4 text-2xl sm:text-[2rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Stop guessing what converts.
+          </h2>
+          <p className="mb-8 text-sm text-[color:var(--color-text-secondary)] max-w-sm mx-auto">
+            Let Asmos continuously analyze, test, and improve your conversion experiences.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Link href={CTA.primary.href} className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+              {CTA.primary.label}
+            </Link>
+            <Link href={CTA.secondary.href} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
+              {CTA.secondary.label}
+            </Link>
+          </div>
+          <Link href={CTA.tertiary.href} className="mt-4 inline-block text-xs font-medium text-[color:var(--color-text-secondary)] underline underline-offset-4 hover:text-[color:var(--color-primary)]">
+            {CTA.tertiary.label}
+          </Link>
+        </div>
+      </section>
+
+      <MarketingFooter />
     </div>
-  );
-}
-
-// Lightweight IntersectionObserver wiring for .reveal and .reveal-stagger
-function ScrollReveal() {
-  return (
-    <Script id="scroll-reveal" strategy="afterInteractive">
-      {`
-(function(){
-  if(typeof IntersectionObserver==='undefined') return;
-  var els=document.querySelectorAll('.reveal,.reveal-stagger');
-  var io=new IntersectionObserver(function(entries){
-    entries.forEach(function(e){
-      if(e.isIntersecting){e.target.classList.add('is-visible');io.unobserve(e.target);}
-    });
-  },{threshold:0.12,rootMargin:'0px 0px -40px 0px'});
-  els.forEach(function(el){io.observe(el);});
-})();
-      `}
-    </Script>
   );
 }

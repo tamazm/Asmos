@@ -20,9 +20,11 @@ function randomCode(prefix: string): string {
   return prefix ? `${prefix}-${suffix}` : suffix;
 }
 
-// Lists codes for the "manage codes" batch-select panel on the rewards
-// page. Capped at 500 per request — this is a management UI, not the CSV
-// export (which streams all of them via codes/export/route.ts).
+// Lists codes for the "manage codes" table on the rewards page. Server-side
+// paginated + searched + filtered — this is a management UI for accounts
+// that may have thousands of codes, not the CSV export (which streams all
+// of them via codes/export/route.ts) so it must never load the whole set
+// into the browser at once.
 export async function GET(
   request: Request,
   ctx: RouteContext<"/api/rewards/[id]/codes">,
@@ -39,23 +41,38 @@ export async function GET(
     return Response.json({ error: "Reward not found" }, { status: 404 });
   }
 
-  const status = new URL(request.url).searchParams.get("status") ?? "all";
-  const where =
-    status === "used"
-      ? { rewardRuleId: reward.id, usedAt: { not: null } }
-      : status === "unused"
-        ? { rewardRuleId: reward.id, usedAt: null }
-        : { rewardRuleId: reward.id };
+  const url = new URL(request.url);
+  const status = url.searchParams.get("status") ?? "all";
+  const search = (url.searchParams.get("search") ?? "").trim();
+  const page = Math.max(1, Math.floor(Number(url.searchParams.get("page")) || 1));
+  const pageSize = Math.min(200, Math.max(10, Math.floor(Number(url.searchParams.get("pageSize")) || 50)));
 
-  const codes = await prisma.couponCode.findMany({
-    where,
-    orderBy: { createdAt: "asc" },
-    take: 500,
-    select: { id: true, code: true, usedAt: true, createdAt: true },
+  const where = {
+    rewardRuleId: reward.id,
+    ...(status === "used" ? { usedAt: { not: null } } : status === "unused" ? { usedAt: null } : {}),
+    ...(search ? { code: { contains: search, mode: "insensitive" as const } } : {}),
+  };
+
+  const [codes, total, totalUnfiltered] = await Promise.all([
+    prisma.couponCode.findMany({
+      where,
+      orderBy: { createdAt: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+      select: { id: true, code: true, usedAt: true, createdAt: true },
+    }),
+    prisma.couponCode.count({ where }),
+    prisma.couponCode.count({ where: { rewardRuleId: reward.id } }),
+  ]);
+
+  return Response.json({
+    codes,
+    total,
+    totalUnfiltered,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
   });
-  const total = await prisma.couponCode.count({ where: { rewardRuleId: reward.id } });
-
-  return Response.json({ codes, total, truncated: total > codes.length });
 }
 
 // Batch removal — either specific code ids, or a bulk "clear all unused"

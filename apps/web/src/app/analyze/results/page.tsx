@@ -606,9 +606,178 @@ export default function AnalyzeResultsPage() {
           </section>
         )}
 
+        {/* ─────────────── 6. EXPERIMENTS ASMOS WOULD RUN (derived from this store's actual findings) ─────────────── */}
+        {emailState === "sent" && (
+          <section className="fi-4">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">
+              Experiments Asmos would run
+            </h2>
+            <div className="space-y-2.5">
+              {buildExperimentIdeas(failedChecks).map((exp, i) => (
+                <div key={exp.control} className="rounded-xl border border-gray-100 bg-white px-4 py-4">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-2">Experiment {String(i + 1).padStart(2, "0")} — {exp.category}</p>
+                  <div className="grid grid-cols-2 gap-3 mb-2">
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase mb-0.5">Control</p>
+                      <p className="text-xs text-gray-700">{exp.control}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold text-gray-400 uppercase mb-0.5">Test</p>
+                      <p className="text-xs text-gray-700">{exp.test}</p>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-gray-500 leading-relaxed border-t border-gray-50 pt-2">
+                    <span className="font-semibold text-gray-600">Hypothesis: </span>{exp.hypothesis}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] text-gray-400">These are hypotheses worth testing, not guaranteed outcomes.</p>
+          </section>
+        )}
+
+        {/* ─────────────── 7. ASMOS TRANSITION ─────────────── */}
+        <section className="fi-4 rounded-2xl border border-gray-100 bg-gray-50 px-5 py-7 text-center">
+          <p className="text-lg font-extrabold text-gray-900 leading-snug mb-2">
+            Analysis tells you what to test. Asmos tests it for you.
+          </p>
+          <p className="text-xs text-gray-500 leading-relaxed max-w-xs mx-auto mb-5">
+            Asmos turns conversion opportunities into experiments, generates variants, measures performance, learns from visitor behavior, and continuously improves your conversion experience.
+          </p>
+          <div className="flex items-center justify-center gap-1.5 flex-wrap mb-6">
+            {["Analysis", "Generate Variants", "Run Experiments", "Find Winners", "Learn", "Optimize Again"].map((s, i, arr) => (
+              <span key={s} className="flex items-center gap-1.5">
+                <span className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-[10px] font-medium text-gray-500">{s}</span>
+                {i < arr.length - 1 && <span className="text-gray-300 text-[10px]">→</span>}
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-col gap-2.5 max-w-xs mx-auto">
+            <button
+              onClick={() => router.push("/sign-up?from=analyze")}
+              className="w-full rounded-xl py-3.5 text-sm font-bold text-white bg-gray-900 hover:bg-gray-800 transition-colors active:scale-[0.98]"
+            >
+              Start Free Trial
+            </button>
+            <Link
+              href="/contact#book-a-demo"
+              className="w-full rounded-xl py-3.5 text-sm font-bold text-gray-900 bg-white border border-gray-200 hover:bg-gray-50 transition-colors text-center"
+            >
+              Book a Demo
+            </Link>
+          </div>
+
+          {/* High-value lead CTA — shown when several conversion gaps were found */}
+          {failedChecks.length >= 3 && (
+            <div className="mt-6 rounded-xl bg-white border border-gray-100 px-4 py-4 text-left">
+              <p className="text-xs font-bold text-gray-900 mb-1">Want us to help implement these recommendations?</p>
+              <p className="text-[11px] text-gray-500 leading-relaxed mb-2.5">
+                Our team can personally help you launch your first optimization with Asmos.
+              </p>
+              <Link href="/contact#book-a-demo" className="text-[11px] font-semibold text-gray-900 underline underline-offset-2">
+                Book a Demo →
+              </Link>
+            </div>
+          )}
+        </section>
+
+        {/* ─────────────── 8. OTHER FREE TOOLS ─────────────── */}
+        <section className="fi-4">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Explore more free tools</h2>
+          <div className="grid grid-cols-1 gap-2.5">
+            <Link href="/tools/email-capture-calculator" className="rounded-xl border border-gray-100 bg-white px-4 py-3.5 flex items-center justify-between hover:border-gray-200 transition-colors">
+              <div>
+                <p className="text-xs font-bold text-gray-900">Email Capture Revenue Calculator</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">Estimate how improvements in email capture could translate into additional revenue.</p>
+              </div>
+              <span className="text-gray-300 text-sm">→</span>
+            </Link>
+            <Link href="/tools/traffic-calculator" className="rounded-xl border border-gray-100 bg-white px-4 py-3.5 flex items-center justify-between hover:border-gray-200 transition-colors">
+              <div>
+                <p className="text-xs font-bold text-gray-900">Traffic Calculator</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">Estimate and understand your ecommerce traffic opportunity.</p>
+              </div>
+              <span className="text-gray-300 text-sm">→</span>
+            </Link>
+          </div>
+        </section>
+
+        {/* ─────────────── 9. FINAL CTA ─────────────── */}
+        <section className="fi-4 text-center pt-2">
+          <p className="text-base font-extrabold text-gray-900 mb-1.5">Ready to stop optimizing manually?</p>
+          <p className="text-xs text-gray-500 mb-5 max-w-xs mx-auto">Turn your analysis into continuously running experiments with Asmos.</p>
+          <div className="flex flex-col gap-2.5 max-w-xs mx-auto">
+            <button
+              onClick={() => router.push("/sign-up?from=analyze")}
+              className="w-full rounded-xl py-3.5 text-sm font-bold text-white bg-gray-900 hover:bg-gray-800 transition-colors active:scale-[0.98]"
+            >
+              Start Free Trial
+            </button>
+            <Link href="/contact#book-a-demo" className="text-xs font-semibold text-gray-500 hover:text-gray-800">
+              Book a Demo
+            </Link>
+          </div>
+        </section>
+
       </main>
     </div>
   );
+}
+
+// ─── Experiment ideas derived from this store's actual failed checks ────────
+interface ExperimentIdea { category: string; control: string; test: string; hypothesis: string }
+
+const EXPERIMENT_IDEAS_BY_CHECK: Record<string, ExperimentIdea> = {
+  popup: {
+    category: "Popup",
+    control: "No capture popup currently live",
+    test: "Introduce a branded popup with a single, clear offer",
+    hypothesis: "Capturing visitors before they leave may convert some of the traffic that currently leaves without buying.",
+  },
+  emailCapture: {
+    category: "Offer",
+    control: "No incentive shown to new visitors",
+    test: "Test a first-order discount or free-shipping threshold offer",
+    hypothesis: "An immediate, clear incentive may increase the share of visitors willing to share their email.",
+  },
+  exitIntent: {
+    category: "Trigger",
+    control: "No exit-intent recovery",
+    test: "Trigger a targeted offer when exit intent is detected",
+    hypothesis: "Catching visitors at the moment they're about to leave may recover some abandoning sessions.",
+  },
+  urgency: {
+    category: "Messaging",
+    control: "No urgency or scarcity signal",
+    test: "Test a time-limited or low-stock message alongside the existing offer",
+    hypothesis: "Urgency cues may shift some visitors from 'I'll come back later' to purchasing now.",
+  },
+  socialProof: {
+    category: "Trust",
+    control: "No visible reviews or customer proof",
+    test: "Surface a review count or rating near the offer",
+    hypothesis: "Visible social proof may reduce hesitation for first-time visitors evaluating the store.",
+  },
+  stickyBar: {
+    category: "Layout",
+    control: "Offer only visible once, at the top of the page",
+    test: "Add a persistent bar keeping the offer visible while scrolling",
+    hypothesis: "Keeping the offer visible throughout the session may improve recall and completion.",
+  },
+};
+
+const GENERIC_EXPERIMENT_IDEAS: ExperimentIdea[] = [
+  { category: "CTA", control: "Generic CTA copy (e.g. \"Submit\")", test: "CTA that states the value received (e.g. \"Get 10% Off\")", hypothesis: "Making the CTA communicate the benefit may improve completion." },
+  { category: "Form", control: "Single-step form requesting all fields at once", test: "Two-step flow — email first, additional fields second", hypothesis: "Reducing initial form friction may improve completion rate." },
+  { category: "Timing", control: "Fixed-delay popup trigger", test: "Scroll-depth or engagement-based trigger", hypothesis: "Showing the offer based on visitor behavior, not just time, may improve relevance." },
+];
+
+function buildExperimentIdeas(failedChecks: { key: string }[]): ExperimentIdea[] {
+  const fromChecks = failedChecks
+    .map((c) => EXPERIMENT_IDEAS_BY_CHECK[c.key])
+    .filter((idea): idea is ExperimentIdea => Boolean(idea));
+  const combined = [...fromChecks, ...GENERIC_EXPERIMENT_IDEAS];
+  return combined.slice(0, 3);
 }
 
 // ─── Spec-based fallback popup (when AI code is unavailable) ─────────────────
