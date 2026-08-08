@@ -66,7 +66,7 @@ export function MarketingHeader() {
           </Link>
           <Link
             href={CTA.primary.href}
-            className="rounded-lg bg-[color:var(--color-primary)] px-3.5 py-2 text-xs sm:px-4 sm:text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] whitespace-nowrap"
+            className="rounded-full bg-[color:var(--color-primary)] px-3.5 py-2 text-xs sm:px-4 sm:text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] whitespace-nowrap"
           >
             {CTA.primary.label}
           </Link>
@@ -115,14 +115,14 @@ export function MarketingHeader() {
             <Link
               href="/sign-in"
               onClick={() => setOpen(false)}
-              className="w-full rounded-lg border border-[color:var(--color-border)] py-2.5 text-center text-sm font-semibold text-[color:var(--color-text-primary)] transition-colors duration-150 hover:bg-[color:var(--color-surface-sunken)]"
+              className="w-full rounded-full border border-[color:var(--color-border)] py-2.5 text-center text-sm font-semibold text-[color:var(--color-text-primary)] transition-colors duration-150 hover:bg-[color:var(--color-surface-sunken)]"
             >
               Log in
             </Link>
             <Link
               href={CTA.primary.href}
               onClick={() => setOpen(false)}
-              className="w-full rounded-lg bg-[color:var(--color-primary)] py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
+              className="w-full rounded-full bg-[color:var(--color-primary)] py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
             >
               {CTA.primary.label}
             </Link>

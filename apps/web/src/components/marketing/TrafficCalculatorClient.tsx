@@ -88,7 +88,7 @@ export function TrafficCalculatorClient() {
             Asmos continuously tests and improves the conversion experience so the traffic you already have — and any traffic you add — converts at a higher rate.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link href={CTA.primary.href} className="rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+            <Link href={CTA.primary.href} className="rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
               {CTA.primary.label}
             </Link>
             <Link href="/tools/email-capture-calculator" className="text-sm font-medium text-[color:var(--color-primary)]">

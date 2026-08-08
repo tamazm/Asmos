@@ -114,7 +114,7 @@ export function BlogIndexClient({ posts }: { posts: BlogPost[] }) {
               placeholder="Work email"
               className="input-glow w-full rounded-lg border border-[color:var(--color-border)] px-3.5 py-2.5 text-sm focus:outline-none bg-[color:var(--color-surface)]"
             />
-            <button type="submit" disabled={newsletterStatus === "loading"} className="w-full sm:w-auto shrink-0 rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] disabled:opacity-50">
+            <button type="submit" disabled={newsletterStatus === "loading"} className="w-full sm:w-auto shrink-0 rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] disabled:opacity-50">
               {newsletterStatus === "loading" ? "Subscribing…" : "Subscribe"}
             </button>
           </form>

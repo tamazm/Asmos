@@ -2,48 +2,40 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { INDUSTRY_BENCHMARKS, getBenchmark, ESTIMATED_CURRENT_CVR, ESTIMATED_SUBSCRIBER_TO_CUSTOMER_CVR } from "@/lib/benchmarks";
+import { ESTIMATED_CURRENT_CVR, ESTIMATED_SUBSCRIBER_TO_CUSTOMER_CVR } from "@/lib/benchmarks";
 import { computeEmailCaptureOpportunity, formatCurrency, formatNumber } from "@/lib/calculators";
 import { CTA } from "@/lib/site";
 
 export function EmailCaptureCalculatorClient() {
   const [monthlyVisitors, setMonthlyVisitors] = useState(100_000);
-  const [industry, setIndustry] = useState(INDUSTRY_BENCHMARKS[8].industry); // General Ecommerce
   const [currentCVRInput, setCurrentCVRInput] = useState(2.8);
   const [cvrUnknown, setCvrUnknown] = useState(false);
   const [aov, setAov] = useState(85);
   const [subCVRInput, setSubCVRInput] = useState(3);
   const [subCVRUnknown, setSubCVRUnknown] = useState(false);
+  const [targetCVRInput, setTargetCVRInput] = useState(4.5);
   const [showTooltip, setShowTooltip] = useState(false);
-  const [showWhatIf, setShowWhatIf] = useState(false);
-  const [scenarioCVR, setScenarioCVR] = useState<number | null>(null);
   const [calculated, setCalculated] = useState(false);
 
   const [leadEmail, setLeadEmail] = useState("");
   const [leadStoreUrl, setLeadStoreUrl] = useState("");
   const [leadStatus, setLeadStatus] = useState<"idle" | "loading" | "sent" | "error">("idle");
 
-  const benchmark = getBenchmark(industry);
   const currentCVR = cvrUnknown ? ESTIMATED_CURRENT_CVR : currentCVRInput;
   const subCVR = subCVRUnknown ? ESTIMATED_SUBSCRIBER_TO_CUSTOMER_CVR : subCVRInput;
+  const targetCVR = Math.max(targetCVRInput, 0);
 
   const result = useMemo(
-    () => computeEmailCaptureOpportunity({ monthlyVisitors, currentCVR, benchmarkCVR: benchmark.benchmarkCVR, subscriberToCustomerCVR: subCVR, aov }),
-    [monthlyVisitors, currentCVR, benchmark.benchmarkCVR, subCVR, aov],
-  );
-
-  const effectiveScenario = scenarioCVR ?? benchmark.benchmarkCVR;
-  const whatIfResult = useMemo(
-    () => computeEmailCaptureOpportunity({ monthlyVisitors, currentCVR, benchmarkCVR: effectiveScenario, subscriberToCustomerCVR: subCVR, aov }),
-    [monthlyVisitors, currentCVR, effectiveScenario, subCVR, aov],
+    () => computeEmailCaptureOpportunity({ monthlyVisitors, currentCVR, benchmarkCVR: targetCVR, subscriberToCustomerCVR: subCVR, aov }),
+    [monthlyVisitors, currentCVR, targetCVR, subCVR, aov],
   );
 
   const currentSubscribers = Math.round(monthlyVisitors * (currentCVR / 100));
   const currentCustomers = Math.round(currentSubscribers * (subCVR / 100));
   const currentRevenue = Math.round(currentCustomers * aov);
-  const benchSubscribers = Math.round(monthlyVisitors * (benchmark.benchmarkCVR / 100));
-  const benchCustomers = Math.round(benchSubscribers * (subCVR / 100));
-  const benchRevenue = Math.round(benchCustomers * aov);
+  const targetSubscribers = Math.round(monthlyVisitors * (targetCVR / 100));
+  const targetCustomers = Math.round(targetSubscribers * (subCVR / 100));
+  const targetRevenue = Math.round(targetCustomers * aov);
 
   async function handleSendReport(e: React.FormEvent) {
     e.preventDefault();
@@ -55,7 +47,7 @@ export function EmailCaptureCalculatorClient() {
         body: JSON.stringify({
           email: leadEmail,
           storeUrl: leadStoreUrl || null,
-          inputs: { monthlyVisitors, industry, currentCVR, aov, subscriberToCustomerCVR: subCVR },
+          inputs: { monthlyVisitors, currentCVR, aov, subscriberToCustomerCVR: subCVR, targetCVR },
           result,
         }),
       });
@@ -82,16 +74,14 @@ export function EmailCaptureCalculatorClient() {
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-[color:var(--color-text-secondary)]">Industry / Store Category</label>
-            <select
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              className="input-glow w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm focus:outline-none bg-[color:var(--color-surface)]"
-            >
-              {INDUSTRY_BENCHMARKS.map((b) => (
-                <option key={b.industry} value={b.industry}>{b.industry}</option>
-              ))}
-            </select>
+            <label className="mb-1.5 block text-xs font-medium text-[color:var(--color-text-secondary)]">Average Order Value (USD)</label>
+            <input
+              type="number"
+              min={0}
+              value={aov}
+              onChange={(e) => setAov(Math.max(0, Number(e.target.value)))}
+              className="input-glow w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm focus:outline-none"
+            />
           </div>
           <div>
             <div className="mb-1.5 flex items-center justify-between">
@@ -113,14 +103,19 @@ export function EmailCaptureCalculatorClient() {
             </label>
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-[color:var(--color-text-secondary)]">Average Order Value (USD)</label>
+            <label className="mb-1.5 block text-xs font-medium text-[color:var(--color-text-secondary)]" title="The capture rate you'd like to model reaching. This is a goal you set, not an industry claim.">
+              Target Capture Rate (%)
+            </label>
             <input
               type="number"
+              step={0.1}
               min={0}
-              value={aov}
-              onChange={(e) => setAov(Math.max(0, Number(e.target.value)))}
+              max={100}
+              value={targetCVRInput}
+              onChange={(e) => setTargetCVRInput(Number(e.target.value))}
               className="input-glow w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm focus:outline-none"
             />
+            <p className="mt-1.5 text-[11px] text-[color:var(--color-text-secondary)]">The rate you want to model reaching — set your own goal.</p>
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-xs font-medium text-[color:var(--color-text-secondary)]" title="The percentage of newly captured email subscribers who eventually make a purchase.">
@@ -145,7 +140,7 @@ export function EmailCaptureCalculatorClient() {
         <button
           type="button"
           onClick={() => setCalculated(true)}
-          className="mt-6 w-full rounded-lg bg-[color:var(--color-primary)] px-5 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
+          className="mt-6 w-full rounded-full bg-[color:var(--color-primary)] px-5 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
         >
           Calculate Revenue Opportunity
         </button>
@@ -153,21 +148,11 @@ export function EmailCaptureCalculatorClient() {
 
       {calculated && (
         <div className="mx-auto max-w-4xl mt-10 space-y-10">
-          {/* Benchmark badge */}
-          <div className="flex flex-wrap items-center justify-center gap-2 text-xs">
-            <span className="rounded-full bg-[color:var(--color-surface-sunken)] border border-[color:var(--color-border)] px-3 py-1 text-[color:var(--color-text-secondary)]">
-              Industry Benchmark: <strong className="text-[color:var(--color-text-primary)]">{benchmark.benchmarkCVR}%</strong>
-            </span>
-            <span className="rounded-full bg-amber-50 border border-amber-200 px-3 py-1 text-amber-700">
-              Placeholder value — pending sourced research
-            </span>
-          </div>
-
           {/* Main result */}
           {result.isAboveBenchmark ? (
             <div className="text-center">
-              <p className="text-lg font-semibold text-[color:var(--color-text-primary)]">You&apos;re already outperforming the industry benchmark.</p>
-              <p className="mt-2 text-sm text-[color:var(--color-text-secondary)]">Use the what-if scenario below to explore additional optimization potential.</p>
+              <p className="text-lg font-semibold text-[color:var(--color-text-primary)]">You&apos;re already at or above your target capture rate.</p>
+              <p className="mt-2 text-sm text-[color:var(--color-text-secondary)]">Try raising the target above to explore additional optimization potential.</p>
             </div>
           ) : (
             <div className="text-center relative">
@@ -175,7 +160,7 @@ export function EmailCaptureCalculatorClient() {
                 +{formatCurrency(result.additionalAnnualRevenue)} / year
               </p>
               <p className="mt-2 text-sm text-[color:var(--color-text-secondary)] max-w-md mx-auto">
-                Estimated additional revenue at the industry benchmark. If your email capture rate increased from {currentCVR}% to the {benchmark.benchmarkCVR}% industry benchmark, your current traffic could generate approximately {formatNumber(result.additionalSubscribers)} additional subscribers per month.
+                Estimated additional revenue if your email capture rate increased from {currentCVR}% to your {targetCVR}% target. At your current traffic, that&apos;s approximately {formatNumber(result.additionalSubscribers)} additional subscribers per month.
               </p>
               <button
                 type="button"
@@ -189,8 +174,8 @@ export function EmailCaptureCalculatorClient() {
                   <p className="mb-2 font-semibold text-[color:var(--color-text-primary)]">How we calculate your revenue opportunity</p>
                   <p>Monthly Visitors: {formatNumber(monthlyVisitors)}</p>
                   <p>Current CVR: {currentCVR}%</p>
-                  <p>Industry Benchmark: {benchmark.benchmarkCVR}%</p>
-                  <p>Additional Subscribers: {formatNumber(monthlyVisitors)} × ({benchmark.benchmarkCVR}% − {currentCVR}%) = {formatNumber(result.additionalSubscribers)}</p>
+                  <p>Target CVR: {targetCVR}%</p>
+                  <p>Additional Subscribers: {formatNumber(monthlyVisitors)} × ({targetCVR}% − {currentCVR}%) = {formatNumber(result.additionalSubscribers)}</p>
                   <p>Subscriber → Customer CVR: {subCVR}%</p>
                   <p>Additional Customers: {formatNumber(result.additionalSubscribers)} × {subCVR}% = {formatNumber(result.additionalCustomers)}</p>
                   <p>AOV: {formatCurrency(aov)}</p>
@@ -210,7 +195,7 @@ export function EmailCaptureCalculatorClient() {
               { label: "Additional Revenue / Month", value: `+${formatCurrency(result.additionalMonthlyRevenue)}` },
               { label: "Additional Revenue / Year", value: `+${formatCurrency(result.additionalAnnualRevenue)}` },
             ].map((k) => (
-              <div key={k.label} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 text-center">
+              <div key={k.label} className="hover-float rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 text-center">
                 <p className="text-lg font-bold tabular-nums text-[color:var(--color-text-primary)]">{k.value}</p>
                 <p className="mt-1 text-[11px] text-[color:var(--color-text-secondary)]">{k.label}</p>
               </div>
@@ -219,7 +204,7 @@ export function EmailCaptureCalculatorClient() {
 
           {/* Funnel comparison */}
           <div>
-            <h3 className="mb-4 text-center text-lg font-bold text-[color:var(--color-text-primary)]">What reaching the benchmark could mean for your store</h3>
+            <h3 className="mb-4 text-center text-lg font-bold text-[color:var(--color-text-primary)]">What reaching your target could mean for your store</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-5">
                 <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">Current</p>
@@ -233,58 +218,20 @@ export function EmailCaptureCalculatorClient() {
                 ]} />
               </div>
               <div className="rounded-2xl border border-[color:var(--color-primary)]/30 bg-[color:var(--color-primary-light)] p-5">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">Industry Benchmark</p>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">Your Target</p>
                 <FunnelRows rows={[
                   [`${formatNumber(monthlyVisitors)} Visitors`],
-                  [`${benchmark.benchmarkCVR}% Capture Rate`],
-                  [`${formatNumber(benchSubscribers)} Subscribers`],
+                  [`${targetCVR}% Capture Rate`],
+                  [`${formatNumber(targetSubscribers)} Subscribers`],
                   [`${subCVR}% Purchase Rate`],
-                  [`${formatNumber(benchCustomers)} Customers`],
-                  [`${formatCurrency(benchRevenue)} Revenue`],
+                  [`${formatNumber(targetCustomers)} Customers`],
+                  [`${formatCurrency(targetRevenue)} Revenue`],
                 ]} emphasize />
               </div>
             </div>
             <p className="mt-3 text-center text-sm font-semibold text-[color:var(--color-primary)]">
-              Difference: +{formatCurrency(benchRevenue - currentRevenue)}/month
+              Difference: +{formatCurrency(targetRevenue - currentRevenue)}/month
             </p>
-          </div>
-
-          {/* What-if slider */}
-          <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
-            <button type="button" onClick={() => setShowWhatIf((s) => !s)} className="text-sm font-semibold text-[color:var(--color-text-primary)]">
-              What if you improved even further? {showWhatIf ? "▲" : "▼"}
-            </button>
-            {showWhatIf && (
-              <div className="mt-4">
-                <input
-                  type="range"
-                  min={currentCVR}
-                  max={Math.max(benchmark.benchmarkCVR * 1.8, currentCVR + 1)}
-                  step={0.1}
-                  value={effectiveScenario}
-                  onChange={(e) => setScenarioCVR(Number(e.target.value))}
-                  className="w-full accent-[color:var(--color-primary)]"
-                />
-                <div className="mt-1 flex justify-between text-[10px] text-[color:var(--color-text-secondary)]">
-                  <span>Current ({currentCVR}%)</span>
-                  <span>Benchmark ({benchmark.benchmarkCVR}%)</span>
-                  <span>Higher</span>
-                </div>
-                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { label: "Subscribers/mo", value: `+${formatNumber(whatIfResult.additionalSubscribers)}` },
-                    { label: "Customers/mo", value: `+${formatNumber(whatIfResult.additionalCustomers)}` },
-                    { label: "Revenue/mo", value: `+${formatCurrency(whatIfResult.additionalMonthlyRevenue)}` },
-                    { label: "Revenue/yr", value: `+${formatCurrency(whatIfResult.additionalAnnualRevenue)}` },
-                  ].map((k) => (
-                    <div key={k.label} className="rounded-lg bg-[color:var(--color-surface-sunken)] p-3 text-center">
-                      <p className="text-sm font-bold text-[color:var(--color-text-primary)] tabular-nums">{k.value}</p>
-                      <p className="text-[10px] text-[color:var(--color-text-secondary)]">{k.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Asmos transition */}
@@ -294,7 +241,7 @@ export function EmailCaptureCalculatorClient() {
               Asmos continuously creates, tests, and optimizes your email capture experiences to find what converts best for your store.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
-              <Link href={CTA.primary.href} className="rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+              <Link href={CTA.primary.href} className="rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
                 {CTA.primary.label}
               </Link>
               <Link href={CTA.tertiary.href} className="text-sm font-medium text-[color:var(--color-primary)]">
@@ -317,13 +264,13 @@ export function EmailCaptureCalculatorClient() {
                   <label className="mb-1.5 block text-xs font-medium text-[color:var(--color-text-secondary)]">Store URL (optional)</label>
                   <input value={leadStoreUrl} onChange={(e) => setLeadStoreUrl(e.target.value)} className="input-glow w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm focus:outline-none" />
                 </div>
-                <button type="submit" disabled={leadStatus === "loading"} className="w-full sm:w-auto rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] disabled:opacity-50">
+                <button type="submit" disabled={leadStatus === "loading"} className="w-full sm:w-auto rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] disabled:opacity-50">
                   {leadStatus === "loading" ? "Sending…" : "Send My Report"}
                 </button>
               </form>
             )}
             {leadStatus === "error" && <p className="mt-2 text-xs text-red-500">Something went wrong. Please try again.</p>}
-            <p className="mt-2 text-[11px] text-[color:var(--color-text-secondary)]">We&apos;ll send your calculation, benchmark comparison, and revenue opportunity.</p>
+            <p className="mt-2 text-[11px] text-[color:var(--color-text-secondary)]">We&apos;ll send your calculation and revenue opportunity.</p>
           </div>
         </div>
       )}

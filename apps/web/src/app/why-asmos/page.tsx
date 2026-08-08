@@ -150,10 +150,10 @@ export default function WhyAsmosPage() {
             Traditional popup tools give you a builder and leave optimization to your team. Asmos analyzes, generates, tests, learns, and continuously improves your conversion experiences.
           </p>
           <div className="flex flex-wrap items-center gap-4 mb-12 animate-page-enter-delay-2">
-            <Link href={CTA.primary.href} className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+            <Link href={CTA.primary.href} className="rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
               {CTA.primary.label}
             </Link>
-            <Link href={CTA.secondary.href} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
+            <Link href={CTA.secondary.href} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
               {CTA.secondary.label}
             </Link>
           </div>
@@ -348,7 +348,7 @@ export default function WhyAsmosPage() {
             Managed Success adds white-glove onboarding, hands-on optimization support, and a dedicated Customer Success Manager.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link href="/pricing" className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
+            <Link href="/pricing" className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
               Explore Managed Success
             </Link>
             <Link href={CTA.secondary.href} className="text-sm font-medium text-[color:var(--color-primary)]">
@@ -368,10 +368,10 @@ export default function WhyAsmosPage() {
             Let Asmos continuously improve the experiences turning your visitors into subscribers and customers.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link href={CTA.primary.href} className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+            <Link href={CTA.primary.href} className="rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
               {CTA.primary.label}
             </Link>
-            <Link href={CTA.secondary.href} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
+            <Link href={CTA.secondary.href} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
               {CTA.secondary.label}
             </Link>
           </div>

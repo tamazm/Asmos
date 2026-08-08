@@ -85,7 +85,7 @@ export function PricingClient() {
               <p className="mb-6 text-sm text-[color:var(--color-text-secondary)]">
                 For stores with more than 1M monthly visitors or custom traffic, testing, integration, or support requirements.
               </p>
-              <Link href={CTA.secondary.href} className="block w-full rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+              <Link href={CTA.secondary.href} className="block w-full rounded-full bg-[color:var(--color-primary)] px-4 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
                 {CTA.secondary.label}
               </Link>
             </div>
@@ -109,7 +109,7 @@ export function PricingClient() {
                 </li>
               ))}
             </ul>
-            <Link href={CTA.primary.href} className="block w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2.5 text-center text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
+            <Link href={CTA.primary.href} className="block w-full rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2.5 text-center text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
               {CTA.primary.label}
             </Link>
           </div>
@@ -123,7 +123,7 @@ export function PricingClient() {
                 <p className="mb-6 text-xs text-[color:var(--color-text-secondary)] flex-1">
                   For larger teams requiring additional traffic, integrations, testing capacity, SLAs, or custom onboarding.
                 </p>
-                <Link href={CTA.secondary.href} className="block w-full rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+                <Link href={CTA.secondary.href} className="block w-full rounded-full bg-[color:var(--color-primary)] px-4 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
                   {CTA.secondary.label}
                 </Link>
               </div>
@@ -150,7 +150,7 @@ export function PricingClient() {
                     </li>
                   ))}
                 </ul>
-                <Link href={CTA.primary.href} className="block w-full rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+                <Link href={CTA.primary.href} className="block w-full rounded-full bg-[color:var(--color-primary)] px-4 py-2.5 text-center text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
                   {CTA.primary.label}
                 </Link>
                 <Link href={CTA.secondary.href} className="mt-2.5 block text-center text-xs font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)]">

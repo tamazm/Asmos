@@ -10,7 +10,7 @@ import { CTA } from "@/lib/site";
 export const metadata: Metadata = buildMetadata({
   title: "Email Capture Revenue Calculator — Free Ecommerce Tool",
   description:
-    "Compare your email capture conversion rate against an industry benchmark and estimate the additional revenue opportunity from your existing traffic.",
+    "Set a target email capture rate and estimate the additional revenue opportunity from your existing traffic.",
   path: "/tools/email-capture-calculator",
 });
 
@@ -39,7 +39,7 @@ export default function EmailCaptureCalculatorPage() {
             How much revenue is your email capture leaving on the table?
           </h1>
           <p className="text-sm sm:text-base text-[color:var(--color-text-secondary)] animate-page-enter-delay-1">
-            Compare your current email capture performance against industry benchmarks and estimate the revenue opportunity from converting more of your existing traffic.
+            Set a target capture rate and estimate the revenue opportunity from converting more of your existing traffic.
           </p>
         </div>
       </section>
@@ -53,7 +53,7 @@ export default function EmailCaptureCalculatorPage() {
         <div className="mx-auto max-w-md">
           <h2 className="mb-2 text-lg font-bold text-[color:var(--color-text-primary)]">Want to know what may be holding your popup back?</h2>
           <p className="mb-4 text-sm text-[color:var(--color-text-secondary)]">Let Asmos analyze your current popup, offer, CTA, form structure, and conversion experience for free.</p>
-          <Link href={CTA.tertiary.href} className="inline-flex items-center rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
+          <Link href={CTA.tertiary.href} className="inline-flex items-center rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
             Analyze My Store Free
           </Link>
         </div>
@@ -85,10 +85,10 @@ export default function EmailCaptureCalculatorPage() {
           </h2>
           <p className="mb-7 text-sm text-[color:var(--color-text-secondary)]">Let Asmos continuously test and improve how your store converts visitors into subscribers.</p>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link href={CTA.primary.href} className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+            <Link href={CTA.primary.href} className="rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
               {CTA.primary.label}
             </Link>
-            <Link href={CTA.secondary.href} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
+            <Link href={CTA.secondary.href} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
               {CTA.secondary.label}
             </Link>
           </div>

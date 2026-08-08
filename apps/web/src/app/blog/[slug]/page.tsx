@@ -128,7 +128,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
               {toolCta && (
                 <div className="mt-10 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-6 text-center">
                   <p className="mb-3 text-sm font-medium text-[color:var(--color-text-primary)]">Want Asmos to run experiments like these for you?</p>
-                  <Link href={toolCta.href} className="inline-flex items-center rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+                  <Link href={toolCta.href} className="inline-flex items-center rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
                     {toolCta.label}
                   </Link>
                 </div>
@@ -191,10 +191,10 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
               Let Asmos continuously test and improve your ecommerce conversion experiences.
             </p>
             <div className="flex flex-wrap items-center justify-center gap-4">
-              <Link href={CTA.primary.href} className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+              <Link href={CTA.primary.href} className="rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
                 {CTA.primary.label}
               </Link>
-              <Link href={CTA.tertiary.href} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
+              <Link href={CTA.tertiary.href} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
                 {CTA.tertiary.label}
               </Link>
             </div>

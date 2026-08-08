@@ -139,7 +139,7 @@ export function ContactForm() {
       <button
         type="submit"
         disabled={!canSubmit}
-        className="w-full rounded-lg bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none"
+        className="w-full rounded-full bg-[color:var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none"
       >
         {status === "loading" ? "Sending…" : "Send Message"}
       </button>

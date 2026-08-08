@@ -17,6 +17,8 @@ import { useEffect, useRef, useState } from "react";
 interface KnockoutBracketPreviewProps {
   variant?: "default" | "dark";
   animated?: boolean;
+  /** When true, renders without its own outer border/shadow — for nesting inside another frame (e.g. the hero's browser-chrome window). */
+  embedded?: boolean;
 }
 
 // Variant data
@@ -276,6 +278,7 @@ function TrafficBar({
 export function KnockoutBracketPreview({
   variant = "default",
   animated = false,
+  embedded = false,
 }: KnockoutBracketPreviewProps) {
   const dark = variant === "dark";
   const phase = useAnimationPhase(animated);
@@ -305,11 +308,13 @@ export function KnockoutBracketPreview({
       style={{
         width: "100%",
         maxWidth: 360,
-        borderRadius: 18,
-        border: `1.5px solid ${cardBorder}`,
-        background: cardBg,
-        padding: 16,
-        boxShadow: dark
+        borderRadius: embedded ? 14 : 18,
+        border: embedded ? "none" : `1.5px solid ${cardBorder}`,
+        background: embedded ? "transparent" : cardBg,
+        padding: embedded ? 0 : 16,
+        boxShadow: embedded
+          ? undefined
+          : dark
           ? "0 32px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.3)"
           : "0 24px 60px rgba(22,93,255,0.10), 0 6px 20px rgba(0,0,0,0.07)",
       }}

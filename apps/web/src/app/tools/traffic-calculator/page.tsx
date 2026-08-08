@@ -39,7 +39,7 @@ export default function TrafficCalculatorPage() {
         <div className="mx-auto max-w-md">
           <h2 className="mb-2 text-lg font-bold text-[color:var(--color-text-primary)]">Also want to model email capture specifically?</h2>
           <p className="mb-4 text-sm text-[color:var(--color-text-secondary)]">Compare your capture rate against an industry benchmark and estimate the revenue opportunity.</p>
-          <Link href="/tools/email-capture-calculator" className="inline-flex items-center rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
+          <Link href="/tools/email-capture-calculator" className="inline-flex items-center rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
             Email Capture Revenue Calculator
           </Link>
         </div>

@@ -337,3 +337,30 @@ body {
 .stat-tick {
   animation: tickUp 0.4s var(--ease-out-expo) both;
 }
+
+/* ─── Subtle grid texture (hero / feature backdrops) ───────────────────── */
+.bg-grid-faint {
+  background-image:
+    linear-gradient(to right, var(--color-border) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-border) 1px, transparent 1px);
+  background-size: 56px 56px;
+  opacity: 0.4;
+}
+
+/* ─── Glass panel (light-mode frosted layering) ─────────────────────────── */
+.glass-panel {
+  background: color-mix(in oklch, var(--color-surface) 72%, transparent);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid color-mix(in oklch, var(--color-border) 80%, transparent);
+}
+
+/* ─── Float on hover — used for elevated demo/feature cards ─────────────── */
+@media (prefers-reduced-motion: no-preference) {
+  .hover-float {
+    transition: transform 380ms var(--ease-out-expo), box-shadow 380ms var(--ease-out-expo);
+  }
+  .hover-float:hover {
+    transform: translateY(-6px);
+  }
+}

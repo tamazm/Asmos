@@ -81,6 +81,11 @@ export default async function LandingPage() {
       <section className="relative px-5 pt-14 pb-16 sm:pt-20 sm:pb-24 overflow-hidden">
         <div
           aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-grid-faint"
+          style={{ maskImage: "radial-gradient(ellipse 70% 60% at 50% 0%, black 0%, transparent 75%)", WebkitMaskImage: "radial-gradient(ellipse 70% 60% at 50% 0%, black 0%, transparent 75%)" }}
+        />
+        <div
+          aria-hidden="true"
           className="pointer-events-none absolute inset-0"
           style={{ background: "radial-gradient(ellipse 80% 50% at 50% -10%, oklch(48% 0.255 258 / 0.07) 0%, transparent 65%)" }}
         />
@@ -110,13 +115,13 @@ export default async function LandingPage() {
               <div className="flex flex-wrap items-center gap-4 animate-page-enter-delay-2">
                 <Link
                   href={CTA.primary.href}
-                  className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
+                  className="rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
                 >
                   {CTA.primary.label}
                 </Link>
                 <Link
                   href={CTA.secondary.href}
-                  className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]"
+                  className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]"
                 >
                   {CTA.secondary.label}
                 </Link>
@@ -131,16 +136,34 @@ export default async function LandingPage() {
 
             {/* Right: live knockout-bracket demo — this IS the product.
                 Store → Analyze → Generate feed into it; Test/Learn/Uplift
-                are what the animation itself shows happening in real time. */}
+                are what the animation itself shows happening in real time.
+                Framed as a browser window so it reads as a live, running
+                simulation rather than a static illustration. */}
             <div className="flex flex-col items-center gap-3 animate-page-enter-delay-3">
-              <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--color-text-secondary)]">
-                <span>Store</span>
-                <Arrow className="h-2.5 w-2.5 text-[color:var(--color-border)]" />
-                <span>Analyze</span>
-                <Arrow className="h-2.5 w-2.5 text-[color:var(--color-border)]" />
-                <span className="text-[color:var(--color-primary)]">Generate</span>
+              <div className="hover-float w-full max-w-[400px] rounded-[1.75rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-2 shadow-[0_24px_60px_rgba(22,93,255,0.10),0_6px_20px_rgba(0,0,0,0.06)]">
+                {/* Browser chrome */}
+                <div className="flex items-center gap-3 px-3 pb-2.5 pt-1.5">
+                  <div className="flex items-center gap-1.5" aria-hidden="true">
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#ff5f57]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#febc2e]" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-[#28c840]" />
+                  </div>
+                  <div className="flex-1 truncate rounded-full bg-[color:var(--color-surface-sunken)] px-3 py-1 text-center text-[10px] font-medium text-[color:var(--color-text-secondary)]">
+                    asmos.io/campaigns/summer-sale
+                  </div>
+                </div>
+                {/* Stage */}
+                <div className="rounded-[1.35rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-3.5">
+                  <div className="mb-3 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--color-text-secondary)]">
+                    <span>Store</span>
+                    <Arrow className="h-2.5 w-2.5 text-[color:var(--color-border)]" />
+                    <span>Analyze</span>
+                    <Arrow className="h-2.5 w-2.5 text-[color:var(--color-border)]" />
+                    <span className="text-[color:var(--color-primary)]">Generate</span>
+                  </div>
+                  <KnockoutBracketPreview animated embedded />
+                </div>
               </div>
-              <KnockoutBracketPreview animated />
               <p className="max-w-[300px] text-center text-[11px] leading-relaxed text-[color:var(--color-text-secondary)]">
                 Four popup variants enter. Asmos shifts traffic toward the strongest performer in real time and eliminates the rest — this is what &ldquo;Test&rdquo; means at Asmos.
               </p>
@@ -150,23 +173,10 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 2. Social proof ─────────────────────────────────────────── */}
-      <section className="border-y border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-5 py-10">
+      <section className="border-y border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-5 py-8">
         <div className="mx-auto max-w-6xl text-center reveal">
-          <p className="text-sm font-medium text-[color:var(--color-text-secondary)] mb-5">
+          <p className="text-sm font-medium text-[color:var(--color-text-secondary)]">
             Built for ecommerce teams focused on measurable growth.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div
-                key={i}
-                className="flex h-10 w-32 items-center justify-center rounded-lg border border-dashed border-[color:var(--color-border)] text-[11px] text-[color:var(--color-text-secondary)]"
-              >
-                Design partner
-              </div>
-            ))}
-          </div>
-          <p className="mt-4 text-[11px] text-[color:var(--color-text-secondary)]">
-            Logos and performance metrics will appear here as design partners go live.
           </p>
         </div>
       </section>
@@ -219,7 +229,7 @@ export default async function LandingPage() {
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 reveal-stagger mb-10">
             {HOW_STEPS.map((s) => (
-              <div key={s.n} className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
+              <div key={s.n} className="hover-float rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
                 <span className="text-2xl font-bold tabular-nums text-[color:var(--color-primary)] opacity-25">{s.n}</span>
                 <h3 className="mt-3 mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{s.title}</h3>
                 <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{s.body}</p>
@@ -227,7 +237,7 @@ export default async function LandingPage() {
             ))}
           </div>
           <div className="text-center">
-            <Link href={CTA.primary.href} className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+            <Link href={CTA.primary.href} className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
               {CTA.primary.label} <Arrow className="h-3.5 w-3.5 text-white/80" />
             </Link>
           </div>
@@ -242,7 +252,7 @@ export default async function LandingPage() {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 reveal-stagger">
             {FEATURES.map((f) => (
-              <div key={f.title} className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+              <div key={f.title} className="hover-float rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
                 <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)]">
                   <Check />
                 </div>
@@ -270,43 +280,6 @@ export default async function LandingPage() {
                 {i < arr.length - 1 && <Arrow className="h-3 w-3 text-[color:var(--color-border)]" />}
               </span>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 7. Analytics ─────────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
-            See exactly what Asmos is learning.
-          </h2>
-          <p className="mb-10 text-sm text-[color:var(--color-text-secondary)] text-center reveal">Illustrative product interface</p>
-          <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 sm:p-8 shadow-sm reveal-eager">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-              {[
-                { label: "Impressions", value: "—" },
-                { label: "Leads", value: "—" },
-                { label: "CVR", value: "—%" },
-                { label: "Conversion uplift", value: "—%" },
-                { label: "Active variants", value: "—" },
-                { label: "Traffic allocation", value: "—" },
-                { label: "Winning variant", value: "—" },
-                { label: "AI insights", value: "—" },
-              ].map((stat) => (
-                <div key={stat.label} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4">
-                  <p className="text-lg font-bold tabular-nums text-[color:var(--color-text-primary)]">{stat.value}</p>
-                  <p className="text-[11px] text-[color:var(--color-text-secondary)]">{stat.label}</p>
-                </div>
-              ))}
-            </div>
-            <p className="text-center text-[11px] text-[color:var(--color-text-secondary)]">
-              Live numbers populate automatically once your store is connected — nothing here is a real customer result.
-            </p>
-          </div>
-          <div className="mt-8 text-center">
-            <Link href={CTA.primary.href} className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
-              {CTA.primary.label} <Arrow className="h-3.5 w-3.5 text-white/80" />
-            </Link>
           </div>
         </div>
       </section>
@@ -376,7 +349,7 @@ export default async function LandingPage() {
           </h2>
           <p className="mb-2 text-sm text-[color:var(--color-text-secondary)]">Choose your monthly traffic volume and pay only for the capacity you need.</p>
           <p className="mb-7 text-xs text-[color:var(--color-text-secondary)]">Every plan includes the full Asmos platform. Pricing scales with your traffic and level of support — not locked features.</p>
-          <Link href="/pricing" className="inline-flex items-center gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
+          <Link href="/pricing" className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
             View Pricing <Arrow className="h-3.5 w-3.5" />
           </Link>
         </div>
@@ -391,23 +364,9 @@ export default async function LandingPage() {
           <p className="mb-7 text-sm text-[color:var(--color-text-secondary)] max-w-md mx-auto">
             Add Managed Success for white-glove onboarding, hands-on optimization support, and a dedicated Customer Success Manager.
           </p>
-          <Link href="/why-asmos#managed-success" className="inline-flex items-center gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
+          <Link href="/why-asmos#managed-success" className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
             Learn About Managed Success <Arrow className="h-3.5 w-3.5" />
           </Link>
-        </div>
-      </section>
-
-      {/* ── 13. Case studies ────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="mb-10 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
-            Results from stores using Asmos
-          </h2>
-          <div className="rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-10 text-center reveal-eager">
-            <p className="text-sm text-[color:var(--color-text-secondary)] max-w-md mx-auto">
-              Case studies are coming soon as early Asmos customers complete their first optimization cycles. Check back for baseline CVR, uplift, and incremental revenue results.
-            </p>
-          </div>
         </div>
       </section>
 
@@ -424,7 +383,7 @@ export default async function LandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 reveal-stagger">
             {BLOG_POSTS.slice(0, 3).map((post) => (
-              <Link key={post.slug} href={`/blog/${post.slug}`} className="group rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 transition-shadow duration-200 hover:shadow-md">
+              <Link key={post.slug} href={`/blog/${post.slug}`} className="hover-float group rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 transition-shadow duration-200 hover:shadow-md">
                 <span className="mb-3 inline-block rounded-full bg-[color:var(--color-primary-light)] px-2.5 py-1 text-[10px] font-semibold text-[color:var(--color-primary)]">{post.category}</span>
                 <h3 className="mb-2 text-sm font-semibold text-[color:var(--color-text-primary)] leading-snug group-hover:text-[color:var(--color-primary)] transition-colors duration-200">{post.title}</h3>
                 <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed line-clamp-3">{post.excerpt}</p>
@@ -445,10 +404,10 @@ export default async function LandingPage() {
             Let Asmos continuously analyze, test, and improve your conversion experiences.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link href={CTA.primary.href} className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+            <Link href={CTA.primary.href} className="rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
               {CTA.primary.label}
             </Link>
-            <Link href={CTA.secondary.href} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
+            <Link href={CTA.secondary.href} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
               {CTA.secondary.label}
             </Link>
           </div>

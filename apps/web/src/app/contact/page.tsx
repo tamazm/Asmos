@@ -41,12 +41,12 @@ export default function ContactPage() {
                 </p>
                 <a
                   href={`mailto:${FOUNDER_EMAIL}?subject=${encodeURIComponent("Book a demo")}`}
-                  className="inline-flex items-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
+                  className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
                 >
                   {CTA.secondary.label}
                 </a>
                 <p className="mt-2.5 text-[11px] text-[color:var(--color-text-secondary)]">
-                  Scheduling widget coming soon — this button emails us directly to grab a time.
+                  This button opens a direct email to the founder to find a time that works for you.
                 </p>
                 <div className="mt-5 border-t border-[color:var(--color-border)] pt-4">
                   <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">Best for</p>
@@ -96,10 +96,10 @@ export default function ContactPage() {
             Ready to see Asmos in action?
           </h2>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link href="#book-a-demo" className="rounded-lg bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+            <Link href="#book-a-demo" className="rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
               {CTA.secondary.label}
             </Link>
-            <Link href={CTA.primary.href} className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
+            <Link href={CTA.primary.href} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-white active:scale-[0.97]">
               {CTA.primary.label}
             </Link>
           </div>
