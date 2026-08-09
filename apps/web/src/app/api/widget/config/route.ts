@@ -73,8 +73,15 @@ export async function GET(request: Request) {
     return corsJson({ error: "site is required" }, { status: 400 });
   }
 
-  const website = await prisma.website.findFirst({
-    where: { 
+  // Website.url has no unique constraint (a pre-existing gap — fixing it
+  // outright would need a data audit first, since duplicate rows may
+  // already exist from the old buggy campaign-creation flow). findMany
+  // instead of findFirst so a duplicate match is something we can detect
+  // and pick deterministically, rather than a silent, DB-order-dependent
+  // pick of whichever row the query planner returns first — which risked
+  // serving one account's campaign to a visitor on another account's site.
+  const matches = await prisma.website.findMany({
+    where: {
       OR: [
         { url: normalizeHost(site) },
         { url: site }
@@ -90,8 +97,31 @@ export async function GET(request: Request) {
       },
     },
   });
-  if (!website) {
+
+  if (matches.length === 0) {
     return corsJson({ campaign: null, consent: null });
+  }
+
+  let website = matches[0];
+  if (matches.length > 1) {
+    // Ambiguous — prefer a website that's actually been verified installed
+    // on a real domain, then fall back to the most recently created. Either
+    // way, log it: this should never happen once every Website.url is
+    // genuinely unique, so seeing it means there's a real collision to go
+    // clean up.
+    website =
+      matches.find((w) => w.installVerified) ??
+      [...matches].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+    console.error(
+      `[widget/config] ambiguous website lookup for site="${site}": ${matches.length} rows matched (ids: ${matches.map((m) => m.id).join(", ")}), serving ${website.id}`,
+    );
+    await prisma.systemLog.create({
+      data: {
+        level: "ERROR",
+        message: `Ambiguous website lookup for site="${site}"`,
+        details: `${matches.length} Website rows matched: ${matches.map((m) => `${m.id} (account ${m.accountId})`).join(", ")}. Served ${website.id}.`,
+      },
+    }).catch(() => {});
   }
 
   const consent = {

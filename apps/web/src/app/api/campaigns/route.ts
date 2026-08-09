@@ -26,17 +26,33 @@ export async function POST(request: Request) {
   };
 
   const account = await getOrCreateAccount();
-  let website = await prisma.website.findFirst({
-    where: { accountId: account.id },
-    orderBy: { createdAt: "asc" },
-  });
 
+  // Find-or-create the Website for THIS campaign's own store URL — every
+  // campaign creation call (AI wizard via generationContext.storeUrl, manual
+  // wizard via body.domain) carries the URL the merchant just typed, and it
+  // must be looked up/created fresh every time. The previous version of this
+  // handler only ever did this once per account (grabbing whatever website
+  // was created first, forever after) — so every later campaign for a
+  // "different" store silently landed on the account's original website,
+  // and only the newest campaign was ever reachable from any of them (see
+  // the "same campaign everywhere" bug). This mirrors the same
+  // find-by-(accountId, url)-or-create pattern already used correctly in
+  // /api/onboarding/website/route.ts.
+  const storeUrlFromContext = body.generationContext?.storeUrl;
+  const domainFromBody = (body as { domain?: unknown }).domain;
+  const rawUrl =
+    (typeof storeUrlFromContext === "string" && storeUrlFromContext.trim()) ||
+    (typeof domainFromBody === "string" && domainFromBody.trim()) ||
+    // No URL provided at all — fall back to a synthetic, per-account
+    // placeholder rather than a shared literal string, so it can never
+    // collide with another account's placeholder or a real domain.
+    `pending-setup-${account.id}.invalid`;
+  const url = normalizeHost(rawUrl);
+
+  let website = await prisma.website.findFirst({
+    where: { accountId: account.id, url },
+  });
   if (!website) {
-    const rawUrl = body.generationContext?.storeUrl 
-      ? String(body.generationContext.storeUrl) 
-      : "pending-setup.com";
-    const url = normalizeHost(rawUrl);
-      
     website = await prisma.website.create({
       data: {
         accountId: account.id,
