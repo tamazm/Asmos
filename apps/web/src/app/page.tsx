@@ -6,9 +6,11 @@ import { HomepageForm } from "@/components/ui/HomepageForm";
 import { KnockoutBracketPreview } from "@/components/ui/KnockoutBracketPreview";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
+import { PricingClient } from "@/components/marketing/PricingClient";
 import { CTA } from "@/lib/site";
 import { buildMetadata } from "@/lib/seo";
 import { BLOG_POSTS } from "@/lib/blog/posts";
+import { FAQS } from "@/lib/faq";
 
 export const metadata: Metadata = buildMetadata({
   title: "AI Conversion Optimization for Ecommerce",
@@ -42,10 +44,8 @@ const PROBLEM_NEW = ["Analyze", "Generate", "Test", "Learn", "Optimize"];
 
 const HOW_STEPS = [
   { n: "01", title: "Analyze your store", body: "Asmos understands your brand, offer, audience, and current conversion setup." },
-  { n: "02", title: "Generate conversion experiences", body: "AI creates popup concepts and meaningful testing hypotheses." },
-  { n: "03", title: "Test automatically", body: "Asmos launches variants and reallocates traffic based on performance." },
-  { n: "04", title: "Learn from every visitor", body: "Asmos identifies which copy, layouts, offers, triggers, and experiences perform best." },
-  { n: "05", title: "Continuously improve", body: "Winning traits become the foundation for the next generation of tests." },
+  { n: "02", title: "Generate & test experiences", body: "AI creates popup concepts, launches variants, and reallocates traffic based on real performance." },
+  { n: "03", title: "Learn & improve automatically", body: "Asmos identifies what's working and uses it as the foundation for the next generation of tests." },
 ];
 
 const FEATURES = [
@@ -172,16 +172,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 2. Social proof ─────────────────────────────────────────── */}
-      <section className="border-y border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-5 py-8">
-        <div className="mx-auto max-w-6xl text-center reveal">
-          <p className="text-sm font-medium text-[color:var(--color-text-secondary)]">
-            Built for ecommerce teams focused on measurable growth.
-          </p>
-        </div>
-      </section>
-
-      {/* ── 3. Problem ──────────────────────────────────────────────── */}
+      {/* ── 2. Problem ──────────────────────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <h2
@@ -221,13 +212,13 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 4. How Asmos Works ──────────────────────────────────────── */}
+      {/* ── 3. How Asmos Works ──────────────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
             How Asmos works
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 reveal-stagger mb-10">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 reveal-stagger mb-10">
             {HOW_STEPS.map((s) => (
               <div key={s.n} className="hover-float rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
                 <span className="text-2xl font-bold tabular-nums text-[color:var(--color-primary)] opacity-25">{s.n}</span>
@@ -244,28 +235,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 5. Core product features ────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl">
-          <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
-            Everything you need to optimize conversion, automatically
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 reveal-stagger">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="hover-float rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
-                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)]">
-                  <Check />
-                </div>
-                <h3 className="mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{f.title}</h3>
-                <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{f.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 6. Autonomous optimization ──────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)] overflow-hidden">
+      {/* ── 4. Autonomous optimization ──────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24 overflow-hidden">
         <div className="mx-auto max-w-2xl text-center reveal">
           <h2 className="mb-4 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
             Let the strongest experience win.
@@ -284,8 +255,28 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 8. AI Learnings ─────────────────────────────────────────── */}
+      {/* ── 5. Core product features ────────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Everything you need to optimize conversion, automatically
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 reveal-stagger">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="hover-float rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)]">
+                  <Check />
+                </div>
+                <h3 className="mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{f.title}</h3>
+                <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{f.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 6. AI Learnings (stats / proof) ─────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-10 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
             Asmos doesn&apos;t just find winners. It learns why they win.
@@ -302,26 +293,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 9. Integrations ─────────────────────────────────────────── */}
-      <section id="integrations" className="px-5 py-16 sm:py-24">
-        <div className="mx-auto max-w-6xl text-center">
-          <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
-            Works with the tools you already use.
-          </h2>
-          <p className="mb-10 text-sm text-[color:var(--color-text-secondary)] max-w-lg mx-auto reveal">
-            Asmos optimizes lead capture while you keep using your existing email and SMS systems for follow-up.
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 reveal-stagger">
-            {INTEGRATIONS.map((name) => (
-              <span key={name} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-medium text-[color:var(--color-text-primary)]">
-                {name}
-              </span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 10. Free Optimization Analysis (supporting, lighter CTA) ── */}
+      {/* ── 7. Free Optimization Analysis (soft offramp before pricing) ── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-3xl text-center reveal">
           <span className="mb-4 inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
@@ -341,21 +313,27 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 11. Pricing preview ─────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24">
-        <div className="mx-auto max-w-2xl text-center reveal">
-          <h2 className="mb-3 text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
-            Flexible pricing built around your traffic.
-          </h2>
-          <p className="mb-2 text-sm text-[color:var(--color-text-secondary)]">Choose your monthly traffic volume and pay only for the capacity you need.</p>
-          <p className="mb-7 text-xs text-[color:var(--color-text-secondary)]">Every plan includes the full Asmos platform. Pricing scales with your traffic and level of support — not locked features.</p>
-          <Link href="/pricing" className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
-            View Pricing <Arrow className="h-3.5 w-3.5" />
-          </Link>
+      {/* ── 8. Pricing ───────────────────────────────────────────────── */}
+      <section id="pricing" className="px-5 py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-2xl text-center reveal mb-10">
+            <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+              Flexible pricing built around your traffic.
+            </h2>
+            <p className="text-sm text-[color:var(--color-text-secondary)]">
+              Every plan includes the full Asmos platform. Pricing scales with your traffic and level of support — not locked features.
+            </p>
+          </div>
+          <PricingClient />
+          <div className="mt-4 text-center">
+            <Link href="/pricing" className="text-sm font-medium text-[color:var(--color-primary)] underline underline-offset-4">
+              Compare all plans in detail
+            </Link>
+          </div>
         </div>
       </section>
 
-      {/* ── 12. Managed Success ─────────────────────────────────────── */}
+      {/* ── 9. Managed Success ───────────────────────────────────────── */}
       <section id="managed-success" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-2xl text-center reveal">
           <h2 className="mb-3 text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
@@ -370,7 +348,27 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 14. Blog / resources preview ────────────────────────────── */}
+      {/* ── 10. FAQ ──────────────────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24">
+        <div className="mx-auto max-w-2xl">
+          <h2 className="mb-8 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Frequently asked questions
+          </h2>
+          <div className="space-y-4 reveal-stagger">
+            {FAQS.map((faq) => (
+              <details key={faq.question} className="group rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-4">
+                <summary className="cursor-pointer list-none text-sm font-semibold text-[color:var(--color-text-primary)] flex items-center justify-between">
+                  {faq.question}
+                  <span className="ml-4 text-[color:var(--color-text-secondary)] group-open:rotate-45 transition-transform duration-200 text-lg leading-none">+</span>
+                </summary>
+                <p className="mt-2.5 text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{faq.answer}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 11. Blog / resources preview ────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <div className="mb-10 flex items-end justify-between reveal">
@@ -394,8 +392,30 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 15. Final CTA ────────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24">
+      {/* ── 12. Trust block (integrations + social proof) ──────────── */}
+      <section id="integrations" className="px-5 py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl text-center">
+          <p className="mb-8 text-sm font-medium text-[color:var(--color-text-secondary)] reveal">
+            Built for ecommerce teams focused on measurable growth.
+          </p>
+          <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+            Works with the tools you already use.
+          </h2>
+          <p className="mb-10 text-sm text-[color:var(--color-text-secondary)] max-w-lg mx-auto reveal">
+            Asmos optimizes lead capture while you keep using your existing email and SMS systems for follow-up.
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3 reveal-stagger">
+            {INTEGRATIONS.map((name) => (
+              <span key={name} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-medium text-[color:var(--color-text-primary)]">
+                {name}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 13. Final CTA ────────────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-2xl text-center reveal">
           <h2 className="mb-4 text-2xl sm:text-[2rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
             Stop guessing what converts.
