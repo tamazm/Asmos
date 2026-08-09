@@ -18,6 +18,13 @@ export async function POST(request: Request) {
     email?: string;
     phone?: string;
     consentGiven?: boolean;
+    // First-party per-visitor id + behavioral context, same shape as
+    // /api/widget/events — lets us see e.g. how much a visitor scrolled or
+    // how long they were on the page before converting, not just that they
+    // converted.
+    visitorId?: string;
+    scrollDepthPct?: number;
+    timeOnPageSeconds?: number;
   };
 
   if (!body.variantId) {
@@ -29,7 +36,11 @@ export async function POST(request: Request) {
     include: {
       campaign: {
         include: {
-          rewards: true,
+          // Only unused pool codes count toward "does this reward have
+          // anything left to give out" — see lib/reward.ts's
+          // isRewardAvailable, which treats couponCodes.length as the
+          // available count.
+          rewards: { include: { couponCodes: { where: { usedAt: null }, select: { id: true } } } },
           account: {
             select: {
               name: true,
@@ -78,17 +89,36 @@ export async function POST(request: Request) {
     if (!couponCode) {
       couponCode = reward.couponCode ?? (reward.type === "COUPON" ? generateCouponCode() : null);
     }
-    if (couponCode) {
-      await prisma.lead.update({ where: { id: lead.id }, data: { rewardClaimedCode: couponCode } });
-    }
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: { rewardClaimedCode: couponCode, rewardRuleId: reward.id },
+    });
+    // Generic redemption counter — tracked for every reward type (not just
+    // COUPON's own usedAt-based pool accounting) so maxRedemptions works
+    // uniformly for FREE_SHIPPING/GIFT/etc. too. Best-effort: a failure here
+    // shouldn't break lead capture, which has already succeeded above.
+    await prisma.rewardRule
+      .update({ where: { id: reward.id }, data: { redemptionsCount: { increment: 1 } } })
+      .catch((err) => console.error("[reward] redemptionsCount increment failed", err));
   }
 
+  const conversionDetails = {
+    scrollDepthPct: body.scrollDepthPct,
+    timeOnPageSeconds: body.timeOnPageSeconds,
+  };
+  const hasConversionDetails = Object.values(conversionDetails).some((v) => v !== undefined);
+
   await prisma.campaignEvent.create({
-    data: { variantId: variant.id, type: "SUBMISSION" },
+    data: {
+      variantId: variant.id,
+      type: "SUBMISSION",
+      visitorId: body.visitorId ?? undefined,
+      details: hasConversionDetails ? conversionDetails : undefined,
+    },
   });
   if (reward) {
     await prisma.campaignEvent.create({
-      data: { variantId: variant.id, type: "GIFT_CLAIMED" },
+      data: { variantId: variant.id, type: "GIFT_CLAIMED", visitorId: body.visitorId ?? undefined },
     });
   }
 
@@ -148,7 +178,7 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             api_key: posthogKey,
             event: "email_captured",
-            distinct_id: `widget_visitor_${variant.id}`,
+            distinct_id: body.visitorId || `widget_visitor_${variant.id}`,
             properties: {
               campaign_id: variant.campaignId,
               variant_id: variant.id,

@@ -24,7 +24,16 @@ export default async function DashboardLayout({
   const isSuperadmin = isSuperadminEmail(userEmail);
 
   return (
-    <div className="flex h-[100dvh] overflow-hidden bg-[color:var(--color-surface-sunken)]">
+    // `fixed inset-0` (not h-[100dvh]) is deliberate: it pins the shell to
+    // the viewport regardless of <body>'s own box height (body is
+    // `min-h-full flex flex-col` in the root layout, which can end up
+    // slightly taller than the viewport). Sizing this shell to just
+    // "h-[100dvh]" let body grow past the viewport in that case, giving a
+    // second, outer scrollbar on top of this shell's intentional inner
+    // overflow-y-auto on <main> — the "double scroll" bug. Fixed
+    // positioning removes this div from document flow entirely, so body's
+    // content height collapses to ~0 and can never independently scroll.
+    <div className="fixed inset-0 flex overflow-hidden bg-[color:var(--color-surface-sunken)]">
       <Sidebar businessName={account.name} isSuperadmin={isSuperadmin} />
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top bar */}

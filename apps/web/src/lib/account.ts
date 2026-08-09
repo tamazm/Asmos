@@ -54,10 +54,23 @@ export async function getOrCreateAccount() {
         }
       });
 
-      await inngest.send({
-        name: "campaign.generate",
-        data: { campaignId: campaign.id },
-      });
+      try {
+        await inngest.send({
+          name: "campaign.generate",
+          data: { campaignId: campaign.id },
+        });
+      } catch (err) {
+        console.error("[account] inngest.send failed for campaign.generate", err);
+        await prisma.campaign
+          .update({
+            where: { id: campaign.id },
+            data: {
+              status: "FAILED",
+              lastError: "Failed to queue campaign generation. Please retry.",
+            },
+          })
+          .catch(() => {});
+      }
     }
 
     return account;

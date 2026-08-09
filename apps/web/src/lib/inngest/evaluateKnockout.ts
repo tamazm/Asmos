@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
-import { AI_GENERATION_LIMITS } from "@/lib/limits";
+import { AI_GENERATION_LIMITS, MAX_VARIANTS_PER_ROUND } from "@/lib/limits";
 import type { Prisma } from ".prisma/client";
 import {
   generatePopupWithVariants,
@@ -12,7 +12,7 @@ import {
   computedStylesFromAnalyzeResult,
   existingPopupFromAnalyzeResult,
 } from "@/lib/popupGeneration";
-import { renderSplitScreenTemplate } from "@/lib/templates/splitScreen";
+import { renderPopupTemplate } from "@/lib/templates";
 
 export const evaluateKnockout = inngest.createFunction(
   { id: "evaluate-knockout", triggers: { event: "campaign.evaluate" } },
@@ -35,7 +35,7 @@ export const evaluateKnockout = inngest.createFunction(
     }
 
     const planTier = campaign.account.planTier;
-    const maxVariants = planTier === "FREE" ? 1 : planTier === "STARTER" ? 4 : 20;
+    const maxVariants = MAX_VARIANTS_PER_ROUND[planTier];
     const currentRound = campaign.tournamentRound;
     const roundVariants = campaign.variants.filter((v) => v.tournamentRound === currentRound);
     const activeVariants = roundVariants.filter((v) => v.status === "ACTIVE");
@@ -114,6 +114,13 @@ export const evaluateKnockout = inngest.createFunction(
 
     const controlVariant = campaign.variants.find((v) => v.isControl) ?? campaign.variants[0];
     const controlDesign = (controlVariant?.design ?? {}) as Record<string, unknown>;
+    // Page targeting is a campaign-level choice made once at creation (see
+    // NewCampaignForm.tsx) and copied identically onto every variant's
+    // targeting.pages by generateCampaign.ts — carry it forward onto
+    // knockout-generated variants too, or a new round would silently reset
+    // "only show on /product/*" back to "show everywhere".
+    const controlTargeting = (controlVariant?.targeting ?? {}) as { pages?: unknown };
+    const pageTargeting = controlTargeting.pages;
 
     const brandTokens = brandTokensFromAnalyzeResult({ brandColor: accountBrandColor, brandTokens: undefined });
     const computedStyles = computedStylesFromAnalyzeResult({ brandColor: accountBrandColor });
@@ -142,6 +149,19 @@ export const evaluateKnockout = inngest.createFunction(
       );
     });
 
+    // Carry the merchant's original creation-time offer preference forward
+    // into knockout-generated variants too (same rationale as pageTargeting
+    // above), rather than silently reverting to "ai_choice" every round.
+    const generationContext = (campaign.generationContext ?? {}) as Record<string, unknown>;
+    const offerPreferenceType =
+      typeof generationContext.discountPreference === "string"
+        ? (generationContext.discountPreference as "ai_choice" | "percentage" | "free_shipping" | "fixed_prize")
+        : "ai_choice";
+    const maxDiscountPercent =
+      typeof generationContext.maxDiscountPercent === "number" ? generationContext.maxDiscountPercent : undefined;
+    const fixedPrizeDescription =
+      typeof generationContext.fixedPrizeDescription === "string" ? generationContext.fixedPrizeDescription : undefined;
+
     try {
       const output = await step.run("generate-ai", async () => {
         const input = buildPopupInput({
@@ -153,6 +173,8 @@ export const evaluateKnockout = inngest.createFunction(
           analyticsVariants,
           variantCount: numToGenerate,
           multivariate: false,
+          maxDiscountPercent,
+          offerPreference: { type: offerPreferenceType, fixedPrizeDescription },
         });
         return generatePopupWithVariants(input);
       });
@@ -177,12 +199,12 @@ export const evaluateKnockout = inngest.createFunction(
                 ctaText: v.spec.cta,
               },
               formFields: v.spec.fields,
-              targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds },
+              targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds, pages: pageTargeting },
               testAxis: v.test_axis,
               hypothesis: v.hypothesis,
               motivatingMetric: v.motivating_metric,
               popupSpec: v.spec as unknown as Prisma.InputJsonValue,
-              generatedCode: renderSplitScreenTemplate({
+              generatedCode: renderPopupTemplate(v.spec.template_id, {
                 headline: v.spec.headline,
                 subhead: v.spec.subhead,
                 cta: v.spec.cta,

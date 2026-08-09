@@ -1,6 +1,6 @@
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
-import type { Prisma, RewardType } from ".prisma/client";
+import type { Prisma, PlanTier } from ".prisma/client";
 import {
   generatePopupWithVariants,
   buildPopupInput,
@@ -12,7 +12,112 @@ import {
   type ComputedStyles,
   type PopupGenerationOutput,
 } from "@/lib/popupGeneration";
-import { renderSplitScreenTemplate } from "@/lib/templates/splitScreen";
+import { renderPopupTemplate } from "@/lib/templates";
+import type { CampaignGenerationStageCode } from "@/lib/campaignGenerationStages";
+import { generateCouponCode } from "@/lib/reward";
+import {
+  MAX_CODES_PER_GENERATE_REQUEST,
+  MAX_COUPON_CODES_PER_ACCOUNT,
+  DEFAULT_NEW_CAMPAIGN_CODE_COUNT,
+  DEFAULT_GIFT_REDEMPTIONS,
+} from "@/lib/limits";
+
+// A popup must never go live promising a reward it can't deliver (see the
+// gate in api/widget/config/route.ts), and a merchant shouldn't have to
+// remember to go stock codes by hand every time they launch a campaign — so
+// campaign creation guarantees a real, redeemable reward is attached
+// whenever the campaign's offer implies one. Runs once per campaign
+// (idempotent: a no-op if a reward already exists, e.g. a knockout round
+// re-invoking generation on the same campaign) rather than per-variant —
+// rewards belong to the campaign and are shared across all its variants.
+async function attachDefaultReward(
+  tx: Prisma.TransactionClient,
+  campaignId: string,
+  accountId: string,
+  planTier: PlanTier,
+  offerPreferenceType: "ai_choice" | "percentage" | "free_shipping" | "fixed_prize",
+  baselineCouponCode: string | null | undefined,
+  fixedPrizeDescription: string | undefined,
+  freeShippingLimit: number | undefined,
+  fixedPrizeLimit: number | undefined,
+) {
+  const existing = await tx.rewardRule.findFirst({ where: { campaignId } });
+  if (existing) return;
+
+  if (offerPreferenceType === "free_shipping") {
+    await tx.rewardRule.create({
+      data: {
+        campaignId,
+        label: "Free Shipping",
+        type: "FREE_SHIPPING",
+        // Merchant-set quantity if they gave one (e.g. "first 200 orders"),
+        // otherwise genuinely unlimited — free shipping isn't inherently a
+        // scarce resource the way a gift or discount budget is.
+        maxRedemptions: freeShippingLimit ?? null,
+      },
+    });
+    return;
+  }
+
+  if (offerPreferenceType === "fixed_prize") {
+    await tx.rewardRule.create({
+      data: {
+        campaignId,
+        label: (fixedPrizeDescription || "Free Gift").slice(0, 80),
+        description: fixedPrizeDescription || null,
+        type: "GIFT",
+        maxRedemptions: fixedPrizeLimit ?? DEFAULT_GIFT_REDEMPTIONS,
+      },
+    });
+    return;
+  }
+
+  // "percentage" or "ai_choice" — a coupon-code discount. If the AI didn't
+  // end up producing a coupon_code at all (it decided a discount wasn't the
+  // right move), there's nothing to attach here; the campaign's goal-based
+  // gating in the widget config route handles that case rather than forcing
+  // a fake reward onto it.
+  if (!baselineCouponCode) return;
+
+  const rule = await tx.rewardRule.create({
+    data: { campaignId, label: "AI Discount", type: "COUPON", couponCode: baselineCouponCode },
+  });
+
+  // Real one-time-use inventory instead of relying solely on the single
+  // shared code above (which never runs out and can't be tracked
+  // per-redemption) — bounded by the same tiered per-request and
+  // account-wide caps as manual generation on the Rewards page, so
+  // attaching this can never itself blow through either budget.
+  const generateCap = MAX_CODES_PER_GENERATE_REQUEST[planTier] ?? 25;
+  const totalCap = MAX_COUPON_CODES_PER_ACCOUNT[planTier] ?? 100;
+  const existingTotal = await tx.couponCode.count({
+    where: { rewardRule: { campaign: { accountId } } },
+  });
+  const remaining = Math.max(0, totalCap - existingTotal);
+  const poolSize = Math.max(0, Math.min(DEFAULT_NEW_CAMPAIGN_CODE_COUNT, generateCap, remaining));
+  if (poolSize > 0) {
+    const codes = new Set<string>();
+    while (codes.size < poolSize) codes.add(generateCouponCode());
+    await tx.couponCode.createMany({
+      data: Array.from(codes).map((code) => ({ rewardRuleId: rule.id, code })),
+      skipDuplicates: true,
+    });
+  }
+}
+
+// Marks progress within status=GENERATING so the UI can show something more
+// useful than a static "Generating…" (and, on failure, which stage it died
+// in). Left as-is when generation fails — that last-known stage is what the
+// UI reads to say e.g. "Failed while: Structure is forming".
+async function setStage(campaignId: string, stage: CampaignGenerationStageCode) {
+  await prisma.campaign.update({
+    where: { id: campaignId },
+    data: { generationStage: stage },
+  }).catch((err) => {
+    // Non-fatal — a missed status update shouldn't abort generation itself.
+    console.error(`[generateCampaign] failed to set stage=${stage} for campaign ${campaignId}:`, err);
+  });
+}
 
 export const generateCampaign = inngest.createFunction(
   // Terminal on failure by design — the campaign detail page shows lastError
@@ -83,6 +188,33 @@ async function runGeneration(
     let domain = storeUrl;
     try { domain = new URL(storeUrl).hostname.replace(/^www\./, ""); } catch {}
 
+    await setStage(campaignId, "AI_THINKING");
+
+    // Personalization inputs collected at campaign creation (see
+    // NewCampaignForm.tsx's "Personalize your popup" section) — optional,
+    // default to "let the AI decide" / "show everywhere" so the fast-path
+    // (just paste a URL) is unaffected for anyone who skips them.
+    const pageTargeting =
+      context.pageTargeting && typeof context.pageTargeting === "object"
+        ? (context.pageTargeting as { mode: "all" | "include" | "exclude"; patterns: string[] })
+        : undefined;
+    const offerPreferenceType =
+      typeof context.discountPreference === "string"
+        ? (context.discountPreference as "ai_choice" | "percentage" | "free_shipping" | "fixed_prize")
+        : "ai_choice";
+    const maxDiscountPercent =
+      typeof context.maxDiscountPercent === "number" ? context.maxDiscountPercent : undefined;
+    const fixedPrizeDescription =
+      typeof context.fixedPrizeDescription === "string" ? context.fixedPrizeDescription : undefined;
+    const freeShippingLimit =
+      typeof context.freeShippingLimit === "number" && context.freeShippingLimit > 0
+        ? Math.floor(context.freeShippingLimit)
+        : undefined;
+    const fixedPrizeLimit =
+      typeof context.fixedPrizeLimit === "number" && context.fixedPrizeLimit > 0
+        ? Math.floor(context.fixedPrizeLimit)
+        : undefined;
+
     const output: PopupGenerationOutput = await step.run("generate-ai", async () => {
       const goal = (context.goal as "EMAIL" | "DISCOUNT" | "BOTH") ?? "BOTH";
 
@@ -92,13 +224,25 @@ async function runGeneration(
         brandTokens,
         existingPopup,
         computedStyles,
+        // Cold start (no analytics yet): request 2 variants instead of 1 so a
+        // freshly created campaign already tests two axes (trigger timing +
+        // friction, per the system prompt's ranked cold-start order) against
+        // control, instead of shipping a single variant that — by design —
+        // only differs from control in one respect. Safe on every plan tier:
+        // MAX_VARIANTS_PER_ROUND is >= 3 everywhere (see lib/limits.ts), and
+        // this still only costs 1 unit of the account's AI generation budget
+        // regardless of variant count.
         analyticsVariants: [],
-        variantCount: 1,
+        variantCount: 2,
         multivariate: false,
         goal,
+        maxDiscountPercent,
+        offerPreference: { type: offerPreferenceType, fixedPrizeDescription },
       });
       return generatePopupWithVariants(input);
     });
+
+    await setStage(campaignId, "STRUCTURING");
 
     await step.run("save-variants", async () => {
       const goal = (context.goal as "EMAIL" | "DISCOUNT" | "BOTH") ?? "BOTH";
@@ -115,9 +259,13 @@ async function runGeneration(
             imageUrl: output.baseline.spec.image_url,
           },
           formFields: output.baseline.spec.fields,
-          targeting: { trigger: output.baseline.spec.trigger, delaySeconds: output.baseline.spec.delay_seconds },
+          targeting: {
+            trigger: output.baseline.spec.trigger,
+            delaySeconds: output.baseline.spec.delay_seconds,
+            pages: pageTargeting,
+          },
           popupSpec: output.baseline.spec as unknown as Prisma.InputJsonValue,
-          generatedCode: renderSplitScreenTemplate({
+          generatedCode: renderPopupTemplate(output.baseline.spec.template_id, {
             headline: output.baseline.spec.headline,
             subhead: output.baseline.spec.subhead,
             cta: output.baseline.spec.cta,
@@ -127,15 +275,6 @@ async function runGeneration(
             layoutStyle: output.baseline.spec.layout_style,
             imageUrl: output.baseline.spec.image_url,
           }),
-          rewards: output.baseline.spec.coupon_code
-            ? [
-                {
-                  label: "AI Discount",
-                  type: "COUPON" as RewardType,
-                  couponCode: output.baseline.spec.coupon_code,
-                },
-              ]
-            : [],
         },
         ...output.variants.map((v, idx) => ({
           name: `Variant ${idx + 1} (${v.test_axis})`,
@@ -149,9 +288,9 @@ async function runGeneration(
             imageUrl: v.spec.image_url,
           },
           formFields: v.spec.fields,
-          targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds },
+          targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds, pages: pageTargeting },
           popupSpec: v.spec as unknown as Prisma.InputJsonValue,
-          generatedCode: renderSplitScreenTemplate({
+          generatedCode: renderPopupTemplate(v.spec.template_id, {
             headline: v.spec.headline,
             subhead: v.spec.subhead,
             cta: v.spec.cta,
@@ -161,15 +300,6 @@ async function runGeneration(
             layoutStyle: v.spec.layout_style,
             imageUrl: v.spec.image_url,
           }),
-          rewards: v.spec.coupon_code
-            ? [
-                {
-                  label: "AI Discount",
-                  type: "COUPON" as RewardType,
-                  couponCode: v.spec.coupon_code,
-                },
-              ]
-            : [],
           testAxis: v.test_axis,
           hypothesis: v.hypothesis,
           motivatingMetric: v.motivating_metric,
@@ -180,36 +310,46 @@ async function runGeneration(
       newVariants.forEach(v => { v.trafficPercent = split; });
       newVariants[0].trafficPercent += (100 - split * newVariants.length);
 
+      await setStage(campaignId, "SAVING");
+
+      const campaignAccount = await prisma.campaign.findUnique({
+        where: { id: campaignId },
+        select: { accountId: true, account: { select: { planTier: true } } },
+      });
+      if (!campaignAccount) throw new Error("Campaign disappeared before save");
+
       await prisma.$transaction(async (tx) => {
         await tx.variant.deleteMany({ where: { campaignId } });
         for (const variantData of newVariants) {
-          const { rewards, ...restData } = variantData;
-          await tx.variant.create({ 
-            data: { 
-              campaignId, 
-              ...restData
-            } 
+          await tx.variant.create({
+            data: {
+              campaignId,
+              ...variantData,
+            }
           });
-          
-          // Create rewards at the campaign level if they don't already exist
-          if (rewards && rewards.length > 0) {
-             for (const r of rewards) {
-                const existingReward = await tx.rewardRule.findFirst({
-                   where: { campaignId, couponCode: r.couponCode }
-                });
-                if (!existingReward) {
-                   await tx.rewardRule.create({
-                      data: { campaignId, ...r }
-                   });
-                }
-             }
-          }
         }
+
+        // Rewards belong to the campaign as a whole, not any one variant —
+        // create/verify the campaign has one real, redeemable reward exactly
+        // once per generation round (see attachDefaultReward's doc comment).
+        await attachDefaultReward(
+          tx,
+          campaignId,
+          campaignAccount.accountId,
+          campaignAccount.account.planTier,
+          offerPreferenceType,
+          output.baseline.spec.coupon_code,
+          fixedPrizeDescription,
+          freeShippingLimit,
+          fixedPrizeLimit,
+        );
+
         await tx.campaign.update({
           where: { id: campaignId },
           data: {
             status: "ACTIVE",
             lastError: null,
+            generationStage: null,
             account: { update: { aiGenerationsCount: { increment: 1 } } }
           }
         });

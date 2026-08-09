@@ -44,6 +44,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
           campaignId={campaign.id}
           status={campaign.status}
           lastError={campaign.lastError}
+          generationStage={campaign.generationStage}
         />
       </div>
     );
