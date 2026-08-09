@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth-adapter";
 import { HomepageForm } from "@/components/ui/HomepageForm";
 import { KnockoutBracketPreview } from "@/components/ui/KnockoutBracketPreview";
 import { KnockoutGraphPreview } from "@/components/marketing/KnockoutGraphPreview";
+import { ConversionGrowthPreview } from "@/components/marketing/ConversionGrowthPreview";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { PricingClient } from "@/components/marketing/PricingClient";
@@ -122,6 +123,39 @@ function LatticeGrid({ cols, children }: { cols: 2 | 3; children: React.ReactNod
   );
 }
 
+// One step of the "How Asmos works" walkthrough: a live animation on one
+// side, the explanation on the other. Alternates sides per row so the
+// section reads as a sequence rather than a repeated block.
+function HowItWorksRow({
+  index,
+  icon: Icon,
+  title,
+  body,
+  reverse,
+  visual,
+}: {
+  index: number;
+  icon: (props: { className?: string }) => React.ReactElement;
+  title: string;
+  body: string;
+  reverse?: boolean;
+  visual: React.ReactNode;
+}) {
+  return (
+    <div className="grid grid-cols-1 items-center gap-8 py-10 first:pt-0 last:pb-0 lg:grid-cols-2 lg:gap-16 reveal">
+      <div className={reverse ? "lg:order-2" : ""}>{visual}</div>
+      <div className={reverse ? "lg:order-1" : ""}>
+        <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]">
+          <Icon className="h-6 w-6" />
+        </div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">Step {index}</p>
+        <h3 className="mb-3 text-xl sm:text-2xl font-semibold tracking-[-0.01em] text-[color:var(--color-text-primary)]">{title}</h3>
+        <p className="max-w-md text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{body}</p>
+      </div>
+    </div>
+  );
+}
+
 // ── Content ───────────────────────────────────────────────────────────────
 
 const PROBLEM_OLD = ["Build", "Guess", "Test", "Analyze", "Rebuild", "Repeat"];
@@ -210,24 +244,6 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 2. Hero visual — the live knockout bracket, presented as the
-             product itself rather than a decorative mockup ─────────────── */}
-      <section className="px-5 pb-16 sm:pb-24 bg-[color:var(--color-surface)]">
-        <div className="relative mx-auto flex max-w-3xl flex-col items-center">
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute -top-10 left-1/2 h-72 w-[36rem] -translate-x-1/2 rounded-full opacity-60"
-            style={{ background: "radial-gradient(ellipse 50% 50% at 50% 50%, oklch(48% 0.255 258 / 0.08) 0%, transparent 70%)" }}
-          />
-          <div className="hover-float relative animate-page-enter-delay-3">
-            <KnockoutBracketPreview animated variant="default" />
-          </div>
-          <p className="relative mt-5 max-w-md text-center text-xs leading-relaxed text-[color:var(--color-text-secondary)]">
-            Four popup variants enter. Asmos shifts traffic toward the strongest performer in real time and eliminates the rest — this is what &ldquo;Test&rdquo; means at Asmos.
-          </p>
-        </div>
-      </section>
-
       <HatchDivider />
 
       {/* ── 3. Trust bar ───────────────────────────────────────────────── */}
@@ -249,24 +265,35 @@ export default async function LandingPage() {
           heading={<>How <Accent>Asmos</Accent> works</>}
           sub="Three steps, running continuously — not a checklist you manage by hand."
         />
-        <div className="mx-auto mb-10 max-w-3xl reveal">
-          <KnockoutGraphPreview />
-          <p className="mt-4 text-center text-xs leading-relaxed text-[color:var(--color-text-secondary)]">
-            This is step two, live: Asmos tracks every variant&apos;s conversion rate as traffic comes in, then shifts weight toward whichever is actually winning — no one has to eyeball a dashboard and decide.
-          </p>
-        </div>
-        <LatticeGrid cols={3}>
-          {HOW_STEPS.map((s) => (
-            <div key={s.title}>
-              <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]">
-                <s.icon className="h-6 w-6" />
+        <div className="mx-auto max-w-5xl divide-y divide-[color:var(--color-border)]">
+          <HowItWorksRow
+            index={1}
+            icon={HOW_STEPS[0].icon}
+            title={HOW_STEPS[0].title}
+            body={HOW_STEPS[0].body}
+            visual={
+              <div className="flex justify-center">
+                <KnockoutBracketPreview animated variant="default" />
               </div>
-              <h3 className="mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{s.title}</h3>
-              <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{s.body}</p>
-            </div>
-          ))}
-        </LatticeGrid>
-        <div className="mt-10 text-center">
+            }
+          />
+          <HowItWorksRow
+            index={2}
+            icon={HOW_STEPS[1].icon}
+            title={HOW_STEPS[1].title}
+            body={HOW_STEPS[1].body}
+            reverse
+            visual={<KnockoutGraphPreview />}
+          />
+          <HowItWorksRow
+            index={3}
+            icon={HOW_STEPS[2].icon}
+            title={HOW_STEPS[2].title}
+            body={HOW_STEPS[2].body}
+            visual={<ConversionGrowthPreview />}
+          />
+        </div>
+        <div className="mt-14 text-center">
           <Link href={CTA.primary.href} className="btn-wipe inline-flex items-center gap-2 rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-transform duration-200 active:scale-[0.97]">
             {CTA.primary.label} <Arrow className="h-3.5 w-3.5 text-white/80" />
           </Link>
