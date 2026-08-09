@@ -80,7 +80,7 @@ function HeroHeadline({ text }: { text: string }) {
   const words = text.split(" ");
   return (
     <h1
-      className="mb-5 text-[2.3rem] leading-[1.08] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-[3.1rem] lg:text-[3.4rem]"
+      className="mb-5 text-[2.5rem] leading-[1.08] font-semibold tracking-[-0.02em] text-[color:var(--color-text-primary)] sm:text-[3.5rem] lg:text-[4rem]"
       style={{ textWrap: "balance" } as React.CSSProperties}
     >
       {words.map((word, i) => (
@@ -89,6 +89,20 @@ function HeroHeadline({ text }: { text: string }) {
         </span>
       ))}
     </h1>
+  );
+}
+
+// Shared section-heading scale — mirrors the reference's restrained type
+// system (size carries the hierarchy, weight stays at semibold rather than
+// full bold) so every section reads as one consistent family.
+function SectionHeading({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <h2
+      className={`text-[1.75rem] sm:text-[2.25rem] lg:text-[2.5rem] font-semibold tracking-[-0.02em] text-[color:var(--color-text-primary)] ${className}`}
+      style={{ textWrap: "balance" } as React.CSSProperties}
+    >
+      {children}
+    </h2>
   );
 }
 
@@ -208,16 +222,13 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 3. Problem ──────────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24">
+      <section className="px-5 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl">
-          <h2
-            className="mb-10 sm:mb-14 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal"
-            style={{ textWrap: "balance" } as React.CSSProperties}
-          >
+          <SectionHeading className="mb-10 sm:mb-14 text-center reveal">
             Conversion optimization is still too manual.
-          </h2>
+          </SectionHeading>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 reveal-stagger">
-            <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-7">
+            <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-7">
               <p className="mb-5 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">The old way</p>
               <div className="flex flex-wrap items-center gap-2">
                 {PROBLEM_OLD.map((step, i) => (
@@ -230,7 +241,7 @@ export default async function LandingPage() {
                 ))}
               </div>
             </div>
-            <div className="rounded-2xl border border-[color:var(--color-primary)]/25 bg-[color:var(--color-primary-light)] p-7">
+            <div className="rounded-xl border border-[color:var(--color-primary)]/25 bg-[color:var(--color-primary-light)] p-7">
               <p className="mb-5 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-primary)]">With Asmos</p>
               <div className="flex flex-wrap items-center gap-2">
                 {PROBLEM_NEW.map((step, i) => (
@@ -248,15 +259,15 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 4. How Asmos Works ──────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+      <section className="px-5 py-16 sm:py-20 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
-          <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+          <SectionHeading className="mb-12 text-center reveal">
             How Asmos works
-          </h2>
+          </SectionHeading>
           <div className="steps-rail grid grid-cols-1 md:grid-cols-3 gap-6 reveal-stagger mb-10">
             {HOW_STEPS.map((s) => (
-              <div key={s.title} className="hover-float relative rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]">
+              <div key={s.title} className="hover-float relative rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]">
                   <s.icon className="h-6 w-6" />
                 </div>
                 <h3 className="mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{s.title}</h3>
@@ -273,11 +284,11 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 5. Autonomous optimization ──────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 overflow-hidden">
+      <section className="px-5 py-16 sm:py-20 overflow-hidden">
         <div className="mx-auto max-w-2xl text-center reveal">
-          <h2 className="mb-4 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+          <SectionHeading className="mb-4">
             Let the strongest experience win.
-          </h2>
+          </SectionHeading>
           <p className="mb-6 text-sm text-[color:var(--color-text-secondary)] leading-relaxed max-w-md mx-auto">
             The knockout tournament shown at the top of this page is exactly what happens inside every live campaign: Asmos continuously evaluates performance, reduces exposure to weaker experiences, and gives stronger variants more opportunity to convert.
           </p>
@@ -293,19 +304,28 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 6. Core product features ────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+      <section className="px-5 py-16 sm:py-20 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
-          <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+          <SectionHeading className="mb-12 text-center reveal">
             Everything you need to optimize conversion, automatically
-          </h2>
+          </SectionHeading>
+          {/* Bento layout: the lead feature spans two columns as a wider
+              highlight tile, the rest sit in uniform 1x1 cells around it. */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 reveal-stagger">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="hover-float rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
-                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]">
+            {FEATURES.map((f, i) => (
+              <div
+                key={f.title}
+                className={`hover-float rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 ${
+                  i === 0 ? "sm:col-span-2 lg:col-span-2 flex flex-col justify-center sm:flex-row sm:items-center sm:gap-5" : ""
+                }`}
+              >
+                <div className="mb-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)] sm:mb-0">
                   <f.icon className="h-5 w-5" />
                 </div>
-                <h3 className="mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{f.title}</h3>
-                <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{f.body}</p>
+                <div>
+                  <h3 className="mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{f.title}</h3>
+                  <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{f.body}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -313,15 +333,15 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 7. By the numbers ───────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24">
+      <section className="px-5 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl">
-          <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+          <SectionHeading className="mb-12 text-center reveal">
             How the testing engine actually works
-          </h2>
+          </SectionHeading>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 reveal-stagger">
             {STATS.map((stat) => (
-              <div key={stat.label} className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-7 text-center">
-                <p className="text-4xl sm:text-5xl font-bold tracking-tight text-[color:var(--color-primary)]">
+              <div key={stat.label} className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-7 text-center">
+                <p className="text-4xl sm:text-5xl font-semibold tracking-[-0.02em] text-[color:var(--color-primary)]">
                   <StatCounter value={stat.value} suffix={stat.suffix} />
                 </p>
                 <p className="mt-3 text-sm font-semibold text-[color:var(--color-text-primary)]">{stat.label}</p>
@@ -333,11 +353,11 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 8. AI Learnings ──────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+      <section className="px-5 py-16 sm:py-20 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
-          <h2 className="mb-10 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+          <SectionHeading className="mb-10 text-center reveal">
             Asmos doesn&apos;t just find winners. It learns why they win.
-          </h2>
+          </SectionHeading>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 reveal-stagger max-w-3xl mx-auto">
             {AI_LEARNINGS.map((insight) => (
               <div key={insight} className="flex items-start gap-3 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
@@ -351,14 +371,14 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 9. Free Optimization Analysis (soft offramp before pricing) ── */}
-      <section className="px-5 py-16 sm:py-24">
+      <section className="px-5 py-16 sm:py-20">
         <div className="mx-auto max-w-3xl text-center reveal">
           <span className="mb-4 inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
             Free Tool
           </span>
-          <h2 className="mb-3 text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+          <SectionHeading className="mb-3">
             Not ready to start? Analyze your store first.
-          </h2>
+          </SectionHeading>
           <p className="mb-6 text-sm text-[color:var(--color-text-secondary)] max-w-md mx-auto">
             Paste your store URL and get a limited conversion analysis with actionable optimization opportunities — no account required.
           </p>
@@ -371,12 +391,12 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 10. Pricing ──────────────────────────────────────────────── */}
-      <section id="pricing" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+      <section id="pricing" className="px-5 py-16 sm:py-20 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto max-w-2xl text-center reveal mb-10">
-            <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+            <SectionHeading className="mb-3">
               Flexible pricing built around your traffic.
-            </h2>
+            </SectionHeading>
             <p className="text-sm text-[color:var(--color-text-secondary)]">
               Every plan includes the full Asmos platform. Pricing scales with your traffic and level of support — not locked features.
             </p>
@@ -391,11 +411,11 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 11. Managed Success ──────────────────────────────────────── */}
-      <section id="managed-success" className="px-5 py-16 sm:py-24">
+      <section id="managed-success" className="px-5 py-16 sm:py-20">
         <div className="mx-auto max-w-2xl text-center reveal">
-          <h2 className="mb-3 text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+          <SectionHeading className="mb-3">
             Prefer a hands-on experience?
-          </h2>
+          </SectionHeading>
           <p className="mb-7 text-sm text-[color:var(--color-text-secondary)] max-w-md mx-auto">
             Add Managed Success for white-glove onboarding, hands-on optimization support, and a dedicated Customer Success Manager.
           </p>
@@ -406,11 +426,11 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 12. FAQ ──────────────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+      <section className="px-5 py-16 sm:py-20 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-2xl">
-          <h2 className="mb-8 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+          <SectionHeading className="mb-8 text-center reveal">
             Frequently asked questions
-          </h2>
+          </SectionHeading>
           <div className="space-y-4 reveal-stagger">
             {FAQS.map((faq) => (
               <details key={faq.question} className="group rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-4">
@@ -426,19 +446,17 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 13. Blog / resources preview ─────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24">
+      <section className="px-5 py-16 sm:py-20">
         <div className="mx-auto max-w-6xl">
           <div className="mb-10 flex items-end justify-between reveal">
-            <h2 className="text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
-              From the blog
-            </h2>
+            <SectionHeading>From the blog</SectionHeading>
             <Link href="/blog" className="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-[color:var(--color-primary)]">
               Explore Resources <Arrow className="h-3.5 w-3.5" />
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 reveal-stagger">
             {BLOG_POSTS.slice(0, 3).map((post) => (
-              <Link key={post.slug} href={`/blog/${post.slug}`} className="hover-float group rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 transition-shadow duration-200 hover:shadow-md">
+              <Link key={post.slug} href={`/blog/${post.slug}`} className="hover-float group rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 transition-shadow duration-200 hover:shadow-md">
                 <span className="mb-3 inline-block rounded-full bg-[color:var(--color-primary-light)] px-2.5 py-1 text-[10px] font-semibold text-[color:var(--color-primary)]">{post.category}</span>
                 <h3 className="mb-2 text-sm font-semibold text-[color:var(--color-text-primary)] leading-snug group-hover:text-[color:var(--color-primary)] transition-colors duration-200">{post.title}</h3>
                 <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed line-clamp-3">{post.excerpt}</p>
@@ -450,11 +468,11 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 14. Integrations ─────────────────────────────────────────── */}
-      <section id="integrations" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+      <section id="integrations" className="px-5 py-16 sm:py-20 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl text-center">
-          <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+          <SectionHeading className="mb-3 reveal">
             Works with the tools you already use.
-          </h2>
+          </SectionHeading>
           <p className="mb-10 text-sm text-[color:var(--color-text-secondary)] max-w-lg mx-auto reveal">
             Asmos optimizes lead capture while you keep using your existing email and SMS systems for follow-up.
           </p>
@@ -469,16 +487,16 @@ export default async function LandingPage() {
       </section>
 
       {/* ── 15. Final CTA (dark, bookends the hero) ──────────────────── */}
-      <section className="hero-dark relative px-5 py-16 sm:py-24 overflow-hidden">
+      <section className="hero-dark relative px-5 py-16 sm:py-20 overflow-hidden">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
           style={{ background: "radial-gradient(ellipse 70% 60% at 50% 110%, oklch(48% 0.255 258 / 0.22) 0%, transparent 65%)" }}
         />
         <div className="relative mx-auto max-w-2xl text-center reveal">
-          <h2 className="mb-4 text-2xl sm:text-[2rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
+          <SectionHeading className="mb-4">
             Stop guessing what converts.
-          </h2>
+          </SectionHeading>
           <p className="mb-8 text-sm text-[color:var(--color-text-secondary)] max-w-sm mx-auto">
             Let Asmos continuously analyze, test, and improve your conversion experiences.
           </p>
