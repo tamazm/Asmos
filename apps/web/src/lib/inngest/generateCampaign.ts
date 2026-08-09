@@ -7,11 +7,13 @@ import {
   brandTokensFromAnalyzeResult,
   computedStylesFromAnalyzeResult,
   existingPopupFromAnalyzeResult,
+  fetchNoveltyMemory,
   type BrandTokens,
   type ExistingPopupExtracted,
   type ComputedStyles,
   type PopupGenerationOutput,
 } from "@/lib/popupGeneration";
+import { buildVariantBriefs, hashSeed } from "@/lib/designBrief";
 import { renderPopupTemplate } from "@/lib/templates";
 import type { CampaignGenerationStageCode } from "@/lib/campaignGenerationStages";
 import { generateCouponCode } from "@/lib/reward";
@@ -215,8 +217,42 @@ async function runGeneration(
         ? Math.floor(context.fixedPrizeLimit)
         : undefined;
 
+    // Cold start (no analytics yet): 2 variants alongside control, so a fresh
+    // campaign already explores three genuinely different regions of the
+    // design space rather than shipping near-identical arms. Safe on every
+    // plan tier (MAX_VARIANTS_PER_ROUND is >= 3 everywhere, see lib/limits.ts)
+    // and still one unit of the account's AI generation budget.
+    const VARIANT_COUNT = 2;
+
     const output: PopupGenerationOutput = await step.run("generate-ai", async () => {
       const goal = (context.goal as "EMAIL" | "DISCOUNT" | "BOTH") ?? "BOTH";
+
+      const campaignRow = await prisma.campaign.findUnique({
+        where: { id: campaignId },
+        select: { accountId: true },
+      });
+
+      // What this merchant has already been shown. Steers both the brief
+      // sampler (structure) and the model (copy) away from repeating itself —
+      // the thing that made every campaign look like the last one.
+      const novelty = campaignRow
+        ? await fetchNoveltyMemory(campaignRow.accountId)
+        : { recentHeadlines: [], recentFingerprints: [] };
+
+      // Seeded per campaign, but salted with the clock so a retry of a failed
+      // generation doesn't deterministically reproduce the same design.
+      const seed = hashSeed(campaignId, Date.now());
+      const briefs = buildVariantBriefs({
+        seed,
+        variantCount: VARIANT_COUNT,
+        mode: "explore",
+        avoid: novelty.recentFingerprints,
+      });
+
+      console.info(
+        `[generateCampaign] campaign ${campaignId} seed=${seed} briefs=` +
+          [briefs.control, ...briefs.variants].map((b) => b.fingerprint).join(" / "),
+      );
 
       const input = buildPopupInput({
         domain,
@@ -224,22 +260,16 @@ async function runGeneration(
         brandTokens,
         existingPopup,
         computedStyles,
-        // Cold start (no analytics yet): request 2 variants instead of 1 so a
-        // freshly created campaign already tests two axes (trigger timing +
-        // friction, per the system prompt's ranked cold-start order) against
-        // control, instead of shipping a single variant that — by design —
-        // only differs from control in one respect. Safe on every plan tier:
-        // MAX_VARIANTS_PER_ROUND is >= 3 everywhere (see lib/limits.ts), and
-        // this still only costs 1 unit of the account's AI generation budget
-        // regardless of variant count.
         analyticsVariants: [],
-        variantCount: 2,
+        variantCount: VARIANT_COUNT,
         multivariate: false,
         goal,
         maxDiscountPercent,
         offerPreference: { type: offerPreferenceType, fixedPrizeDescription },
+        testingMode: "explore",
+        novelty,
       });
-      return generatePopupWithVariants(input);
+      return generatePopupWithVariants(input, briefs);
     });
 
     await setStage(campaignId, "STRUCTURING");
@@ -274,6 +304,7 @@ async function runGeneration(
             goal,
             layoutStyle: output.baseline.spec.layout_style,
             imageUrl: output.baseline.spec.image_url,
+            dna: output.baseline.spec.dna,
           }),
         },
         ...output.variants.map((v, idx) => ({
@@ -299,6 +330,7 @@ async function runGeneration(
             goal,
             layoutStyle: v.spec.layout_style,
             imageUrl: v.spec.image_url,
+            dna: v.spec.dna,
           }),
           testAxis: v.test_axis,
           hypothesis: v.hypothesis,

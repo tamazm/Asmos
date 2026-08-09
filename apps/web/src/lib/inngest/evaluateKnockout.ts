@@ -7,11 +7,13 @@ import type { Prisma } from ".prisma/client";
 import {
   generatePopupWithVariants,
   fetchVariantAnalytics,
+  fetchNoveltyMemory,
   buildPopupInput,
   brandTokensFromAnalyzeResult,
   computedStylesFromAnalyzeResult,
   existingPopupFromAnalyzeResult,
 } from "@/lib/popupGeneration";
+import { briefFromSpec, buildVariantBriefs, hashSeed } from "@/lib/designBrief";
 import { renderPopupTemplate } from "@/lib/templates";
 
 export const evaluateKnockout = inngest.createFunction(
@@ -164,6 +166,28 @@ export const evaluateKnockout = inngest.createFunction(
 
     try {
       const output = await step.run("generate-ai", async () => {
+        const novelty = await fetchNoveltyMemory(campaign.accountId);
+
+        // Two-tier policy, exploit half: this campaign has real traffic and a
+        // leader, so new arms perturb the CURRENT CONTROL by one knob each
+        // rather than exploring freely. That's what makes the resulting
+        // conversion delta attributable to a specific change instead of to a
+        // wholesale redesign.
+        const controlSpec = (controlVariant?.popupSpec ?? null) as
+          | { template_id?: string; layout_style?: string; dna?: unknown }
+          | null;
+        const baseBrief = controlSpec
+          ? briefFromSpec(controlSpec, hashSeed(campaign.id, currentRound))
+          : undefined;
+
+        const briefs = buildVariantBriefs({
+          seed: hashSeed(campaign.id, currentRound, Date.now()),
+          variantCount: numToGenerate,
+          mode: baseBrief ? "exploit" : "explore",
+          baseBrief,
+          avoid: novelty.recentFingerprints,
+        });
+
         const input = buildPopupInput({
           domain: websiteDomain,
           category: accountIndustry,
@@ -175,8 +199,10 @@ export const evaluateKnockout = inngest.createFunction(
           multivariate: false,
           maxDiscountPercent,
           offerPreference: { type: offerPreferenceType, fixedPrizeDescription },
+          testingMode: baseBrief ? "exploit" : "explore",
+          novelty,
         });
-        return generatePopupWithVariants(input);
+        return generatePopupWithVariants(input, briefs);
       });
 
       await step.run("save-variants", async () => {
@@ -213,6 +239,7 @@ export const evaluateKnockout = inngest.createFunction(
                 goal: "BOTH",
                 layoutStyle: v.spec.layout_style,
                 imageUrl: v.spec.image_url,
+                dna: v.spec.dna,
               }),
             },
           });

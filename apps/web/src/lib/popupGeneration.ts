@@ -18,6 +18,17 @@ import { confidenceVsControl } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
 import { formatImageLibraryForPrompt } from "@/lib/imageLibrary";
 import {
+  dnaFingerprint,
+  normalizeDna,
+  popupDnaJsonSchema,
+  type PopupDna,
+} from "@/lib/popupDna";
+import {
+  briefToPromptSection,
+  enforceBrief,
+  type DesignBrief,
+} from "@/lib/designBrief";
+import {
   BedrockRuntimeClient,
   InvokeModelCommand,
 } from "@aws-sdk/client-bedrock-runtime";
@@ -79,9 +90,38 @@ export type AnalyticsVariant = {
   // reach the email field" or "they focus the email field, then leave."
   avg_dismiss_after_ms: number | null;
   funnel: FunnelStepCount[];
+  // Interaction-level telemetry (see lib/templates/runtime.ts). This is the
+  // layer that distinguishes "the offer is weak" from "they cannot find the
+  // email field" — conversion rate alone cannot tell those apart, which is
+  // why the AI previously had nothing useful to learn from.
+  ux: UxSignals;
   // Pre-classified from the fields above (see classifyFailurePatterns) so the
   // model doesn't have to re-derive the same heuristic on every call.
   failure_patterns: FailurePattern[];
+};
+
+export type UxSignals = {
+  /** Sessions that clicked something non-interactive inside the popup. */
+  dead_click_sessions: number;
+  /** Sessions that clicked the same area repeatedly in frustration. */
+  rage_click_sessions: number;
+  /** Sessions that focused the email field, typed nothing, and left. */
+  field_abandon_sessions: number;
+  /** Sessions that hovered a CTA for a while without clicking it. */
+  cta_hesitation_sessions: number;
+  /** Median ms from popup open to first keystroke, across sessions that typed. */
+  median_time_to_first_keystroke_ms: number | null;
+  /** Sessions with any measured interaction summary at all. */
+  sessions_with_signals: number;
+};
+
+const EMPTY_UX: UxSignals = {
+  dead_click_sessions: 0,
+  rage_click_sessions: 0,
+  field_abandon_sessions: 0,
+  cta_hesitation_sessions: 0,
+  median_time_to_first_keystroke_ms: null,
+  sessions_with_signals: 0,
 };
 
 export type PopupGenerationInput = {
@@ -109,6 +149,24 @@ export type PopupGenerationInput = {
     };
   };
   goal: "EMAIL" | "DISCOUNT" | "BOTH";
+  /**
+   * Two-tier variant policy (see the VARIANT DIVERGENCE POLICY section of the
+   * system prompt). "explore" while the campaign is still cold — variants are
+   * supposed to look substantially different so we learn which region of the
+   * design space this store responds to. "exploit" once real traffic has
+   * produced a leader — variants differ by one knob so a delta is attributable.
+   */
+  testing_mode: "explore" | "exploit";
+  /**
+   * What this account has already been shown. Passed as an explicit
+   * do-not-repeat list: the single most common failure of an AI popup tool is
+   * generating the same popup for every campaign, which reads to the merchant
+   * as the AI doing nothing at all.
+   */
+  novelty: {
+    recent_headlines: string[];
+    recent_fingerprints: string[];
+  };
   // ISO date (YYYY-MM-DD), computed fresh per call (see buildPopupInput) —
   // NOT baked into the static system prompt, which is a module-level
   // constant evaluated once at process start and would otherwise go stale.
@@ -148,6 +206,17 @@ export type PopupSpec = {
   layout_style: "split-left" | "split-right" | "centered" | "minimal";
   image_url: string | null;
   design_tokens: { palette: string[]; type_display: string; type_body: string };
+  /**
+   * The ~30 composable design knobs (see lib/popupDna.ts) that decide what the
+   * popup actually looks like: timer, eyebrow, step flow, density, theme,
+   * button treatment, form layout, and every word of the non-headline copy.
+   *
+   * Before this existed, all of those were string literals hardcoded inside
+   * the template files, which is why every campaign and every variant rendered
+   * the identical "Limited Time Offer" card with a 10:00 countdown no matter
+   * what the model produced.
+   */
+  dna: PopupDna;
 };
 
 export type BaselineOutput = {
@@ -257,6 +326,21 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
     - "premature_dismissal" (avg_dismiss_after_ms is low and dismiss_rate is high) -> trigger axis:
       the popup is very likely firing at the wrong moment or feels intrusive — test a later/gentler
       trigger before touching copy or layout.
+    - "cant_find_the_cta" (visitors click parts of the popup that aren't clickable) -> the
+      button doesn't read as a button, or the wrong element looks primary. Change
+      dna.button_fill / dna.button_shape / dna.accent_placement so the action is unmistakable,
+      and cut competing visual weight. This is a layout/visual fix, never a copy fix.
+    - "interaction_rage" (repeated clicking in the same spot) -> something is being perceived
+      as broken or unresponsive. Simplify the step: prefer dna.step_flow "one_step", remove
+      any element that looks interactive but isn't.
+    - "field_abandonment" (they focus the email field, type nothing, leave) -> the ask itself
+      is the blocker, not the offer. Reduce it: dna.privacy_note reassurance, a warmer
+      dna.email_placeholder, dna.show_field_label true so the field is unambiguous, and make
+      sure the reward is restated next to the field rather than only on the previous step.
+    - "cta_hesitation" (long hover, no click) -> they read the button and weren't convinced.
+      This IS a copy problem: rewrite the CTA and the value restatement around it.
+    - "slow_to_engage" (long delay before the first keystroke) -> too much to read before
+      acting. Cut words, raise dna.type_scale, lower dna.density.
     - "insufficient_data" -> fall back to the cold-start ranked order below; don't over-fit to noise.
     - Prefer citing a failure_pattern + its concrete evidence in motivating_metric over a bare
       percentage — that's the difference between "this is what's happening" and "this is why."
@@ -264,10 +348,20 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
   - Use the ranked default order: trigger/timing -> friction -> copy/offer framing -> layout -> visual/micro-details.
   - Generate exactly constraints.variant_count variants (0 = no variants, only baseline).
   - Each variant isolates ONE axis change from the baseline.
-- LAYOUT CONSISTENCY ACROSS VARIANTS: if a variant's test_axis is "layout", it MUST use a
-  different layout_style than the baseline (that IS the test). For every other test_axis
-  (trigger, friction, copy, visual), keep the SAME layout_style as the baseline — you're
-  isolating one variable, not redesigning the whole popup.
+- VARIANT DIVERGENCE POLICY (read testing_mode in the input — this replaces the old
+  "always isolate exactly one axis" rule, which produced variant sets that were
+  visually interchangeable and therefore untestable in practice):
+  - testing_mode == "explore" (cold start, no meaningful traffic yet): every variant gets
+    its OWN design brief and is SUPPOSED to look substantially different from control —
+    different template, different flow, different urgency treatment, different copy angle.
+    You are mapping which region of the design space this store responds to, not measuring
+    a single knob. Do not try to hold everything else constant; the briefs already differ.
+  - testing_mode == "exploit" (a leader has emerged from real data): variants inherit the
+    control's brief and differ on exactly ONE knob, which the brief already specifies.
+    Keep everything else identical to control so the conversion delta is attributable.
+  - Either way: never ship two variants a visitor could not tell apart. If two of your
+    specs differ only in delay_seconds or only in a synonym-level copy change, that is a
+    wasted arm of the test.
 - motivating_metric must be in plain language for a store owner's dashboard, e.g.:
   "62% of visitors who open this popup never reach the email field (form_friction) — testing a
   one-field, no-name variant" or "people who dismiss are gone in under 2s on average (premature_dismissal)
@@ -281,44 +375,54 @@ PSYCHOLOGICAL FOUNDATION (from Asmos's design research — every layout/copy cho
 - Commitment & consistency: for goal "BOTH", the two-step teaser→capture flow converts better than a single flat form because the first CTA click is a free micro-yes that makes the email ask feel like a natural next step, not a cold request — write the teaser headline as an invitation to claim something already earned.
 - Every additional required form field costs roughly 10-15% conversion — default to email-only unless there's a specific reason for more.
 
-POPUP BLUEPRINT (TEMPLATE, LAYOUT & IMAGE VARIANCE)
-- Always assign a \`template_id\`: "split-screen", "corner-toast", or "fullscreen-takeover". This is the
-  physical structure rendered — a much bigger lever than layout_style, which only varies CSS within
-  split-screen. Pick based on how intrusive the moment should feel:
-  - "split-screen" (default for most stores): balanced, image + copy side by side. Good general-purpose
-    control choice for goal "BOTH" or "EMAIL".
-  - "corner-toast": small, non-blocking, slides in from a corner. Use for low-friction/gentle brand voice,
-    high-traffic pages where a full overlay would feel aggressive, or as a "friction" or "trigger" axis
-    variant testing a less intrusive alternative to a baseline overlay.
-  - "fullscreen-takeover": maximum visual impact, edge-to-edge. Use for high-value/urgent offers
-    (flash sales, high-ticket value propositions), or as a "visual" axis variant testing whether more
-    prominence beats a quieter baseline.
-  - When a variant's test_axis is "layout", changing template_id (not just layout_style) is the
-    strongest version of that test — a template swap IS a layout test.
-- Always assign a \`layout_style\` for the popup: "split-left", "split-right", "centered", or "minimal".
-  Every template now gives this a real, distinct visual effect (not just split-screen), so treat it as a
-  genuine lever on every generation, not a formality:
-  - split-screen: "split-left"/"split-right" put the image on the left/right half; "centered" drops the
-    image split and centers a narrower card; "minimal" hides the image entirely for a compact text-only card.
-  - corner-toast: "split-left"/"split-right" anchor the toast to the bottom-left/bottom-right corner;
-    "centered" anchors it bottom-center and slightly wider; "minimal" anchors it top-right, smaller, with
-    no eyebrow tag.
-  - fullscreen-takeover: "split-left"/"split-right" shift the content block to the left/right third of the
-    screen (text-aligned to match) instead of dead-center, so more of the background image shows through;
-    "centered" is the balanced default; "minimal" keeps the image but drops the eyebrow tag and scales
-    typography down for a calmer, less shouty full-bleed moment.
-  - Control variants should usually be "split-left", "split-right", or "centered". When generating variants,
-    strongly consider testing a different layout_style than the baseline (e.g. "split-left" -> "centered")
-    even when that's not the variant's primary test_axis — it's a cheap, always-safe source of visual
-    difference between variants shown to the same store.
-- Always assign a suitable \`image_url\` (unless layout_style is "minimal" and you want a text-only/no-image
-  popup, which minimal now genuinely renders as on every template). Pick ONE exact URL from the library
-  below that best matches the store's category — do not invent your own Unsplash URL, since a fabricated
-  photo ID will 404. Vary which exact image you pick across variants/generations within a matching category
-  instead of always reaching for the first one listed:
+DESIGN BRIEFS (THE MOST IMPORTANT SECTION — READ IT BEFORE WRITING ANYTHING)
+Each popup you are asked for comes with its own DESIGN BRIEF at the end of the user
+message. The brief pre-selects the structural and visual choices — template, layout,
+step flow, urgency treatment, theme, density, button treatment, form layout, and the
+copy angle and voice. Those choices are re-applied server-side after you respond, so a
+brief you ignore does not become a popup you designed; it becomes a popup whose copy no
+longer matches its own structure.
+
+Your job is NOT to pick the structure. Your job is to write copy and fill in the
+remaining DNA so that the given structure works as well as it possibly can.
+
+- Populate the \`dna\` object on every spec. Every field is required.
+- Honour every "REQUIRED STRUCTURE" line in the brief exactly.
+- The brief tells you whether to write an eyebrow, a social proof line, a privacy note,
+  and an opt-out link. "null" means the element is not rendered at all — do not write a
+  placeholder, and do not write "none" as a string.
+- \`capture_headline\`/\`capture_subhead\`/\`capture_cta\`, \`reveal_*\` and \`success_*\` are
+  the copy for the later steps. Write them properly. They are shown to real visitors.
+  Do NOT fall back on "Almost there" or "Your code is ready" — those were the old
+  hardcoded strings and they are the single most repetitive thing in the product.
+
+BANNED PHRASES (these are what every popup used to say — never write them again):
+- "Limited Time Offer", "Limited Time", "Don't Miss Out", "Wait!", "Hold On!"
+- "Get 15% Off Your First Order" and every "Get N% Off Your First Order" variant
+- "Enter your email below to unlock your exclusive discount code"
+- "Claim My 15% Off", "Claim My Discount", "Almost there"
+- "No thanks, I'll pay full price" and any other guilt-trip opt-out
+Write something specific to THIS store instead. If your headline would work verbatim for
+any other e-commerce store on earth, it is the wrong headline.
+
+NOVELTY
+The input includes \`novelty.recent_headlines\` and \`novelty.recent_fingerprints\` —
+what this account has already been shown. Do not reproduce, lightly reword, or
+structurally clone any of them. This is a hard requirement, not a stylistic preference:
+a merchant who sees the same popup twice concludes the AI does nothing.
+
+IMAGERY
+- Set \`image_url\` to ONE exact URL from the library below, matching the store's category.
+  Do not invent an Unsplash URL — a fabricated photo ID will 404.
+- Set it to null when the brief's \`dna.image_treatment\` is "none".
+- Vary which exact image you pick across variants and generations rather than always
+  reaching for the first one listed in a category:
 ${formatImageLibraryForPrompt()}
-  If none of the categories fit the store well, use the General / Abstract / Discount entries.
-- For trigger delays, assign an integer to \`delay_seconds\` if the trigger involves time (e.g. 5, 10, 15). Leave it null for purely exit-intent or scroll depth.
+  If no category fits the store well, use the General / Abstract / Discount entries.
+
+TRIGGERS
+- Assign an integer to \`delay_seconds\` if the trigger involves time (e.g. 5, 10, 15).
+  Leave it null for purely exit-intent or scroll-depth triggers.
 
 POPUP DESIGN REQUIREMENTS
 You must act as a master conversion copywriter.
@@ -362,8 +466,9 @@ const popupSpecSchema = {
       required: ["palette", "type_display", "type_body"],
       additionalProperties: false,
     },
+    dna: popupDnaJsonSchema,
   },
-  required: ["trigger", "delay_seconds", "frequency_cap", "headline", "subhead", "cta", "fields", "coupon_code", "discount_percent", "template_id", "layout_style", "image_url", "design_tokens"],
+  required: ["trigger", "delay_seconds", "frequency_cap", "headline", "subhead", "cta", "fields", "coupon_code", "discount_percent", "template_id", "layout_style", "image_url", "design_tokens", "dna"],
   additionalProperties: false,
 } as const;
 
@@ -449,7 +554,19 @@ export type FailurePattern =
   | "low_offer_appeal"      // shown a lot, almost nobody engages with the teaser/CTA at all
   | "form_friction"         // people reach the form, but don't complete it
   | "premature_dismissal"   // people close it almost immediately after it appears
+  | "cant_find_the_cta"     // dead clicks: they click things that aren't clickable
+  | "interaction_rage"      // rage clicks: they believe something is broken
+  | "field_abandonment"     // they focus the email field, type nothing, leave
+  | "cta_hesitation"        // they hover the button a long time and don't press it
+  | "slow_to_engage"        // long delay before the first keystroke
   | "insufficient_data";
+
+// Fraction of measured sessions exhibiting a UX signal before we call it a
+// pattern rather than noise. Deliberately generous — these are diagnostic
+// hints handed to a model that weighs them, not automated decisions.
+const UX_SIGNAL_THRESHOLD = 0.12;
+const MIN_SESSIONS_FOR_UX_PATTERN = 20;
+const SLOW_FIRST_KEYSTROKE_MS = 12_000;
 
 export function classifyFailurePatterns(v: Omit<AnalyticsVariant, "failure_patterns">): FailurePattern[] {
   if (v.impressions < MIN_SAMPLE_FOR_PATTERN) return ["insufficient_data"];
@@ -472,7 +589,69 @@ export function classifyFailurePatterns(v: Omit<AnalyticsVariant, "failure_patte
     patterns.push("premature_dismissal");
   }
 
+  // ── UX signals ──
+  // These are the "silly things" class of problem: nothing is wrong with the
+  // offer, the interface is just getting in the way. They're invisible to
+  // conversion rate, which is precisely why they went undiagnosed.
+  const ux = v.ux ?? EMPTY_UX;
+  const n = ux.sessions_with_signals;
+  if (n >= MIN_SESSIONS_FOR_UX_PATTERN) {
+    const rate = (count: number) => count / n;
+
+    if (rate(ux.dead_click_sessions) > UX_SIGNAL_THRESHOLD) patterns.push("cant_find_the_cta");
+    if (rate(ux.rage_click_sessions) > UX_SIGNAL_THRESHOLD / 2) patterns.push("interaction_rage");
+    if (rate(ux.field_abandon_sessions) > UX_SIGNAL_THRESHOLD) patterns.push("field_abandonment");
+    if (rate(ux.cta_hesitation_sessions) > UX_SIGNAL_THRESHOLD * 1.5) patterns.push("cta_hesitation");
+    if (
+      ux.median_time_to_first_keystroke_ms !== null &&
+      ux.median_time_to_first_keystroke_ms > SLOW_FIRST_KEYSTROKE_MS
+    ) {
+      patterns.push("slow_to_engage");
+    }
+  }
+
   return patterns;
+}
+
+// ─── UX signal aggregation ───────────────────────────────────────────────────
+
+type SessionSummary = {
+  deadClicks?: number;
+  rageClicks?: number;
+  abandonedField?: boolean;
+  ctaHoverNoClickMs?: number;
+  timeToFirstKeystrokeMs?: number | null;
+};
+
+const CTA_HESITATION_MS = 2500;
+
+function median(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? Math.round((sorted[mid - 1] + sorted[mid]) / 2) : sorted[mid];
+}
+
+/**
+ * Rolls the per-session summaries emitted by the popup runtime (one
+ * `INTERACTION` event with `step: "session_summary"` per popup view) into the
+ * counts the failure-pattern classifier reads.
+ */
+export function aggregateUxSignals(summaries: SessionSummary[]): UxSignals {
+  if (summaries.length === 0) return EMPTY_UX;
+
+  const keystrokeTimes = summaries
+    .map((s) => s.timeToFirstKeystrokeMs)
+    .filter((ms): ms is number => typeof ms === "number" && ms >= 0);
+
+  return {
+    dead_click_sessions: summaries.filter((s) => (s.deadClicks ?? 0) > 0).length,
+    rage_click_sessions: summaries.filter((s) => (s.rageClicks ?? 0) > 0).length,
+    field_abandon_sessions: summaries.filter((s) => s.abandonedField === true).length,
+    cta_hesitation_sessions: summaries.filter((s) => (s.ctaHoverNoClickMs ?? 0) > CTA_HESITATION_MS).length,
+    median_time_to_first_keystroke_ms: median(keystrokeTimes),
+    sessions_with_signals: summaries.length,
+  };
 }
 
 // ─── Significance Flag ────────────────────────────────────────────────────────
@@ -577,6 +756,11 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
     funnelByVariant.set(variantId, list);
   }
 
+  // UX signals always come from Postgres even on the PostHog path: the widget
+  // writes every event to CampaignEvent first, and the per-session summary is
+  // a nested JSON blob that's far cheaper to aggregate here than in HogQL.
+  const uxByVariant = await fetchUxSignalsFromPostgres(campaignId);
+
   // Find control variant stats for significance computation
   const controlVariant = await prisma.variant.findFirst({
     where: { campaignId, isControl: true },
@@ -612,9 +796,51 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
       significance_flag,
       avg_dismiss_after_ms: typeof avg_dismiss_ms === "number" ? Math.round(avg_dismiss_ms) : null,
       funnel: funnelByVariant.get(variant_id) ?? [],
+      ux: uxByVariant.get(variant_id) ?? EMPTY_UX,
     };
     return { ...base, failure_patterns: classifyFailurePatterns(base) };
   });
+}
+
+/**
+ * Rolls up the popup runtime's per-session summary events into UxSignals per
+ * variant. Bounded to the most recent events per campaign so a high-traffic
+ * store doesn't turn this into an unbounded scan.
+ */
+const MAX_SESSION_SUMMARIES_PER_CAMPAIGN = 5000;
+
+async function fetchUxSignalsFromPostgres(campaignId: string): Promise<Map<string, UxSignals>> {
+  const rows = await prisma.campaignEvent
+    .findMany({
+      where: { variant: { campaignId }, type: "INTERACTION" },
+      orderBy: { createdAt: "desc" },
+      take: MAX_SESSION_SUMMARIES_PER_CAMPAIGN,
+      select: { variantId: true, details: true },
+    })
+    .catch((err: unknown) => {
+      // UX signals are diagnostic enrichment; a query failure should degrade
+      // the diagnosis, never block a campaign from generating.
+      console.warn("[popupGeneration] UX signal query failed, continuing without it:", err);
+      return [] as { variantId: string; details: unknown }[];
+    });
+
+  // Filtering on the JSON `step` in JS rather than with a Prisma JSON-path
+  // predicate: the path filter is provider-specific, and INTERACTION volume
+  // is already bounded by the `take` above.
+  const byVariant = new Map<string, SessionSummary[]>();
+  for (const row of rows) {
+    const details = (row.details ?? {}) as SessionSummary & { step?: number | string };
+    if (details.step !== "session_summary") continue;
+    const list = byVariant.get(row.variantId) ?? [];
+    list.push(details);
+    byVariant.set(row.variantId, list);
+  }
+
+  const out = new Map<string, UxSignals>();
+  for (const [variantId, summaries] of byVariant) {
+    out.set(variantId, aggregateUxSignals(summaries));
+  }
+  return out;
 }
 
 async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]> {
@@ -655,10 +881,18 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
       : null;
 
     const funnelCounts = new Map<string, number>();
+    const sessionSummaries: SessionSummary[] = [];
     for (const e of v.events) {
       if (e.type !== "INTERACTION") continue;
-      const step = (e.details as { step?: number | string } | null)?.step;
+      const details = e.details as (SessionSummary & { step?: number | string }) | null;
+      const step = details?.step;
       if (step === undefined || step === null) continue;
+      // The per-session summary is a rollup, not a funnel milestone — counting
+      // it as a funnel step would double-count every view.
+      if (step === "session_summary") {
+        sessionSummaries.push(details ?? {});
+        continue;
+      }
       const key = String(step);
       funnelCounts.set(key, (funnelCounts.get(key) ?? 0) + 1);
     }
@@ -674,6 +908,7 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
       significance_flag,
       avg_dismiss_after_ms,
       funnel,
+      ux: aggregateUxSignals(sessionSummaries),
     };
     return { ...base, failure_patterns: classifyFailurePatterns(base) };
   });
@@ -709,6 +944,8 @@ export function buildPopupInput(opts: {
     type: "ai_choice" | "percentage" | "free_shipping" | "fixed_prize";
     fixedPrizeDescription?: string;
   };
+  testingMode?: "explore" | "exploit";
+  novelty?: { recentHeadlines?: string[]; recentFingerprints?: string[] };
 }): PopupGenerationInput {
   return {
     store: {
@@ -733,26 +970,75 @@ export function buildPopupInput(opts: {
       },
     },
     goal: opts.goal ?? "BOTH",
+    testing_mode: opts.testingMode ?? (opts.analyticsVariants.length > 0 ? "exploit" : "explore"),
+    novelty: {
+      recent_headlines: opts.novelty?.recentHeadlines ?? [],
+      recent_fingerprints: opts.novelty?.recentFingerprints ?? [],
+    },
     current_date: new Date().toISOString().slice(0, 10),
   };
 }
 
+// ─── Novelty memory ──────────────────────────────────────────────────────────
+
+const NOVELTY_LOOKBACK = 25;
+
+/**
+ * The headlines and structural fingerprints this account has already seen.
+ *
+ * Fed to the model as a do-not-repeat list, and to the design-brief sampler as
+ * fingerprints to steer away from. The sampler is the guarantee; the prompt is
+ * the polish (it stops near-duplicate *copy*, which the sampler can't see).
+ */
+export async function fetchNoveltyMemory(accountId: string): Promise<{
+  recentHeadlines: string[];
+  recentFingerprints: string[];
+}> {
+  try {
+    const variants = await prisma.variant.findMany({
+      where: { campaign: { accountId } },
+      orderBy: { createdAt: "desc" },
+      take: NOVELTY_LOOKBACK,
+      select: { popupSpec: true },
+    });
+
+    const headlines: string[] = [];
+    const fingerprints = new Set<string>();
+
+    for (const v of variants) {
+      const spec = v.popupSpec as Partial<PopupSpec> | null;
+      if (!spec) continue;
+      if (typeof spec.headline === "string" && spec.headline.trim()) headlines.push(spec.headline.trim());
+      fingerprints.add(dnaFingerprint(spec.template_id, spec.layout_style, normalizeDna(spec.dna)));
+    }
+
+    return {
+      recentHeadlines: Array.from(new Set(headlines)).slice(0, 15),
+      recentFingerprints: Array.from(fingerprints).slice(0, 15),
+    };
+  } catch (err) {
+    // Novelty is an optimization, not a correctness requirement — a DB hiccup
+    // here should degrade variety, never block a campaign from generating.
+    console.warn("[popupGeneration] novelty memory lookup failed, continuing without it:", err);
+    return { recentHeadlines: [], recentFingerprints: [] };
+  }
+}
+
 // ─── Generation — Claude Haiku ────────────────────────────────────────────────
 
-async function generateWithClaude(input: PopupGenerationInput, systemPrompt: string): Promise<PopupGenerationOutput> {
+async function generateWithClaude(
+  input: PopupGenerationInput,
+  systemPrompt: string,
+  userMessage: string,
+): Promise<PopupGenerationOutput> {
   const response = await anthropic.messages.create({
     model: "claude-haiku-4-5",
     max_tokens: 8000,
-    temperature: 0.8,
+    temperature: 1,
     system: systemPrompt,
     tools: [GENERATE_POPUP_TOOL],
     tool_choice: { type: "any" },
-    messages: [
-      {
-        role: "user",
-        content: `Generate a popup design for this store. Return the result by calling generate_popup.\n\n${JSON.stringify(input, null, 2)}`,
-      },
-    ],
+    messages: [{ role: "user", content: userMessage }],
   });
 
   const toolUse = response.content.find(
@@ -769,21 +1055,23 @@ async function generateWithClaude(input: PopupGenerationInput, systemPrompt: str
 
 // ─── Generation — Gemini fallback ────────────────────────────────────────────
 
-async function generateWithGemini(input: PopupGenerationInput, systemPrompt: string): Promise<PopupGenerationOutput> {
+async function generateWithGemini(
+  input: PopupGenerationInput,
+  systemPrompt: string,
+  userMessage: string,
+): Promise<PopupGenerationOutput> {
   const response = await gemini.models.generateContent({
     model: GEMINI_MODEL,
     contents: [
       {
         role: "user",
         parts: [
-          {
-            text: `${systemPrompt}\n\nGenerate a popup design for this store. Return the result by calling generate_popup.\n\n${JSON.stringify(input, null, 2)}`,
-          },
+          { text: `${systemPrompt}\n\n${userMessage}` },
         ],
       },
     ],
     config: {
-      temperature: 0.8,
+      temperature: 1,
       tools: [
         {
           functionDeclarations: [
@@ -822,23 +1110,22 @@ async function generateWithGemini(input: PopupGenerationInput, systemPrompt: str
 
 // ─── Generation — Bedrock (primary when AWS keys present) ────────────────────
 
-async function generateWithBedrock(input: PopupGenerationInput, systemPrompt: string): Promise<PopupGenerationOutput> {
+async function generateWithBedrock(
+  input: PopupGenerationInput,
+  systemPrompt: string,
+  userMessage: string,
+): Promise<PopupGenerationOutput> {
   const client = new BedrockRuntimeClient({ region: AWS_REGION });
 
   // Bedrock uses the same Anthropic message format but via InvokeModel
   const bedrockBody = {
     anthropic_version: "bedrock-2023-05-31",
     max_tokens: 8000,
-    temperature: 0.8,
+    temperature: 1,
     system: systemPrompt,
     tools: [GENERATE_POPUP_TOOL],
     tool_choice: { type: "any" },
-    messages: [
-      {
-        role: "user",
-        content: `Generate a popup design for this store. Return the result by calling generate_popup.\n\n${JSON.stringify(input, null, 2)}`,
-      },
-    ],
+    messages: [{ role: "user", content: userMessage }],
   };
 
   const cmd = new InvokeModelCommand({
@@ -990,22 +1277,105 @@ function applyContentGuardrails(
 
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
+export type GenerationBriefs = {
+  control: DesignBrief;
+  variants: DesignBrief[];
+};
+
+/**
+ * Builds the user turn. The design briefs go *after* the store JSON and are
+ * the last thing the model reads before answering, because they're the
+ * constraints most likely to be dropped if buried.
+ */
+function buildUserMessage(input: PopupGenerationInput, briefs?: GenerationBriefs): string {
+  const parts = [
+    "Generate a popup design for this store. Return the result by calling generate_popup.",
+    "",
+    JSON.stringify(input, null, 2),
+  ];
+
+  if (briefs) {
+    parts.push(
+      "",
+      "════════════════════════════════════════════════════════════════",
+      "DESIGN BRIEFS — these are binding. Every locked value below is",
+      "re-applied server-side after you respond, so copy that contradicts",
+      "its own brief ships as a broken popup.",
+      "════════════════════════════════════════════════════════════════",
+      "",
+      briefToPromptSection(briefs.control, "BRIEF FOR THE BASELINE (control):"),
+    );
+
+    briefs.variants.forEach((brief, i) => {
+      parts.push("", briefToPromptSection(brief, `BRIEF FOR VARIANT ${i + 1}:`));
+    });
+
+    parts.push(
+      "",
+      input.testing_mode === "explore"
+        ? "These briefs deliberately differ from each other. Do not try to normalise them into a house style — the divergence IS the experiment."
+        : "These briefs differ from the control by exactly one knob each. Keep everything else, including the copy, as close to the control as the brief allows so the result is attributable.",
+    );
+  }
+
+  return parts.join("\n");
+}
+
+/**
+ * Applies the sampled design briefs to the model's output.
+ *
+ * The prompt asks the model to honour the brief; this makes it true. Without
+ * enforcement a model that quietly reverts to its favourite layout takes the
+ * product straight back to every popup looking identical, and we'd have no way
+ * to tell from the outside.
+ */
+function applyBriefs(output: PopupGenerationOutput, briefs: GenerationBriefs): PopupGenerationOutput {
+  return {
+    ...output,
+    baseline: {
+      ...output.baseline,
+      spec: enforceBrief(output.baseline.spec, briefs.control) as PopupSpec,
+    },
+    variants: output.variants.map((v, i) => {
+      const brief = briefs.variants[i];
+      return brief ? { ...v, spec: enforceBrief(v.spec, brief) as PopupSpec } : v;
+    }),
+  };
+}
+
+/** Normalizes every spec's DNA so downstream renderers never see a partial. */
+function normalizeOutputDna(output: PopupGenerationOutput): PopupGenerationOutput {
+  return {
+    ...output,
+    baseline: { ...output.baseline, spec: { ...output.baseline.spec, dna: normalizeDna(output.baseline.spec.dna) } },
+    variants: output.variants.map((v) => ({ ...v, spec: { ...v.spec, dna: normalizeDna(v.spec.dna) } })),
+  };
+}
+
 export async function generatePopupWithVariants(
   input: PopupGenerationInput,
+  briefs?: GenerationBriefs,
 ): Promise<PopupGenerationOutput> {
   const systemPrompt = POPUP_GENERATION_SYSTEM_PROMPT + (await getLearnedPatternsSection());
+  const userMessage = buildUserMessage(input, briefs);
   // Whatever the merchant configured (or DEFAULT_MAX_DISCOUNT_PERCENT if
   // they didn't) — already sanity-bounded in buildPopupInput, not re-capped
   // against a platform ceiling here.
   const maxDiscountPercent = input.constraints.max_discount_percent;
+
+  const finish = (result: PopupGenerationOutput): PopupGenerationOutput => {
+    const briefed = briefs ? applyBriefs(result, briefs) : result;
+    return applyContentGuardrails(normalizeOutputDna(briefed), maxDiscountPercent);
+  };
 
   // Provider priority: Bedrock (AWS) → Anthropic direct → Gemini
   let lastError: unknown;
 
   if (HAS_AWS_KEY) {
     try {
-      const result = await withTimeout(generateWithBedrock(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Bedrock");
-      return applyContentGuardrails(result, maxDiscountPercent);
+      return finish(
+        await withTimeout(generateWithBedrock(input, systemPrompt, userMessage), PROVIDER_TIMEOUT_MS, "Bedrock"),
+      );
     } catch (err) {
       console.warn("[popupGeneration] Bedrock failed, falling back to next provider:", err);
       lastError = err;
@@ -1014,8 +1384,9 @@ export async function generatePopupWithVariants(
 
   if (HAS_ANTHROPIC_KEY) {
     try {
-      const result = await withTimeout(generateWithClaude(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Anthropic");
-      return applyContentGuardrails(result, maxDiscountPercent);
+      return finish(
+        await withTimeout(generateWithClaude(input, systemPrompt, userMessage), PROVIDER_TIMEOUT_MS, "Anthropic"),
+      );
     } catch (err) {
       console.warn("[popupGeneration] Anthropic failed, falling back to Gemini:", err);
       lastError = err;
@@ -1023,8 +1394,9 @@ export async function generatePopupWithVariants(
   }
 
   try {
-    const result = await withTimeout(generateWithGemini(input, systemPrompt), PROVIDER_TIMEOUT_MS, "Gemini");
-    return applyContentGuardrails(result, maxDiscountPercent);
+    return finish(
+      await withTimeout(generateWithGemini(input, systemPrompt, userMessage), PROVIDER_TIMEOUT_MS, "Gemini"),
+    );
   } catch (err) {
     console.error("[popupGeneration] Gemini failed too.", err);
     throw lastError ?? err;
