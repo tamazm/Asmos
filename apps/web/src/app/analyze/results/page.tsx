@@ -453,7 +453,7 @@ export default function AnalyzeResultsPage() {
                   type="email"
                   value={email}
                   onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
-                  placeholder="you@yourstore.com"
+                  placeholder="example@gmail.com"
                   disabled={emailState === "submitting"}
                   className="w-full rounded-xl border border-white/10 bg-white/10 px-4 py-3 text-sm text-white placeholder:text-gray-500 outline-none focus:border-white/30 focus:ring-2 focus:ring-white/10 transition-all disabled:opacity-50"
                 />
