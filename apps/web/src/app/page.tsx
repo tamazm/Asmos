@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth-adapter";
 import { HomepageForm } from "@/components/ui/HomepageForm";
 import { KnockoutBracketPreview } from "@/components/ui/KnockoutBracketPreview";
+import { KnockoutGraphPreview } from "@/components/marketing/KnockoutGraphPreview";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { PricingClient } from "@/components/marketing/PricingClient";
@@ -248,6 +249,12 @@ export default async function LandingPage() {
           heading={<>How <Accent>Asmos</Accent> works</>}
           sub="Three steps, running continuously — not a checklist you manage by hand."
         />
+        <div className="mx-auto mb-10 max-w-3xl reveal">
+          <KnockoutGraphPreview />
+          <p className="mt-4 text-center text-xs leading-relaxed text-[color:var(--color-text-secondary)]">
+            This is step two, live: Asmos tracks every variant&apos;s conversion rate as traffic comes in, then shifts weight toward whichever is actually winning — no one has to eyeball a dashboard and decide.
+          </p>
+        </div>
         <LatticeGrid cols={3}>
           {HOW_STEPS.map((s) => (
             <div key={s.title}>
