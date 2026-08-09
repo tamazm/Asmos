@@ -172,7 +172,16 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 2. Problem ──────────────────────────────────────────────── */}
+      {/* ── 2. Social proof ─────────────────────────────────────────── */}
+      <section className="border-y border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-5 py-8">
+        <div className="mx-auto max-w-6xl text-center reveal">
+          <p className="text-sm font-medium text-[color:var(--color-text-secondary)]">
+            Built for ecommerce teams focused on measurable growth.
+          </p>
+        </div>
+      </section>
+
+      {/* ── 3. Problem ──────────────────────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <h2
@@ -212,7 +221,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 3. How Asmos Works ──────────────────────────────────────── */}
+      {/* ── 4. How Asmos Works ──────────────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
@@ -235,7 +244,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 4. Autonomous optimization ──────────────────────────────── */}
+      {/* ── 5. Autonomous optimization ──────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24 overflow-hidden">
         <div className="mx-auto max-w-2xl text-center reveal">
           <h2 className="mb-4 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
@@ -255,7 +264,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 5. Core product features ────────────────────────────────── */}
+      {/* ── 6. Core product features ────────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
@@ -275,7 +284,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 6. AI Learnings (stats / proof) ─────────────────────────── */}
+      {/* ── 7. AI Learnings (stats / proof) ─────────────────────────── */}
       <section className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-10 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
@@ -293,7 +302,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 7. Free Optimization Analysis (soft offramp before pricing) ── */}
+      {/* ── 8. Free Optimization Analysis (soft offramp before pricing) ── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-3xl text-center reveal">
           <span className="mb-4 inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
@@ -313,7 +322,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 8. Pricing ───────────────────────────────────────────────── */}
+      {/* ── 9. Pricing ───────────────────────────────────────────────── */}
       <section id="pricing" className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto max-w-2xl text-center reveal mb-10">
@@ -333,7 +342,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 9. Managed Success ───────────────────────────────────────── */}
+      {/* ── 10. Managed Success ───────────────────────────────────────── */}
       <section id="managed-success" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-2xl text-center reveal">
           <h2 className="mb-3 text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
@@ -348,7 +357,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 10. FAQ ──────────────────────────────────────────────────── */}
+      {/* ── 11. FAQ ──────────────────────────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-2xl">
           <h2 className="mb-8 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
@@ -368,7 +377,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 11. Blog / resources preview ────────────────────────────── */}
+      {/* ── 12. Blog / resources preview ────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <div className="mb-10 flex items-end justify-between reveal">
@@ -392,12 +401,9 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 12. Trust block (integrations + social proof) ──────────── */}
+      {/* ── 13. Integrations ────────────────────────────────────────── */}
       <section id="integrations" className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl text-center">
-          <p className="mb-8 text-sm font-medium text-[color:var(--color-text-secondary)] reveal">
-            Built for ecommerce teams focused on measurable growth.
-          </p>
           <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
             Works with the tools you already use.
           </h2>
@@ -414,7 +420,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 13. Final CTA ────────────────────────────────────────────── */}
+      {/* ── 14. Final CTA ────────────────────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-2xl text-center reveal">
           <h2 className="mb-4 text-2xl sm:text-[2rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
