@@ -189,19 +189,58 @@
     document.body.appendChild(banner);
   }
 
-  // ─── Variant selection (weighted) ─────────────────────────────────────────
-  function pickVariant(variants, forcedId) {
+  // ─── Variant selection (weighted, sticky per visitor) ──────────────────────
+  // Two real bugs fixed here:
+  // 1. `trafficPercent || 100` treated an eliminated variant's explicit
+  //    trafficPercent: 0 as if it were 100 (0 is falsy in JS) — so a
+  //    knockout-eliminated variant could still consume most/all traffic
+  //    instead of the 0% it was actually assigned. Only fall back to an
+  //    even default when trafficPercent is genuinely missing (null/
+  //    undefined), never when it's a real, deliberate 0.
+  // 2. No visitor ever stuck to the variant they were first shown — every
+  //    call re-rolled Math.random() fresh, so the same person could see a
+  //    different variant on a later visit mid-campaign, which both breaks
+  //    a consistent visitor experience and muddies the bandit's own
+  //    conversion attribution (see lib/bandit.ts). Mirrors the sticky
+  //    localStorage pattern widget.js already used correctly.
+  function pickVariant(campaignId, variants, forcedId) {
     if (forcedId) {
       var forced = variants.find(function (v) { return v.id === forcedId; });
       if (forced) return forced;
     }
-    var roll = Math.random() * 100;
-    var cumulative = 0;
+
+    var storageKey = "asmos_variant_" + campaignId;
+    try {
+      var storedId = localStorage.getItem(storageKey);
+      if (storedId) {
+        var remembered = variants.find(function (v) { return v.id === storedId; });
+        // Only honor the stored pick if that variant is still actually
+        // running a real, comparable value with the others below (a fully
+        // eliminated variant, trafficPercent === 0, must not keep being
+        // shown to a visitor just because they saw it once before it lost).
+        if (remembered && remembered.trafficPercent !== 0) return remembered;
+      }
+    } catch (e) {}
+
+    var total = variants.reduce(function (sum, v) {
+      var pct = typeof v.trafficPercent === "number" ? v.trafficPercent : 100;
+      return sum + Math.max(pct, 0);
+    }, 0);
+    var roll = Math.random() * (total || variants.length);
+    var chosen = variants[0];
     for (var i = 0; i < variants.length; i++) {
-      cumulative += (variants[i].trafficPercent || 100);
-      if (roll < cumulative) return variants[i];
+      var weight = total > 0
+        ? Math.max(typeof variants[i].trafficPercent === "number" ? variants[i].trafficPercent : 100, 0)
+        : 1;
+      roll -= weight;
+      if (roll <= 0) {
+        chosen = variants[i];
+        break;
+      }
     }
-    return variants[0];
+
+    try { localStorage.setItem(storageKey, chosen.id); } catch (e) {}
+    return chosen;
   }
 
   // ─── Color helpers ────────────────────────────────────────────────────────
@@ -458,7 +497,7 @@
     popupShownAt = Date.now();
     converted = false;
 
-    chosenVariant = pickVariant(cfg.variants, cfg.forcedVariantId);
+    chosenVariant = pickVariant(cfg.id, cfg.variants, cfg.forcedVariantId);
 
     // AI popup variation roadmap, Phase 0/3: render the AI-designed template
     // (split-screen / corner-toast / fullscreen-takeover — see
