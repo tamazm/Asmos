@@ -7,6 +7,19 @@ import { KnockoutBracketPreview } from "@/components/ui/KnockoutBracketPreview";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { PricingClient } from "@/components/marketing/PricingClient";
+import { StatCounter } from "@/components/marketing/StatCounter";
+import {
+  IconAnalyze,
+  IconGenerate,
+  IconLearn,
+  IconStore,
+  IconExperiment,
+  IconTraffic,
+  IconAnalytics,
+  IconBrain,
+  IconIntegrations,
+  DecorativeBlob,
+} from "@/components/marketing/LandingIllustrations";
 import { CTA } from "@/lib/site";
 import { buildMetadata } from "@/lib/seo";
 import { BLOG_POSTS } from "@/lib/blog/posts";
@@ -19,15 +32,6 @@ export const metadata: Metadata = buildMetadata({
   path: "/",
 });
 
-function Check() {
-  return (
-    <svg aria-hidden="true" width="14" height="14" viewBox="0 0 14 14" fill="none" className="shrink-0 mt-0.5 text-[color:var(--color-primary)]">
-      <circle cx="7" cy="7" r="7" fill="currentColor" opacity="0.12" />
-      <path d="M4 7l2 2 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function Arrow({ className }: { className?: string }) {
   return (
     <svg aria-hidden="true" width="16" height="16" viewBox="0 0 16 16" fill="none" className={className}>
@@ -36,25 +40,31 @@ function Arrow({ className }: { className?: string }) {
   );
 }
 
-// The hero's live product loop is narrated by three tags (Analyze → Generate
-// → Test) placed around the animated KnockoutBracketPreview widget itself —
-// see the hero section markup below — rather than a separate static strip.
 const PROBLEM_OLD = ["Build", "Guess", "Test", "Analyze", "Rebuild", "Repeat"];
 const PROBLEM_NEW = ["Analyze", "Generate", "Test", "Learn", "Optimize"];
 
 const HOW_STEPS = [
-  { n: "01", title: "Analyze your store", body: "Asmos understands your brand, offer, audience, and current conversion setup." },
-  { n: "02", title: "Generate & test experiences", body: "AI creates popup concepts, launches variants, and reallocates traffic based on real performance." },
-  { n: "03", title: "Learn & improve automatically", body: "Asmos identifies what's working and uses it as the foundation for the next generation of tests." },
+  { icon: IconAnalyze, title: "Analyze your store", body: "Asmos understands your brand, offer, audience, and current conversion setup." },
+  { icon: IconGenerate, title: "Generate & test experiences", body: "AI creates popup concepts, launches variants, and reallocates traffic based on real performance." },
+  { icon: IconLearn, title: "Learn & improve automatically", body: "Asmos identifies what's working and uses it as the foundation for the next generation of tests." },
 ];
 
 const FEATURES = [
-  { title: "AI Store Analysis", body: "Understand brand, offer, audience, and conversion opportunities." },
-  { title: "Autonomous Experimentation", body: "Create and test variants without manually managing every experiment." },
-  { title: "Smart Traffic Allocation", body: "Automatically shift traffic toward stronger performers." },
-  { title: "Deep Behavioral Analytics", body: "Track clicks, dismissals, form interactions, timing, and conversion behavior." },
-  { title: "AI Learnings", body: "Understand what is working and why." },
-  { title: "Email & SMS Integrations", body: "Connect captured leads directly to Klaviyo, Mailchimp, Omnisend, and other lifecycle tools." },
+  { icon: IconStore, title: "AI Store Analysis", body: "Understand brand, offer, audience, and conversion opportunities." },
+  { icon: IconExperiment, title: "Autonomous Experimentation", body: "Create and test variants without manually managing every experiment." },
+  { icon: IconTraffic, title: "Smart Traffic Allocation", body: "Automatically shift traffic toward stronger performers." },
+  { icon: IconAnalytics, title: "Deep Behavioral Analytics", body: "Track clicks, dismissals, form interactions, timing, and conversion behavior." },
+  { icon: IconBrain, title: "AI Learnings", body: "Understand what is working and why." },
+  { icon: IconIntegrations, title: "Email & SMS Integrations", body: "Connect captured leads directly to Klaviyo, Mailchimp, Omnisend, and other lifecycle tools." },
+];
+
+// Real, code-verifiable product facts — not marketing outcomes. See
+// lib/limits.ts (MAX_VARIANTS_PER_ROUND.SCALE) and evaluateKnockout.ts
+// (ALL_AXES, the Inngest cron trigger) for the source of each number.
+const STATS = [
+  { value: 5, suffix: "", label: "Test axes evaluated automatically", body: "Trigger, friction, copy, layout, and visual — Asmos isolates one variable at a time." },
+  { value: 30, suffix: "", label: "Variants tested per round on Scale", body: "The knockout tournament scales its bracket size with your plan." },
+  { value: 24, suffix: "/7", label: "Autonomous evaluation", body: "Traffic reallocates and new variants get generated on a schedule — no manual triggers." },
 ];
 
 const AI_LEARNINGS = [
@@ -65,6 +75,22 @@ const AI_LEARNINGS = [
 ];
 
 const INTEGRATIONS = ["Shopify", "Klaviyo", "Mailchimp", "Omnisend", "Zapier"];
+
+function HeroHeadline({ text }: { text: string }) {
+  const words = text.split(" ");
+  return (
+    <h1
+      className="mb-5 text-[2.3rem] leading-[1.08] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-[3.1rem] lg:text-[3.4rem]"
+      style={{ textWrap: "balance" } as React.CSSProperties}
+    >
+      {words.map((word, i) => (
+        <span key={i} className="hero-word mr-[0.3em] last:mr-0">
+          {word}
+        </span>
+      ))}
+    </h1>
+  );
+}
 
 export default async function LandingPage() {
   const { userId } = await auth();
@@ -77,17 +103,24 @@ export default async function LandingPage() {
     <div className="flex min-h-[100dvh] flex-col bg-[color:var(--color-surface)]">
       <MarketingHeader />
 
-      {/* ── 1. Hero ─────────────────────────────────────────────────── */}
-      <section className="relative px-5 pt-14 pb-16 sm:pt-20 sm:pb-24 overflow-hidden">
+      {/* ── 1. Hero (dark) ──────────────────────────────────────────── */}
+      <section className="hero-dark relative px-5 pt-14 pb-16 sm:pt-20 sm:pb-24 overflow-hidden">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0 bg-grid-faint"
           style={{ maskImage: "radial-gradient(ellipse 70% 60% at 50% 0%, black 0%, transparent 75%)", WebkitMaskImage: "radial-gradient(ellipse 70% 60% at 50% 0%, black 0%, transparent 75%)" }}
         />
+        {/* Floating decorative blobs — pure CSS/SVG, brand blue, very low opacity */}
+        <div aria-hidden="true" className="popup-float pointer-events-none absolute -left-16 top-10 h-64 w-64 text-[color:var(--color-primary)] opacity-[0.14]">
+          <DecorativeBlob />
+        </div>
+        <div aria-hidden="true" className="pointer-events-none absolute -right-10 top-1/3 h-72 w-72 text-[color:var(--color-primary)] opacity-[0.10]" style={{ animation: "floatY 8s ease-in-out infinite 1.2s" }}>
+          <DecorativeBlob />
+        </div>
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 80% 50% at 50% -10%, oklch(48% 0.255 258 / 0.07) 0%, transparent 65%)" }}
+          style={{ background: "radial-gradient(ellipse 80% 50% at 50% -10%, oklch(48% 0.255 258 / 0.22) 0%, transparent 65%)" }}
         />
         <div className="relative mx-auto max-w-6xl">
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-12 lg:gap-10 items-center">
@@ -98,12 +131,7 @@ export default async function LandingPage() {
                 Autonomous conversion optimization for ecommerce
               </div>
 
-              <h1
-                className="mb-5 text-[2.3rem] leading-[1.08] font-bold tracking-[-0.03em] text-[color:var(--color-text-primary)] sm:text-[3.1rem] lg:text-[3.4rem] animate-page-enter-delay-1"
-                style={{ textWrap: "balance" } as React.CSSProperties}
-              >
-                AI that continuously improves your ecommerce conversions.
-              </h1>
+              <HeroHeadline text="AI that continuously improves your ecommerce conversions." />
 
               <p
                 className="mb-8 max-w-xl text-base sm:text-lg text-[color:var(--color-text-secondary)] leading-relaxed animate-page-enter-delay-2"
@@ -115,7 +143,7 @@ export default async function LandingPage() {
               <div className="flex flex-wrap items-center gap-4 animate-page-enter-delay-2">
                 <Link
                   href={CTA.primary.href}
-                  className="rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
+                  className="btn-wipe rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-transform duration-200 active:scale-[0.97]"
                 >
                   {CTA.primary.label}
                 </Link>
@@ -135,12 +163,10 @@ export default async function LandingPage() {
             </div>
 
             {/* Right: live knockout-bracket demo — this IS the product.
-                Store → Analyze → Generate feed into it; Test/Learn/Uplift
-                are what the animation itself shows happening in real time.
-                Framed as a browser window so it reads as a live, running
-                simulation rather than a static illustration. */}
+                Glass-panel treatment reads as an elevated floating surface
+                against the dark hero, rather than a flat card. */}
             <div className="flex flex-col items-center gap-3 animate-page-enter-delay-3">
-              <div className="hover-float w-full max-w-[400px] rounded-[1.75rem] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-2 shadow-[0_24px_60px_rgba(22,93,255,0.10),0_6px_20px_rgba(0,0,0,0.06)]">
+              <div className="glass-panel hover-float w-full max-w-[400px] rounded-[1.75rem] p-2 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
                 {/* Browser chrome */}
                 <div className="flex items-center gap-3 px-3 pb-2.5 pt-1.5">
                   <div className="flex items-center gap-1.5" aria-hidden="true">
@@ -161,7 +187,7 @@ export default async function LandingPage() {
                     <Arrow className="h-2.5 w-2.5 text-[color:var(--color-border)]" />
                     <span className="text-[color:var(--color-primary)]">Generate</span>
                   </div>
-                  <KnockoutBracketPreview animated embedded />
+                  <KnockoutBracketPreview animated embedded variant="dark" />
                 </div>
               </div>
               <p className="max-w-[300px] text-center text-[11px] leading-relaxed text-[color:var(--color-text-secondary)]">
@@ -227,17 +253,19 @@ export default async function LandingPage() {
           <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
             How Asmos works
           </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 reveal-stagger mb-10">
+          <div className="steps-rail grid grid-cols-1 md:grid-cols-3 gap-6 reveal-stagger mb-10">
             {HOW_STEPS.map((s) => (
-              <div key={s.n} className="hover-float rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5">
-                <span className="text-2xl font-bold tabular-nums text-[color:var(--color-primary)] opacity-25">{s.n}</span>
-                <h3 className="mt-3 mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{s.title}</h3>
+              <div key={s.title} className="hover-float relative rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]">
+                  <s.icon className="h-6 w-6" />
+                </div>
+                <h3 className="mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{s.title}</h3>
                 <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{s.body}</p>
               </div>
             ))}
           </div>
           <div className="text-center">
-            <Link href={CTA.primary.href} className="inline-flex items-center gap-2 rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+            <Link href={CTA.primary.href} className="btn-wipe inline-flex items-center gap-2 rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-transform duration-200 active:scale-[0.97]">
               {CTA.primary.label} <Arrow className="h-3.5 w-3.5 text-white/80" />
             </Link>
           </div>
@@ -273,8 +301,8 @@ export default async function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 reveal-stagger">
             {FEATURES.map((f) => (
               <div key={f.title} className="hover-float rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
-                <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)]">
-                  <Check />
+                <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]">
+                  <f.icon className="h-5 w-5" />
                 </div>
                 <h3 className="mb-1.5 text-sm font-semibold text-[color:var(--color-text-primary)]">{f.title}</h3>
                 <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{f.body}</p>
@@ -284,8 +312,28 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 7. AI Learnings (stats / proof) ─────────────────────────── */}
+      {/* ── 7. By the numbers ───────────────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="mb-12 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
+            How the testing engine actually works
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 reveal-stagger">
+            {STATS.map((stat) => (
+              <div key={stat.label} className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-7 text-center">
+                <p className="text-4xl sm:text-5xl font-bold tracking-tight text-[color:var(--color-primary)]">
+                  <StatCounter value={stat.value} suffix={stat.suffix} />
+                </p>
+                <p className="mt-3 text-sm font-semibold text-[color:var(--color-text-primary)]">{stat.label}</p>
+                <p className="mt-1.5 text-xs text-[color:var(--color-text-secondary)] leading-relaxed">{stat.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 8. AI Learnings ──────────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <h2 className="mb-10 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
             Asmos doesn&apos;t just find winners. It learns why they win.
@@ -302,8 +350,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 8. Free Optimization Analysis (soft offramp before pricing) ── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+      {/* ── 9. Free Optimization Analysis (soft offramp before pricing) ── */}
+      <section className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-3xl text-center reveal">
           <span className="mb-4 inline-block rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[color:var(--color-text-secondary)]">
             Free Tool
@@ -322,8 +370,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 9. Pricing ───────────────────────────────────────────────── */}
-      <section id="pricing" className="px-5 py-16 sm:py-24">
+      {/* ── 10. Pricing ──────────────────────────────────────────────── */}
+      <section id="pricing" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl">
           <div className="mx-auto max-w-2xl text-center reveal mb-10">
             <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
@@ -342,8 +390,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 10. Managed Success ───────────────────────────────────────── */}
-      <section id="managed-success" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+      {/* ── 11. Managed Success ──────────────────────────────────────── */}
+      <section id="managed-success" className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-2xl text-center reveal">
           <h2 className="mb-3 text-2xl font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
             Prefer a hands-on experience?
@@ -357,8 +405,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 11. FAQ ──────────────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24">
+      {/* ── 12. FAQ ──────────────────────────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-2xl">
           <h2 className="mb-8 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] text-center reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
             Frequently asked questions
@@ -377,8 +425,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 12. Blog / resources preview ────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
+      {/* ── 13. Blog / resources preview ─────────────────────────────── */}
+      <section className="px-5 py-16 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <div className="mb-10 flex items-end justify-between reveal">
             <h2 className="text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
@@ -401,8 +449,8 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 13. Integrations ────────────────────────────────────────── */}
-      <section id="integrations" className="px-5 py-16 sm:py-24">
+      {/* ── 14. Integrations ─────────────────────────────────────────── */}
+      <section id="integrations" className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
         <div className="mx-auto max-w-6xl text-center">
           <h2 className="mb-3 text-2xl sm:text-[1.9rem] font-bold tracking-tight text-[color:var(--color-text-primary)] reveal" style={{ textWrap: "balance" } as React.CSSProperties}>
             Works with the tools you already use.
@@ -412,7 +460,7 @@ export default async function LandingPage() {
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 reveal-stagger">
             {INTEGRATIONS.map((name) => (
-              <span key={name} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-medium text-[color:var(--color-text-primary)]">
+              <span key={name} className="hover-float rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-5 py-2.5 text-sm font-medium text-[color:var(--color-text-primary)]">
                 {name}
               </span>
             ))}
@@ -420,9 +468,14 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 14. Final CTA ────────────────────────────────────────────── */}
-      <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface-sunken)] border-y border-[color:var(--color-border)]">
-        <div className="mx-auto max-w-2xl text-center reveal">
+      {/* ── 15. Final CTA (dark, bookends the hero) ──────────────────── */}
+      <section className="hero-dark relative px-5 py-16 sm:py-24 overflow-hidden">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "radial-gradient(ellipse 70% 60% at 50% 110%, oklch(48% 0.255 258 / 0.22) 0%, transparent 65%)" }}
+        />
+        <div className="relative mx-auto max-w-2xl text-center reveal">
           <h2 className="mb-4 text-2xl sm:text-[2rem] font-bold tracking-tight text-[color:var(--color-text-primary)]" style={{ textWrap: "balance" } as React.CSSProperties}>
             Stop guessing what converts.
           </h2>
@@ -430,7 +483,7 @@ export default async function LandingPage() {
             Let Asmos continuously analyze, test, and improve your conversion experiences.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Link href={CTA.primary.href} className="rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">
+            <Link href={CTA.primary.href} className="btn-wipe rounded-full bg-[color:var(--color-primary)] px-6 py-3 text-sm font-semibold text-white transition-transform duration-200 active:scale-[0.97]">
               {CTA.primary.label}
             </Link>
             <Link href={CTA.secondary.href} className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6 py-3 text-sm font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]">
