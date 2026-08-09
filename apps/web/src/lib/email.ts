@@ -10,7 +10,7 @@ export async function sendInviteEmail(params: {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   await resend.emails.send({
-    from: "Asmos <hello@asmos.com>",
+    from: "Asmos <hello@asmos.io>",
     to,
     subject: `${inviterName} invited you to join ${accountName} on Asmos`,
     html: `<p>${inviterName} invited you to join <strong>${accountName}</strong> on Asmos.</p><p><a href="${acceptUrl}">Accept invite</a></p>`,
@@ -27,7 +27,7 @@ export async function sendRewardEmail(params: {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   await resend.emails.send({
-    from: "Asmos <hello@asmos.com>",
+    from: "Asmos <hello@asmos.io>",
     to,
     subject: `Your reward from ${brandName}: ${rewardLabel}`,
     html: couponCode
@@ -48,7 +48,7 @@ export async function sendContactNotification(params: {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   await resend.emails.send({
-    from: "Asmos Contact Form <hello@asmos.com>",
+    from: "Asmos Contact Form <hello@asmos.io>",
     to: "saba@asmos.io",
     replyTo: email,
     subject: `[Contact] ${inquiryType} — ${company || name}`,
@@ -74,7 +74,7 @@ export async function sendCalculatorReportEmail(params: {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   await resend.emails.send({
-    from: "Asmos <hello@asmos.com>",
+    from: "Asmos <hello@asmos.io>",
     to,
     subject: "Your Email Capture Revenue Calculator results",
     html: `
@@ -92,7 +92,7 @@ export async function sendCalculatorReportEmail(params: {
 export async function sendNewsletterNotification(params: { email: string }) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
-    from: "Asmos Blog <hello@asmos.com>",
+    from: "Asmos Blog <hello@asmos.io>",
     to: "saba@asmos.io",
     subject: "New blog newsletter signup",
     html: `<p>New newsletter signup: ${escapeHtml(params.email)}</p>`,
@@ -125,7 +125,7 @@ export async function sendReportEmail(params: {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   const displayStoreName = escapeHtml(storeName ?? storeUrl);
-  const loginUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/sign-up` : 'https://asmos.com/sign-up';
+  const loginUrl = process.env.NEXT_PUBLIC_APP_URL ? `${process.env.NEXT_PUBLIC_APP_URL}/sign-up` : 'https://asmos.io/sign-up';
 
   const hasScore = typeof score === "number" && grade;
   const scoreBlock = hasScore
@@ -161,7 +161,7 @@ export async function sendReportEmail(params: {
     : `<p>We have finished analyzing <strong>${displayStoreName}</strong>.</p>`;
 
   await resend.emails.send({
-    from: "Asmos <hello@asmos.com>",
+    from: "Asmos <hello@asmos.io>",
     to,
     subject: hasScore
       ? `${displayStoreName} scored ${score}/100 — here's why`
