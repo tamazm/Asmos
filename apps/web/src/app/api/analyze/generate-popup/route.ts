@@ -21,6 +21,7 @@ import {
   type ExistingPopupExtracted,
   type ComputedStyles,
 } from "@/lib/popupGeneration";
+import { buildDesignBrief, hashSeed } from "@/lib/designBrief";
 import { logSystemError } from "@/app/actions/logError";
 
 // ─── Simple in-memory cache (per domain, 1h TTL) ──────────────────────────────
@@ -113,10 +114,18 @@ export async function POST(req: NextRequest) {
     analyticsVariants: [], // cold start — no PostHog data yet (pre-signup)
     variantCount: 0,       // baseline only for the teaser
     multivariate: false,
+    testingMode: "explore",
   });
 
+  // Seeded on the domain, so this teaser is stable for a given store across
+  // reloads (no flicker, and it matches whatever the 1h cache holds) while
+  // still being genuinely different from the popup the previous visitor's
+  // store got. Without this the model returns its modal design for every
+  // domain, which is what made every store's teaser identical.
+  const brief = buildDesignBrief(hashSeed(domain, category));
+
   try {
-    const output = await generatePopupWithVariants(input);
+    const output = await generatePopupWithVariants(input, { control: brief, variants: [] });
 
     // Only return the baseline for the pre-signup teaser
     const result = {

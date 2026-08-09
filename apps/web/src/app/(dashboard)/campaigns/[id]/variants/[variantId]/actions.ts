@@ -30,7 +30,11 @@ export async function updateVariantDesign(
   // Preserve whichever template/layout the AI originally chose for this
   // variant (see popupSpec.template_id) — a manual copy/color edit shouldn't
   // silently reset it back to the default split-screen template.
-  const existingSpec = (variant.popupSpec ?? {}) as { template_id?: string; layout_style?: string };
+  const existingSpec = (variant.popupSpec ?? {}) as {
+    template_id?: string;
+    layout_style?: string;
+    dna?: unknown;
+  };
   const generatedCode = renderPopupTemplate(existingSpec.template_id, {
     headline: design.headline,
     subhead: design.body,
@@ -40,6 +44,10 @@ export async function updateVariantDesign(
     couponCode: reward?.couponCode || null,
     goal: "BOTH",
     layoutStyle: existingSpec.layout_style as "split-left" | "split-right" | "centered" | "minimal" | undefined,
+    // Carry the design DNA through a manual edit too. Without this, editing a
+    // headline would silently strip the popup's timer, eyebrow, theme, flow
+    // and step copy back to defaults — i.e. reset it to the generic popup.
+    dna: existingSpec.dna as Parameters<typeof renderPopupTemplate>[1]["dna"],
   });
 
   await prisma.variant.update({

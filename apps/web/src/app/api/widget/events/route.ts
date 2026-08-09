@@ -31,6 +31,24 @@ export async function POST(request: Request) {
     // teaser -> capture) or a named milestone (e.g. "email_field_focus"),
     // set by the popup template's own script.
     step?: number | string;
+    // ── Interaction telemetry (lib/templates/runtime.ts) ──
+    // Sent once per popup view as step: "session_summary", plus on individual
+    // milestone events. These are what let the generator distinguish "the
+    // offer is weak" from "they could not find the email field" — impressions
+    // and conversions alone cannot tell those two apart, which is why popup
+    // improvements previously had nothing concrete to act on.
+    deadClicks?: number;
+    rageClicks?: number;
+    fieldFocusCount?: number;
+    timeToFirstKeystrokeMs?: number | null;
+    typedChars?: number;
+    abandonedField?: boolean;
+    ctaHoverNoClickMs?: number;
+    scrolledInside?: boolean;
+    reachedStep?: number;
+    converted?: boolean;
+    msSinceOpen?: number;
+    targetTag?: string;
   };
 
   const { variantId, type, visitorId } = body;
@@ -51,6 +69,18 @@ export async function POST(request: Request) {
     timeOnPageSeconds: body.timeOnPageSeconds,
     dismissAfterMs: body.dismissAfterMs,
     step: body.step,
+    deadClicks: body.deadClicks,
+    rageClicks: body.rageClicks,
+    fieldFocusCount: body.fieldFocusCount,
+    timeToFirstKeystrokeMs: body.timeToFirstKeystrokeMs ?? undefined,
+    typedChars: body.typedChars,
+    abandonedField: body.abandonedField,
+    ctaHoverNoClickMs: body.ctaHoverNoClickMs,
+    scrolledInside: body.scrolledInside,
+    reachedStep: body.reachedStep,
+    converted: body.converted,
+    msSinceOpen: body.msSinceOpen,
+    targetTag: body.targetTag,
   };
   const hasDetails = Object.values(details).some((v) => v !== undefined);
 
@@ -156,6 +186,15 @@ export async function POST(request: Request) {
           time_on_page_s: timeOnPageSeconds,
           dismiss_after_ms: dismissAfterMs,
           funnel_step: step,
+          // Interaction telemetry, mirrored into PostHog so the same signals
+          // are queryable there alongside session replay.
+          dead_clicks: body.deadClicks,
+          rage_clicks: body.rageClicks,
+          field_focus_count: body.fieldFocusCount,
+          time_to_first_keystroke_ms: body.timeToFirstKeystrokeMs,
+          abandoned_field: body.abandonedField,
+          cta_hover_no_click_ms: body.ctaHoverNoClickMs,
+          reached_step: body.reachedStep,
           $current_url: pageUrl,
         };
 

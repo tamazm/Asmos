@@ -7,6 +7,7 @@ import type { PopupSpec } from "@/lib/popupGeneration";
 import { inngest } from "@/lib/inngest/client";
 import { AI_GENERATION_LIMITS } from "@/lib/limits";
 import { normalizeHost } from "@/lib/host";
+import { renderPopupTemplate } from "@/lib/templates";
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -95,6 +96,27 @@ export async function POST(request: Request) {
     ? { trigger: spec.trigger, delaySeconds: null }
     : body.targeting;
 
+  // Render the popup HTML server-side from the spec rather than trusting the
+  // client to send it. The onboarding flow reads `code` off a response that no
+  // longer carries one (the generation API returns a spec, not HTML), so
+  // relying on the client left these campaigns with an empty generatedCode and
+  // no popup at all on the merchant's site.
+  const controlGeneratedCode =
+    hasPopupSpec && spec
+      ? body.popupSpec?.code ||
+        renderPopupTemplate(spec.template_id, {
+          headline: spec.headline,
+          subhead: spec.subhead,
+          cta: spec.cta,
+          primaryColor: spec.design_tokens.palette[0] ?? body.design?.primaryColor ?? "#165DFF",
+          couponCode: spec.coupon_code,
+          imageUrl: spec.image_url,
+          goal: "BOTH",
+          layoutStyle: spec.layout_style,
+          dna: spec.dna,
+        })
+      : undefined;
+
   const created = await prisma.campaign.create({
     data: {
       accountId: account.id,
@@ -117,7 +139,7 @@ export async function POST(request: Request) {
           ...(hasPopupSpec && spec
             ? {
                 popupSpec: spec as unknown as Prisma.InputJsonValue,
-                generatedCode: body.popupSpec?.code,
+                generatedCode: controlGeneratedCode,
               }
             : {}),
         },
