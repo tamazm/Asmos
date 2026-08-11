@@ -1,5 +1,5 @@
 import type { ResolvedTemplateProps } from "./types";
-import { dnaTokens, sharedComponentCss } from "./dnaCss";
+import { dnaTokens, sharedComponentCss, dnaFontImport } from "./dnaCss";
 import { closeMarkup, resolveFlow, runtimeScript, stepsMarkup } from "./runtime";
 
 /**
@@ -45,13 +45,14 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
 <!-- ASMOS TEMPLATE: CORNER-TOAST -->
 <div class="asmos-toast-wrap" id="asmosPopupOverlay" hidden>
   <style>
-    ${dnaTokens(dna, accent)}
+    ${dnaFontImport(dna, props.brandFonts)}
+    ${dnaTokens(dna, accent, props.brandFonts)}
 
     #asmosPopupOverlay.asmos-toast-wrap {
       position: fixed;
       ${anchor}
       z-index: 2147483000;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-family: var(--asmos-font-body);
       -webkit-font-smoothing: antialiased;
     }
 
@@ -62,7 +63,7 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
       background: var(--asmos-bg);
       border-radius: var(--asmos-radius);
       border: 1px solid var(--asmos-border);
-      box-shadow: 0 16px 44px -12px rgba(0,0,0,0.3);
+      box-shadow: var(--asmos-shadow);
       overflow: hidden;
       transform: ${slideFrom};
       opacity: 0;
@@ -74,7 +75,13 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
     #asmosPopupOverlay .asmos-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     #asmosPopupOverlay .asmos-content {
-      padding: ${dna.density === "airy" ? "24px 22px" : dna.density === "compact" ? "16px 16px 15px" : "20px 20px 18px"};
+      /* Re-point the padding tokens at the toast's own tighter scale, so any
+         surface treatment that bleeds to the edge (see dnaCss's "paper" and
+         "block") measures against the padding actually in use here rather than
+         the modal-sized one. */
+      --asmos-pad-y: ${dna.density === "airy" ? "24px" : dna.density === "compact" ? "16px" : "20px"};
+      --asmos-pad-x: ${dna.density === "airy" ? "22px" : dna.density === "compact" ? "16px" : "20px"};
+      padding: var(--asmos-pad-y) var(--asmos-pad-x);
       text-align: left;
       box-sizing: border-box;
     }
@@ -85,8 +92,14 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
 
     /* A toast is a fraction of the width of a modal — clamp the DNA's type
        scale rather than letting "large" overflow a 340px card. */
-    #asmosPopupOverlay .asmos-headline { font-size: min(var(--asmos-headline-size), 19px); padding-right: 22px; }
-    #asmosPopupOverlay .asmos-sub { font-size: min(var(--asmos-sub-size), 13.5px); max-width: none; }
+    #asmosPopupOverlay .asmos-headline {
+      font-size: min(var(--asmos-headline-size), 19px);
+      padding-right: 22px;
+      /* The measure cap is a modal-scale device; at 19px in a 348px card it
+         would wrap the headline into a narrow column for no reason. */
+      max-width: none;
+    }
+    #asmosPopupOverlay .asmos-sub { font-size: min(var(--asmos-sub-size), 13.5px); max-width: none; margin-bottom: var(--asmos-space-text); }
     #asmosPopupOverlay .asmos-cta { width: 100%; min-height: 42px; padding: 11px 16px; font-size: 13.5px; }
     #asmosPopupOverlay .asmos-email-input { min-height: 42px; padding: 10px 12px; font-size: 13.5px; }
     #asmosPopupOverlay .asmos-code { padding: 10px 13px; font-size: 13px; }

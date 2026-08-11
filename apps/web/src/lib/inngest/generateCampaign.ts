@@ -305,6 +305,7 @@ async function runGeneration(
             layoutStyle: output.baseline.spec.layout_style,
             imageUrl: output.baseline.spec.image_url,
             dna: output.baseline.spec.dna,
+            brandFonts: brandTokens,
           }),
         },
         ...output.variants.map((v, idx) => ({
@@ -331,6 +332,7 @@ async function runGeneration(
             layoutStyle: v.spec.layout_style,
             imageUrl: v.spec.image_url,
             dna: v.spec.dna,
+            brandFonts: brandTokens,
           }),
           testAxis: v.test_axis,
           hypothesis: v.hypothesis,

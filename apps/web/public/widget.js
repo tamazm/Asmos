@@ -128,6 +128,12 @@
   }
 
   function trackEvent(variantId, type, extraContext) {
+    // Preview surfaces (dashboard variant preview, /store-preview) render the
+    // real widget against real variant ids. Writing events from them poisons
+    // the numbers the bandit and the campaign dashboard are computed from —
+    // it is why a variant could show "1 impression, 2 submissions (200%)"
+    // without a single real visitor having seen it.
+    if (isPreview) return;
     var payload = Object.assign(
       { variantId: variantId, type: type },
       behavioralContext(extraContext)
@@ -371,6 +377,26 @@
     errorMsg.style.cssText = "margin:0;font-size:12px;color:#ef4444;display:none;";
     form.appendChild(errorMsg);
 
+    function renderThanks(data) {
+      card.innerHTML = "";
+      card.appendChild(close);
+      var thanks = document.createElement("h2");
+      thanks.textContent = data && data.reward ? "You're in!" : "Thanks!";
+      thanks.style.cssText =
+        "margin:0 0 8px;font-size:20px;font-weight:700;color:" + primaryColor + ";";
+      card.appendChild(thanks);
+      var msg = document.createElement("p");
+      msg.style.cssText = "margin:0;font-size:14px;color:#4b5563;";
+      if (data && data.reward) {
+        msg.textContent = data.reward.couponCode
+          ? data.reward.label + " — code: " + data.reward.couponCode
+          : data.reward.label;
+      } else {
+        msg.textContent = "We'll be in touch.";
+      }
+      card.appendChild(msg);
+    }
+
     var submit = document.createElement("button");
     submit.type = "submit";
     var ctaText = design.ctaText || "Submit";
@@ -393,6 +419,14 @@
         payload[field] = inputs[field].value;
       });
 
+      // Same reasoning as trackEvent above: a preview must never create a real
+      // Lead row (or burn a coupon code out of the pool, or fire the
+      // merchant's lead.captured webhook). Simulate the success state instead.
+      if (isPreview) {
+        renderThanks({ reward: null });
+        return;
+      }
+
       fetch(apiBase + "/api/widget/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -403,29 +437,11 @@
           return res.json();
         })
         .then(function (data) {
-          // Also fire the SUBMISSION event with full behavioral context
-          trackEvent(variant.id, "SUBMISSION");
-
-          card.innerHTML = "";
-          card.appendChild(close);
-          var thanks = document.createElement("h2");
-          thanks.textContent = data.reward ? "You're in!" : "Thanks!";
-          thanks.style.cssText =
-            "margin:0 0 8px;font-size:20px;font-weight:700;color:" + variant.design.primaryColor + ";";
-          card.appendChild(thanks);
-          if (data.reward) {
-            var rewardText = document.createElement("p");
-            rewardText.textContent = data.reward.couponCode
-              ? data.reward.label + " — code: " + data.reward.couponCode
-              : data.reward.label;
-            rewardText.style.cssText = "margin:0;font-size:14px;color:#4b5563;";
-            card.appendChild(rewardText);
-          } else {
-            var msg = document.createElement("p");
-            msg.textContent = "We'll be in touch.";
-            msg.style.cssText = "margin:0;font-size:14px;color:#4b5563;";
-            card.appendChild(msg);
-          }
+          // No SUBMISSION event is fired from here on purpose: POST
+          // /api/widget/leads already writes one server-side (see that route).
+          // Firing it again from the client double-counted every conversion,
+          // which is how a variant could report a >100% submission rate.
+          renderThanks(data);
         })
         .catch(function () {
           errorMsg.textContent = "Something went wrong — please try again.";

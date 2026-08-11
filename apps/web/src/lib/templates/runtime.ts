@@ -61,7 +61,13 @@ export function resolveFlow(goal: PopupTemplateProps["goal"], dna: PopupDna): Re
   // structural fork: offer and email field on a single screen.
   const hasTeaser = g === "BOTH" && dna.step_flow === "two_step";
 
-  const startingStep = g === "DISCOUNT" ? 3 : hasTeaser ? 1 : g === "BOTH" ? 1 : 2;
+  // Derive the opening step from which steps actually exist, never from the
+  // goal alone. The previous form (`g === "BOTH" ? 1 : 2`) opened a BOTH popup
+  // on step 1 even when step_flow was "one_step" — and in that flow no step 1
+  // is rendered at all. Every remaining section kept its `hidden` attribute,
+  // `.popup-step[hidden] { display: none !important }` did its job, and the
+  // popup shipped as an empty card with nothing but a close button in it.
+  const startingStep = hasTeaser ? 1 : hasCapture ? 2 : 3;
   const postSubmitStep = hasReveal ? 3 : 4;
 
   return { hasTeaser, hasCapture, hasReveal, hasSuccess, startingStep, postSubmitStep };
@@ -286,6 +292,7 @@ export function runtimeScript(opts: RuntimeOptions): string {
     openDelayMs,
     timerMode: dna.timer_mode,
     timerSeconds: dna.timer_seconds,
+    startingStep: flow.startingStep,
     postSubmitStep: flow.postSubmitStep,
     hasSuccess: flow.hasSuccess,
   });
@@ -324,8 +331,23 @@ export function runtimeScript(opts: RuntimeOptions): string {
     abandonedField: false,
     ctaHoverNoClickMs: 0,
     scrolledInside: false,
-    reachedStep: CFG.goal === 'DISCOUNT' ? 3 : 1
+    reachedStep: CFG.startingStep || 1
   };
+
+  // Failsafe: a popup that renders with every step hidden is indistinguishable
+  // from a broken install to the visitor, and produces zero leads while still
+  // counting impressions. If the markup and the flow ever disagree again, show
+  // the intended step — or, failing that, the first one — rather than nothing.
+  function ensureVisibleStep() {
+    var steps = root.querySelectorAll('.popup-step');
+    if (!steps.length) return;
+    if (root.querySelector('.popup-step:not([hidden])')) return;
+    var target = root.querySelector('.popup-step[data-step="' + CFG.startingStep + '"]') || steps[0];
+    target.hidden = false;
+    if (typeof console !== 'undefined' && console.warn) {
+      console.warn('[asmos] no visible popup step for startingStep=' + CFG.startingStep + '; recovered');
+    }
+  }
 
   function track(type, extra) {
     if (typeof window.__asmos_track_event === 'function') {
@@ -384,6 +406,7 @@ export function runtimeScript(opts: RuntimeOptions): string {
   function openPopup() {
     openedAt = Date.now();
     lastFocused = document.activeElement;
+    ensureVisibleStep();
     root.hidden = false;
     requestAnimationFrame(function () { root.classList.add(CFG.openClass); });
     if (CFG.lockScroll) document.body.style.overflow = 'hidden';
@@ -578,13 +601,32 @@ export function runtimeScript(opts: RuntimeOptions): string {
         goToStep(CFG.hasSuccess ? 4 : CFG.postSubmitStep);
       }
 
+      // A failed capture that still shows the success screen is the worst
+      // possible outcome: the visitor believes they subscribed, the merchant
+      // never gets the address, and nothing anywhere records that it happened.
+      // Ask again instead, and leave a breadcrumb in the event stream.
+      function fail(reason) {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = originalLabel; }
+        if (emailInput) { emailInput.style.borderColor = '#dc2626'; }
+        var err = root.querySelector('.asmos-error');
+        if (!err) {
+          err = document.createElement('p');
+          err.className = 'asmos-error';
+          err.setAttribute('role', 'alert');
+          err.style.cssText = 'margin:10px 0 0;font-size:12px;color:#dc2626;';
+          if (form.parentNode) form.parentNode.insertBefore(err, form.nextSibling);
+        }
+        err.textContent = "That didn't go through — please try again.";
+        track('INTERACTION', { step: 'lead_submit_failed', reason: reason });
+      }
+
       if (window.__asmos_preview_mode) {
         converted = true;
         setTimeout(finish, 250);
         return;
       }
 
-      if (!variant) { converted = true; finish(); return; }
+      if (!variant) { fail('no_active_variant'); return; }
 
       var behavioral = typeof window.__asmos_behavioral_context === 'function'
         ? window.__asmos_behavioral_context()
@@ -599,16 +641,22 @@ export function runtimeScript(opts: RuntimeOptions): string {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       })
-        .then(function (res) { return res.json(); })
+        .then(function (res) {
+          if (!res.ok) throw new Error('lead endpoint returned ' + res.status);
+          return res.json();
+        })
         .then(function (data) {
           converted = true;
           if (data && data.reward && data.reward.couponCode) {
             var codeEl = root.querySelector('#asmosPopupCodeValue');
             if (codeEl) codeEl.textContent = data.reward.couponCode;
           }
+          finish();
         })
-        .catch(function (err) { console.error('[asmos] lead submission failed', err); converted = true; })
-        .then(finish);
+        .catch(function (err) {
+          console.error('[asmos] lead submission failed', err);
+          fail('request_failed');
+        });
     });
   }
 

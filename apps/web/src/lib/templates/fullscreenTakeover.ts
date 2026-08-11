@@ -1,6 +1,6 @@
 import type { ResolvedTemplateProps } from "./types";
 import { DEFAULT_FALLBACK_IMAGE } from "@/lib/imageLibrary";
-import { dnaTokens, sharedComponentCss } from "./dnaCss";
+import { dnaTokens, sharedComponentCss, dnaFontImport } from "./dnaCss";
 import { closeMarkup, resolveFlow, runtimeScript, stepsMarkup } from "./runtime";
 
 /**
@@ -47,7 +47,8 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
 <!-- ASMOS TEMPLATE: FULLSCREEN-TAKEOVER -->
 <div class="asmos-overlay" id="asmosPopupOverlay" hidden>
   <style>
-    ${dnaTokens(dna, accent)}
+    ${dnaFontImport(dna, props.brandFonts)}
+    ${dnaTokens(dna, accent, props.brandFonts)}
 
     #asmosPopupOverlay.asmos-overlay {
       position: fixed;
@@ -56,8 +57,9 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
       opacity: 0;
       visibility: hidden;
       transition: opacity 280ms ease-out, visibility 280ms ease-out;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-family: var(--asmos-font-body);
       -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
       background-color: #101013;
       ${
         useImage
@@ -88,6 +90,10 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
       flex-direction: column;
       justify-content: center;
       ${align}
+      /* Keep the padding tokens honest for any bleed-to-edge surface
+         treatment — this template's padding is its own, not the density scale's. */
+      --asmos-pad-y: 32px;
+      --asmos-pad-x: 32px;
       padding: 32px;
       box-sizing: border-box;
       transform: var(--asmos-enter-from);

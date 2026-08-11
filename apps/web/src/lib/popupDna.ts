@@ -46,6 +46,33 @@ export const ENTRANCES = ["fade", "slide_up", "scale", "slide_side"] as const;
 export const THEMES = ["light", "dark", "brand"] as const;
 export const CLOSE_AFFORDANCES = ["x_corner", "x_outside", "text_link", "both"] as const;
 
+/**
+ * The aesthetic school the popup belongs to. Distinct from every knob above:
+ * those describe *structure* (where things sit, how many steps), this describes
+ * *taste* (what the thing feels like to look at). Before it existed the visual
+ * vocabulary was three flat themes, one box-shadow and system-ui, which is why
+ * a "different" popup still meant "the same card with different words".
+ *
+ * Treated as a first-class test axis rather than a global setting: which school
+ * converts is a property of the store's niche, not of good taste in general —
+ * a supplements brand and a ceramics studio should not land in the same place.
+ */
+export const ART_DIRECTIONS = ["editorial", "bold", "glass", "minimal"] as const;
+export const TYPE_PAIRINGS = ["editorial", "bold", "geometric", "grotesque", "brand", "system"] as const;
+export const ELEVATIONS = ["flat", "raised", "floating"] as const;
+export const SURFACE_TREATMENTS = ["plain", "paper", "glow", "block", "mesh"] as const;
+
+/**
+ * Which axis the composition is built on.
+ *
+ * This exists because centring everything is the single loudest tell that a
+ * layout was generated rather than designed. Centre alignment is what you get
+ * when nothing decided where the text should go — it has no left edge for the
+ * eye to return to, so a stack of centred elements reads as a list of unrelated
+ * things rather than as a composition. Real layouts commit to an axis.
+ */
+export const TEXT_ALIGNS = ["left", "center"] as const;
+
 export type StepFlow = (typeof STEP_FLOWS)[number];
 export type TimerMode = (typeof TIMER_MODES)[number];
 export type TimerStyle = (typeof TIMER_STYLES)[number];
@@ -61,6 +88,11 @@ export type ImageTreatment = (typeof IMAGE_TREATMENTS)[number];
 export type Entrance = (typeof ENTRANCES)[number];
 export type Theme = (typeof THEMES)[number];
 export type CloseAffordance = (typeof CLOSE_AFFORDANCES)[number];
+export type ArtDirection = (typeof ART_DIRECTIONS)[number];
+export type TypePairing = (typeof TYPE_PAIRINGS)[number];
+export type Elevation = (typeof ELEVATIONS)[number];
+export type SurfaceTreatment = (typeof SURFACE_TREATMENTS)[number];
+export type TextAlign = (typeof TEXT_ALIGNS)[number];
 
 // ─── The DNA ─────────────────────────────────────────────────────────────────
 
@@ -97,6 +129,22 @@ export type PopupDna = {
   /** Render a visible field label instead of a placeholder-only field. */
   show_field_label: boolean;
   field_label: string;
+
+  // ── Aesthetic ──
+  /**
+   * The school. Sets the taste-level defaults (typography, depth, surface) and
+   * biases the structural knobs below toward what that school actually does —
+   * an editorial popup with pill buttons and a 28px radius isn't editorial.
+   */
+  art_direction: ArtDirection;
+  /** Which typeface pair to serve. "brand" uses the store's own, when Google serves it. */
+  type_pairing: TypePairing;
+  /** Shadow language. "flat" is a real choice, not an absence of one. */
+  elevation: Elevation;
+  /** What happens on the surface behind the copy: paper tone, accent glow, colour block, mesh. */
+  surface_treatment: SurfaceTreatment;
+  /** The axis the composition is built on. Left is the considered default; centre is a choice. */
+  text_align: TextAlign;
 
   // ── Visual ──
   corner_radius: CornerRadius;
@@ -147,6 +195,13 @@ export const DEFAULT_DNA: PopupDna = {
   email_placeholder: "Your email address",
   show_field_label: false,
   field_label: "Email address",
+  // A pre-aesthetic row has no opinion about taste, so it degrades to the one
+  // school that adds nothing: no webfont, no shadow language, no surface.
+  art_direction: "minimal",
+  type_pairing: "system",
+  elevation: "raised",
+  surface_treatment: "plain",
+  text_align: "center",
   corner_radius: "soft",
   button_shape: "rounded",
   button_fill: "solid",
@@ -229,6 +284,12 @@ export function normalizeDna(raw: unknown): PopupDna {
     show_field_label: typeof d.show_field_label === "boolean" ? d.show_field_label : DEFAULT_DNA.show_field_label,
     field_label: str(d.field_label, DEFAULT_DNA.field_label),
 
+    art_direction: pick(ART_DIRECTIONS, d.art_direction, DEFAULT_DNA.art_direction),
+    type_pairing: pick(TYPE_PAIRINGS, d.type_pairing, DEFAULT_DNA.type_pairing),
+    elevation: pick(ELEVATIONS, d.elevation, DEFAULT_DNA.elevation),
+    surface_treatment: pick(SURFACE_TREATMENTS, d.surface_treatment, DEFAULT_DNA.surface_treatment),
+    text_align: pick(TEXT_ALIGNS, d.text_align, DEFAULT_DNA.text_align),
+
     corner_radius: pick(CORNER_RADII, d.corner_radius, DEFAULT_DNA.corner_radius),
     button_shape: pick(BUTTON_SHAPES, d.button_shape, DEFAULT_DNA.button_shape),
     button_fill: pick(BUTTON_FILLS, d.button_fill, DEFAULT_DNA.button_fill),
@@ -271,6 +332,11 @@ export const popupDnaJsonSchema = {
     email_placeholder: { type: "string" },
     show_field_label: { type: "boolean" },
     field_label: { type: "string" },
+    art_direction: { type: "string", enum: ART_DIRECTIONS },
+    type_pairing: { type: "string", enum: TYPE_PAIRINGS },
+    elevation: { type: "string", enum: ELEVATIONS },
+    surface_treatment: { type: "string", enum: SURFACE_TREATMENTS },
+    text_align: { type: "string", enum: TEXT_ALIGNS },
     corner_radius: { type: "string", enum: CORNER_RADII },
     button_shape: { type: "string", enum: BUTTON_SHAPES },
     button_fill: { type: "string", enum: BUTTON_FILLS },
@@ -296,6 +362,7 @@ export const popupDnaJsonSchema = {
     "step_flow", "timer_mode", "timer_seconds", "timer_style", "timer_label",
     "eyebrow", "social_proof", "privacy_note",
     "form_layout", "email_placeholder", "show_field_label", "field_label",
+    "art_direction", "type_pairing", "elevation", "surface_treatment", "text_align",
     "corner_radius", "button_shape", "button_fill", "accent_placement",
     "density", "type_scale", "overlay_weight", "image_treatment", "entrance", "theme",
     "close_affordance", "dismiss_text",
@@ -326,6 +393,12 @@ export function dnaFingerprint(
   return [
     templateId ?? "split-screen",
     layoutStyle ?? "split-left",
+    // Art direction leads: it's the first thing a visitor perceives and the
+    // largest single difference between two popups, so two designs that share
+    // it are far more interchangeable than two that merely share a density.
+    dna.art_direction,
+    dna.type_pairing,
+    dna.surface_treatment,
     dna.step_flow,
     dna.timer_mode,
     dna.image_treatment,

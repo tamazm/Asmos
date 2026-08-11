@@ -1,6 +1,6 @@
 import type { ResolvedTemplateProps } from "./types";
 import { DEFAULT_FALLBACK_IMAGE } from "@/lib/imageLibrary";
-import { dnaTokens, sharedComponentCss, overlayColor } from "./dnaCss";
+import { dnaTokens, sharedComponentCss, overlayColor, dnaFontImport } from "./dnaCss";
 import { closeMarkup, resolveFlow, runtimeScript, stepsMarkup } from "./runtime";
 
 /**
@@ -33,7 +33,8 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
 <!-- ASMOS TEMPLATE: SPLIT-SCREEN -->
 <div class="asmos-overlay" id="asmosPopupOverlay" hidden>
   <style>
-    ${dnaTokens(dna, accent)}
+    ${dnaFontImport(dna, props.brandFonts)}
+    ${dnaTokens(dna, accent, props.brandFonts)}
 
     #asmosPopupOverlay.asmos-overlay {
       position: fixed;
@@ -48,8 +49,9 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
       opacity: 0;
       visibility: hidden;
       transition: opacity 240ms ease-out, visibility 240ms ease-out;
-      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-family: var(--asmos-font-body);
       -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
     #asmosPopupOverlay.is-open { opacity: 1; visibility: visible; }
 
@@ -60,7 +62,7 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
       overflow: hidden auto;
       background: var(--asmos-bg);
       border-radius: var(--asmos-radius);
-      box-shadow: 0 28px 60px -18px rgba(0,0,0,0.42), 0 0 0 1px rgba(0,0,0,0.04);
+      box-shadow: var(--asmos-shadow);
       display: ${isSideImage ? "grid" : "block"};
       ${isSideImage ? "grid-template-columns: 1fr 1fr;" : ""}
       ${isSideImage && layoutStyle === "split-right" ? "direction: rtl;" : ""}
@@ -83,12 +85,15 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
       padding: var(--asmos-pad);
       display: flex;
       flex-direction: column;
-      align-items: ${layoutStyle === "split-right" ? "flex-start" : "center"};
+      /* The composition axis comes from the DNA now, not from which side the
+         image happens to sit on. Deriving text alignment from layout_style
+         meant three of the four layouts were centred by accident rather than
+         by decision — see popupDna's TEXT_ALIGNS. */
+      align-items: var(--asmos-align-items);
       justify-content: center;
-      text-align: ${layoutStyle === "split-right" ? "left" : "center"};
+      text-align: var(--asmos-align);
       box-sizing: border-box;
     }
-    #asmosPopupOverlay .asmos-content .asmos-sub { ${layoutStyle === "split-right" ? "" : "margin-left: auto; margin-right: auto;"} }
 
     #asmosPopupOverlay .asmos-close { top: 10px; ${layoutStyle === "split-right" && isSideImage ? "left: 10px;" : "right: 10px;"} }
     ${

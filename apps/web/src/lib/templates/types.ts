@@ -20,6 +20,16 @@ export interface PopupTemplateProps {
    * renders with quiet, safe defaults instead of crashing.
    */
   dna?: Partial<PopupDna> | null;
+  /**
+   * The store's own typefaces, as identified by /api/analyze and carried
+   * through popupGeneration as `design_tokens.type_display` / `type_body`.
+   *
+   * Only consulted when `dna.type_pairing` is "brand" — and only honoured when
+   * the name matches a family Google actually serves (see fonts.ts). This is
+   * the first time that extraction has been used for anything; before it, every
+   * template hardcoded system-ui and the scraped fonts were dead data.
+   */
+  brandFonts?: { type_display?: string | null; type_body?: string | null } | null;
 }
 
 /** Props after normalization — what each template actually receives. */

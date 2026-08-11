@@ -240,6 +240,7 @@ export const evaluateKnockout = inngest.createFunction(
                 layoutStyle: v.spec.layout_style,
                 imageUrl: v.spec.image_url,
                 dna: v.spec.dna,
+                brandFonts: v.spec.design_tokens,
               }),
             },
           });

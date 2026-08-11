@@ -114,6 +114,7 @@ export async function POST(request: Request) {
           goal: "BOTH",
           layoutStyle: spec.layout_style,
           dna: spec.dna,
+          brandFonts: spec.design_tokens,
         })
       : undefined;
 
