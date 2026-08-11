@@ -1366,10 +1366,14 @@ function applyBriefs(output: PopupGenerationOutput, briefs: GenerationBriefs): P
  * substituting a stock fallback, so image_treatment is forced to "none" to keep
  * the spec internally consistent.
  */
-function sanitizeSpecImage<T extends { image_url: string | null; dna: PopupDna }>(spec: T): T {
+function sanitizeSpecImage(spec: PopupSpec): PopupSpec {
   if (spec.image_url === null || isLibraryImage(spec.image_url)) return spec;
   console.warn(`[popupGeneration] discarding off-library image_url: ${spec.image_url}`);
-  return { ...spec, image_url: null, dna: { ...spec.dna, image_treatment: "none" } };
+  return {
+    ...spec,
+    image_url: null,
+    dna: { ...spec.dna, image_treatment: "none" },
+  };
 }
 
 /** Normalizes every spec's DNA so downstream renderers never see a partial. */

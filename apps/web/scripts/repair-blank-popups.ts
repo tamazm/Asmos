@@ -94,7 +94,10 @@ async function main() {
   let errors = 0;
 
   for (const variant of variants) {
-    const spec = variant.popupSpec as StoredSpec | null;
+    // Prisma types these columns as JsonValue, which has no overlap with a
+    // concrete shape (JsonValue permits number where StoredSpec wants string),
+    // so a direct `as` is rejected under strict mode. Route through unknown.
+    const spec = variant.popupSpec as unknown as StoredSpec | null;
     if (!spec || typeof spec !== "object" || !spec.headline) {
       // Legacy/WHEEL variants render through the widget's own card fallback and
       // were never affected by this bug.
@@ -103,7 +106,8 @@ async function main() {
     }
 
     const goal =
-      ((variant.campaign.generationContext as { goal?: Goal } | null)?.goal as Goal) ?? "BOTH";
+      ((variant.campaign.generationContext as unknown as { goal?: Goal } | null)?.goal as Goal) ??
+      "BOTH";
     const dna = normalizeDna(spec.dna);
     const blank = wasBlank(goal, dna);
 
@@ -113,7 +117,7 @@ async function main() {
     }
 
     const primaryColor =
-      (variant.design as { primaryColor?: string } | null)?.primaryColor ?? "#165DFF";
+      (variant.design as unknown as { primaryColor?: string } | null)?.primaryColor ?? "#165DFF";
 
     let rendered: string;
     try {
