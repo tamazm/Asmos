@@ -73,11 +73,24 @@ const TYPE_SUB: Record<PopupDna["type_scale"], string> = {
   large: "15px",
 };
 
+/**
+ * Backdrop weight.
+ *
+ * These were 0 / 0.28 / 0.55 / 0.8, and `overlay_weight` was drawn uniformly —
+ * so one modal in four shipped with *no scrim at all*, floating over live page
+ * content with nothing separating it. That reads as a rendering fault rather
+ * than as a design choice: without figure/ground separation the merchant's own
+ * headline competes with the popup's headline, and the card looks like it
+ * failed to finish loading.
+ *
+ * `light` was also too light to do the job at 0.28. The floor is now the point
+ * where page text behind the card stops competing for attention.
+ */
 const OVERLAY_RGBA: Record<PopupDna["overlay_weight"], string> = {
-  none: "rgba(0,0,0,0)",
-  light: "rgba(0,0,0,0.28)",
-  medium: "rgba(0,0,0,0.55)",
-  heavy: "rgba(0,0,0,0.8)",
+  none: "rgba(0,0,0,0.30)",
+  light: "rgba(0,0,0,0.44)",
+  medium: "rgba(0,0,0,0.62)",
+  heavy: "rgba(0,0,0,0.82)",
 };
 
 /**
@@ -113,6 +126,30 @@ function innerHighlight(dna: PopupDna): string {
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
 type ThemeColors = { bg: string; fg: string; muted: string; border: string; field: string };
+
+/**
+ * How far the accent bleeds into the card surface itself.
+ *
+ * A card is the largest area on screen. Leaving it pure white while the brand
+ * colour sits on one 48px button is why the output read as "a form" — the
+ * palette was present but not perceptible. Even 5% of accent mixed into the
+ * background changes the character of the whole popup, and at these levels
+ * text contrast is unaffected.
+ */
+const SURFACE_TINT: Record<PopupDna["color_usage"], number> = {
+  accent_only: 0,
+  tinted_surface: 5,
+  duo_accent: 7,
+  saturated: 12,
+};
+
+/** The field sits *on* the tinted surface, so it needs its own separation. */
+const FIELD_TINT: Record<PopupDna["color_usage"], number> = {
+  accent_only: 0,
+  tinted_surface: 2,
+  duo_accent: 3,
+  saturated: 5,
+};
 
 function themeColors(dna: PopupDna, accent: string): ThemeColors {
   // Art direction tints the theme rather than replacing it. The point is that
@@ -211,6 +248,11 @@ function buttonColors(dna: PopupDna, accent: string): { bg: string; fg: string; 
 
 // ─── Public helpers ──────────────────────────────────────────────────────────
 
+/**
+ * Only consumed by modal templates, which is why "none" is not honoured here:
+ * a modal without a backdrop isn't a quieter modal, it's a broken one. The knob
+ * still controls *how much*, just not *whether* — see OVERLAY_RGBA.
+ */
 export function overlayColor(dna: PopupDna): string {
   return OVERLAY_RGBA[dna.overlay_weight];
 }
@@ -241,12 +283,82 @@ export function entranceTransforms(dna: PopupDna): { from: string; to: string } 
 }
 
 /**
+ * Mixes a percentage of accent into a surface colour. Returns the base
+ * untouched at 0% so `accent_only` emits no color-mix at all — one fewer thing
+ * to go wrong on an old browser that doesn't support it.
+ */
+function tintedSurface(base: string, accent: string, percent: number): string {
+  if (percent <= 0) return base;
+  return `color-mix(in srgb, ${accent} ${percent}%, ${base})`;
+}
+
+const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+/**
+ * Picks a usable second brand colour out of the extracted palette.
+ *
+ * Skips anything too close to the primary (two near-identical blues read as one
+ * colour and just look like a rendering mistake) and anything that is really a
+ * neutral — scrapers routinely return #fff, #000 and page-background greys
+ * alongside the real brand colours, and using one of those as an "accent"
+ * produces a grey badge on a white card.
+ */
+function pickSecondAccent(accent: string, palette?: readonly string[] | null): string {
+  if (!palette?.length) return accent;
+
+  const target = parseHex(accent);
+  for (const candidate of palette) {
+    if (typeof candidate !== "string" || !HEX.test(candidate.trim())) continue;
+    const rgb = parseHex(candidate.trim());
+    if (!rgb) continue;
+
+    const { r, g, b } = rgb;
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    // Near-greyscale, near-white or near-black: not an accent, whatever the
+    // scraper thought.
+    if (max - min < 28) continue;
+    if (max > 244 || max < 26) continue;
+
+    if (target) {
+      const distance = Math.abs(r - target.r) + Math.abs(g - target.g) + Math.abs(b - target.b);
+      if (distance < 90) continue;
+    }
+    return candidate.trim();
+  }
+  return accent;
+}
+
+function parseHex(value: string): { r: number; g: number; b: number } | null {
+  if (!HEX.test(value)) return null;
+  let hex = value.slice(1);
+  if (hex.length === 3) hex = hex.split("").map((ch) => ch + ch).join("");
+  return {
+    r: parseInt(hex.slice(0, 2), 16),
+    g: parseInt(hex.slice(2, 4), 16),
+    b: parseInt(hex.slice(4, 6), 16),
+  };
+}
+
+/**
  * The `:root`-level custom properties every template shares. Emitted scoped to
  * `#asmosPopupOverlay` rather than `:root` so a popup can never leak variables
  * into the merchant's own stylesheet.
  */
-export function dnaTokens(dna: PopupDna, accentInput: string, brand?: BrandFontHints | null): string {
+export function dnaTokens(
+  dna: PopupDna,
+  accentInput: string,
+  brand?: BrandFontHints | null,
+  palette?: readonly string[] | null,
+): string {
   const accent = accentInput || "#165DFF";
+
+  // The store's *second* brand colour. /api/analyze pulls 3-6 of them into
+  // brandTokens.palette and every call site used palette[0] and threw the rest
+  // away — so a brand with a real two-colour identity rendered as one blue
+  // button. Falling back to the primary keeps single-colour brands unchanged.
+  const accent2 = pickSecondAccent(accent, palette);
+
   const c = themeColors(dna, accent);
   const btn = buttonColors(dna, accent);
   const entrance = entranceTransforms(dna);
@@ -262,16 +374,22 @@ export function dnaTokens(dna: PopupDna, accentInput: string, brand?: BrandFontH
   return `
     #asmosPopupOverlay {
       --asmos-accent: ${accent};
+      --asmos-accent-2: ${accent2};
       --asmos-font-display: ${fonts.displayStack};
       --asmos-font-body: ${fonts.bodyStack};
       --asmos-display-weight: ${fonts.displayWeight};
       --asmos-display-tracking: ${fonts.displayTracking};
       --asmos-shadow: ${ELEVATION_SHADOW[dna.elevation]}${innerHighlight(dna)};
-      --asmos-bg: ${c.bg};
+      /* The surface carries brand colour now, not just the button. */
+      --asmos-bg: ${tintedSurface(c.bg, accent, SURFACE_TINT[dna.color_usage])};
       --asmos-fg: ${c.fg};
       --asmos-muted: ${c.muted};
-      --asmos-border: ${c.border};
-      --asmos-field-bg: ${c.field};
+      --asmos-border: ${
+        dna.color_usage === "accent_only"
+          ? c.border
+          : `color-mix(in srgb, var(--asmos-accent) 18%, ${c.border})`
+      };
+      --asmos-field-bg: ${tintedSurface(c.field, accent, FIELD_TINT[dna.color_usage])};
       --asmos-radius: ${RADIUS[dna.corner_radius]};
       --asmos-btn-radius: ${BUTTON_RADIUS[dna.button_shape]};
       --asmos-btn-bg: ${btn.bg};
@@ -320,7 +438,7 @@ function surfaceCss(dna: PopupDna): string {
       border-radius: inherit;
       background:
         radial-gradient(78% 58% at 18% -6%, color-mix(in srgb, var(--asmos-accent) 20%, transparent) 0%, transparent 68%),
-        radial-gradient(52% 40% at 96% 104%, color-mix(in srgb, var(--asmos-accent) 10%, transparent) 0%, transparent 70%);
+        radial-gradient(52% 40% at 96% 104%, color-mix(in srgb, var(--asmos-accent-2) 16%, transparent) 0%, transparent 70%);
     }
     #asmosPopupOverlay .asmos-content > * { position: relative; }`;
 
@@ -402,6 +520,48 @@ function surfaceCss(dna: PopupDna): string {
 }
 
 /**
+ * Keys the photograph to the brand palette.
+ *
+ * A full-colour stock photo dropped into a rectangle beside the copy always
+ * reads as decoration — it has its own palette, its own light, and no
+ * relationship to the card it's sitting in. Desaturating it and pushing the
+ * brand colours back through it makes it part of the design instead of an
+ * illustration next to the design, and it has the useful side effect of making
+ * a merely-adequate stock photo look deliberate.
+ *
+ * Done with `filter` and a blended overlay rather than pre-processed assets, so
+ * it costs no pipeline and works on any image_url.
+ */
+function imageStyleCss(dna: PopupDna): string {
+  if (dna.image_style === "photo") return "";
+
+  const overlay =
+    dna.image_style === "duotone"
+      ? `background: linear-gradient(160deg, var(--asmos-accent), var(--asmos-accent-2)); mix-blend-mode: color; opacity: 0.82;`
+      : dna.image_style === "tinted"
+      ? `background: var(--asmos-accent); mix-blend-mode: multiply; opacity: 0.34;`
+      : `background: var(--asmos-fg); mix-blend-mode: color; opacity: 1;`;
+
+  const base =
+    dna.image_style === "duotone"
+      ? "grayscale(1) contrast(1.16) brightness(1.02)"
+      : dna.image_style === "mono"
+      ? "grayscale(1) contrast(1.08)"
+      : "saturate(0.8)";
+
+  return `
+    #asmosPopupOverlay .asmos-media { position: relative; isolation: isolate; }
+    #asmosPopupOverlay .asmos-media img { filter: ${base}; }
+    #asmosPopupOverlay .asmos-media::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      ${overlay}
+    }`;
+}
+
+/**
  * The CTA is the one element where a little theatre pays for itself. A coloured
  * shadow in the button's own hue reads as the button emitting light rather than
  * casting a shadow — it is the cheapest "this was designed" signal available,
@@ -457,14 +617,56 @@ export function sharedComponentCss(dna: PopupDna): string {
       ${dna.text_align === "center" ? "margin-left: auto; margin-right: auto;" : ""}
       text-wrap: pretty;
     }
-    /* The eyebrow belongs to the headline — bound tight, not spaced evenly. */
+    /* The eyebrow belongs to the headline — bound tight, not spaced evenly.
+       It takes the *second* accent where there is one: a two-colour popup reads
+       as a brand, a one-colour popup reads as a template with a colour setting. */
     #asmosPopupOverlay .asmos-eyebrow {
       font-size: 11px;
       letter-spacing: 0.14em;
       text-transform: uppercase;
       font-weight: 600;
       margin: 0 0 var(--asmos-space-tight);
-      color: var(--asmos-accent);
+      color: ${dna.color_usage === "accent_only" ? "var(--asmos-accent)" : "var(--asmos-accent-2)"};
+    }
+
+    /* ── The offer as an object ────────────────────────────────────────────
+       The heavy element the composition was missing. Set at display size with
+       the percent sign optically reduced and raised, because a "%" at the same
+       size as the numeral is what makes big type look like big text rather
+       than like a designed figure. */
+    #asmosPopupOverlay .asmos-offer {
+      display: flex;
+      align-items: flex-start;
+      justify-content: ${dna.text_align === "left" ? "flex-start" : "center"};
+      gap: 2px;
+      margin: 0 0 var(--asmos-space-tight);
+      font-family: var(--asmos-font-display);
+      font-weight: ${dna.art_direction === "editorial" ? 500 : 800};
+      line-height: 0.82;
+      letter-spacing: -0.05em;
+      color: ${dna.art_direction === "bold" ? "var(--asmos-fg)" : "var(--asmos-accent)"};
+      font-variant-numeric: lining-nums tabular-nums;
+    }
+    #asmosPopupOverlay .asmos-offer-value {
+      font-size: clamp(56px, 13vw, ${dna.type_scale === "small" ? "78px" : "104px"});
+    }
+    #asmosPopupOverlay .asmos-offer-unit {
+      font-size: clamp(24px, 5vw, 40px);
+      line-height: 1;
+      padding-top: 0.16em;
+      letter-spacing: -0.02em;
+    }
+    #asmosPopupOverlay .asmos-offer-label {
+      align-self: flex-end;
+      margin-left: 10px;
+      padding-bottom: 0.32em;
+      font-family: var(--asmos-font-body);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      line-height: 1;
+      color: var(--asmos-muted);
     }
     #asmosPopupOverlay .asmos-proof {
       font-size: 12px;
@@ -688,6 +890,7 @@ export function sharedComponentCss(dna: PopupDna): string {
 
     ${surfaceCss(dna)}
     ${ctaTreatmentCss(dna)}
+    ${imageStyleCss(dna)}
     @media (prefers-reduced-motion: reduce) {
       #asmosPopupOverlay *, #asmosPopupOverlay *::before, #asmosPopupOverlay *::after {
         transition-duration: 0.01ms !important;

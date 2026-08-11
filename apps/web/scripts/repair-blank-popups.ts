@@ -49,7 +49,12 @@ type StoredSpec = {
   layout_style?: "split-left" | "split-right" | "centered" | "minimal";
   image_url?: string | null;
   dna?: Partial<PopupDna> | null;
-  design_tokens?: { type_display?: string | null; type_body?: string | null } | null;
+  discount_percent?: number | null;
+  design_tokens?: {
+    type_display?: string | null;
+    type_body?: string | null;
+    palette?: string[] | null;
+  } | null;
 };
 
 /**
@@ -123,6 +128,8 @@ async function main() {
         imageUrl: spec.image_url ?? null,
         dna: spec.dna ?? null,
         brandFonts: spec.design_tokens ?? null,
+        palette: spec.design_tokens?.palette ?? null,
+        discountPercent: spec.discount_percent ?? null,
       });
     } catch (err) {
       errors++;

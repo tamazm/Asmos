@@ -115,6 +115,8 @@ export async function POST(request: Request) {
           layoutStyle: spec.layout_style,
           dna: spec.dna,
           brandFonts: spec.design_tokens,
+          palette: spec.design_tokens.palette,
+          discountPercent: spec.discount_percent,
         })
       : undefined;
 

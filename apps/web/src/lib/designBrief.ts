@@ -31,7 +31,9 @@ import {
   ART_DIRECTIONS,
   BUTTON_SHAPES,
   CLOSE_AFFORDANCES,
+  COLOR_USAGES,
   CORNER_RADII,
+  OFFER_DISPLAYS,
   DENSITIES,
   ENTRANCES,
   FORM_LAYOUTS,
@@ -160,6 +162,12 @@ type ArtPreset = {
   typeScales: readonly PopupDna["type_scale"][];
   /** Odds of a left-axis composition. Centre is the exception, not the default. */
   leftAxisOdds: number;
+  /** How much brand colour reaches the surface. No school is offered "accent_only". */
+  colorUsages: readonly PopupDna["color_usage"][];
+  /** Odds the discount renders as a display-size figure rather than a sentence. */
+  heroOfferOdds: number;
+  /** Photographic treatments this school will accept. */
+  imageStyles: readonly PopupDna["image_style"][];
   /** Forced on for schools where the element is structural rather than optional. */
   requiresEyebrow?: boolean;
   /**
@@ -192,6 +200,12 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
     densities: ["airy", "regular"],
     typeScales: ["large", "medium"],
     leftAxisOdds: 0.92,
+    // Editorial carries colour quietly — a paper surface with a whisper of
+    // accent in it, not a colour field.
+    colorUsages: ["tinted_surface", "duo_accent"],
+    // A 96px numeral is a poster device. Editorial states the offer in words.
+    heroOfferOdds: 0.15,
+    imageStyles: ["duotone", "mono"],
     requiresEyebrow: true,
     // The rule under the eyebrow and the space are the design. One more line
     // anywhere and it stops being editorial and starts being a newsletter box.
@@ -211,6 +225,10 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
     densities: ["regular", "compact"],
     typeScales: ["large"],
     leftAxisOdds: 0.85,
+    colorUsages: ["saturated", "duo_accent"],
+    // The number *is* the poster. This is the school the hero offer was built for.
+    heroOfferOdds: 0.9,
+    imageStyles: ["duotone"],
     requiresEyebrow: true,
     maxSupporting: 1,
   },
@@ -230,24 +248,12 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
     // The one school where centring is a legitimate design choice rather than
     // a default — a glow has a centre, and the composition can sit on it.
     leftAxisOdds: 0.5,
+    colorUsages: ["tinted_surface", "duo_accent"],
+    heroOfferOdds: 0.55,
+    imageStyles: ["duotone", "tinted", "photo"],
     maxSupporting: 2,
   },
 
-  // The honest control arm: no webfont, no surface, no glow. If a campaign's
-  // richer arms can't beat this, the richness wasn't buying anything.
-  minimal: {
-    type_pairing: "system",
-    elevation: "raised",
-    surface_treatment: "plain",
-    themes: { light: 6, dark: 3, brand: 1 },
-    radii: ["soft", "rounded", "sharp", "pill"],
-    buttonShapes: ["rounded", "rect", "pill"],
-    buttonFills: { solid: 6, dark: 2, outline: 2 },
-    densities: ["regular", "compact", "airy"],
-    typeScales: ["medium", "small", "large"],
-    leftAxisOdds: 0.4,
-    maxSupporting: 2,
-  },
 };
 
 // ─── The brief ───────────────────────────────────────────────────────────────
@@ -265,6 +271,9 @@ export type DesignBrief = {
     | "elevation"
     | "surface_treatment"
     | "text_align"
+    | "color_usage"
+    | "offer_display"
+    | "image_style"
     | "step_flow"
     | "timer_mode"
     | "timer_style"
@@ -378,6 +387,9 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
     elevation: preset.elevation,
     surface_treatment: preset.surface_treatment,
     text_align: rng() < preset.leftAxisOdds ? "left" : "center",
+    color_usage: choose(rng, preset.colorUsages),
+    offer_display: rng() < preset.heroOfferOdds ? "hero" : "inline",
+    image_style: choose(rng, preset.imageStyles),
     step_flow: choose(rng, STEP_FLOWS),
     timer_mode,
     timer_style: choose(rng, TIMER_STYLES),
@@ -392,7 +404,18 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
         : choose(rng, ["button_only", "headline", "top_border"] as const),
     density: choose(rng, preset.densities),
     type_scale: choose(rng, preset.typeScales),
-    overlay_weight: choose(rng, OVERLAY_WEIGHTS),
+    // A corner toast has no backdrop, so its overlay_weight is inert and can be
+    // drawn freely. For the two overlay templates it is load-bearing, and
+    // drawing it uniformly meant a quarter of them shipped with a backdrop of
+    // "none" — a card sitting on live, undimmed page content. Bias hard toward
+    // a scrim that actually separates figure from ground.
+    overlay_weight:
+      template_id === "corner-toast"
+        ? choose(rng, OVERLAY_WEIGHTS)
+        : weighted(rng, { medium: 6, heavy: 3, light: 1, none: 0 } as Record<
+            PopupDna["overlay_weight"],
+            number
+          >),
     image_treatment,
     entrance: choose(rng, ENTRANCES),
     theme,
@@ -546,6 +569,8 @@ const PERTURBABLE = [
   // available, so it's the fastest thing to get a clean read on. Perturbing it
   // re-derives the whole preset — see perturbBrief.
   "art_direction",
+  "color_usage",
+  "offer_display",
   "timer_mode",
   "step_flow",
   "form_layout",
@@ -560,6 +585,8 @@ const PERTURBABLE = [
 
 const PERTURB_POOLS: Record<(typeof PERTURBABLE)[number], readonly string[]> = {
   art_direction: ART_DIRECTIONS,
+  color_usage: COLOR_USAGES,
+  offer_display: OFFER_DISPLAYS,
   timer_mode: TIMER_MODES,
   step_flow: STEP_FLOWS,
   form_layout: FORM_LAYOUTS,
@@ -593,6 +620,11 @@ export function perturbBrief(base: DesignBrief, seed: number, index: number): De
       elevation: preset.elevation,
       surface_treatment: preset.surface_treatment,
       text_align: rng() < preset.leftAxisOdds ? "left" : "center",
+      // Re-drawn from the new school's own pools — a bold popup that kept
+      // editorial's quiet tint and inline offer isn't a bold popup.
+      color_usage: choose(rng, preset.colorUsages),
+      offer_display: rng() < preset.heroOfferOdds ? "hero" : "inline",
+      image_style: choose(rng, preset.imageStyles),
       corner_radius: choose(rng, preset.radii),
       button_shape: choose(rng, preset.buttonShapes),
       button_fill: weighted(rng, preset.buttonFills),
@@ -642,6 +674,9 @@ export function briefFromSpec(
     elevation: dna.elevation ?? fallback.locked.elevation,
     surface_treatment: dna.surface_treatment ?? fallback.locked.surface_treatment,
     text_align: dna.text_align ?? fallback.locked.text_align,
+    color_usage: dna.color_usage ?? fallback.locked.color_usage,
+    offer_display: dna.offer_display ?? fallback.locked.offer_display,
+    image_style: dna.image_style ?? fallback.locked.image_style,
     step_flow: dna.step_flow ?? fallback.locked.step_flow,
     timer_mode: dna.timer_mode ?? fallback.locked.timer_mode,
     timer_style: dna.timer_style ?? fallback.locked.timer_style,
@@ -690,8 +725,6 @@ const ART_DIRECTION_BRIEF: Record<ArtDirection, string> = {
     "poster. The discount NUMBER is the hero and the type is enormous, so the headline must be 3-5 words maximum and read as a statement, not a sentence. Uppercase-friendly. Blunt",
   glass:
     "modern software. Warm, plain-spoken, a little generous. Short sentences. Sounds like a helpful product, not a promotion",
-  minimal:
-    "no aesthetic argument at all — this is the honest control arm. Plain, useful, unstyled language",
 };
 
 /**
@@ -732,6 +765,9 @@ export function briefToPromptSection(brief: DesignBrief, label: string): string 
   - dna.type_pairing: ${l.type_pairing} (fixed by the art direction; do not restate it)
   - dna.elevation: ${l.elevation}
   - dna.surface_treatment: ${l.surface_treatment}
+  - dna.color_usage: ${l.color_usage} (the card surface itself carries brand colour — do not describe the popup as "clean" or "white")
+  - dna.offer_display: ${l.offer_display}${l.offer_display === "hero" ? " — THE DISCOUNT NUMBER IS RENDERED SEPARATELY at display size above the headline. Set discount_percent, and do NOT repeat the number in the headline; write a headline that works alongside a giant figure it must not duplicate" : " (no display figure — the headline carries the offer)"}
+  - dna.image_style: ${l.image_style}
   - dna.text_align: ${l.text_align}${l.text_align === "left" ? " (left-axis composition — the headline sits against a left edge and is capped to a short measure, so write something that breaks naturally over 2-3 lines)" : " (centred composition — keep every line short; centred text with ragged long lines reads as broken)"}
   - dna.step_flow:${l.step_flow}${l.step_flow === "one_step" ? " (the offer and the email field share ONE screen — there is no teaser click, so the headline must carry the whole ask)" : " (teaser screen first, email field after the click)"}
   - dna.timer_mode: ${l.timer_mode}${l.timer_mode === "none" ? " (no countdown at all — do NOT write copy that references a ticking clock)" : l.timer_mode === "countdown" ? " (choose a believable timer_seconds and only claim urgency you'd honour)" : " (a static urgency badge — write timer_label, no countdown)"}
@@ -783,6 +819,9 @@ export function enforceBrief<T extends { template_id?: string; layout_style?: st
       elevation: l.elevation,
       surface_treatment: l.surface_treatment,
       text_align: l.text_align,
+      color_usage: l.color_usage,
+      offer_display: l.offer_display,
+      image_style: l.image_style,
       step_flow: l.step_flow,
       timer_mode: l.timer_mode,
       timer_style: l.timer_style,

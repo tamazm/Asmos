@@ -21,7 +21,14 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
 
   // image_treatment is the DNA's say on imagery; layout_style is the AI's say
   // on where the card sits. "none" wins over any layout that implies an image.
-  const wantsImage = dna.image_treatment !== "none" && layoutStyle !== "minimal";
+  //
+  // A missing image_url now means *no image*, not "substitute the default".
+  // The old `imageUrl || DEFAULT_FALLBACK_IMAGE` meant a store with nothing
+  // suitable to show got a stock photo of a living room next to its offer —
+  // and, when the model reached for the library's discount photo, a picture of
+  // "50%" next to a 10% offer. Irrelevant imagery is worse than none.
+  const wantsImage =
+    dna.image_treatment !== "none" && layoutStyle !== "minimal" && Boolean(imageUrl);
   const treatment = dna.image_treatment;
   const isSideImage = wantsImage && (treatment === "side" || treatment === "background") && layoutStyle.startsWith("split");
   const isTopBand = wantsImage && (treatment === "top_band" || (treatment === "side" && !layoutStyle.startsWith("split")));
@@ -34,7 +41,7 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
 <div class="asmos-overlay" id="asmosPopupOverlay" hidden>
   <style>
     ${dnaFontImport(dna, props.brandFonts)}
-    ${dnaTokens(dna, accent, props.brandFonts)}
+    ${dnaTokens(dna, accent, props.brandFonts, props.palette)}
 
     #asmosPopupOverlay.asmos-overlay {
       position: fixed;

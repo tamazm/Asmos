@@ -306,6 +306,8 @@ async function runGeneration(
             imageUrl: output.baseline.spec.image_url,
             dna: output.baseline.spec.dna,
             brandFonts: brandTokens,
+            palette: brandTokens.palette,
+            discountPercent: output.baseline.spec.discount_percent,
           }),
         },
         ...output.variants.map((v, idx) => ({
@@ -333,6 +335,8 @@ async function runGeneration(
             imageUrl: v.spec.image_url,
             dna: v.spec.dna,
             brandFonts: brandTokens,
+            palette: brandTokens.palette,
+            discountPercent: v.spec.discount_percent,
           }),
           testAxis: v.test_axis,
           hypothesis: v.hypothesis,

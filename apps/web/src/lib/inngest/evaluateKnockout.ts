@@ -241,6 +241,8 @@ export const evaluateKnockout = inngest.createFunction(
                 imageUrl: v.spec.image_url,
                 dna: v.spec.dna,
                 brandFonts: v.spec.design_tokens,
+                palette: v.spec.design_tokens.palette,
+                discountPercent: v.spec.discount_percent,
               }),
             },
           });

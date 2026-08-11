@@ -18,7 +18,9 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
 
   const accent = primaryColor || "#165DFF";
   const bgImg = imageUrl || DEFAULT_FALLBACK_IMAGE;
-  const useImage = dna.image_treatment !== "none";
+  // No image_url means the accent gradient below, not a stock photo standing in
+  // for one — see splitScreen.ts for the reasoning.
+  const useImage = dna.image_treatment !== "none" && Boolean(imageUrl);
 
   // Scrim strength tracks overlay_weight, but never drops below the level that
   // keeps white text legible over an arbitrary photo.
@@ -48,7 +50,7 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
 <div class="asmos-overlay" id="asmosPopupOverlay" hidden>
   <style>
     ${dnaFontImport(dna, props.brandFonts)}
-    ${dnaTokens(dna, accent, props.brandFonts)}
+    ${dnaTokens(dna, accent, props.brandFonts, props.palette)}
 
     #asmosPopupOverlay.asmos-overlay {
       position: fixed;
@@ -124,6 +126,27 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
     ${sharedComponentCss(dna)}
 
     #asmosPopupOverlay .asmos-headline { font-size: ${headlineSize}; color: #fff; max-width: 18ch; }
+    /* Content sits on a scrimmed photograph, so the accent-coloured offer
+       figure would fight the background rather than read against it. */
+    #asmosPopupOverlay .asmos-offer { color: #fff; }
+    #asmosPopupOverlay .asmos-offer-label { color: rgba(255,255,255,0.72); }
+    ${
+      useImage && dna.image_style !== "photo"
+        ? `/* Duotone the backdrop into the brand palette. The scrim above
+             already darkens it; this makes it *belong* to the popup. */
+    #asmosPopupOverlay.asmos-overlay::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: linear-gradient(160deg, var(--asmos-accent), var(--asmos-accent-2));
+      mix-blend-mode: color;
+      opacity: ${dna.image_style === "duotone" ? "0.85" : dna.image_style === "tinted" ? "0.45" : "1"};
+    }
+    #asmosPopupOverlay .asmos-content, #asmosPopupOverlay .asmos-close { z-index: 1; }`
+        : ""
+    }
     #asmosPopupOverlay .asmos-eyebrow { color: rgba(255,255,255,0.88); letter-spacing: 0.18em; font-size: 12px; }
     #asmosPopupOverlay .asmos-sub { max-width: 44ch; }
     #asmosPopupOverlay .asmos-timer { color: #fff; }

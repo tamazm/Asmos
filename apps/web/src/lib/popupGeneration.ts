@@ -16,7 +16,7 @@ import { anthropic } from "@/lib/anthropic";
 import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 import { confidenceVsControl } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
-import { formatImageLibraryForPrompt } from "@/lib/imageLibrary";
+import { formatImageLibraryForPrompt, isLibraryImage } from "@/lib/imageLibrary";
 import {
   dnaFingerprint,
   normalizeDna,
@@ -413,12 +413,15 @@ a merchant who sees the same popup twice concludes the AI does nothing.
 
 IMAGERY
 - Set \`image_url\` to ONE exact URL from the library below, matching the store's category.
-  Do not invent an Unsplash URL — a fabricated photo ID will 404.
+  Do not invent an Unsplash URL — a fabricated photo ID will 404, and any URL not in
+  this list is discarded server-side.
 - Set it to null when the brief's \`dna.image_treatment\` is "none".
+- **If no category genuinely fits this store, set image_url to null.** Do not reach for
+  the nearest approximate photo. An image that has nothing to do with the store is worse
+  than no image — the popup renders perfectly well without one.
 - Vary which exact image you pick across variants and generations rather than always
   reaching for the first one listed in a category:
 ${formatImageLibraryForPrompt()}
-  If no category fits the store well, use the General / Abstract / Discount entries.
 
 TRIGGERS
 - Assign an integer to \`delay_seconds\` if the trigger involves time (e.g. 5, 10, 15).
@@ -1343,12 +1346,38 @@ function applyBriefs(output: PopupGenerationOutput, briefs: GenerationBriefs): P
   };
 }
 
+/**
+ * Drops any image that isn't from our own curated library.
+ *
+ * `image_url` is typed as a free string in the tool schema, so nothing stopped
+ * the model returning a hallucinated photo ID (404s on the merchant's site) or
+ * a URL recalled from training — uncurated, and quite possibly carrying text or
+ * a percentage burned into the pixels. That last case is the one that bit:
+ * imagery is generated independently of copy, so a photo with "50%" in it will
+ * happily sit above a 10% offer.
+ *
+ * When the URL is rejected the popup renders with no image at all rather than
+ * substituting a stock fallback, so image_treatment is forced to "none" to keep
+ * the spec internally consistent.
+ */
+function sanitizeSpecImage<T extends { image_url: string | null; dna: PopupDna }>(spec: T): T {
+  if (spec.image_url === null || isLibraryImage(spec.image_url)) return spec;
+  console.warn(`[popupGeneration] discarding off-library image_url: ${spec.image_url}`);
+  return { ...spec, image_url: null, dna: { ...spec.dna, image_treatment: "none" } };
+}
+
 /** Normalizes every spec's DNA so downstream renderers never see a partial. */
 function normalizeOutputDna(output: PopupGenerationOutput): PopupGenerationOutput {
   return {
     ...output,
-    baseline: { ...output.baseline, spec: { ...output.baseline.spec, dna: normalizeDna(output.baseline.spec.dna) } },
-    variants: output.variants.map((v) => ({ ...v, spec: { ...v.spec, dna: normalizeDna(v.spec.dna) } })),
+    baseline: {
+      ...output.baseline,
+      spec: sanitizeSpecImage({ ...output.baseline.spec, dna: normalizeDna(output.baseline.spec.dna) }),
+    },
+    variants: output.variants.map((v) => ({
+      ...v,
+      spec: sanitizeSpecImage({ ...v.spec, dna: normalizeDna(v.spec.dna) }),
+    })),
   };
 }
 

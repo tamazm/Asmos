@@ -30,6 +30,20 @@ export interface PopupTemplateProps {
    * template hardcoded system-ui and the scraped fonts were dead data.
    */
   brandFonts?: { type_display?: string | null; type_body?: string | null } | null;
+  /**
+   * The store's full extracted brand palette, not just the primary.
+   *
+   * `/api/analyze` pulls 3-6 colours per store and every call site read
+   * `palette[0]` and dropped the rest — so a brand with a genuine two-colour
+   * identity rendered as a white card with one coloured button. See
+   * `pickSecondAccent` in dnaCss.ts for how a usable second colour is chosen.
+   */
+  palette?: readonly string[] | null;
+  /**
+   * The offer, for `offer_display: "hero"`. Already present on every generated
+   * spec as `discount_percent` and never rendered until now.
+   */
+  discountPercent?: number | null;
 }
 
 /** Props after normalization — what each template actually receives. */

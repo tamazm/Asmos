@@ -46,7 +46,7 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
 <div class="asmos-toast-wrap" id="asmosPopupOverlay" hidden>
   <style>
     ${dnaFontImport(dna, props.brandFonts)}
-    ${dnaTokens(dna, accent, props.brandFonts)}
+    ${dnaTokens(dna, accent, props.brandFonts, props.palette)}
 
     #asmosPopupOverlay.asmos-toast-wrap {
       position: fixed;
@@ -103,6 +103,11 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
     #asmosPopupOverlay .asmos-cta { width: 100%; min-height: 42px; padding: 11px 16px; font-size: 13.5px; }
     #asmosPopupOverlay .asmos-email-input { min-height: 42px; padding: 10px 12px; font-size: 13.5px; }
     #asmosPopupOverlay .asmos-code { padding: 10px 13px; font-size: 13px; }
+    /* A 100px numeral would be most of a 348px toast. Keep the offer as a
+       figure — it still anchors the card — at a size the format can hold. */
+    #asmosPopupOverlay .asmos-offer-value { font-size: 42px; }
+    #asmosPopupOverlay .asmos-offer-unit { font-size: 20px; }
+    #asmosPopupOverlay .asmos-offer-label { font-size: 10px; margin-left: 7px; }
     #asmosPopupOverlay .asmos-form { display: block; }
     #asmosPopupOverlay .asmos-form .asmos-cta { width: 100%; }
 

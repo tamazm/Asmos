@@ -34,7 +34,12 @@ export async function updateVariantDesign(
     template_id?: string;
     layout_style?: string;
     dna?: unknown;
-    design_tokens?: { type_display?: string | null; type_body?: string | null } | null;
+    design_tokens?: {
+      type_display?: string | null;
+      type_body?: string | null;
+      palette?: string[] | null;
+    } | null;
+    discount_percent?: number | null;
   };
   const generatedCode = renderPopupTemplate(existingSpec.template_id, {
     headline: design.headline,
@@ -52,6 +57,8 @@ export async function updateVariantDesign(
     // Same reasoning as the DNA above: a manual copy edit must not silently
     // drop the popup back to system-ui.
     brandFonts: existingSpec.design_tokens ?? null,
+    palette: existingSpec.design_tokens?.palette ?? null,
+    discountPercent: existingSpec.discount_percent ?? null,
   });
 
   await prisma.variant.update({

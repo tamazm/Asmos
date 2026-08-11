@@ -144,6 +144,32 @@ export function eyebrowMarkup(dna: PopupDna): string {
   return dna.eyebrow ? `<p class="asmos-eyebrow">${esc(dna.eyebrow)}</p>` : "";
 }
 
+/**
+ * The discount rendered as a graphic rather than as a sentence.
+ *
+ * `discount_percent` has been in the spec since generation existed and no
+ * template ever drew it, so every popup was 100% text on a flat field with no
+ * element heavy enough to anchor the composition. At display size the number is
+ * the design — and it's also the single piece of information a visitor needs,
+ * which is a rare case of the most legible element also being the most useful.
+ *
+ * Renders nothing without a real percentage, so a popup with no numeric offer
+ * (an EMAIL-goal signup, a free-shipping reward) degrades to its headline
+ * rather than showing a bare "%".
+ */
+export function offerMarkup(dna: PopupDna, discountPercent?: number | null): string {
+  if (dna.offer_display !== "hero") return "";
+  if (typeof discountPercent !== "number" || !Number.isFinite(discountPercent)) return "";
+  const value = Math.round(discountPercent);
+  if (value <= 0 || value >= 100) return "";
+
+  return `<p class="asmos-offer" aria-label="${value} percent off">
+      <span class="asmos-offer-value" aria-hidden="true">${value}</span>
+      <span class="asmos-offer-unit" aria-hidden="true">%</span>
+      <span class="asmos-offer-label" aria-hidden="true">off</span>
+    </p>`;
+}
+
 export function proofMarkup(dna: PopupDna): string {
   return dna.social_proof ? `<p class="asmos-proof">${esc(dna.social_proof)}</p>` : "";
 }
@@ -181,14 +207,16 @@ function formMarkup(dna: PopupDna, submitLabel: string): string {
  * longer author any of the copy inside it.
  */
 export function stepsMarkup(props: PopupTemplateProps, dna: PopupDna, flow: ResolvedFlow): string {
-  const { headline, subhead, cta, couponCode } = props;
+  const { headline, subhead, cta, couponCode, discountPercent } = props;
   const goal = props.goal ?? "BOTH";
   const copy = resolveStepCopy(dna, headline);
+  const offer = offerMarkup(dna, discountPercent);
 
   const teaser = flow.hasTeaser
     ? `<section class="popup-step" data-step="1" ${flow.startingStep !== 1 ? "hidden" : ""}>
         ${timerMarkup(dna)}
         ${eyebrowMarkup(dna)}
+        ${offer}
         <h2 id="asmosPopupHeadline" class="asmos-headline">${esc(headline)}</h2>
         <p class="asmos-sub">${esc(subhead)}</p>
         <button type="button" class="asmos-cta" data-next="2">${esc(cta)}</button>
@@ -209,6 +237,7 @@ export function stepsMarkup(props: PopupTemplateProps, dna: PopupDna, flow: Reso
     ? `<section class="popup-step" data-step="2" ${flow.startingStep !== 2 ? "hidden" : ""}>
         ${captureIsPrimary ? timerMarkup(dna) : ""}
         ${captureIsPrimary ? eyebrowMarkup(dna) : ""}
+        ${captureIsPrimary ? offer : ""}
         <h2 ${captureIsPrimary ? 'id="asmosPopupHeadline"' : ""} class="asmos-headline">${esc(captureHeadline)}</h2>
         <p class="asmos-sub">${esc(captureSubhead)}</p>
         ${formMarkup(dna, captureCta)}

@@ -12,12 +12,30 @@
 // There's no Unsplash API key configured for this project (no
 // UNSPLASH_ACCESS_KEY anywhere), so these are direct images.unsplash.com
 // CDN hotlinks to specific, individually-chosen photo IDs rather than a
-// live search API — same mechanism the app already used, just a bigger,
-// organized set. Unsplash photo pages are effectively permanent once
-// published, but if any one of these ever does go stale, both
-// splitScreen.ts and fullscreenTakeover.ts fall back to a known-good
-// default image rather than showing a broken image — see their
-// onerror/preload handling.
+// live search API.
+//
+// ─── CURATION CONTRACT ──────────────────────────────────────────────────────
+//
+// EVERY image in this file must be free of legible text, numerals, percentage
+// signs, price tags, and signage. This is not a style preference — it is a
+// correctness requirement, because the popup's copy is generated independently
+// of the image and the two will contradict each other.
+//
+// This rule exists because it was already violated. The library used to carry a
+// "General / Abstract / Discount" category whose only entry was a photograph of
+// gift boxes with "SALE" and a large "50%" printed across it. The generator was
+// explicitly told to reach for that category when no other one fit — so a store
+// running a 10% offer shipped a popup reading "A 10% welcome credit" directly
+// underneath a photo of the number 50%. There is no prompt wording that fixes
+// that; the only fix is not to have such an image in the pool.
+//
+// The whole discount/abstract category is gone with it. A popup with nothing
+// relevant to show should show nothing — see `image_treatment: "none"` and the
+// null-image handling in splitScreen.ts / fullscreenTakeover.ts. An irrelevant
+// image is strictly worse than no image.
+//
+// When adding an entry: open the photo at full size and read it. If it contains
+// any character a customer could read, it does not go in.
 
 export type ImageCategory =
   | "fashion_apparel"
@@ -25,8 +43,7 @@ export type ImageCategory =
   | "food_beverage"
   | "home_lifestyle"
   | "electronics_accessories"
-  | "fitness_wellness"
-  | "general_abstract";
+  | "fitness_wellness";
 
 // Bare photo IDs (the part of an Unsplash URL after "/photo-"). Grouped so a
 // generation can stay within the right category across variants (unless the
@@ -55,17 +72,19 @@ const PHOTO_IDS: Record<ImageCategory, string[]> = {
   fitness_wellness: [
     "1441986300917-64674bd600d8", // shared with home_lifestyle as a safe neutral shot
   ],
-  general_abstract: [
-    "1607083206869-4c7672e72a8a", // abstract gradient / discount-friendly
-  ],
 };
 
 export function unsplashUrl(photoId: string, width = 1200): string {
   return `https://images.unsplash.com/photo-${photoId}?q=80&w=${width}&auto=format&fit=crop`;
 }
 
-// Known-good default — used as the last-resort fallback by the popup
-// templates if an AI-selected or manually-entered image URL fails to load.
+// Last-resort fallback for an image that fails to LOAD (a dead CDN link), used
+// in the templates' onerror handler only.
+//
+// Deliberately not used for "the spec has no image": falling back to a stock
+// living room because a store had no suitable photo is how you end up with
+// imagery that has nothing to do with the offer. A null image_url means the
+// popup renders with no image at all.
 export const DEFAULT_FALLBACK_IMAGE = unsplashUrl("1441986300917-64674bd600d8", 800);
 
 export function imagesByCategory(width = 1200): Record<ImageCategory, string[]> {
@@ -89,6 +108,25 @@ export function allImageUrls(width = 800): string[] {
   return urls;
 }
 
+const KNOWN_PHOTO_IDS: ReadonlySet<string> = new Set(Object.values(PHOTO_IDS).flat());
+
+/**
+ * Whether a URL is one of ours.
+ *
+ * The generation schema types `image_url` as a free string, so nothing stopped
+ * a model returning a hallucinated Unsplash ID (which 404s) or a URL it
+ * remembered from training (which is uncurated, and may well have text baked
+ * into it). Callers use this to drop anything off-list rather than shipping it.
+ *
+ * Matches on the photo ID rather than the full URL so a different width or
+ * query string still validates.
+ */
+export function isLibraryImage(url: string | null | undefined): boolean {
+  if (!url || typeof url !== "string") return false;
+  const id = url.match(/images\.unsplash\.com\/photo-([A-Za-z0-9_-]+)/)?.[1];
+  return Boolean(id && KNOWN_PHOTO_IDS.has(id));
+}
+
 // Formats the library as a prompt-ready menu, grouped by category, for the
 // AI popup generation system prompt (see popupGeneration.ts). Presenting an
 // explicit menu — rather than "here are 3 examples, invent similar ones" —
@@ -103,7 +141,6 @@ export function formatImageLibraryForPrompt(): string {
     home_lifestyle: "Home / Lifestyle",
     electronics_accessories: "Electronics / Accessories",
     fitness_wellness: "Fitness / Wellness",
-    general_abstract: "General / Abstract / Discount",
   };
   return (Object.keys(byCategory) as ImageCategory[])
     .map((key) => `  - ${labels[key]}: ${byCategory[key].join(" | ")}`)
