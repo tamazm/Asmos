@@ -15,8 +15,8 @@ const isProtectedRoute = createRouteMatcher([
 
 // Routes that live on app.asmos.io — the actual platform, plus sign-in/up
 // and invite-accept so Clerk's session cookie is always set and read on the
-// same origin. Everything else (marketing pages, /analyze, /blog, /tools)
-// stays on the root domain.
+// same origin, plus the free tools. Everything else (marketing pages,
+// /analyze, /blog) stays on the root domain.
 const isAppRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/campaigns(.*)",
@@ -32,6 +32,7 @@ const isAppRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/invite(.*)",
+  "/tools(.*)",
 ]);
 
 const APP_HOST = process.env.NEXT_PUBLIC_APP_HOST || "app.asmos.io";
