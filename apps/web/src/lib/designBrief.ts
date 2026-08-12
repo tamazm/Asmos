@@ -28,9 +28,11 @@
 
 import {
   ACCENT_PLACEMENTS,
+  ART_DIRECTIONS,
   BUTTON_SHAPES,
   CLOSE_AFFORDANCES,
-  CORNER_RADII,
+  COLOR_USAGES,
+  OFFER_DISPLAYS,
   DENSITIES,
   ENTRANCES,
   FORM_LAYOUTS,
@@ -42,6 +44,7 @@ import {
   TIMER_STYLES,
   TYPE_SCALES,
   dnaDistance,
+  type ArtDirection,
   type PopupDna,
 } from "@/lib/popupDna";
 
@@ -130,6 +133,128 @@ export const CTA_SHAPES = [
   "plain and functional, e.g. 'Subscribe'",
 ] as const;
 
+// ─── Art direction ───────────────────────────────────────────────────────────
+
+/**
+ * An art direction is a *coherent* set of choices, not an independent knob.
+ *
+ * Sampling every knob uniformly and calling the result a design is how you get
+ * a serif editorial headline sitting on a pill button with a 28px radius — each
+ * choice defensible, the combination incoherent. So the school is drawn first
+ * and then constrains the draw: it fixes the aesthetic primitives outright
+ * (typography, depth, surface) and narrows the pools the structural knobs are
+ * sampled from.
+ *
+ * Crucially it *narrows* rather than fixes those — two editorial popups still
+ * differ in density, flow, timer and layout. The combinatorics survive; they
+ * just stop producing combinations no designer would ship.
+ */
+type ArtPreset = {
+  type_pairing: PopupDna["type_pairing"];
+  elevation: PopupDna["elevation"];
+  surface_treatment: PopupDna["surface_treatment"];
+  themes: Record<PopupDna["theme"], number>;
+  radii: readonly PopupDna["corner_radius"][];
+  buttonShapes: readonly PopupDna["button_shape"][];
+  buttonFills: Record<PopupDna["button_fill"], number>;
+  densities: readonly PopupDna["density"][];
+  typeScales: readonly PopupDna["type_scale"][];
+  /** Odds of a left-axis composition. Centre is the exception, not the default. */
+  leftAxisOdds: number;
+  /** How much brand colour reaches the surface. No school is offered "accent_only". */
+  colorUsages: readonly PopupDna["color_usage"][];
+  /** Odds the discount renders as a display-size figure rather than a sentence. */
+  heroOfferOdds: number;
+  /** Photographic treatments this school will accept. */
+  imageStyles: readonly PopupDna["image_style"][];
+  /** Forced on for schools where the element is structural rather than optional. */
+  requiresEyebrow?: boolean;
+  /**
+   * How many *optional* supporting elements this school will tolerate, counting
+   * timer, social proof, privacy note and dismiss link.
+   *
+   * This is the restraint budget, and it is the most important field here.
+   * Generated design is recognisable mainly by what it fails to leave out: the
+   * model has an eyebrow field, a proof field, a privacy field and a dismiss
+   * field, so it fills all four, and the result is eight stacked elements that
+   * each dilute the one above. A designer's first move on this brief is to
+   * delete three of them. Sampling each independently at ~40% put an average of
+   * 1.7 on every popup and all four on roughly one in twenty — this caps it.
+   */
+  maxSupporting: number;
+};
+
+const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
+  // Print logic: paper surface, display serif, hard corners, ink-solid button,
+  // and space. The eyebrow is required because the rule beneath it is what
+  // carries the layout.
+  editorial: {
+    type_pairing: "editorial",
+    elevation: "raised",
+    surface_treatment: "paper",
+    themes: { light: 8, dark: 2, brand: 0 },
+    radii: ["sharp", "soft"],
+    buttonShapes: ["rect", "rounded"],
+    buttonFills: { dark: 7, outline: 3, solid: 0 },
+    densities: ["airy", "regular"],
+    typeScales: ["large", "medium"],
+    leftAxisOdds: 0.92,
+    // Editorial carries colour quietly — a paper surface with a whisper of
+    // accent in it, not a colour field.
+    colorUsages: ["tinted_surface", "duo_accent"],
+    // A 96px numeral is a poster device. Editorial states the offer in words.
+    heroOfferOdds: 0.15,
+    imageStyles: ["duotone", "mono"],
+    requiresEyebrow: true,
+    // The rule under the eyebrow and the space are the design. One more line
+    // anywhere and it stops being editorial and starts being a newsletter box.
+    maxSupporting: 1,
+  },
+
+  // Poster logic: the offer is the object. Heavy face, colour block, no radius,
+  // no shadow — flatness is the statement.
+  bold: {
+    type_pairing: "bold",
+    elevation: "flat",
+    surface_treatment: "block",
+    themes: { dark: 7, light: 3, brand: 0 },
+    radii: ["sharp"],
+    buttonShapes: ["rect"],
+    buttonFills: { solid: 7, dark: 3, outline: 0 },
+    densities: ["regular", "compact"],
+    typeScales: ["large"],
+    leftAxisOdds: 0.85,
+    colorUsages: ["saturated", "duo_accent"],
+    // The number *is* the poster. This is the school the hero offer was built for.
+    heroOfferOdds: 0.9,
+    imageStyles: ["duotone"],
+    requiresEyebrow: true,
+    maxSupporting: 1,
+  },
+
+  // Software logic: layered depth, ambient accent light, generous radii, a
+  // button that glows in its own colour.
+  glass: {
+    type_pairing: "grotesque",
+    elevation: "floating",
+    surface_treatment: "glow",
+    themes: { light: 8, brand: 2, dark: 0 },
+    radii: ["rounded", "pill"],
+    buttonShapes: ["rounded", "pill"],
+    buttonFills: { solid: 9, outline: 1, dark: 0 },
+    densities: ["regular", "airy"],
+    typeScales: ["medium", "large"],
+    // The one school where centring is a legitimate design choice rather than
+    // a default — a glow has a centre, and the composition can sit on it.
+    leftAxisOdds: 0.5,
+    colorUsages: ["tinted_surface", "duo_accent"],
+    heroOfferOdds: 0.55,
+    imageStyles: ["duotone", "tinted", "photo"],
+    maxSupporting: 2,
+  },
+
+};
+
 // ─── The brief ───────────────────────────────────────────────────────────────
 
 export type DesignBrief = {
@@ -140,6 +265,14 @@ export type DesignBrief = {
     layout_style: LayoutStyle;
   } & Pick<
     PopupDna,
+    | "art_direction"
+    | "type_pairing"
+    | "elevation"
+    | "surface_treatment"
+    | "text_align"
+    | "color_usage"
+    | "offer_display"
+    | "image_style"
     | "step_flow"
     | "timer_mode"
     | "timer_style"
@@ -173,6 +306,9 @@ function briefFingerprint(locked: DesignBrief["locked"], wantsEyebrow: boolean, 
   return [
     locked.template_id,
     locked.layout_style,
+    locked.art_direction,
+    locked.type_pairing,
+    locked.surface_treatment,
     locked.step_flow,
     locked.timer_mode,
     locked.image_treatment,
@@ -197,6 +333,13 @@ export type BriefOptions = {
   avoid?: readonly string[];
   /** Max resample attempts before accepting the closest available draw. */
   maxAttempts?: number;
+  /**
+   * Pin the art direction instead of drawing one. Used by explore mode to deal
+   * the schools out across a variant set, so a cold-start campaign tests four
+   * aesthetics head-to-head rather than four draws that might all land on the
+   * same one.
+   */
+  artDirection?: ArtDirection;
 };
 
 function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
@@ -212,7 +355,12 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
       ? choose(rng, ["centered", "split-left", "split-right"] as const)
       : choose(rng, LAYOUT_STYLES);
 
-  const theme = weighted(rng, { light: 5, dark: 3, brand: 2 } as Record<PopupDna["theme"], number>);
+  // The school is drawn before anything aesthetic, because everything
+  // aesthetic is downstream of it.
+  const art_direction = opts.artDirection ?? choose(rng, ART_DIRECTIONS);
+  const preset = ART_PRESETS[art_direction];
+
+  const theme = weighted(rng, preset.themes);
 
   // Timers are a genuine lever but a fabricated countdown carries a real trust
   // cost, so "none" is deliberately the most likely draw rather than the
@@ -224,23 +372,49 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
       ? weighted(rng, { none: 6, top_band: 4, side: 0, background: 0 } as Record<PopupDna["image_treatment"], number>)
       : template_id === "fullscreen-takeover"
       ? weighted(rng, { background: 7, none: 3, side: 0, top_band: 0 } as Record<PopupDna["image_treatment"], number>)
-      : layout_style === "minimal"
-      ? "none"
+      : art_direction === "bold" || layout_style === "minimal"
+      ? // Bold is a type-and-colour school. An added photograph competes with
+        // the number for the one piece of attention the popup gets.
+        "none"
       : weighted(rng, { side: 5, top_band: 3, none: 2, background: 0 } as Record<PopupDna["image_treatment"], number>);
 
   const locked: DesignBrief["locked"] = {
     template_id,
     layout_style,
+    art_direction,
+    type_pairing: preset.type_pairing,
+    elevation: preset.elevation,
+    surface_treatment: preset.surface_treatment,
+    text_align: rng() < preset.leftAxisOdds ? "left" : "center",
+    color_usage: choose(rng, preset.colorUsages),
+    offer_display: rng() < preset.heroOfferOdds ? "hero" : "inline",
+    image_style: choose(rng, preset.imageStyles),
     step_flow: choose(rng, STEP_FLOWS),
     timer_mode,
     timer_style: choose(rng, TIMER_STYLES),
-    corner_radius: choose(rng, CORNER_RADII),
-    button_shape: choose(rng, BUTTON_SHAPES),
-    button_fill: weighted(rng, { solid: 6, dark: 2, outline: 2 } as Record<PopupDna["button_fill"], number>),
-    accent_placement: choose(rng, ACCENT_PLACEMENTS),
-    density: choose(rng, DENSITIES),
-    type_scale: choose(rng, TYPE_SCALES),
-    overlay_weight: choose(rng, OVERLAY_WEIGHTS),
+    corner_radius: choose(rng, preset.radii),
+    button_shape: choose(rng, preset.buttonShapes),
+    button_fill: weighted(rng, preset.buttonFills),
+    // "background_block" fights a surface treatment that already paints the
+    // content area, so it's only offered to schools that leave it alone.
+    accent_placement:
+      preset.surface_treatment === "plain"
+        ? choose(rng, ACCENT_PLACEMENTS)
+        : choose(rng, ["button_only", "headline", "top_border"] as const),
+    density: choose(rng, preset.densities),
+    type_scale: choose(rng, preset.typeScales),
+    // A corner toast has no backdrop, so its overlay_weight is inert and can be
+    // drawn freely. For the two overlay templates it is load-bearing, and
+    // drawing it uniformly meant a quarter of them shipped with a backdrop of
+    // "none" — a card sitting on live, undimmed page content. Bias hard toward
+    // a scrim that actually separates figure from ground.
+    overlay_weight:
+      template_id === "corner-toast"
+        ? choose(rng, OVERLAY_WEIGHTS)
+        : weighted(rng, { medium: 6, heavy: 3, light: 1, none: 0 } as Record<
+            PopupDna["overlay_weight"],
+            number
+          >),
     image_treatment,
     entrance: choose(rng, ENTRANCES),
     theme,
@@ -248,10 +422,29 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
     close_affordance: choose(rng, CLOSE_AFFORDANCES),
   };
 
-  const wants_eyebrow = rng() < 0.45;
-  const wants_social_proof = rng() < 0.35;
-  const wants_privacy_note = rng() < 0.5;
-  const wants_dismiss_link = rng() < 0.4;
+  const wants_eyebrow = preset.requiresEyebrow ? true : rng() < 0.45;
+
+  // Draw the optional elements, then spend the restraint budget on them in
+  // priority order and drop the rest. Priority is by conversion value, not by
+  // decorative value: a privacy line under an email field removes a real
+  // objection, a social-proof line only works if it's true, and a dismiss link
+  // is the first thing to cut when space is tight.
+  const drawn: { key: "privacy" | "proof" | "dismiss"; on: boolean }[] = [
+    { key: "privacy", on: rng() < 0.55 },
+    { key: "proof", on: rng() < 0.3 },
+    { key: "dismiss", on: rng() < 0.3 },
+  ];
+
+  // The timer is an optional element too, and it was never counted as one —
+  // which is how a popup ended up with a countdown, an eyebrow, a proof line,
+  // a privacy line and a dismiss link all at once.
+  let budget = preset.maxSupporting - (timer_mode === "none" ? 0 : 1);
+  const kept = new Set<string>();
+  for (const item of drawn) {
+    if (!item.on || budget <= 0) continue;
+    kept.add(item.key);
+    budget -= 1;
+  }
 
   return {
     seed,
@@ -260,10 +453,10 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
     copy_mood: choose(rng, COPY_MOODS),
     cta_shape: choose(rng, CTA_SHAPES),
     wants_eyebrow,
-    wants_social_proof,
-    wants_privacy_note,
-    wants_dismiss_link,
-    fingerprint: briefFingerprint(locked, wants_eyebrow, wants_social_proof),
+    wants_social_proof: kept.has("proof"),
+    wants_privacy_note: kept.has("privacy"),
+    wants_dismiss_link: kept.has("dismiss"),
+    fingerprint: briefFingerprint(locked, wants_eyebrow, kept.has("proof")),
   };
 }
 
@@ -296,6 +489,17 @@ export function buildDesignBrief(seed: number, opts: BriefOptions = {}): DesignB
   return best ?? drawBrief(seed, opts);
 }
 
+/** Seeded shuffle of the art directions — the deal order for an explore round. */
+function dealArtDirections(seed: number): ArtDirection[] {
+  const rng = makeRng(seed);
+  const deck = [...ART_DIRECTIONS];
+  for (let i = deck.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+
 /**
  * Briefs for one control plus N variants, guaranteed to be mutually distinct.
  *
@@ -318,17 +522,32 @@ export function buildVariantBriefs(opts: {
 }): { control: DesignBrief; variants: DesignBrief[] } {
   const { seed, variantCount, mode, avoid = [], allowedTemplates } = opts;
 
+  // Explore mode deals the art directions out rather than drawing each one
+  // independently. With 5 schools and 3 variants, independent draws collide on
+  // the same school about half the time — and a campaign that happens to test
+  // "glass vs glass vs glass" learns nothing about which aesthetic this
+  // store's visitors respond to, which is the whole question at cold start.
+  const schoolOrder = mode === "explore" ? dealArtDirections(hashSeed(seed, "schools")) : [];
+
   const control =
     mode === "exploit" && opts.baseBrief
       ? opts.baseBrief
-      : buildDesignBrief(hashSeed(seed, "control"), { avoid, allowedTemplates });
+      : buildDesignBrief(hashSeed(seed, "control"), {
+          avoid,
+          allowedTemplates,
+          artDirection: schoolOrder[0],
+        });
 
   const variants: DesignBrief[] = [];
   const taken = [...avoid, control.fingerprint];
 
   for (let i = 0; i < variantCount; i++) {
     if (mode === "explore") {
-      const brief = buildDesignBrief(hashSeed(seed, "variant", i), { avoid: taken, allowedTemplates });
+      const brief = buildDesignBrief(hashSeed(seed, "variant", i), {
+        avoid: taken,
+        allowedTemplates,
+        artDirection: schoolOrder[(i + 1) % schoolOrder.length],
+      });
       taken.push(brief.fingerprint);
       variants.push(brief);
     } else {
@@ -345,6 +564,12 @@ export function buildVariantBriefs(opts: {
  * the same dimension.
  */
 const PERTURBABLE = [
+  // Art direction leads the rotation: it's the largest single visual difference
+  // available, so it's the fastest thing to get a clean read on. Perturbing it
+  // re-derives the whole preset — see perturbBrief.
+  "art_direction",
+  "color_usage",
+  "offer_display",
   "timer_mode",
   "step_flow",
   "form_layout",
@@ -358,6 +583,9 @@ const PERTURBABLE = [
 ] as const;
 
 const PERTURB_POOLS: Record<(typeof PERTURBABLE)[number], readonly string[]> = {
+  art_direction: ART_DIRECTIONS,
+  color_usage: COLOR_USAGES,
+  offer_display: OFFER_DISPLAYS,
   timer_mode: TIMER_MODES,
   step_flow: STEP_FLOWS,
   form_layout: FORM_LAYOUTS,
@@ -376,13 +604,44 @@ export function perturbBrief(base: DesignBrief, seed: number, index: number): De
   const pool = PERTURB_POOLS[knob].filter((v) => v !== (base.locked as Record<string, unknown>)[knob]);
   const next = pool.length > 0 ? choose(rng, pool) : (base.locked as Record<string, unknown>)[knob];
 
-  const locked = { ...base.locked, [knob]: next } as DesignBrief["locked"];
+  let locked = { ...base.locked, [knob]: next } as DesignBrief["locked"];
+
+  // Art direction isn't a knob you can swap in isolation — swapping it while
+  // leaving the old preset's typography, depth and surface behind produces a
+  // hybrid that belongs to no school and tests nothing. Re-derive the preset so
+  // the perturbation is a coherent alternative design, which is what makes the
+  // conversion delta attributable to "the aesthetic" at all.
+  if (knob === "art_direction") {
+    const preset = ART_PRESETS[next as ArtDirection];
+    locked = {
+      ...locked,
+      type_pairing: preset.type_pairing,
+      elevation: preset.elevation,
+      surface_treatment: preset.surface_treatment,
+      text_align: rng() < preset.leftAxisOdds ? "left" : "center",
+      // Re-drawn from the new school's own pools — a bold popup that kept
+      // editorial's quiet tint and inline offer isn't a bold popup.
+      color_usage: choose(rng, preset.colorUsages),
+      offer_display: rng() < preset.heroOfferOdds ? "hero" : "inline",
+      image_style: choose(rng, preset.imageStyles),
+      corner_radius: choose(rng, preset.radii),
+      button_shape: choose(rng, preset.buttonShapes),
+      button_fill: weighted(rng, preset.buttonFills),
+      density: choose(rng, preset.densities),
+      type_scale: choose(rng, preset.typeScales),
+      theme: weighted(rng, preset.themes),
+    };
+  }
+
+  const wants_eyebrow =
+    ART_PRESETS[locked.art_direction].requiresEyebrow === true ? true : base.wants_eyebrow;
 
   return {
     ...base,
     seed,
     locked,
-    fingerprint: briefFingerprint(locked, base.wants_eyebrow, base.wants_social_proof),
+    wants_eyebrow,
+    fingerprint: briefFingerprint(locked, wants_eyebrow, base.wants_social_proof),
   };
 }
 
@@ -409,6 +668,14 @@ export function briefFromSpec(
     layout_style: (LAYOUT_STYLES.includes(spec.layout_style as LayoutStyle)
       ? spec.layout_style
       : fallback.locked.layout_style) as LayoutStyle,
+    art_direction: dna.art_direction ?? fallback.locked.art_direction,
+    type_pairing: dna.type_pairing ?? fallback.locked.type_pairing,
+    elevation: dna.elevation ?? fallback.locked.elevation,
+    surface_treatment: dna.surface_treatment ?? fallback.locked.surface_treatment,
+    text_align: dna.text_align ?? fallback.locked.text_align,
+    color_usage: dna.color_usage ?? fallback.locked.color_usage,
+    offer_display: dna.offer_display ?? fallback.locked.offer_display,
+    image_style: dna.image_style ?? fallback.locked.image_style,
     step_flow: dna.step_flow ?? fallback.locked.step_flow,
     timer_mode: dna.timer_mode ?? fallback.locked.timer_mode,
     timer_style: dna.timer_style ?? fallback.locked.timer_style,
@@ -445,6 +712,46 @@ export function briefFromSpec(
 
 // ─── Prompt rendering ────────────────────────────────────────────────────────
 
+/**
+ * What each school means *for the copy*. The model can't see the CSS, so
+ * without this it writes the same sentence for a poster and for a piece of
+ * editorial and the words fight the design they're sitting in.
+ */
+const ART_DIRECTION_BRIEF: Record<ArtDirection, string> = {
+  editorial:
+    "print sensibility, display serif on warm paper. Write like a magazine standfirst, not an ad: full sentences, no exclamation marks, no urgency theatre. The discount is mentioned plainly, once",
+  bold:
+    "poster. The discount NUMBER is the hero and the type is enormous, so the headline must be 3-5 words maximum and read as a statement, not a sentence. Uppercase-friendly. Blunt",
+  glass:
+    "modern software. Warm, plain-spoken, a little generous. Short sentences. Sounds like a helpful product, not a promotion",
+};
+
+/**
+ * The rules that separate copy a person wrote from copy a model produced.
+ *
+ * Every one of these is a specific observed failure, not general advice. The
+ * biggest by far is the first: the model's default is a headline that states
+ * the offer and a subhead that states the same offer again in different words
+ * ("Get 15% off your first order" / "Sign up and we'll send your code"). Two
+ * lines carrying one idea is the clearest tell there is, and no amount of
+ * typography rescues it.
+ */
+const COPY_DISCIPLINE = `  COPY DISCIPLINE (these are hard rules — a violation is a rewrite, not a preference):
+  - The subhead must NOT restate the headline. If the headline names the offer,
+    the subhead must add something the reader did not already know — what the
+    products are, when the email arrives, why the offer exists. If you have
+    nothing to add, write a shorter subhead rather than a paraphrase.
+  - Headline: 8 words maximum. Under 5 for type_scale "large".
+  - Subhead: one sentence. Never two.
+  - Banned openings: "Get", "Unlock", "Don't miss", "Join thousands", "Hurry".
+    Banned words anywhere: "exclusive", "amazing", "elevate", "seamless",
+    "curated", "treat yourself", "levels up".
+  - No exclamation marks anywhere, in any field.
+  - Write for this specific store. A line that would work equally well for a
+    coffee roaster and a phone-case shop is a line to throw away.
+  - The CTA repeats the offer's verb, not the form's mechanics. "Send my code"
+    over "Submit". Never "Subscribe" unless the whole popup is about a newsletter.`;
+
 /** Renders a brief as the instruction block appended to the model's input. */
 export function briefToPromptSection(brief: DesignBrief, label: string): string {
   const l = brief.locked;
@@ -453,7 +760,15 @@ export function briefToPromptSection(brief: DesignBrief, label: string): string 
   write copy that actually fits them):
   - template_id: ${l.template_id}
   - layout_style: ${l.layout_style}
-  - dna.step_flow: ${l.step_flow}${l.step_flow === "one_step" ? " (the offer and the email field share ONE screen — there is no teaser click, so the headline must carry the whole ask)" : " (teaser screen first, email field after the click)"}
+  - dna.art_direction: ${l.art_direction} — ${ART_DIRECTION_BRIEF[l.art_direction]}
+  - dna.type_pairing: ${l.type_pairing} (fixed by the art direction; do not restate it)
+  - dna.elevation: ${l.elevation}
+  - dna.surface_treatment: ${l.surface_treatment}
+  - dna.color_usage: ${l.color_usage} (the card surface itself carries brand colour — do not describe the popup as "clean" or "white")
+  - dna.offer_display: ${l.offer_display}${l.offer_display === "hero" ? " — THE DISCOUNT NUMBER IS RENDERED SEPARATELY at display size above the headline. Set discount_percent, and do NOT repeat the number in the headline; write a headline that works alongside a giant figure it must not duplicate" : " (no display figure — the headline carries the offer)"}
+  - dna.image_style: ${l.image_style}
+  - dna.text_align: ${l.text_align}${l.text_align === "left" ? " (left-axis composition — the headline sits against a left edge and is capped to a short measure, so write something that breaks naturally over 2-3 lines)" : " (centred composition — keep every line short; centred text with ragged long lines reads as broken)"}
+  - dna.step_flow:${l.step_flow}${l.step_flow === "one_step" ? " (the offer and the email field share ONE screen — there is no teaser click, so the headline must carry the whole ask)" : " (teaser screen first, email field after the click)"}
   - dna.timer_mode: ${l.timer_mode}${l.timer_mode === "none" ? " (no countdown at all — do NOT write copy that references a ticking clock)" : l.timer_mode === "countdown" ? " (choose a believable timer_seconds and only claim urgency you'd honour)" : " (a static urgency badge — write timer_label, no countdown)"}
   - dna.timer_style: ${l.timer_style}
   - dna.theme: ${l.theme}
@@ -468,6 +783,8 @@ export function briefToPromptSection(brief: DesignBrief, label: string): string 
   - dna.entrance: ${l.entrance}
   - dna.form_layout: ${l.form_layout}${l.form_layout === "inline" ? " (input and button sit side by side — the button label must be 1-2 words)" : ""}
   - dna.close_affordance: ${l.close_affordance}
+
+${COPY_DISCIPLINE}
 
   COPY DIRECTION:
   - Angle: ${brief.copy_angle}
@@ -496,6 +813,14 @@ export function enforceBrief<T extends { template_id?: string; layout_style?: st
     layout_style: l.layout_style,
     dna: {
       ...dna,
+      art_direction: l.art_direction,
+      type_pairing: l.type_pairing,
+      elevation: l.elevation,
+      surface_treatment: l.surface_treatment,
+      text_align: l.text_align,
+      color_usage: l.color_usage,
+      offer_display: l.offer_display,
+      image_style: l.image_style,
       step_flow: l.step_flow,
       timer_mode: l.timer_mode,
       timer_style: l.timer_style,

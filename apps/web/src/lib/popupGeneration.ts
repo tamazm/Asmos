@@ -16,7 +16,7 @@ import { anthropic } from "@/lib/anthropic";
 import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 import { confidenceVsControl } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
-import { formatImageLibraryForPrompt } from "@/lib/imageLibrary";
+import { formatImageLibraryForPrompt, isLibraryImage, UNSERVED_STORE_TYPES } from "@/lib/imageLibrary";
 import {
   dnaFingerprint,
   normalizeDna,
@@ -412,13 +412,22 @@ structurally clone any of them. This is a hard requirement, not a stylistic pref
 a merchant who sees the same popup twice concludes the AI does nothing.
 
 IMAGERY
-- Set \`image_url\` to ONE exact URL from the library below, matching the store's category.
-  Do not invent an Unsplash URL — a fabricated photo ID will 404.
+- Set \`image_url\` to ONE exact URL from the library below. Each entry lists what is
+  actually IN the photograph — choose on the description, not on the category heading.
+  Do not invent an Unsplash URL — a fabricated photo ID will 404, and any URL not in
+  this list is discarded server-side.
 - Set it to null when the brief's \`dna.image_treatment\` is "none".
+- **Default to null.** An image is only worth including when the photo's own subject
+  would look deliberate on this specific store's site. A picture that merely shares a
+  category with the store is worse than no picture: it tells the visitor the popup was
+  assembled by a machine that has never seen the shop. The popup renders well without
+  one, so when in doubt, null.
+- This library CANNOT serve the following store types. For any of them, image_url MUST
+  be null — there is no acceptable substitute, only a wrong one:
+${UNSERVED_STORE_TYPES.map((t) => `    · ${t}`).join("\n")}
 - Vary which exact image you pick across variants and generations rather than always
   reaching for the first one listed in a category:
 ${formatImageLibraryForPrompt()}
-  If no category fits the store well, use the General / Abstract / Discount entries.
 
 TRIGGERS
 - Assign an integer to \`delay_seconds\` if the trigger involves time (e.g. 5, 10, 15).
@@ -1343,12 +1352,42 @@ function applyBriefs(output: PopupGenerationOutput, briefs: GenerationBriefs): P
   };
 }
 
+/**
+ * Drops any image that isn't from our own curated library.
+ *
+ * `image_url` is typed as a free string in the tool schema, so nothing stopped
+ * the model returning a hallucinated photo ID (404s on the merchant's site) or
+ * a URL recalled from training — uncurated, and quite possibly carrying text or
+ * a percentage burned into the pixels. That last case is the one that bit:
+ * imagery is generated independently of copy, so a photo with "50%" in it will
+ * happily sit above a 10% offer.
+ *
+ * When the URL is rejected the popup renders with no image at all rather than
+ * substituting a stock fallback, so image_treatment is forced to "none" to keep
+ * the spec internally consistent.
+ */
+function sanitizeSpecImage(spec: PopupSpec): PopupSpec {
+  if (spec.image_url === null || isLibraryImage(spec.image_url)) return spec;
+  console.warn(`[popupGeneration] discarding off-library image_url: ${spec.image_url}`);
+  return {
+    ...spec,
+    image_url: null,
+    dna: { ...spec.dna, image_treatment: "none" },
+  };
+}
+
 /** Normalizes every spec's DNA so downstream renderers never see a partial. */
 function normalizeOutputDna(output: PopupGenerationOutput): PopupGenerationOutput {
   return {
     ...output,
-    baseline: { ...output.baseline, spec: { ...output.baseline.spec, dna: normalizeDna(output.baseline.spec.dna) } },
-    variants: output.variants.map((v) => ({ ...v, spec: { ...v.spec, dna: normalizeDna(v.spec.dna) } })),
+    baseline: {
+      ...output.baseline,
+      spec: sanitizeSpecImage({ ...output.baseline.spec, dna: normalizeDna(output.baseline.spec.dna) }),
+    },
+    variants: output.variants.map((v) => ({
+      ...v,
+      spec: sanitizeSpecImage({ ...v.spec, dna: normalizeDna(v.spec.dna) }),
+    })),
   };
 }
 
@@ -1413,6 +1452,13 @@ export function brandTokensFromAnalyzeResult(result: {
   storeName?: string;
   industry?: string;
 }): BrandTokens {
+  // A brandTokens object with an empty palette is worse than none: it wins the
+  // check below and then renders every popup in the #165DFF default, silently
+  // discarding a brandColor that was successfully scraped.
+  if (result.brandTokens?.palette?.length) return result.brandTokens;
+  if (result.brandTokens && result.brandColor) {
+    return { ...result.brandTokens, palette: [result.brandColor] };
+  }
   if (result.brandTokens) return result.brandTokens;
 
   const primaryColor = result.brandColor ?? "#165DFF";
