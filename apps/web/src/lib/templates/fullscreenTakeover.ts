@@ -90,7 +90,7 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
       height: 100%;
       display: flex;
       flex-direction: column;
-      /* `justify-content: center` on a fixed-height flex column silently clips
+      /* justify-content: center on a fixed-height flex column silently clips
          overflow at BOTH ends, and unlike scroll-overflow there is no scrollbar
          to hint that anything is missing. With a display-size offer figure
          stacked above a 76px headline the content routinely exceeds a laptop
