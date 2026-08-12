@@ -418,10 +418,21 @@ export default async function LandingPage() {
         <div className="mt-6">
           <HomepageForm />
         </div>
-        <p className="mt-4 text-center text-xs text-[color:var(--color-text-secondary)]">
-          Also want to model the revenue impact? Try the{" "}
-          <Link href="/tools/email-capture-calculator" className="text-[color:var(--color-primary)] underline underline-offset-2">Email Capture Revenue Calculator</Link>.
-        </p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <span className="text-xs text-[color:var(--color-text-secondary)]">Also free:</span>
+          <Link
+            href="/tools/email-capture-calculator"
+            className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2 text-xs font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]"
+          >
+            Email Capture Revenue Calculator
+          </Link>
+          <Link
+            href="/tools/traffic-calculator"
+            className="rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-2 text-xs font-semibold text-[color:var(--color-text-primary)] transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-surface-sunken)] active:scale-[0.97]"
+          >
+            Traffic Calculator
+          </Link>
+        </div>
       </section>
 
       <HatchDivider />
