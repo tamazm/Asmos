@@ -5,14 +5,15 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { isSuperadminEmail } from "@/lib/superadmin";
 import Link from "next/link";
+import { ScrapeForm } from "./ScrapeForm";
 
-// Read-only visibility into the scraped popup design library (see
-// lib/popupScraping.ts and popupGeneration.ts's getScrapedExamplesSection).
-// No approve/reject here, unlike /admin/learned-patterns — the source sites
-// are hand-picked to already be high-traffic and high-quality, so a scraped
-// row feeds generation the moment it's inserted (by the local, gitignored
-// script under scripts/popup-scraper/). This page exists purely so you can
-// see what's actually feeding generation, not to gate it.
+// The scraped popup design library (see lib/popupScraping.ts and
+// popupGeneration.ts's getScrapedExamplesSection): trigger a new scrape
+// (ScrapeForm → actions.ts's runScrapeBatch → lib/inngest/scrapePopupBatch.ts)
+// and browse what's already there. No approve/reject step, unlike
+// /admin/learned-patterns — the source sites are hand-picked to already be
+// high-traffic and high-quality, so a scraped row feeds generation the
+// moment it's inserted.
 export default async function ScrapedPopupsPage() {
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress;
@@ -45,14 +46,15 @@ export default async function ScrapedPopupsPage() {
         <p className="mt-2 text-sm text-[color:var(--color-text-secondary)] max-w-2xl">
           Real popups captured from high-traffic live sites, grouped by industry. Every row here is already
           being read by generation (see getScrapedExamplesSection) — there is no review step, since the source
-          sites are hand-picked to already be high quality. This page is for visibility only.
+          sites are hand-picked to already be high quality.
         </p>
       </div>
 
+      <ScrapeForm />
+
       {examples.length === 0 ? (
         <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-8 text-center text-sm text-[color:var(--color-text-secondary)]">
-          Nothing scraped yet. Run the local popup-scraper script (scripts/popup-scraper/, gitignored — not part
-          of this repo's deployed code) to populate this table.
+          Nothing scraped yet. Paste some sites above and run a scrape — it takes a few minutes to land.
         </div>
       ) : (
         [...byIndustry.entries()].map(([industry, rows]) => (
