@@ -15,6 +15,7 @@ import {
 } from "@/lib/popupGeneration";
 import { buildVariantBriefs, hashSeed } from "@/lib/designBrief";
 import { renderPopupTemplate } from "@/lib/templates";
+import { brandTokensFromStoreProfile, computedStylesFromStoreProfile } from "@/lib/storeProfile";
 import type { CampaignGenerationStageCode } from "@/lib/campaignGenerationStages";
 import { generateCouponCode } from "@/lib/reward";
 import {
@@ -132,14 +133,30 @@ export const generateCampaign = inngest.createFunction(
     const campaign = await step.run("fetch-campaign", async () => {
       return prisma.campaign.findUnique({
         where: { id: campaignId, status: "GENERATING" },
-        include: { variants: true },
+        include: {
+          variants: true,
+          // The store profile persisted at analysis time — same source
+          // evaluateKnockout.ts prefers over generationContext, so the very
+          // first generation is grounded in the same real palette/imagery
+          // signal as every round after it, instead of whatever ad-hoc
+          // brandColor/brandTokens made it into generationContext at
+          // creation time.
+          website: { include: { storeProfile: true } },
+          account: { select: { brandColor: true } },
+        },
       });
     });
 
     if (!campaign) return { message: "Skipping" };
 
     try {
-      return await runGeneration(step, campaignId, campaign.generationContext as Record<string, unknown> | null);
+      return await runGeneration(
+        step,
+        campaignId,
+        campaign.generationContext as Record<string, unknown> | null,
+        campaign.website?.storeProfile ?? null,
+        campaign.account.brandColor,
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Generation failed for an unknown reason";
       console.error(`[generateCampaign] campaign ${campaignId} failed:`, err);
@@ -164,20 +181,34 @@ async function runGeneration(
   step: any,
   campaignId: string,
   context: Record<string, unknown> | null,
+  storeProfile: Parameters<typeof brandTokensFromStoreProfile>[0],
+  accountBrandColor: string | null,
 ) {
     if (!context) throw new Error("Missing generationContext");
 
+    // Source order matches evaluateKnockout.ts: the store profile persisted
+    // at analysis time (durable, survives re-analysis), then whatever
+    // brandTokens/computedStyles made it into generationContext at creation
+    // time, then the account colour as a last resort. Previously this only
+    // ever used generationContext, so the very first campaign a merchant
+    // generated could land on a different, less accurate palette than every
+    // subsequent knockout round — the two were reading from different
+    // sources of truth for the same store.
+    const contextTokens = context.brandTokens as BrandTokens | undefined;
+    const contextStyles = context.computedStyles as ComputedStyles | undefined;
+    const contextBrandColor = typeof context.brandColor === "string" ? context.brandColor : undefined;
+
     const brandTokens = brandTokensFromAnalyzeResult({
-      brandColor: typeof context.brandColor === "string" ? context.brandColor : undefined,
-      brandTokens: context.brandTokens as BrandTokens | undefined,
-      computedStyles: context.computedStyles as ComputedStyles | undefined,
+      brandColor: accountBrandColor ?? contextBrandColor,
+      brandTokens: brandTokensFromStoreProfile(storeProfile) ?? contextTokens,
+      computedStyles: contextStyles,
       storeName: typeof context.storeName === "string" ? context.storeName : undefined,
       industry: typeof context.industry === "string" ? context.industry : undefined,
     });
 
     const computedStyles = computedStylesFromAnalyzeResult({
-      computedStyles: context.computedStyles as ComputedStyles | undefined,
-      brandColor: typeof context.brandColor === "string" ? context.brandColor : undefined,
+      computedStyles: computedStylesFromStoreProfile(storeProfile) ?? contextStyles,
+      brandColor: accountBrandColor ?? contextBrandColor,
     });
 
     const existingPopup = existingPopupFromAnalyzeResult({
