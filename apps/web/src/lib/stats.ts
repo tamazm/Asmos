@@ -27,6 +27,12 @@ export type ConversionSample = { impressions: number; conversions: number };
  * Probability (0-100) that `variant`'s true conversion rate beats `control`'s,
  * via a normal approximation to the two-proportion z-test. Returns null when
  * there isn't enough data (either side has 0 impressions) to say anything.
+ *
+ * This is a ONE-SIDED quantity by construction: 97 means "97% confident the
+ * variant is better", 3 means "97% confident it is worse". Read it as such —
+ * see `twoSidedPValue` for the symmetric statement, and note that callers who
+ * flag both `>= 95` and `<= 5` are working at a two-sided alpha of 0.10, not
+ * 0.05.
  */
 export function confidenceVsControl(
   control: ConversionSample,
@@ -45,4 +51,50 @@ export function confidenceVsControl(
 
   const z = (p2 - p1) / se;
   return normalCdf(z) * 100;
+}
+
+/**
+ * The honest two-sided p-value for the same comparison.
+ *
+ * Added because `computeSignificanceFlag` was flagging both tails of the
+ * one-sided statistic at 5%, which is a two-sided alpha of 0.10 while the
+ * comment beside it said 95% confidence. Where a p-value is shown to a merchant
+ * it should be this one.
+ */
+export function twoSidedPValue(
+  control: ConversionSample,
+  variant: ConversionSample,
+): number | null {
+  const oneSided = confidenceVsControl(control, variant);
+  if (oneSided === null) return null;
+  const tail = Math.min(oneSided, 100 - oneSided) / 100;
+  return Math.min(1, 2 * tail);
+}
+
+/**
+ * 95% credible interval on the absolute difference in conversion rate
+ * (variant - control), as a normal approximation to the difference of two Beta
+ * posteriors under a weak Jeffreys prior.
+ *
+ * A merchant asking "is this better" is better served by "between +0.4 and
+ * +2.1 points" than by a p-value, and unlike a p-value an interval does not
+ * invite the reader to treat a single threshold crossing as proof.
+ */
+export function differenceInterval(
+  control: ConversionSample,
+  variant: ConversionSample,
+): { low: number; point: number; high: number } | null {
+  if (control.impressions === 0 || variant.impressions === 0) return null;
+
+  const a1 = control.conversions + 0.5;
+  const b1 = control.impressions - control.conversions + 0.5;
+  const a2 = variant.conversions + 0.5;
+  const b2 = variant.impressions - variant.conversions + 0.5;
+
+  const mean = (a: number, b: number) => a / (a + b);
+  const variance = (a: number, b: number) => (a * b) / ((a + b) * (a + b) * (a + b + 1));
+
+  const point = mean(a2, b2) - mean(a1, b1);
+  const sd = Math.sqrt(variance(a1, b1) + variance(a2, b2));
+  return { low: point - 1.96 * sd, point, high: point + 1.96 * sd };
 }

@@ -17,6 +17,19 @@ import { prisma } from "@/lib/prisma";
 //  5. Last resort: HTML heuristic analysis (no screenshot/AI)
 // ---------------------------------------------------------------------------
 
+import {
+  DOM_EXTRACTION_FN,
+  catalogueForPrompt,
+  fetchCatalogue,
+  normalizeDomExtraction,
+  paletteFromDom,
+  recommendOffer,
+  type CatalogueSummary,
+  type DomExtraction,
+  type Provenance,
+} from "@/lib/storeExtraction";
+import { upsertStoreProfile } from "@/lib/storeProfile";
+
 const BROWSERLESS_TOKEN = process.env.BROWSERLESS_TOKEN ?? "";
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY ?? "";
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
@@ -138,6 +151,39 @@ async function takeScreenshot(url: string): Promise<string | null> {
     return Buffer.from(buf).toString("base64");
   } catch (e) {
     console.error("[analyze] Browserless fetch failed:", e);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DOM extraction via Browserless /function
+//
+// We were already paying for a headless browser and only asking it for a
+// photograph. Everything the vision pass below was guessing at — the display
+// and body typefaces, the brand colours, the button treatment, the real logo,
+// the store's own product photography, whether a popup already exists — is
+// sitting in getComputedStyle, exactly, and this reads it.
+// ---------------------------------------------------------------------------
+const BROWSERLESS_FUNCTION_URL = `https://production-sfo.browserless.io/function?token=${BROWSERLESS_TOKEN}`;
+
+async function extractDom(url: string): Promise<DomExtraction | null> {
+  if (!BROWSERLESS_TOKEN) return null;
+  try {
+    const res = await fetch(BROWSERLESS_FUNCTION_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: DOM_EXTRACTION_FN, context: { url } }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) {
+      console.warn("[analyze] Browserless /function failed:", res.status, (await res.text()).slice(0, 200));
+      return null;
+    }
+    const body = await res.json();
+    // Browserless returns either the raw value or { data } depending on version.
+    return normalizeDomExtraction(body?.data ?? body);
+  } catch (e) {
+    console.warn("[analyze] Browserless /function error:", e);
     return null;
   }
 }
@@ -468,20 +514,30 @@ async function heuristicAnalysis(url: string) {
 // Extract brand metadata from HTML (color, font, border-radius, logo, description)
 // ---------------------------------------------------------------------------
 async function extractBrandMeta(url: string): Promise<{
-  brandColor: string;
+  brandColor: string | null;
   logoUrl: string;
   description: string;
   fontStack: string[];
   commonBorderRadius: string;
+  rawHtml: string;
 }> {
-  let brandColor = "#165DFF";
+  // Deliberately null, not "#165DFF".
+  //
+  // A default that is indistinguishable from a successful extraction is the
+  // worst kind: nothing downstream could tell "this store's brand is blue" from
+  // "every extraction branch missed", so a large share of generated popups came
+  // out in Asmos's own brand colour. Null makes the failure legible and lets the
+  // caller decide what to do about it.
+  let brandColor: string | null = null;
   let logoUrl = "";
   let description = "";
   let fontStack: string[] = [];
   let commonBorderRadius = "8px";
+  let rawHtml = "";
   try {
     const res = await fetch(url, { headers: { "User-Agent": "AsmosBot/1.0" }, signal: AbortSignal.timeout(6000) });
     const html = await res.text();
+    rawHtml = html;
 
     // 1. meta theme-color (highest confidence)
     const themeColor = html.match(/<meta[^>]+name=["']theme-color["'][^>]+content=["'](#[0-9a-fA-F]{3,6})["']/i)?.[1];
@@ -524,15 +580,16 @@ async function extractBrandMeta(url: string): Promise<{
       const fontVarMatch = html.match(/--(?:font-heading|font-display|font-primary|font-family-heading)\s*:\s*["']?([^;"']+)["']?/i)?.[1];
       if (fontVarMatch) fontStack = [fontVarMatch.trim()];
     }
-    // Default to system stack
-    if (fontStack.length === 0) fontStack = ["system-ui", "-apple-system", "sans-serif"];
+    // No system-stack default here either — an empty array means "we did not
+    // find their typeface", which is a different statement from "their typeface
+    // is system-ui", and only the first one lets the DOM pass win the merge.
 
     // ── Border radius extraction ───────────────────────────────────────────────
     const radiusVarMatch = html.match(/--(?:border-radius|radius|rounded|corner-radius)\s*:\s*([0-9.]+(?:px|rem|em))/i)?.[1];
     if (radiusVarMatch) commonBorderRadius = radiusVarMatch;
 
   } catch { /* ignore */ }
-  return { brandColor, logoUrl, description, fontStack, commonBorderRadius };
+  return { brandColor, logoUrl, description, fontStack, commonBorderRadius, rawHtml };
 }
 
 
@@ -541,17 +598,25 @@ async function extractBrandMeta(url: string): Promise<{
 // Runs after the CRO pass — uses the same screenshot, separate focused prompt.
 // Returns null on any failure so the main flow degrades gracefully.
 // ---------------------------------------------------------------------------
-const BRAND_TOKENS_PROMPT = `You are a brand design analyst. Look at this e-commerce store screenshot and extract brand identity data plus any popup currently visible on screen.
+const BRAND_TOKENS_PROMPT = `You are a brand analyst. You are shown a screenshot of an e-commerce
+store's homepage, and — when the store exposes one — a digest of its actual product catalogue.
+
+Your job is JUDGMENT, not measurement. The colours, typefaces, button treatment and logo have
+already been read directly out of the page's computed styles and are more accurate than anything
+you could infer from a JPEG. Do not attempt to name hex codes or identify typefaces.
+
+Answer the questions a copywriter needs answered before they can write a single line for this
+specific shop, and that nothing else in the pipeline can answer.
 
 Return ONLY valid JSON (no markdown, no explanation) with this exact shape:
 {
-  "brand_tokens": {
-    "palette": ["#hex1", "#hex2", "#hex3"],
-    "type_display": "font name or stack used for headings",
-    "type_body": "font name or stack used for body text",
-    "imagery_style": "minimal | editorial | product-forward | lifestyle | luxury",
-    "signature_element_suggestion": "one sentence describing a distinctive visual element from the brand to use in a popup"
-  },
+  "category": "",
+  "subcategories": [],
+  "audience": "",
+  "brand_voice": "",
+  "value_props": [],
+  "signature_detail": "",
+  "imagery_style": "minimal | editorial | product-forward | lifestyle | luxury",
   "existing_popup": {
     "captured": true,
     "extracted_copy": { "headline": "", "subhead": "", "cta": "" },
@@ -559,12 +624,40 @@ Return ONLY valid JSON (no markdown, no explanation) with this exact shape:
   }
 }
 
-If no popup is visible, set existing_popup.captured to false and leave extracted_copy/structure as empty strings/arrays.
-For palette: extract 3-6 actual brand colors you see used on the page (not white/black backgrounds unless they are signature brand colors).
-Be precise about font names if you can identify them from visual appearance.`;
+Field rules:
+- "category": what this shop actually SELLS, as a person would say it. "children's sleepwear",
+  "single-origin coffee", "handmade ceramics", "climbing hardware". Never a platform bucket like
+  "Ecommerce", "Retail", "Online Store" or "Shopify". If the catalogue digest is present, it is
+  the authority — read the product titles and types, not the hero photograph.
+- "subcategories": 2-5 more specific lines the shop carries.
+- "audience": who buys this, in a phrase. "parents of under-fives", "people furnishing a first
+  flat", "trail runners". Infer from the products and the price band, not from the models in the
+  hero image.
+- "brand_voice": how this shop talks, in one sentence, specific enough to write from. Quote or
+  paraphrase their own words where you can see them. "Plain and unhurried, no exclamation marks,
+  talks about materials" beats "friendly and modern".
+- "value_props": up to 4 claims THEY make on their own page (free returns, made in Britain,
+  ships in 24h). Their words, not yours. Empty array if none are visible.
+- "signature_detail": one concrete visual or verbal thing that is distinctive to this brand and
+  could be echoed in a popup. Empty string if nothing stands out — an invented one is worse
+  than none.
+- "existing_popup": if a popup is visible in the screenshot, capture it. If not, set captured
+  to false and leave the copy/structure empty.
+
+If you cannot tell something from the evidence you were given, return an empty string for it.
+An honest blank is useful; a confident guess is not, because everything downstream treats these
+as facts about the merchant.`;
 
 interface BrandTokensResult {
-  brand_tokens: {
+  category?: string;
+  subcategories?: string[];
+  audience?: string;
+  brand_voice?: string;
+  value_props?: string[];
+  signature_detail?: string;
+  imagery_style?: string;
+  /** Legacy shape — kept so a cached/older response still parses. */
+  brand_tokens?: {
     palette: string[];
     type_display: string;
     type_body: string;
@@ -578,7 +671,17 @@ interface BrandTokensResult {
   };
 }
 
-async function extractBrandTokens(base64Jpeg: string): Promise<BrandTokensResult | null> {
+async function extractBrandTokens(
+  base64Jpeg: string,
+  evidence: string,
+): Promise<BrandTokensResult | null> {
+  // The catalogue digest and the page's own hero copy go in alongside the
+  // screenshot. This is the difference between "guess what this shop is from
+  // one marketing photograph" and "read 250 product titles and tell me who
+  // buys them".
+  const userText =
+    "Analyse this store and return only JSON.\n\n" + evidence;
+
   // Reuse same provider cascade as the CRO pass — Bedrock first, then direct Anthropic, then Gemini
   try {
     // Try Bedrock first
@@ -591,7 +694,7 @@ async function extractBrandTokens(base64Jpeg: string): Promise<BrandTokensResult
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64Jpeg } },
-          { type: "text", text: "Extract brand tokens and detect any popup. Return only JSON." },
+          { type: "text", text: userText },
         ],
       }],
     });
@@ -623,7 +726,7 @@ async function extractBrandTokens(base64Jpeg: string): Promise<BrandTokensResult
             role: "user",
             content: [
               { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64Jpeg } },
-              { type: "text", text: "Extract brand tokens and detect any popup. Return only JSON." },
+              { type: "text", text: userText },
             ],
           }],
         }),
@@ -730,37 +833,105 @@ async function handler(req: NextRequest) {
     return NextResponse.json({ ...heuristic, screenshotBase64, storeUrl: normalizedUrl });
   }
 
-  // 3. Run brand token extraction + HTML meta enrichment in parallel
-  const [brandTokensResult, brandMeta] = await Promise.all([
-    extractBrandTokens(screenshotBase64),
+  // ── 3. MEASURE, then judge ────────────────────────────────────────────────
+  //
+  // Source order is confidence order. The DOM knows the fonts and colours
+  // exactly; the catalogue knows what is sold and for how much; the pixels are
+  // the fallback when the DOM pass is unavailable; the model is asked only for
+  // the things none of those can answer. Previously all of it was one vision
+  // guess with an HTML regex as backup, which is why the store name was the
+  // only field that came out right.
+  const [dom, brandMeta] = await Promise.all([
+    extractDom(normalizedUrl),
     extractBrandMeta(normalizedUrl),
   ]);
 
-  const { brandColor, logoUrl, description, fontStack, commonBorderRadius } = brandMeta;
+  const { brandColor: htmlBrandColor, logoUrl: ogImage, description, fontStack, commonBorderRadius, rawHtml } =
+    brandMeta;
 
-  // Merge: prefer AI-extracted palette over HTML-extracted color
-  const finalPalette = brandTokensResult?.brand_tokens?.palette?.length
-    ? brandTokensResult.brand_tokens.palette
-    : [brandColor];
+  const catalogue: CatalogueSummary | null = await fetchCatalogue(normalizedUrl, rawHtml);
 
-  const brandTokens = brandTokensResult?.brand_tokens
-    ? {
-        ...brandTokensResult.brand_tokens,
-        palette: finalPalette,
-        // If AI returned generic fonts, prefer HTML-extracted ones
-        type_body: brandTokensResult.brand_tokens.type_body || fontStack.join(", "),
-        type_display: brandTokensResult.brand_tokens.type_display || fontStack[0] || "system-ui",
-      }
-    : {
-        palette: finalPalette,
-        type_display: fontStack[0] || "system-ui",
-        type_body: fontStack.join(", ") || "system-ui",
-        imagery_style: "minimal",
-        signature_element_suggestion: "subtle brand accent bar at popup top using primary brand color",
-      };
+  const sources: Provenance = {};
+  const note = (field: string, source: Provenance[string]["source"], confidence: number) => {
+    sources[field] = { source, confidence };
+  };
+
+  // ── Palette ───────────────────────────────────────────────────────────────
+  // Measured from painted area where possible. A vision model naming hex codes
+  // off a quality-75 JPEG was the old method, and it is why output could feel
+  // almost-but-not-quite on-brand even when nothing errored.
+  let palette = dom ? paletteFromDom(dom.colorsByArea) : [];
+  if (palette.length > 0) {
+    note("palette", "dom", 0.95);
+  } else if (htmlBrandColor) {
+    palette = [{ hex: htmlBrandColor, areaShare: 0 }];
+    note("palette", "html", 0.5);
+  }
+  const paletteHex = palette.map((p) => p.hex);
+  // Null, not "#165DFF" — see extractBrandMeta.
+  const brandColor: string | null = paletteHex[0] ?? htmlBrandColor ?? null;
+
+  // ── Type ──────────────────────────────────────────────────────────────────
+  const typeDisplay = dom?.displayFont ?? fontStack[0] ?? null;
+  const typeBody = dom?.bodyFont ?? fontStack.join(", ") || null;
+  if (dom?.displayFont) note("typeDisplay", "dom", 0.95);
+  else if (fontStack[0]) note("typeDisplay", "html", 0.5);
+
+  // ── Logo ──────────────────────────────────────────────────────────────────
+  // From the header <img>, not og:image. og:image is the social share card,
+  // which is a product or lifestyle shot on approximately every store.
+  const logoUrl = dom?.logo ?? "";
+  if (dom?.logo) note("logoUrl", "dom", 0.9);
+
+  // ── The judgment pass ─────────────────────────────────────────────────────
+  const evidence = [
+    `Store URL: ${normalizedUrl}`,
+    dom?.h1 ? `Page headline: ${dom.h1}` : null,
+    dom?.heroText ? `Hero copy: ${dom.heroText}` : null,
+    description ? `Meta description: ${description}` : null,
+    "",
+    "CATALOGUE:",
+    catalogueForPrompt(catalogue),
+  ]
+    .filter((l) => l !== null)
+    .join("\n");
+
+  const brandTokensResult = await extractBrandTokens(screenshotBase64, evidence);
+
+  // The model's own category is only trusted when it is not a platform bucket.
+  // The old schema example literally showed "Ecommerce / Retail", and an example
+  // value inside a JSON schema is the strongest anchor a model gets.
+  const GENERIC_CATEGORY = /^(e-?commerce|retail|online (store|shop)|shopify|store|shop|general)\b/i;
+  const modelCategory = brandTokensResult?.category?.trim() || "";
+  const category = modelCategory && !GENERIC_CATEGORY.test(modelCategory) ? modelCategory : null;
+  if (category) note("category", catalogue ? "catalogue" : "model", catalogue ? 0.85 : 0.6);
+
+  if (catalogue) {
+    note("priceBand", "catalogue", 0.95);
+    note("productImages", "catalogue", 0.9);
+  }
+
+  const offerRecommendation = recommendOffer(catalogue);
+
+  // Real product photography, preferred over the generic stock library.
+  const productImages = [...(catalogue?.images ?? []), ...(dom?.productImages ?? [])]
+    .filter((u, i, arr) => u && arr.indexOf(u) === i)
+    .slice(0, 16);
+
+  // ── Assemble ──────────────────────────────────────────────────────────────
+  const brandTokens = {
+    palette: paletteHex,
+    type_display: typeDisplay ?? "system-ui",
+    type_body: typeBody ?? typeDisplay ?? "system-ui",
+    imagery_style: brandTokensResult?.imagery_style ?? (productImages.length ? "product-forward" : "minimal"),
+    signature_element_suggestion:
+      brandTokensResult?.signature_detail ||
+      brandTokensResult?.brand_tokens?.signature_element_suggestion ||
+      "the store's own product photography, keyed to the brand palette",
+  };
 
   const existingPopup = brandTokensResult?.existing_popup ?? {
-    captured: aiResult.popup?.found ?? false,
+    captured: dom?.detectedPopup?.present ?? aiResult.popup?.found ?? false,
     screenshot_url: null,
     extracted_copy: { headline: "", subhead: "", cta: "" },
     extracted_structure: {
@@ -771,14 +942,55 @@ async function handler(req: NextRequest) {
   };
 
   const computedStyles = {
-    colors_in_use: finalPalette,
-    font_stack: fontStack,
-    common_border_radius: commonBorderRadius,
+    colors_in_use: paletteHex,
+    font_stack: [typeDisplay, typeBody].filter((f): f is string => !!f),
+    common_border_radius: dom?.borderRadius ?? commonBorderRadius,
   };
+
+  const storeProfile = {
+    category,
+    subcategories: brandTokensResult?.subcategories ?? [],
+    audience: brandTokensResult?.audience?.trim() || null,
+    priceBandMin: catalogue?.priceMin ?? null,
+    priceBandMax: catalogue?.priceMax ?? null,
+    priceBandMedian: catalogue?.priceMedian ?? null,
+    currency: catalogue?.currency ?? dom?.currency ?? null,
+    productCount: catalogue?.productCount ?? null,
+    palette,
+    typeDisplay,
+    typeBody,
+    buttonStyle: dom?.buttonStyle ?? null,
+    borderRadius: dom?.borderRadius ?? commonBorderRadius,
+    logoUrl: logoUrl || null,
+    productImages,
+    brandVoice: brandTokensResult?.brand_voice?.trim() || null,
+    valueProps: brandTokensResult?.value_props ?? [],
+    signatureDetail: brandTokensResult?.signature_detail?.trim() || null,
+    platform: dom?.platform ?? catalogue?.source ?? null,
+    detectedPopup: dom?.detectedPopup ?? null,
+    sources,
+  };
+
+  // Persist against the Website when one exists for this URL. Pre-auth analyses
+  // have no Website row yet; the onboarding step picks the profile up from the
+  // response and writes it once the account is created.
+  try {
+    const website = await prisma.website.findFirst({
+      where: { url: normalizedUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") },
+      select: { id: true },
+    });
+    if (website) await upsertStoreProfile({ websiteId: website.id, ...storeProfile });
+  } catch (e) {
+    // Persistence is an enhancement, never a reason to fail the analysis.
+    console.warn("[analyze] store profile persist failed:", e);
+  }
 
   return NextResponse.json({
     ...aiResult,
     storeName: decodeEntities(aiResult.storeName ?? ""),
+    // The generic bucket no longer masquerades as a finding. Downstream reads
+    // `category` first and only falls back to `industry` when it is null.
+    industry: category ?? aiResult.industry ?? null,
     score: aiResult.overallScore,
     brandColor,
     logoUrl,
@@ -790,6 +1002,10 @@ async function handler(req: NextRequest) {
     brandTokens,
     existingPopup,
     computedStyles,
+    // ── The store, as understood ──
+    storeProfile,
+    offerRecommendation,
+    extractionSources: sources,
   });
 }
 

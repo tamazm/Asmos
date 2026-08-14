@@ -90,7 +90,7 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
       height: 100%;
       display: flex;
       flex-direction: column;
-      /* `justify-content: center` on a fixed-height flex column silently clips
+      /* "justify-content: center" on a fixed-height flex column silently clips
          overflow at BOTH ends, and unlike scroll-overflow there is no scrollbar
          to hint that anything is missing. With a display-size offer figure
          stacked above a 76px headline the content routinely exceeds a laptop
@@ -172,9 +172,15 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
     #asmosPopupOverlay .asmos-code { max-width: 460px; }
     #asmosPopupOverlay .asmos-dismiss { color: rgba(255,255,255,0.72); }
     ${
-      dna.button_fill === "solid"
-        ? ""
-        : `#asmosPopupOverlay .asmos-cta { --asmos-btn-fg: #ffffff; --asmos-btn-border: rgba(255,255,255,0.8); }`
+      // An OUTLINE button on this template is text directly on the dark scrim,
+      // so it wants white ink and a white hairline. A DARK-fill button already
+      // resolves to a light panel with dark ink (see buttonColors) and must be
+      // left alone: forcing white here put a white label on a #f5f5f7 button —
+      // a measured 1.09:1, i.e. an invisible primary call-to-action, on roughly
+      // 3% of every popup this system generated.
+      dna.button_fill === "outline"
+        ? `#asmosPopupOverlay .asmos-cta { --asmos-btn-fg: #ffffff; --asmos-btn-border: rgba(255,255,255,0.8); }`
+        : ""
     }
 
     @media (max-height: 700px) {
@@ -186,8 +192,20 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
     }
 
     @media (max-width: 720px) {
-      #asmosPopupOverlay .asmos-content { padding: 24px; align-items: center; text-align: center; }
-      #asmosPopupOverlay .popup-step { align-items: center; }
+      /* The composition axis survives the breakpoint. This block used to force
+         "align-items: center; text-align: center", so layout_style — and with
+         it the whole left/centre decision — was inert on most of the traffic.
+         The headline keeps its own vw-based clamp above; it already scales.
+
+         Anchoring the stack to the lower half also gives the takeover a real
+         mobile composition instead of the desktop one scaled down: on a phone
+         the old centred layout left roughly 60% of the screen as empty scrim
+         with the content floating in the middle of it. */
+      #asmosPopupOverlay .asmos-content {
+        padding: 26px 22px calc(env(safe-area-inset-bottom, 0px) + 10vh);
+        justify-content: flex-end;
+      }
+      #asmosPopupOverlay .asmos-headline { max-width: 100%; }
       #asmosPopupOverlay .asmos-form { display: block; width: 100%; }
       #asmosPopupOverlay .asmos-form .asmos-cta { width: 100%; }
       #asmosPopupOverlay .asmos-email-input { margin-bottom: 10px; }

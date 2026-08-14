@@ -152,9 +152,63 @@ model Website {
   installVerifiedAt DateTime?
   createdAt         DateTime  @default(now())
 
-  campaigns Campaign[]
+  campaigns    Campaign[]
+  storeProfile StoreProfile?
 
   @@index([accountId])
+}
+
+/// What we actually understand about a merchant's store.
+///
+/// Before this existed, the entire output of /api/analyze — palette, typefaces,
+/// imagery style, signature element, detected popup — lived in sessionStorage
+/// through onboarding and was then dropped: the only brand columns anywhere
+/// were Account.industry and Account.brandColor, two strings. It survived into
+/// a campaign only because NewCampaignForm happened to spread the raw analyze
+/// blob into generationContext, and evaluateKnockout explicitly discarded it
+/// from round two onward. That is why generated popups got the store's name
+/// right and nothing else.
+///
+/// Every field records where it came from and how confident we are, in
+/// `sources`, so the generator can weight a measured palette differently from
+/// an inferred brand voice — and so a field that failed extraction reads as
+/// null rather than as a plausible-looking default.
+model StoreProfile {
+  id        String  @id @default(cuid())
+  websiteId String  @unique
+  website   Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  // ── What they sell (from the catalogue: products.json / Store API / JSON-LD)
+  category      String? // "children's sleepwear", never "Ecommerce / Retail"
+  subcategories String[] @default([])
+  audience      String? // "parents of under-fives"
+  priceBandMin  Int? // minor units (pence/cents)
+  priceBandMax  Int?
+  priceBandMedian Int?
+  currency      String?
+  productCount  Int?
+
+  // ── How it looks (from the DOM, measured, not guessed)
+  palette       Json? // [{ hex, areaShare, role }]
+  typeDisplay   String?
+  typeBody      String?
+  buttonStyle   Json? // { radius, textTransform, letterSpacing, fontWeight, bg, fg }
+  borderRadius  String?
+  logoUrl       String?
+  productImages String[] @default([]) // the store's own photography, ranked
+
+  // ── How it sounds (the one place a model is the right tool)
+  brandVoice      String?
+  valueProps      String[] @default([])
+  signatureDetail String?
+
+  // ── Bookkeeping
+  platform        String? // shopify | woocommerce | custom
+  detectedPopup   Json?
+  sources         Json? // per-field provenance + confidence
+  confirmedByUser Boolean  @default(false)
+  analyzedAt      DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Campaign {
@@ -187,6 +241,16 @@ model Campaign {
   insights CampaignInsight[]
   rewards  RewardRule[]
 
+  // Explicit stamp for the bandit's recompute throttle. It used to infer this
+  // from max(variants.updatedAt), so once the allocation stabilised no row was
+  // written, the clock stopped advancing, and every subsequent widget event ran
+  // a full 4,000-sample Monte Carlo over every arm.
+  allocationComputedAt DateTime?
+  // When the knockout bracket was last evaluated. Replaces an
+  // `impressions % 1000 === 0` check that ran a full-table count on every
+  // impression and was racy at the boundary in both directions.
+  lastEvaluatedAt      DateTime?
+
   @@index([accountId])
   @@index([websiteId])
 }
@@ -205,6 +269,11 @@ model Variant {
   isControl       Boolean       @default(false)
   status          VariantStatus @default(ACTIVE)
   tournamentRound Int           @default(1)
+  // Consecutive knockout evaluations in which this arm's posterior probability
+  // of being best sat below the elimination threshold. Requiring two in a row
+  // means one unlucky window cannot end a variant on its own. Reset whenever
+  // the arm climbs back above the threshold.
+  eliminationStrikes Int        @default(0)
 
   // Popup builder output: design, form fields, targeting/trigger rules.
   // Kept as JSON rather than normalized tables — no querying needs beyond

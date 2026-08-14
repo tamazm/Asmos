@@ -150,7 +150,15 @@ export async function GET(request: Request) {
           couponCodes: { where: { usedAt: null }, select: { id: true } },
         },
       },
-      variants: true,
+      // ACTIVE only.
+      //
+      // This used to send every variant regardless of status, so a returning
+      // visitor whose sticky assignment pointed at an ELIMINATED arm kept being
+      // served it, and GENERATING placeholders — which have no design and no
+      // rendered code — were handed to the widget, which fell through to its
+      // legacy DOM builder and showed a generic "Special Offer" card.
+      // A real merchant preview still wants to see everything.
+      variants: isPreview ? true : { where: { status: "ACTIVE" } },
     },
   });
 
