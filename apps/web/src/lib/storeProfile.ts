@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import type { BrandTokens, ComputedStyles } from "@/lib/popupGeneration";
-import type { CatalogueSummary, DomExtraction, PaletteEntry, Provenance } from "@/lib/storeExtraction";
+import type { DomExtraction, PaletteEntry, Provenance } from "@/lib/storeExtraction";
 
 /**
  * lib/storeProfile.ts

@@ -238,7 +238,7 @@ async function fetchWooCatalogue(origin: string): Promise<CatalogueSummary | nul
  * of Shopify stores that disable /products.json): read JSON-LD Product schema
  * off a few pages. Nearly every ecommerce platform emits it for SEO.
  */
-async function fetchJsonLdCatalogue(origin: string, html: string): Promise<CatalogueSummary | null> {
+async function fetchJsonLdCatalogue(html: string): Promise<CatalogueSummary | null> {
   const blocks = [...html.matchAll(/<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
   const titles: string[] = [];
   const types: string[] = [];
@@ -305,7 +305,7 @@ export async function fetchCatalogue(storeUrl: string, html = ""): Promise<Catal
   if (woo) return woo;
 
   if (html) {
-    const jsonld = await fetchJsonLdCatalogue(origin, html);
+    const jsonld = await fetchJsonLdCatalogue(html);
     if (jsonld) return jsonld;
   }
   return null;

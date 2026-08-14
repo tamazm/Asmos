@@ -879,7 +879,9 @@ async function handler(req: NextRequest) {
 
   // ── Logo ──────────────────────────────────────────────────────────────────
   // From the header <img>, not og:image. og:image is the social share card,
-  // which is a product or lifestyle shot on approximately every store.
+  // which is a product or lifestyle shot on approximately every store — which
+  // is exactly why it is a bad logo and a perfectly good *photograph*. It is
+  // reused as a last-resort product image further down rather than thrown away.
   const logoUrl = dom?.logo ?? "";
   if (dom?.logo) note("logoUrl", "dom", 0.9);
 
@@ -914,8 +916,12 @@ async function handler(req: NextRequest) {
   const offerRecommendation = recommendOffer(catalogue);
 
   // Real product photography, preferred over the generic stock library.
-  const productImages = [...(catalogue?.images ?? []), ...(dom?.productImages ?? [])]
-    .filter((u, i, arr) => u && arr.indexOf(u) === i)
+  // Catalogue first (it is the store's own merchandising), then whatever the
+  // page was actually showing, then og:image as a floor so a store with no
+  // readable catalogue still contributes one real photograph of its own.
+  const productImages = [...(catalogue?.images ?? []), ...(dom?.productImages ?? []), ogImage]
+    .filter((u): u is string => typeof u === "string" && u.length > 0)
+    .filter((u, i, arr) => arr.indexOf(u) === i)
     .slice(0, 16);
 
   // ── Assemble ──────────────────────────────────────────────────────────────
