@@ -150,9 +150,9 @@ export const CTA_SHAPES = [
  * just stop producing combinations no designer would ship.
  */
 type ArtPreset = {
-  type_pairing: PopupDna["type_pairing"];
+  typePairings: Partial<Record<PopupDna["type_pairing"], number>>;
   elevation: PopupDna["elevation"];
-  surface_treatment: PopupDna["surface_treatment"];
+  surfaces: Partial<Record<PopupDna["surface_treatment"], number>>;
   themes: Record<PopupDna["theme"], number>;
   radii: readonly PopupDna["corner_radius"][];
   buttonShapes: readonly PopupDna["button_shape"][];
@@ -189,9 +189,22 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
   // and space. The eyebrow is required because the rule beneath it is what
   // carries the layout.
   editorial: {
-    type_pairing: "editorial",
+    // A weighted SET, not one value.
+    //
+    // `type_pairing` used to be hard-assigned from art_direction, which made
+    // it an alias rather than an axis and — far worse — made
+    // `type_pairing: "brand"` unreachable. fonts.ts carries a 24-family match
+    // table and resolveBrandPairing exists precisely to serve the store's own
+    // typeface; nothing could ever select it, so the entire brand-font
+    // pipeline (scrape in /api/analyze, carry through design_tokens, match in
+    // fonts.ts) terminated in dead code. That is the strongest "this popup
+    // belongs to this store" signal available, and it was switched off.
+    //
+    // `brand` is re-weighted upward at draw time whenever the store actually
+    // has a servable typeface — see drawBrief.
+    typePairings: { editorial: 6, brand: 3, grotesque: 1 },
     elevation: "raised",
-    surface_treatment: "paper",
+    surfaces: { paper: 7, plain: 3 },
     themes: { light: 8, dark: 2, brand: 0 },
     radii: ["sharp", "soft"],
     buttonShapes: ["rect", "rounded"],
@@ -214,9 +227,9 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
   // Poster logic: the offer is the object. Heavy face, colour block, no radius,
   // no shadow — flatness is the statement.
   bold: {
-    type_pairing: "bold",
+    typePairings: { bold: 6, brand: 3, geometric: 1 },
     elevation: "flat",
-    surface_treatment: "block",
+    surfaces: { block: 7, mesh: 2, plain: 1 },
     themes: { dark: 7, light: 3, brand: 0 },
     radii: ["sharp"],
     buttonShapes: ["rect"],
@@ -235,9 +248,9 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
   // Software logic: layered depth, ambient accent light, generous radii, a
   // button that glows in its own colour.
   glass: {
-    type_pairing: "grotesque",
+    typePairings: { grotesque: 6, brand: 3, geometric: 1 },
     elevation: "floating",
-    surface_treatment: "glow",
+    surfaces: { glow: 6, mesh: 3, plain: 1 },
     themes: { light: 8, brand: 2, dark: 0 },
     radii: ["rounded", "pill"],
     buttonShapes: ["rounded", "pill"],
@@ -302,6 +315,15 @@ export type DesignBrief = {
   fingerprint: string;
 };
 
+/**
+ * NOTE ON WHAT IS AND ISN'T IN HERE
+ *
+ * `elevation` is a pure function of `art_direction` (each school has one depth
+ * language), so including both counts the same decision twice and inflates
+ * dnaDistance — which is what decides whether two variants are "different
+ * enough" to be worth testing. `type_pairing` and `surface_treatment` are now
+ * genuinely independent draws, so they stay.
+ */
 function briefFingerprint(locked: DesignBrief["locked"], wantsEyebrow: boolean, wantsProof: boolean): string {
   return [
     locked.template_id,
@@ -323,6 +345,22 @@ function briefFingerprint(locked: DesignBrief["locked"], wantsEyebrow: boolean, 
 }
 
 export type BriefOptions = {
+  /**
+   * Whether the store has a display typeface we can actually serve. Gates
+   * `type_pairing: "brand"` — drawing it for a store whose font we cannot load
+   * produces an arm identical to the school default, which is a wasted test.
+   */
+  hasBrandFont?: boolean;
+  /**
+   * Whether the store's accent can carry white text at button size.
+   *
+   * When it cannot, `button_fill: "solid"` is withheld. The renderer will now
+   * always produce a *readable* button (see lib/color.ts), but the honest fix
+   * for a pale yellow or lime brand is not black-on-yellow — that reads as a
+   * warning label, not as a brand. A dark neutral button carrying the accent on
+   * its border is the design the DNA already has vocabulary for.
+   */
+  accentCarriesWhiteText?: boolean;
   /**
    * Corner toasts are a poor fit for a discount-reveal flow on a high-intent
    * page, and fullscreen takeovers are hostile on mobile-heavy stores. Callers
@@ -378,13 +416,28 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
         "none"
       : weighted(rng, { side: 5, top_band: 3, none: 2, background: 0 } as Record<PopupDna["image_treatment"], number>);
 
+  // Bias toward the store's own typeface when there actually is one that
+  // Google serves — otherwise `brand` degrades to the school's default anyway
+  // (see resolveFonts), so drawing it would just be a wasted arm.
+  const pairingWeights = { ...preset.typePairings } as Record<string, number>;
+  if (opts.hasBrandFont) pairingWeights.brand = (pairingWeights.brand ?? 0) * 2;
+  else delete pairingWeights.brand;
+
+  const type_pairing = weighted(rng, pairingWeights as Record<PopupDna["type_pairing"], number>);
+
+  const fillWeights = { ...preset.buttonFills } as Record<string, number>;
+  if (opts.accentCarriesWhiteText === false && (fillWeights.dark ?? 0) + (fillWeights.outline ?? 0) > 0) {
+    delete fillWeights.solid;
+  }
+  const surface_treatment = weighted(rng, preset.surfaces as Record<PopupDna["surface_treatment"], number>);
+
   const locked: DesignBrief["locked"] = {
     template_id,
     layout_style,
     art_direction,
-    type_pairing: preset.type_pairing,
+    type_pairing,
     elevation: preset.elevation,
-    surface_treatment: preset.surface_treatment,
+    surface_treatment,
     text_align: rng() < preset.leftAxisOdds ? "left" : "center",
     color_usage: choose(rng, preset.colorUsages),
     offer_display: rng() < preset.heroOfferOdds ? "hero" : "inline",
@@ -394,11 +447,11 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
     timer_style: choose(rng, TIMER_STYLES),
     corner_radius: choose(rng, preset.radii),
     button_shape: choose(rng, preset.buttonShapes),
-    button_fill: weighted(rng, preset.buttonFills),
+    button_fill: weighted(rng, fillWeights as Record<PopupDna["button_fill"], number>),
     // "background_block" fights a surface treatment that already paints the
     // content area, so it's only offered to schools that leave it alone.
     accent_placement:
-      preset.surface_treatment === "plain"
+      surface_treatment === "plain"
         ? choose(rng, ACCENT_PLACEMENTS)
         : choose(rng, ["button_only", "headline", "top_border"] as const),
     density: choose(rng, preset.densities),
@@ -615,9 +668,9 @@ export function perturbBrief(base: DesignBrief, seed: number, index: number): De
     const preset = ART_PRESETS[next as ArtDirection];
     locked = {
       ...locked,
-      type_pairing: preset.type_pairing,
+      type_pairing: weighted(rng, preset.typePairings as Record<PopupDna["type_pairing"], number>),
       elevation: preset.elevation,
-      surface_treatment: preset.surface_treatment,
+      surface_treatment: weighted(rng, preset.surfaces as Record<PopupDna["surface_treatment"], number>),
       text_align: rng() < preset.leftAxisOdds ? "left" : "center",
       // Re-drawn from the new school's own pools — a bold popup that kept
       // editorial's quiet tint and inline offer isn't a bold popup.

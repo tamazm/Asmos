@@ -92,8 +92,13 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
 
     /* A toast is a fraction of the width of a modal — clamp the DNA's type
        scale rather than letting "large" overflow a 340px card. */
+    /* The toast is a different medium, not a small modal — but a headline
+       pinned at 19px regardless of "type_scale" meant a third of all generated
+       popups rendered at exactly one size, and the type-scale axis carried no
+       information on them at all. A narrow band that still tracks the scale
+       keeps the format honest and the axis measurable. */
     #asmosPopupOverlay .asmos-headline {
-      font-size: min(var(--asmos-headline-size), 19px);
+      font-size: clamp(18px, calc(var(--asmos-headline-size) * 0.46), 26px);
       padding-right: 22px;
       /* The measure cap is a modal-scale device; at 19px in a 348px card it
          would wrap the headline into a narrow column for no reason. */

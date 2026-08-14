@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { corsJson, corsPreflight } from "@/lib/cors";
 import { recomputeCampaignAllocation } from "@/lib/bandit";
 
+/** At most one knockout evaluation per campaign per window. */
+const EVALUATION_INTERVAL_MS = 30 * 60 * 1000;
+
 const VALID_TYPES = ["IMPRESSION", "INTERACTION", "SUBMISSION", "GIFT_CLAIMED", "DISMISSED"] as const;
 type EventType = (typeof VALID_TYPES)[number];
 
@@ -102,15 +105,36 @@ export async function POST(request: Request) {
       try {
         await recomputeCampaignAllocation(variantId);
         
-        // Evaluate knockout bracket every 1000 impressions
+        // Evaluate the knockout bracket periodically.
+        //
+        // This used to run `count(*)` over every impression the campaign had
+        // ever recorded, on every single impression, and fire when the total
+        // was exactly divisible by 1000. Two concurrent requests could both
+        // miss the boundary (never firing) or both hit it (firing twice), and
+        // the full-table count was pure overhead on the hot path.
+        //
+        // Time-based instead: at most one evaluation per campaign per window,
+        // decided by a single indexed read.
         if (eventType === "IMPRESSION") {
-          const variant = await prisma.variant.findUnique({ where: { id: variantId } });
-          if (variant) {
-            const impressions = await prisma.campaignEvent.count({
-              where: { variant: { campaignId: variant.campaignId }, type: "IMPRESSION" }
+          const variant = await prisma.variant.findUnique({
+            where: { id: variantId },
+            select: { campaignId: true, campaign: { select: { lastEvaluatedAt: true } } },
+          });
+          const lastEvaluated = variant?.campaign?.lastEvaluatedAt?.getTime() ?? 0;
+          if (variant && Date.now() - lastEvaluated > EVALUATION_INTERVAL_MS) {
+            // Claim the window before dispatching, so a burst of concurrent
+            // events produces one evaluation rather than one each.
+            const claimed = await prisma.campaign.updateMany({
+              where: {
+                id: variant.campaignId,
+                OR: [
+                  { lastEvaluatedAt: null },
+                  { lastEvaluatedAt: { lt: new Date(Date.now() - EVALUATION_INTERVAL_MS) } },
+                ],
+              },
+              data: { lastEvaluatedAt: new Date() },
             });
-            
-            if (impressions > 0 && impressions % 1000 === 0) {
+            if (claimed.count > 0) {
               const { inngest } = await import("@/lib/inngest/client");
               await inngest.send({ name: "campaign.evaluate", data: { campaignId: variant.campaignId } });
             }
