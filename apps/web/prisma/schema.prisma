@@ -530,6 +530,11 @@ model LearnedPattern {
 model ScrapedPopupExample {
   id            String   @id @default(cuid())
   sourceUrl     String
+  // Host + path, lowercased, protocol/www/query/hash/trailing-slash stripped
+  // (lib/popupScraping.ts's normalizeUrl) — the dedupe key, so scraping
+  // https://Example.com/ twice (or with/without www, http vs https) doesn't
+  // produce two rows or spend a second Browserless call on the same site.
+  normalizedUrl String   @unique
   segment       String // raw label as scraped, e.g. "Retail"
   industry      String // normalized bucket (lib/popupScraping.ts's normalizeIndustry) — what generation matches on
 

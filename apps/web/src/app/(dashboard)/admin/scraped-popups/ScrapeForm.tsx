@@ -30,13 +30,15 @@ export function ScrapeForm() {
     <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 flex flex-col gap-3">
       <h2 className="text-sm font-semibold text-[color:var(--color-text-primary)]">Run a new scrape</h2>
       <p className="text-xs text-[color:var(--color-text-secondary)]">
-        One site per line, as <code>url, industry</code>. Runs in the background (Inngest) — this page won&apos;t
-        update live, so refresh it after a few minutes to see new rows land.
+        One site per line — just the URL. Industry is auto-detected from the page&apos;s own title, meta
+        description and popup copy, so you don&apos;t need to type it in (add <code>, industry</code> after a URL
+        only if you want to override the guess). Runs in the background (Inngest) — this page won&apos;t update
+        live, so refresh it after a few minutes to see new rows land.
       </p>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={"https://example.com, Apparel\nhttps://another-store.com, Food & Beverage"}
+        placeholder={"https://example.com\nhttps://another-store.com"}
         rows={6}
         disabled={running}
         className="w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-2 text-sm font-mono text-[color:var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[color:var(--color-primary)] disabled:opacity-60"

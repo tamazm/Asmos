@@ -1,6 +1,6 @@
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
-import { POPUP_SCRAPE_FN, normalizeIndustry, normalizePopupScrapeResult } from "@/lib/popupScraping";
+import { POPUP_SCRAPE_FN, normalizeIndustry, normalizePopupScrapeResult, normalizeUrl } from "@/lib/popupScraping";
 
 // Scraped popup design library — see lib/popupScraping.ts and
 // popupGeneration.ts's getScrapedExamplesSection. Triggered from the
@@ -21,12 +21,28 @@ export const scrapePopupBatch = inngest.createFunction(
   async ({ event, step }) => {
     const rows = (event.data.rows ?? []) as { url: string; segment: string }[];
     let scraped = 0;
+    let skipped = 0;
     let failed = 0;
 
     for (const { url, segment } of rows) {
       const outcome = await step.run(`scrape-${url}`, async () => {
+        const normalizedUrl = normalizeUrl(url);
+
+        // Skip sites already in the table — no duplicate rows, and no
+        // wasted Browserless call for a site we already have. This also
+        // covers the same URL appearing twice within one pasted batch: the
+        // loop is sequential, so the first occurrence's row already exists
+        // by the time the second is checked.
+        const existing = await prisma.scrapedPopupExample.findUnique({
+          where: { normalizedUrl },
+          select: { id: true },
+        });
+        if (existing) {
+          return { status: "skipped" as const };
+        }
+
         if (!BROWSERLESS_TOKEN) {
-          return { ok: false as const, error: "BROWSERLESS_TOKEN not configured" };
+          return { status: "failed" as const, error: "BROWSERLESS_TOKEN not configured" };
         }
         try {
           const res = await fetch(BROWSERLESS_FUNCTION_URL, {
@@ -36,15 +52,19 @@ export const scrapePopupBatch = inngest.createFunction(
             signal: AbortSignal.timeout(45000),
           });
           if (!res.ok) {
-            return { ok: false as const, error: `Browserless ${res.status}: ${(await res.text()).slice(0, 200)}` };
+            return { status: "failed" as const, error: `Browserless ${res.status}: ${(await res.text()).slice(0, 200)}` };
           }
           const body = await res.json();
           const result = normalizePopupScrapeResult(body?.data ?? body);
-          const industry = normalizeIndustry(segment);
+          // Explicit segment (typed or pasted as "url, industry") always wins;
+          // otherwise auto-assign from the page's own title/meta description
+          // and the popup's own copy — no more requiring one per URL.
+          const industry = segment.trim() ? normalizeIndustry(segment) : normalizeIndustry(result.industrySignal || url);
           await prisma.scrapedPopupExample.create({
             data: {
               sourceUrl: url,
-              segment,
+              normalizedUrl,
+              segment: segment.trim() || "(auto-detected)",
               industry,
               present: result.present,
               html: result.html,
@@ -57,20 +77,29 @@ export const scrapePopupBatch = inngest.createFunction(
               screenshot: result.screenshot,
             },
           });
-          return { ok: true as const };
+          return { status: "scraped" as const };
         } catch (err) {
-          return { ok: false as const, error: err instanceof Error ? err.message : String(err) };
+          // A unique-constraint hit here means a concurrent run scraped the
+          // same site between our check above and this write — treat that
+          // as a skip, not a failure, same as the pre-check catching it.
+          const message = err instanceof Error ? err.message : String(err);
+          if (message.includes("Unique constraint")) {
+            return { status: "skipped" as const };
+          }
+          return { status: "failed" as const, error: message };
         }
       });
 
-      if (outcome.ok) {
+      if (outcome.status === "scraped") {
         scraped++;
+      } else if (outcome.status === "skipped") {
+        skipped++;
       } else {
         failed++;
         console.warn(`[scrapePopupBatch] failed for ${url}:`, outcome.error);
       }
     }
 
-    return { message: `Scraped ${scraped}/${rows.length} sites`, scraped, failed };
+    return { message: `Scraped ${scraped}/${rows.length} sites (${skipped} already had one, ${failed} failed)`, scraped, skipped, failed };
   },
 );

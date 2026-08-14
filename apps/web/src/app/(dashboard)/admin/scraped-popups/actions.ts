@@ -3,6 +3,7 @@
 import { currentUser } from "@/lib/auth-adapter";
 import { isSuperadminEmail } from "@/lib/superadmin";
 import { inngest } from "@/lib/inngest/client";
+import { normalizeUrl } from "@/lib/popupScraping";
 
 const MAX_ROWS_PER_BATCH = 100;
 
@@ -20,7 +21,7 @@ export async function runScrapeBatch(rawText: string): Promise<RunScrapeResult> 
     return { ok: false, error: "Unauthorized: Superadmin access required." };
   }
 
-  const rows = rawText
+  const parsed = rawText
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean)
@@ -30,6 +31,16 @@ export async function runScrapeBatch(rawText: string): Promise<RunScrapeResult> 
       return { url: url?.trim() ?? "", segment: rest.join(",").trim() };
     })
     .filter((r) => r.url.length > 0);
+
+  // Dedupe within this paste — the Inngest job also skips anything already
+  // in the table, but no reason to queue the same site twice in one go.
+  const seen = new Set<string>();
+  const rows = parsed.filter((r) => {
+    const key = normalizeUrl(r.url);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   if (rows.length === 0) {
     return { ok: false, error: "No valid rows found — one per line, as \"url, industry\"." };
