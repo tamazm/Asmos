@@ -1225,14 +1225,22 @@ async function getScrapedExamplesSection(rawIndustry: string | null | undefined)
       where: { industry, present: true },
       orderBy: { scrapedAt: "desc" },
       take: 5,
-      select: { templateGuess: true, layoutGuess: true, headline: true, subhead: true, ctaText: true },
+      select: { templateGuess: true, layoutGuess: true, headline: true, subhead: true, ctaText: true, palette: true },
     });
     if (examples.length === 0) return ""; // no off-industry examples — same "when in doubt, null" rule as imagery
+    const paletteHex = (p: unknown): string[] =>
+      Array.isArray(p)
+        ? (p as { hex?: unknown }[]).map((c) => c?.hex).filter((h): h is string => typeof h === "string").slice(0, 4)
+        : [];
     return (
       "\n\nREAL EXAMPLES FROM THIS INDUSTRY (scraped from high-traffic live sites — for structural and\n" +
       "tonal grounding only; do not copy any of these verbatim):\n" +
       examples
-        .map((e) => `- ${e.templateGuess ?? "unknown"}/${e.layoutGuess ?? "unknown"}: "${e.headline}" / "${e.subhead}" / CTA "${e.ctaText}"`)
+        .map((e) => {
+          const hex = paletteHex(e.palette);
+          const colors = hex.length > 0 ? `, colors ${hex.join("/")}` : "";
+          return `- ${e.templateGuess ?? "unknown"}/${e.layoutGuess ?? "unknown"}${colors}: "${e.headline}" / "${e.subhead}" / CTA "${e.ctaText}"`;
+        })
         .join("\n")
     );
   } catch (err) {

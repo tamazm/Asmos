@@ -165,14 +165,35 @@ export default async function ({ page, context }) {
       return s.display !== "none" && s.visibility !== "hidden" && Number(s.opacity) !== 0;
     };
 
+    // Cookie/consent banners match the same broad selectors below (they're
+    // built as modals/dialogs too) and are usually the first thing to appear,
+    // so without this they'd routinely win the "largest visible candidate"
+    // sort ahead of the actual marketing popup. Filtered on two signals: the
+    // major consent platforms' own container names, and — since plenty of
+    // sites hand-roll their own banner with no telltale class — the
+    // boilerplate language every cookie notice uses regardless of markup.
+    const isCookieNotice = (el) => {
+      const identity = ((el.className || "") + " " + (el.id || "")).toLowerCase();
+      if (
+        /cookie|consent|gdpr|ccpa|onetrust|cookiebot|osano|trustarc|quantcast|cookielaw|termly|cookieyes|iubenda|didomi|usercentrics|cmpbox|cky-/i.test(
+          identity,
+        )
+      ) {
+        return true;
+      }
+      const text = (el.textContent || "").slice(0, 300).toLowerCase();
+      return /we use cookies|this (site|website) uses cookies|cookie (policy|settings|preferences)|manage (your )?(cookie|privacy) preferences|accept all cookies|reject all cookies/.test(
+        text,
+      );
+    };
+
     const candidates = [...document.querySelectorAll(
       "[class*='modal'], [class*='popup'], [class*='optin'], [class*='newsletter'], " +
       "[role='dialog'], [aria-modal='true'], [class*='klaviyo'], [id*='privy'], " +
       "[class*='justuno'], [class*='wisepops'], [class*='poptin'], .fancybox-container"
-    )].filter(isVisible);
+    )].filter(isVisible).filter((el) => !isCookieNotice(el));
 
-    // Prefer the largest visible candidate — a small "cookie banner"-shaped
-    // match is less likely to be the actual offer popup than the biggest one.
+    // Prefer the largest visible candidate among what's left.
     const popupEl = candidates.sort((a, b) => {
       const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
       return rb.width * rb.height - ra.width * ra.height;
@@ -181,6 +202,11 @@ export default async function ({ page, context }) {
     if (!popupEl) {
       return { present: false };
     }
+
+    // Marked so the outer Puppeteer context can grab the exact same element
+    // for the screenshot below without re-running (and risking drifting from)
+    // this selection logic a second time.
+    popupEl.setAttribute("data-asmos-scrape-target", "1");
 
     const rect = popupEl.getBoundingClientRect();
     const style = getComputedStyle(popupEl);
@@ -229,9 +255,6 @@ export default async function ({ page, context }) {
       .slice(0, 6)
       .map(([hex, area]) => ({ hex, areaShare: area / totalArea }));
 
-    let screenshot = null;
-    // Screenshot capture happens outside evaluate() below, via the element
-    // handle — flagged here so the outer function knows to attempt it.
     return {
       present: true,
       selector: popupEl.className || popupEl.tagName,
@@ -251,26 +274,12 @@ export default async function ({ page, context }) {
 
   // Screenshot the matched element specifically, cropped rather than a full
   // viewport capture — this has to happen from the outer Puppeteer context,
-  // not inside page.evaluate(), since it needs an ElementHandle.
+  // not inside page.evaluate(), since it needs an ElementHandle. Re-selects
+  // via the data-asmos-scrape-target marker set above, so this is guaranteed
+  // to be the exact same (non-cookie-notice) element, not a re-run of the
+  // selection logic that could drift from it.
   try {
-    const handle = await page.evaluateHandle((sel) => {
-      const isVisible = (el) => {
-        const r = el.getBoundingClientRect();
-        if (r.width < 40 || r.height < 40) return false;
-        const s = getComputedStyle(el);
-        return s.display !== "none" && s.visibility !== "hidden" && Number(s.opacity) !== 0;
-      };
-      const candidates = [...document.querySelectorAll(
-        "[class*='modal'], [class*='popup'], [class*='optin'], [class*='newsletter'], " +
-        "[role='dialog'], [aria-modal='true'], [class*='klaviyo'], [id*='privy'], " +
-        "[class*='justuno'], [class*='wisepops'], [class*='poptin'], .fancybox-container"
-      )].filter(isVisible);
-      return candidates.sort((a, b) => {
-        const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
-        return rb.width * rb.height - ra.width * ra.height;
-      })[0] || null;
-    }, data.selector);
-    const el = handle.asElement();
+    const el = await page.$("[data-asmos-scrape-target]");
     if (el) {
       data.screenshot = await el.screenshot({ encoding: "base64", type: "jpeg", quality: 80 });
     }
