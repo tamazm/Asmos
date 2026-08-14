@@ -97,6 +97,11 @@ model Account {
   webhookSecret  String? // HMAC-SHA256 signing secret (customer sets this, we sign with it)
   webhookEnabled Boolean @default(false)
 
+  // API-key connections for facade integrations (Klaviyo, Mailchimp, HubSpot,
+  // Shopify, Zapier). Keyed by integration id: { [id]: { apiKey, connectedAt } }.
+  // Storage only for now — no background job forwards leads to these yet.
+  integrationCredentials Json?
+
   planTier           PlanTier           @default(FREE)
   subscriptionStatus SubscriptionStatus @default(TRIALING)
   stripeCustomerId   String?            @unique

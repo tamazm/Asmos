@@ -298,14 +298,35 @@ function WebhookCard({ integration }: { integration: Integration }) {
 }
 
 // ── Generic facade card (Klaviyo, Mailchimp, etc.) ─────────────────────────
+// The API key is genuinely saved (PATCH /api/account/integrations) and
+// survives reloads. What doesn't exist yet is a background job that reads
+// this key back out and actually pushes leads to the provider — hence the
+// "sync is still manual" note rather than claiming full automation.
 
 function IntegrationCard({ integration }: { integration: Integration }) {
   const [status, setStatus] = useState<IntegrationStatus>("disconnected");
   const [apiKey, setApiKey] = useState("");
+  const [maskedKey, setMaskedKey] = useState<string | null>(null);
   const [showInput, setShowInput] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function handleConnect() {
+  // Load existing connection state on mount.
+  useEffect(() => {
+    fetch("/api/account/integrations")
+      .then((r) => r.json())
+      .then((data: { integrations: Record<string, { connected: boolean; maskedKey: string | null }> }) => {
+        const entry = data.integrations?.[integration.id];
+        if (entry?.connected) {
+          setStatus("connected");
+          setMaskedKey(entry.maskedKey);
+        }
+      })
+      .catch(() => {
+        // Non-fatal: card still works, just starts from "not connected"
+      });
+  }, [integration.id]);
+
+  async function handleConnect() {
     if (!showInput) {
       setShowInput(true);
       return;
@@ -316,18 +337,43 @@ function IntegrationCard({ integration }: { integration: Integration }) {
     }
     setStatus("connecting");
     setError(null);
-    // Simulated async connect — native integrations are coming soon
-    setTimeout(() => {
+    try {
+      const res = await fetch("/api/account/integrations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ integrationId: integration.id, apiKey: apiKey.trim(), connected: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Failed to save. Please try again.");
+        setStatus("disconnected");
+        return;
+      }
+      setMaskedKey(data.maskedKey);
       setStatus("connected");
       setShowInput(false);
-    }, 1200);
+      setApiKey(""); // clear plaintext from state
+    } catch {
+      setError("Network error. Please try again.");
+      setStatus("disconnected");
+    }
   }
 
-  function handleDisconnect() {
+  async function handleDisconnect() {
     setStatus("disconnected");
+    setMaskedKey(null);
     setApiKey("");
     setShowInput(false);
     setError(null);
+    try {
+      await fetch("/api/account/integrations", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ integrationId: integration.id, connected: false }),
+      });
+    } catch {
+      // Best-effort; UI already reflects disconnected
+    }
   }
 
   return (
@@ -363,14 +409,26 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 
       <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{integration.description}</p>
 
-      {/* Coming-soon note for non-webhook native integrations */}
+      {/* Automatic lead-forwarding isn't built yet — the key is genuinely
+          saved, but nothing reads it back out to push leads to the provider. */}
       <p className="text-xs text-[color:var(--color-text-secondary)] italic">
-        Native integration coming soon. Use Webhooks + Zapier in the meantime.
+        {status === "connected"
+          ? "Key saved. Automatic lead sync is still being built — export leads manually or use Webhooks + Zapier for now."
+          : "Automatic lead sync is still being built. Use Webhooks + Zapier in the meantime."}
       </p>
 
-      {showInput && status !== "connected" && (
+      {status === "connected" && !showInput && maskedKey && (
+        <div className="flex flex-col gap-1">
+          <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">API key</p>
+          <p className="font-mono text-xs text-[color:var(--color-text-primary)]">{maskedKey}</p>
+        </div>
+      )}
+
+      {showInput && (
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium text-[color:var(--color-text-primary)]">API key</label>
+          <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
+            {status === "connected" ? "New API key" : "API key"}
+          </label>
           <input
             type="text"
             value={apiKey}
@@ -391,13 +449,36 @@ function IntegrationCard({ integration }: { integration: Integration }) {
           >
             {status === "connecting" ? "Connecting..." : showInput ? "Save connection" : "Connect"}
           </button>
+        ) : showInput ? (
+          <>
+            <button
+              onClick={handleConnect}
+              className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white transition-colors duration-150 cursor-pointer"
+            >
+              Save new key
+            </button>
+            <button
+              onClick={() => { setShowInput(false); setApiKey(""); setError(null); }}
+              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)] hover:border-[color:var(--color-primary)] transition-colors duration-150 cursor-pointer"
+            >
+              Cancel
+            </button>
+          </>
         ) : (
-          <button
-            onClick={handleDisconnect}
-            className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-red-500 hover:border-red-200 transition-colors duration-150 cursor-pointer"
-          >
-            Disconnect
-          </button>
+          <>
+            <button
+              onClick={() => setShowInput(true)}
+              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)] hover:border-[color:var(--color-primary)] transition-colors duration-150 cursor-pointer"
+            >
+              Edit
+            </button>
+            <button
+              onClick={handleDisconnect}
+              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-red-500 hover:border-red-200 transition-colors duration-150 cursor-pointer"
+            >
+              Disconnect
+            </button>
+          </>
         )}
         {integration.docsUrl && (
           <a
