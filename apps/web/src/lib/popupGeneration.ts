@@ -17,6 +17,7 @@ import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 import { confidenceVsControl } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
 import { formatImageLibraryForPrompt, isLibraryImage, UNSERVED_STORE_TYPES } from "@/lib/imageLibrary";
+import { normalizeIndustry } from "@/lib/popupScraping";
 import {
   dnaFingerprint,
   normalizeDna,
@@ -1209,6 +1210,37 @@ async function getLearnedPatternsSection(): Promise<string> {
   }
 }
 
+// Real popups scraped from high-traffic live sites (see lib/popupScraping.ts
+// and scripts/popup-scraper/), industry-matched — the model's only source of
+// actual visual/structural grounding, instead of picking template_id and
+// layout_style as blind enum names. No review gate, unlike learned patterns
+// above: the source sites are hand-picked to already be high quality, so a
+// captured row is trusted the moment it exists (see model comment on
+// ScrapedPopupExample). Best-effort, same as getLearnedPatternsSection.
+async function getScrapedExamplesSection(rawIndustry: string | null | undefined): Promise<string> {
+  if (!rawIndustry) return "";
+  try {
+    const industry = normalizeIndustry(rawIndustry);
+    const examples = await prisma.scrapedPopupExample.findMany({
+      where: { industry, present: true },
+      orderBy: { scrapedAt: "desc" },
+      take: 5,
+      select: { templateGuess: true, layoutGuess: true, headline: true, subhead: true, ctaText: true },
+    });
+    if (examples.length === 0) return ""; // no off-industry examples — same "when in doubt, null" rule as imagery
+    return (
+      "\n\nREAL EXAMPLES FROM THIS INDUSTRY (scraped from high-traffic live sites — for structural and\n" +
+      "tonal grounding only; do not copy any of these verbatim):\n" +
+      examples
+        .map((e) => `- ${e.templateGuess ?? "unknown"}/${e.layoutGuess ?? "unknown"}: "${e.headline}" / "${e.subhead}" / CTA "${e.ctaText}"`)
+        .join("\n")
+    );
+  } catch (err) {
+    console.warn("[popupGeneration] failed to fetch scraped examples, continuing without them:", err);
+    return "";
+  }
+}
+
 // ─── Content & Compliance Guardrails (server-side safety net) ────────────────
 //
 // The prompt instructs the model not to suggest illegal/regulated/absurd
@@ -1395,7 +1427,10 @@ export async function generatePopupWithVariants(
   input: PopupGenerationInput,
   briefs?: GenerationBriefs,
 ): Promise<PopupGenerationOutput> {
-  const systemPrompt = POPUP_GENERATION_SYSTEM_PROMPT + (await getLearnedPatternsSection());
+  const systemPrompt =
+    POPUP_GENERATION_SYSTEM_PROMPT +
+    (await getLearnedPatternsSection()) +
+    (await getScrapedExamplesSection(input.store?.category));
   const userMessage = buildUserMessage(input, briefs);
   // Whatever the merchant configured (or DEFAULT_MAX_DISCOUNT_PERCENT if
   // they didn't) — already sanity-bounded in buildPopupInput, not re-capped

@@ -70,6 +70,9 @@ export default async function AdminDashboardPage() {
             <Link href="/admin/learned-patterns" className="rounded-lg bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-semibold text-[color:var(--color-primary)] hover:opacity-90 transition-opacity">
               Learned Patterns →
             </Link>
+            <Link href="/admin/scraped-popups" className="rounded-lg bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-semibold text-[color:var(--color-primary)] hover:opacity-90 transition-opacity">
+              Scraped Popups →
+            </Link>
             <Link href="/admin/logs" className="rounded-lg bg-red-50 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-100 transition-colors">
               View Error Logs →
             </Link>

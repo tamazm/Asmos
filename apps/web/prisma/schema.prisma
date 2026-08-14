@@ -517,3 +517,33 @@ model LearnedPattern {
 
   @@index([status])
 }
+
+// A real popup, scraped from a high-traffic live site, kept as design
+// grounding for generation (see popupGeneration.ts's getScrapedExamplesSection).
+//
+// Unlike LearnedPattern above, there's no human-approval gate here: the sites
+// fed into the scraper (lib/popupScraping.ts's POPUP_SCRAPE_FN, run by a
+// local-only, gitignored script — never a deployed job) are hand-picked by a
+// human to be popular, high-traffic stores, so a captured row is trusted the
+// moment it exists. The only filter generation applies is `present` — a
+// scrape that found no popup on the page has nothing useful to offer.
+model ScrapedPopupExample {
+  id            String   @id @default(cuid())
+  sourceUrl     String
+  segment       String // raw label as scraped, e.g. "Retail"
+  industry      String // normalized bucket (lib/popupScraping.ts's normalizeIndustry) — what generation matches on
+
+  present       Boolean  @default(false)
+  html          String?  @db.Text
+  headline      String?
+  subhead       String?
+  ctaText       String?
+  templateGuess String? // split-screen | corner-toast | fullscreen-takeover
+  layoutGuess   String?
+  palette       Json? // [{ hex, areaShare }] — same shape as StoreProfile.palette
+  screenshot    String?  @db.Text // base64 data: URL, cropped to just the popup element
+
+  scrapedAt     DateTime @default(now())
+
+  @@index([industry, present])
+}
