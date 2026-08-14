@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth-adapter";
-import { getOrCreateAccount } from "@/lib/account";
+import { resolveAccountForRequest } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import type { RewardType } from ".prisma/client";
 
@@ -16,7 +16,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const account = await getOrCreateAccount();
   const body = (await request.json().catch(() => ({}))) as {
     campaignId?: string;
     label?: string;
@@ -26,7 +25,13 @@ export async function POST(request: Request) {
     couponCode?: string;
     maxRedemptions?: number | null;
     weight?: number;
+    accountId?: string;
   };
+
+  const account = await resolveAccountForRequest(body.accountId);
+  if (!account) {
+    return Response.json({ error: "Account not found" }, { status: 404 });
+  }
 
   if (!body.campaignId || typeof body.campaignId !== "string") {
     return Response.json({ error: "campaignId is required" }, { status: 400 });

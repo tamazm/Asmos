@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth-adapter";
-import { getOrCreateAccount } from "@/lib/account";
+import { resolveAccountForRequest } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 
 function csvEscape(value: string): string {
@@ -17,7 +17,11 @@ export async function GET(
   }
 
   const { id } = await ctx.params;
-  const account = await getOrCreateAccount();
+  const url = new URL(request.url);
+  const account = await resolveAccountForRequest(url.searchParams.get("accountId"));
+  if (!account) {
+    return Response.json({ error: "Account not found" }, { status: 404 });
+  }
   const reward = await prisma.rewardRule.findFirst({
     where: { id, campaign: { accountId: account.id } },
   });
@@ -25,7 +29,7 @@ export async function GET(
     return Response.json({ error: "Reward not found" }, { status: 404 });
   }
 
-  const status = new URL(request.url).searchParams.get("status") ?? "all";
+  const status = url.searchParams.get("status") ?? "all";
   const where =
     status === "used"
       ? { rewardRuleId: reward.id, usedAt: { not: null } }

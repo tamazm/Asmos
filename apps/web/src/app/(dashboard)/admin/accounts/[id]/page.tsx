@@ -5,9 +5,15 @@ import { prisma } from "@/lib/prisma";
 import { isSuperadminEmail } from "@/lib/superadmin";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
-import { AI_GENERATION_LIMITS } from "@/lib/limits";
+import {
+  AI_GENERATION_LIMITS,
+  MAX_CODES_PER_GENERATE_REQUEST,
+  MAX_CODES_PER_IMPORT_REQUEST,
+  MAX_COUPON_CODES_PER_ACCOUNT,
+} from "@/lib/limits";
 import { AccountControls } from "./AccountControls";
 import { CampaignAdminList } from "./CampaignAdminList";
+import { RewardsBoard, type RewardRow } from "@/app/(dashboard)/rewards/RewardsBoard";
 
 // Per-account detail view for superadmins: everything about one merchant in
 // one place — team, websites, plan/generation controls, and every campaign
@@ -39,6 +45,44 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   });
 
   if (!account) notFound();
+
+  // Same query/shape as rewards/page.tsx, scoped to this account instead of
+  // the logged-in superadmin's own — RewardsBoard's writes are threaded with
+  // overrideAccountId so they land on this account (see
+  // lib/account.ts's resolveAccountForRequest).
+  const rewards = await prisma.rewardRule.findMany({
+    where: { campaign: { accountId: account.id } },
+    include: {
+      campaign: { select: { id: true, name: true } },
+      couponCodes: { select: { usedAt: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  const rewardRows: RewardRow[] = rewards.map((r) => ({
+    id: r.id,
+    label: r.label,
+    category: r.category,
+    description: r.description,
+    type: r.type,
+    couponCode: r.couponCode,
+    weight: r.weight,
+    active: r.active,
+    maxRedemptions: r.maxRedemptions,
+    redemptionsCount: r.redemptionsCount,
+    campaignId: r.campaign.id,
+    campaignName: r.campaign.name,
+    totalCodes: r.couponCodes.length,
+    usedCodes: r.couponCodes.filter((c) => c.usedAt !== null).length,
+  }));
+  const rewardTotalCodesExisting = rewardRows.reduce((sum, r) => sum + r.totalCodes, 0);
+  const rewardCodeLimits = {
+    planTier: account.planTier,
+    generateCap: MAX_CODES_PER_GENERATE_REQUEST[account.planTier] ?? 25,
+    importCap: MAX_CODES_PER_IMPORT_REQUEST[account.planTier] ?? 100,
+    totalCap: MAX_COUPON_CODES_PER_ACCOUNT[account.planTier] ?? 100,
+    totalExisting: rewardTotalCodesExisting,
+  };
+  const rewardCampaignOptions = account.campaigns.map((c) => ({ id: c.id, name: c.name }));
 
   const variantIds = account.campaigns.flatMap((c) => c.variants.map((v) => v.id));
 
@@ -182,6 +226,18 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
             ))}
           </div>
         </div>
+      </section>
+
+      {/* Rewards — same board account holders see on /rewards, editing this
+          account's rewards instead of the superadmin's own. */}
+      <section className="flex flex-col gap-4">
+        <h2 className="text-lg font-semibold text-[color:var(--color-text)]">Rewards</h2>
+        <RewardsBoard
+          rows={rewardRows}
+          codeLimits={rewardCodeLimits}
+          campaigns={rewardCampaignOptions}
+          overrideAccountId={account.id}
+        />
       </section>
 
       {/* Campaigns & popups */}
