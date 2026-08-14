@@ -873,7 +873,13 @@ async function handler(req: NextRequest) {
 
   // ── Type ──────────────────────────────────────────────────────────────────
   const typeDisplay = dom?.displayFont ?? fontStack[0] ?? null;
-  const typeBody = dom?.bodyFont ?? fontStack.join(", ") || null;
+  // `fontStack.join(", ")` yields "" for an empty stack, and "" is a worse
+  // answer than null: downstream, an empty string reads as "we measured their
+  // body face and it is nothing". Parenthesised because mixing ?? with || is a
+  // syntax error in ECMAScript, not merely a style problem — the unparenthesised
+  // form is what broke the build.
+  const joinedStack = fontStack.join(", ");
+  const typeBody = dom?.bodyFont ?? (joinedStack || null);
   if (dom?.displayFont) note("typeDisplay", "dom", 0.95);
   else if (fontStack[0]) note("typeDisplay", "html", 0.5);
 
