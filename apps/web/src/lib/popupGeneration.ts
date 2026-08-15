@@ -1225,22 +1225,22 @@ async function getScrapedExamplesSection(rawIndustry: string | null | undefined)
       where: { industry, present: true },
       orderBy: { scrapedAt: "desc" },
       take: 5,
-      select: { templateGuess: true, layoutGuess: true, headline: true, subhead: true, ctaText: true, palette: true },
+      select: { templateGuess: true, layoutGuess: true, headline: true, subhead: true, ctaText: true },
     });
     if (examples.length === 0) return ""; // no off-industry examples — same "when in doubt, null" rule as imagery
-    const paletteHex = (p: unknown): string[] =>
-      Array.isArray(p)
-        ? (p as { hex?: unknown }[]).map((c) => c?.hex).filter((h): h is string => typeof h === "string").slice(0, 4)
-        : [];
+    // Deliberately NOT including these examples' own colours: brand_tokens.palette
+    // (the merchant's own analyzed site) is the one and only colour source and is
+    // explicitly locked/never-invented elsewhere in this prompt. Showing a
+    // second, concrete set of hex codes here — even captioned "don't copy
+    // this" — is a strictly weaker instruction than a lock, and risks exactly
+    // the failure this section should never cause: the model reaching for
+    // some other store's colour instead of this merchant's own.
     return (
       "\n\nREAL EXAMPLES FROM THIS INDUSTRY (scraped from high-traffic live sites — for structural and\n" +
-      "tonal grounding only; do not copy any of these verbatim):\n" +
+      "tonal grounding only; never take colour from these, only from brand_tokens.palette above; do not\n" +
+      "copy any of these verbatim):\n" +
       examples
-        .map((e) => {
-          const hex = paletteHex(e.palette);
-          const colors = hex.length > 0 ? `, colors ${hex.join("/")}` : "";
-          return `- ${e.templateGuess ?? "unknown"}/${e.layoutGuess ?? "unknown"}${colors}: "${e.headline}" / "${e.subhead}" / CTA "${e.ctaText}"`;
-        })
+        .map((e) => `- ${e.templateGuess ?? "unknown"}/${e.layoutGuess ?? "unknown"}: "${e.headline}" / "${e.subhead}" / CTA "${e.ctaText}"`)
         .join("\n")
     );
   } catch (err) {
