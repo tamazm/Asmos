@@ -12,13 +12,16 @@ const PRESET_IMAGES = allImageUrls(800);
 export function VisualEditor({
   campaignId,
   variantId,
-  brandColor,
+  defaultColor,
   initialDesign,
   initialRewards,
 }: {
   campaignId: string;
   variantId: string;
-  brandColor: string;
+  // Only used as the colour picker's starting point on the rare variant that
+  // somehow has no primaryColor of its own yet — not "the brand colour" as a
+  // product concept (see popupGeneration.ts's brandTokensFromAnalyzeResult).
+  defaultColor: string;
   initialDesign: {
     headline?: string;
     body?: string;
@@ -31,7 +34,7 @@ export function VisualEditor({
   const [headline, setHeadline] = useState(initialDesign.headline || "");
   const [body, setBody] = useState(initialDesign.body || "");
   const [ctaText, setCtaText] = useState(initialDesign.ctaText || "");
-  const [primaryColor, setPrimaryColor] = useState(initialDesign.primaryColor || brandColor);
+  const [primaryColor, setPrimaryColor] = useState(initialDesign.primaryColor || defaultColor);
   const [imageUrl, setImageUrl] = useState(initialDesign.imageUrl || "");
   const [rewards, setRewards] = useState(initialRewards || []);
   const [isSaving, setIsSaving] = useState(false);

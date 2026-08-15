@@ -24,7 +24,6 @@ export default async function SettingsPage() {
       <AccountSettingsForm
         initialName={account.name}
         initialIndustry={account.industry}
-        initialBrandColor={account.brandColor}
         initialGdpr={account.consentGdprEnabled}
         initialCcpa={account.consentCcpaEnabled}
         initialBannerText={account.consentBannerText}
