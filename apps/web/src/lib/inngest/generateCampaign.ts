@@ -141,6 +141,7 @@ export const generateCampaign = inngest.createFunction(
           // signal as every round after it, instead of whatever ad-hoc
           // brandTokens made it into generationContext at creation time.
           website: { include: { storeProfile: true } },
+          account: { select: { industry: true } },
         },
       });
     });
@@ -153,6 +154,7 @@ export const generateCampaign = inngest.createFunction(
         campaignId,
         campaign.generationContext as Record<string, unknown> | null,
         campaign.website?.storeProfile ?? null,
+        campaign.account.industry,
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Generation failed for an unknown reason";
@@ -179,6 +181,7 @@ async function runGeneration(
   campaignId: string,
   context: Record<string, unknown> | null,
   storeProfile: Parameters<typeof brandTokensFromStoreProfile>[0],
+  accountIndustry: string | null,
 ) {
     if (!context) throw new Error("Missing generationContext");
 
@@ -193,7 +196,14 @@ async function runGeneration(
     // brandTokensFromAnalyzeResult.
     const contextTokens = context.brandTokens as BrandTokens | undefined;
     const contextStyles = context.computedStyles as ComputedStyles | undefined;
-    const industry = typeof context.industry === "string" ? context.industry : undefined;
+    // The account's own industry (explicitly chosen in onboarding/Settings —
+    // durable, correct) wins over context.industry, which is only whatever
+    // NewCampaignForm.tsx's own fresh /api/analyze call at campaign-creation
+    // time happened to guess — and that call can fail outright (a Cloudflare-
+    // protected store, for instance), landing on null and silently discarding
+    // an industry the merchant deliberately picked. Same class of bug as the
+    // brandColor fallback this account/context split fixed for colour.
+    const industry = accountIndustry ?? (typeof context.industry === "string" ? context.industry : undefined);
 
     const brandTokens = await brandTokensFromAnalyzeResult({
       brandTokens: brandTokensFromStoreProfile(storeProfile) ?? contextTokens,
