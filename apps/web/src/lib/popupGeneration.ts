@@ -1502,9 +1502,20 @@ export function brandTokensFromAnalyzeResult(result: {
   if (result.brandTokens && result.brandColor) {
     return { ...result.brandTokens, palette: [result.brandColor] };
   }
-  if (result.brandTokens) return result.brandTokens;
 
+  // Neither a measured palette nor a brandColor to synthesize one from — this
+  // is the case that was falling through uncaught: brandTokensFromStoreProfile
+  // returns a real (non-null) object whenever type_display was measured even
+  // if the colour-by-painted-area pass came up empty (a plausible split —
+  // reading a font off getComputedStyle is far more reliable than measuring
+  // dominant colour), and the old `if (result.brandTokens) return
+  // result.brandTokens;` branch let that hollow-palette object straight
+  // through, silently defeating the #165DFF-avoidance synthesis below for
+  // every field except the one that actually needed it.
   const primaryColor = result.brandColor ?? "#165DFF";
+  if (result.brandTokens) {
+    return { ...result.brandTokens, palette: [primaryColor] };
+  }
   return {
     palette: [primaryColor],
     type_display: "system-ui, -apple-system, sans-serif",
