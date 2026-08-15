@@ -38,13 +38,13 @@ export type IndustryBucket = (typeof INDUSTRY_BUCKETS)[number];
 // Keyword → bucket. Checked in order, first match wins, so more specific
 // keywords are listed before broader ones (e.g. "beauty" before "goods").
 const KEYWORD_BUCKETS: [RegExp, IndustryBucket][] = [
-  [/kids?|baby|babies|toddler|nursery|toy/i, "Kids & Baby"],
+  [/kids?|child(ren)?|baby|babies|toddler|nursery|toy/i, "Kids & Baby"],
   [/jewel|luxury|watch/i, "Jewelry & Luxury"],
   [/beauty|cosmetic|skincare|makeup/i, "Beauty & Cosmetics"],
   [/apparel|fashion|cloth|footwear|shoe/i, "Apparel & Fashion"],
-  [/food|beverage|drink|grocery|snack/i, "Food & Beverage"],
+  [/food|beverage|drink|grocery|snack|coffee|restaurant|caf[eé]/i, "Food & Beverage"],
   [/health|wellness|fitness|medical|biotech|pharma/i, "Health & Wellness"],
-  [/home|furniture|decor|garden|lifestyle/i, "Home & Lifestyle"],
+  [/home|furniture|decor|garden|lifestyle|kitchen|cookware|homeware/i, "Home & Lifestyle"],
   [/electronic|technology|software|saas|it\b|telecom/i, "Electronics & Technology"],
   [/retail|consumer goods|e-?commerce|marketplace/i, "General Retail"],
 ];
