@@ -84,18 +84,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(cached.result);
   }
 
-  // Assemble brand tokens from the analysis result
-  const brandTokens: BrandTokens = brandTokensFromAnalyzeResult({
-    brandColor: typeof body.brandColor === "string" ? body.brandColor : undefined,
+  // Assemble brand tokens from the analysis result. brandColor (whatever the
+  // client posted, e.g. onboarding's colour picker state) is deliberately not
+  // a colour source here — see brandTokensFromAnalyzeResult.
+  const industry = typeof body.industry === "string" ? body.industry : undefined;
+  const brandTokens: BrandTokens = await brandTokensFromAnalyzeResult({
     brandTokens: body.brandTokens as BrandTokens | undefined,
     computedStyles: body.computedStyles as ComputedStyles | undefined,
     storeName: typeof body.storeName === "string" ? body.storeName : undefined,
-    industry: typeof body.industry === "string" ? body.industry : undefined,
+    industry,
   });
 
-  const computedStyles = computedStylesFromAnalyzeResult({
+  const computedStyles = await computedStylesFromAnalyzeResult({
     computedStyles: body.computedStyles as ComputedStyles | undefined,
-    brandColor: typeof body.brandColor === "string" ? body.brandColor : undefined,
+    industry,
   });
 
   const existingPopup: ExistingPopupExtracted = existingPopupFromAnalyzeResult({
@@ -103,7 +105,7 @@ export async function POST(req: NextRequest) {
     popup: body.popup as { found: boolean; description: string } | undefined,
   });
 
-  const category = typeof body.industry === "string" ? body.industry : "Ecommerce / Retail";
+  const category = industry ?? "Ecommerce / Retail";
 
   const input = buildPopupInput({
     domain,

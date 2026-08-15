@@ -139,10 +139,8 @@ export const generateCampaign = inngest.createFunction(
           // evaluateKnockout.ts prefers over generationContext, so the very
           // first generation is grounded in the same real palette/imagery
           // signal as every round after it, instead of whatever ad-hoc
-          // brandColor/brandTokens made it into generationContext at
-          // creation time.
+          // brandTokens made it into generationContext at creation time.
           website: { include: { storeProfile: true } },
-          account: { select: { brandColor: true } },
         },
       });
     });
@@ -155,7 +153,6 @@ export const generateCampaign = inngest.createFunction(
         campaignId,
         campaign.generationContext as Record<string, unknown> | null,
         campaign.website?.storeProfile ?? null,
-        campaign.account.brandColor,
       );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Generation failed for an unknown reason";
@@ -182,33 +179,32 @@ async function runGeneration(
   campaignId: string,
   context: Record<string, unknown> | null,
   storeProfile: Parameters<typeof brandTokensFromStoreProfile>[0],
-  accountBrandColor: string | null,
 ) {
     if (!context) throw new Error("Missing generationContext");
 
     // Source order matches evaluateKnockout.ts: the store profile persisted
     // at analysis time (durable, survives re-analysis), then whatever
     // brandTokens/computedStyles made it into generationContext at creation
-    // time, then the account colour as a last resort. Previously this only
-    // ever used generationContext, so the very first campaign a merchant
-    // generated could land on a different, less accurate palette than every
-    // subsequent knockout round — the two were reading from different
-    // sources of truth for the same store.
+    // time. Previously this only ever used generationContext, so the very
+    // first campaign a merchant generated could land on a different, less
+    // accurate palette than every subsequent knockout round — the two were
+    // reading from different sources of truth for the same store. Colour no
+    // longer falls back to the account's brandColor field at all — see
+    // brandTokensFromAnalyzeResult.
     const contextTokens = context.brandTokens as BrandTokens | undefined;
     const contextStyles = context.computedStyles as ComputedStyles | undefined;
-    const contextBrandColor = typeof context.brandColor === "string" ? context.brandColor : undefined;
+    const industry = typeof context.industry === "string" ? context.industry : undefined;
 
-    const brandTokens = brandTokensFromAnalyzeResult({
-      brandColor: accountBrandColor ?? contextBrandColor,
+    const brandTokens = await brandTokensFromAnalyzeResult({
       brandTokens: brandTokensFromStoreProfile(storeProfile) ?? contextTokens,
       computedStyles: contextStyles,
       storeName: typeof context.storeName === "string" ? context.storeName : undefined,
-      industry: typeof context.industry === "string" ? context.industry : undefined,
+      industry,
     });
 
-    const computedStyles = computedStylesFromAnalyzeResult({
+    const computedStyles = await computedStylesFromAnalyzeResult({
       computedStyles: computedStylesFromStoreProfile(storeProfile) ?? contextStyles,
-      brandColor: accountBrandColor ?? contextBrandColor,
+      industry,
     });
 
     const existingPopup = existingPopupFromAnalyzeResult({
@@ -216,7 +212,7 @@ async function runGeneration(
       popup: context.popup as { found: boolean; description: string } | undefined,
     });
 
-    const category = typeof context.industry === "string" ? context.industry : "Ecommerce / Retail";
+    const category = industry ?? "Ecommerce / Retail";
     const storeUrl = typeof context.storeUrl === "string" ? context.storeUrl : "unknown.com";
     let domain = storeUrl;
     try { domain = new URL(storeUrl).hostname.replace(/^www\./, ""); } catch {}

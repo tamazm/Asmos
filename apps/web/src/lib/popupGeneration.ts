@@ -1488,31 +1488,70 @@ export async function generatePopupWithVariants(
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Derive sensible brand tokens from the data /api/analyze already returns. */
-export function brandTokensFromAnalyzeResult(result: {
-  brandColor?: string;
+/**
+ * The true last-resort colour: nothing was measured on the store's own site
+ * and no brandColor was ever chosen. Used to default every such store to
+ * Asmos's own brand blue, which meant any store whose extraction genuinely
+ * failed rendered a popup that visibly matched *our* brand, not theirs, by
+ * sheer coincidence of failure. Reaches into the same scraped-popup-by-
+ * industry data getScrapedExamplesSection uses, and takes a real dominant
+ * colour from a real popup in that industry instead — still not this
+ * specific merchant's own colour (nothing can substitute for that), but a
+ * plausible one for their kind of store rather than a generic default that's
+ * secretly Asmos's. Falls back to Asmos's blue only when there's no scraped
+ * data for that industry either — the one case nothing real is available.
+ */
+export async function industryFallbackColor(industry: string | undefined): Promise<string> {
+  const ASMOS_BLUE = "#165DFF";
+  if (!industry) return ASMOS_BLUE;
+  try {
+    const bucket = normalizeIndustry(industry);
+    const examples = await prisma.scrapedPopupExample.findMany({
+      where: { industry: bucket, present: true },
+      orderBy: { scrapedAt: "desc" },
+      take: 10,
+      select: { palette: true },
+    });
+    for (const e of examples) {
+      const palette = e.palette;
+      if (!Array.isArray(palette) || palette.length === 0) continue;
+      const sorted = [...palette].sort((a, b) => {
+        const aShare = (a as { areaShare?: number })?.areaShare ?? 0;
+        const bShare = (b as { areaShare?: number })?.areaShare ?? 0;
+        return bShare - aShare;
+      });
+      const hex = (sorted[0] as { hex?: unknown })?.hex;
+      if (typeof hex === "string" && /^#[0-9a-f]{6}$/i.test(hex)) return hex;
+    }
+  } catch (err) {
+    console.warn("[popupGeneration] failed to fetch industry fallback colour, using default:", err);
+  }
+  return ASMOS_BLUE;
+}
+
+export async function brandTokensFromAnalyzeResult(result: {
   brandTokens?: BrandTokens;
   computedStyles?: ComputedStyles;
   storeName?: string;
   industry?: string;
-}): BrandTokens {
-  // A brandTokens object with an empty palette is worse than none: it wins the
-  // check below and then renders every popup in the #165DFF default, silently
-  // discarding a brandColor that was successfully scraped.
+}): Promise<BrandTokens> {
+  // brandColor (an account-level field a merchant can manually set, or that
+  // analysis may have written there) is deliberately NOT a colour source
+  // here anymore — only a genuinely measured palette counts. It used to be:
+  // any account whose colour got stuck on a stale or placeholder value (see
+  // the onboarding/settings fixes earlier this session) would keep feeding
+  // that value into every future generation regardless of what the store's
+  // own site actually measures to. Colour now comes exclusively from what
+  // was actually measured, or — failing that — a real colour from a scraped
+  // popup in the same industry, never from this account-level field.
   if (result.brandTokens?.palette?.length) return result.brandTokens;
-  if (result.brandTokens && result.brandColor) {
-    return { ...result.brandTokens, palette: [result.brandColor] };
-  }
 
-  // Neither a measured palette nor a brandColor to synthesize one from — this
-  // is the case that was falling through uncaught: brandTokensFromStoreProfile
-  // returns a real (non-null) object whenever type_display was measured even
-  // if the colour-by-painted-area pass came up empty (a plausible split —
-  // reading a font off getComputedStyle is far more reliable than measuring
-  // dominant colour), and the old `if (result.brandTokens) return
-  // result.brandTokens;` branch let that hollow-palette object straight
-  // through, silently defeating the #165DFF-avoidance synthesis below for
-  // every field except the one that actually needed it.
-  const primaryColor = result.brandColor ?? "#165DFF";
+  // No measured palette. brandTokensFromStoreProfile can still return a real
+  // (non-null) object here whenever type_display was measured even if the
+  // colour-by-painted-area pass came up empty (a plausible split — reading a
+  // font off getComputedStyle is far more reliable than measuring dominant
+  // colour) — preserve whatever WAS measured, just fill in the colour.
+  const primaryColor = await industryFallbackColor(result.industry);
   if (result.brandTokens) {
     return { ...result.brandTokens, palette: [primaryColor] };
   }
@@ -1525,13 +1564,13 @@ export function brandTokensFromAnalyzeResult(result: {
   };
 }
 
-export function computedStylesFromAnalyzeResult(result: {
+export async function computedStylesFromAnalyzeResult(result: {
   computedStyles?: ComputedStyles;
-  brandColor?: string;
-}): ComputedStyles {
+  industry?: string;
+}): Promise<ComputedStyles> {
   if (result.computedStyles) return result.computedStyles;
   return {
-    colors_in_use: result.brandColor ? [result.brandColor] : ["#165DFF"],
+    colors_in_use: [await industryFallbackColor(result.industry)],
     font_stack: ["system-ui", "-apple-system", "sans-serif"],
     common_border_radius: "8px",
   };

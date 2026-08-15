@@ -12,6 +12,7 @@ import {
   brandTokensFromAnalyzeResult,
   computedStylesFromAnalyzeResult,
   existingPopupFromAnalyzeResult,
+  industryFallbackColor,
 } from "@/lib/popupGeneration";
 import { briefFromSpec, buildVariantBriefs, hashSeed } from "@/lib/designBrief";
 import { renderPopupTemplate } from "@/lib/templates";
@@ -217,8 +218,13 @@ export const evaluateKnockout = inngest.createFunction(
     const openAxes = ALL_AXES.filter((a) => !conclusiveAxes.has(a));
     if (openAxes.length === 0) return { message: "All axes conclusive" };
 
-    const accountBrandColor = campaign.account.brandColor ?? "#165DFF";
     const accountIndustry = campaign.account.industry ?? "Ecommerce / Retail";
+    // The account's own brandColor field is deliberately not a colour source
+    // anywhere in generation (see brandTokensFromAnalyzeResult) — computed
+    // once here as the last-resort fallback for the raw primaryColor writes
+    // below, so a variant whose design_tokens.palette is somehow still empty
+    // doesn't fall back to a stale/placeholder account colour either.
+    const fallbackColor = await industryFallbackColor(accountIndustry);
     const websiteDomain = campaign.website.url;
 
     const controlVariant = campaign.variants.find((v) => v.isControl) ?? campaign.variants[0];
@@ -242,22 +248,21 @@ export const evaluateKnockout = inngest.createFunction(
     //
     // Source order: the store profile persisted at analysis time (durable,
     // survives re-analysis and campaign edits), then the campaign's own
-    // generationContext (what the merchant saw at creation), then the account
-    // colour as a last resort.
+    // generationContext (what the merchant saw at creation). No account
+    // colour fallback — see brandTokensFromAnalyzeResult.
     const storeProfile = campaign.website.storeProfile ?? null;
     const contextTokens = (campaign.generationContext as { brandTokens?: unknown } | null)?.brandTokens;
     const contextStyles = (campaign.generationContext as { computedStyles?: unknown } | null)?.computedStyles;
 
-    const brandTokens = brandTokensFromAnalyzeResult({
-      brandColor: accountBrandColor,
+    const brandTokens = await brandTokensFromAnalyzeResult({
       brandTokens: (brandTokensFromStoreProfile(storeProfile) ?? contextTokens) as never,
       computedStyles: contextStyles as never,
       storeName: campaign.account.name,
       industry: accountIndustry,
     });
-    const computedStyles = computedStylesFromAnalyzeResult({
+    const computedStyles = await computedStylesFromAnalyzeResult({
       computedStyles: (computedStylesFromStoreProfile(storeProfile) ?? contextStyles) as never,
-      brandColor: accountBrandColor,
+      industry: accountIndustry,
     });
     const existingPopup = existingPopupFromAnalyzeResult({
       popup: {
@@ -354,7 +359,7 @@ export const evaluateKnockout = inngest.createFunction(
               design: {
                 headline: v.spec.headline,
                 body: v.spec.subhead,
-                primaryColor: v.spec.design_tokens.palette[0] ?? accountBrandColor,
+                primaryColor: v.spec.design_tokens.palette[0] ?? fallbackColor,
                 ctaText: v.spec.cta,
               },
               formFields: v.spec.fields,
@@ -367,7 +372,7 @@ export const evaluateKnockout = inngest.createFunction(
                 headline: v.spec.headline,
                 subhead: v.spec.subhead,
                 cta: v.spec.cta,
-                primaryColor: v.spec.design_tokens.palette[0] ?? accountBrandColor,
+                primaryColor: v.spec.design_tokens.palette[0] ?? fallbackColor,
                 couponCode: v.spec.coupon_code,
                 goal: "BOTH",
                 layoutStyle: v.spec.layout_style,
