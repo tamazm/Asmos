@@ -29,7 +29,13 @@ export function AccountSettingsForm({
 }) {
   const [name, setName] = useState(initialName);
   const [industry, setIndustry] = useState(initialIndustry ?? INDUSTRIES[0]);
-  const [brandColor, setBrandColor] = useState(initialBrandColor ?? "#165DFF");
+  // Null (not "#165DFF") when nothing's been set — this form gets saved for
+  // unrelated reasons too (renaming the business, editing the consent
+  // banner), and defaulting this to Asmos's own blue meant every such save
+  // silently overwrote an unset brand colour with one that was never chosen,
+  // which every popup generated afterward would then treat as this
+  // merchant's real, locked brand colour.
+  const [brandColor, setBrandColor] = useState<string | null>(initialBrandColor);
   const [gdpr, setGdpr] = useState(initialGdpr);
   const [ccpa, setCcpa] = useState(initialCcpa);
   const [bannerText, setBannerText] = useState(
@@ -106,12 +112,12 @@ export function AccountSettingsForm({
         <div className="flex items-center gap-3">
           <input
             type="color"
-            value={brandColor}
+            value={brandColor ?? "#165DFF"}
             onChange={(e) => setBrandColor(e.target.value)}
             className="h-9 w-9 cursor-pointer rounded border border-[color:var(--color-border)]"
           />
           <span className="text-sm text-[color:var(--color-text-secondary)]">
-            {brandColor}
+            {brandColor ?? "Not set — click to choose"}
           </span>
         </div>
       </div>

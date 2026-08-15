@@ -42,6 +42,12 @@ enum CampaignStatus {
   ACTIVE
   PAUSED
   FAILED
+  // Soft-delete: used instead of an actual row delete once a campaign has
+  // real history (leads captured, events recorded) worth keeping — see
+  // DELETE handler in app/api/campaigns/[id]/route.ts. Hidden from the
+  // campaigns list and never served by the widget, same as any non-ACTIVE
+  // status, but the data survives.
+  ARCHIVED
 }
 
 enum VariantStatus {

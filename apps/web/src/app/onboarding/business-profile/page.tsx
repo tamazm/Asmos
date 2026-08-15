@@ -132,9 +132,17 @@ export default function BusinessProfilePage() {
   const router = useRouter();
   const [analyzeData, setAnalyzeData] = useState<AnalyzeResult | null>(null);
 
-  // Detected (prefilled) state
-  const [industry, setIndustry] = useState("Ecommerce / Retail");
-  const [brandColor, setBrandColor] = useState("#165DFF");
+  // Detected (prefilled) state — null means "nothing detected", not "detected
+  // Asmos's own blue". These used to default to "#165DFF" / "Ecommerce /
+  // Retail" and the UI showed that as "Detected: ..." regardless of whether
+  // analysis actually found anything, which is how a store whose colour
+  // extraction failed silently ended up with Asmos's brand blue saved as
+  // its own permanent, "confirmed" brand colour — and since colour is
+  // deliberately locked (never a generation test axis, see
+  // popupGeneration.ts's brand_tokens.palette instructions), every popup
+  // that account ever generated inherited it.
+  const [industry, setIndustry] = useState<string | null>(null);
+  const [brandColor, setBrandColor] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState("");
 
   // Edit overrides
@@ -169,6 +177,11 @@ export default function BusinessProfilePage() {
   }, []);
 
   const hasAnalyzeData = analyzeData !== null;
+  // Only show the confident "Detected: ..." framing when a value was
+  // genuinely detected for THAT field — hasAnalyzeData alone just means the
+  // analyze step ran, not that every field it looked for was found.
+  const hasDetectedIndustry = industry !== null;
+  const hasDetectedColor = brandColor !== null;
 
   async function handleContinue() {
     if (!role) { setError("Please select your role."); return; }
@@ -216,7 +229,7 @@ export default function BusinessProfilePage() {
       </div>
 
       {/* ── Detected: industry ── */}
-      {hasAnalyzeData && !editingIndustry ? (
+      {hasDetectedIndustry && !editingIndustry ? (
         <DetectedField
           label="Industry"
           value={`Detected: ${industry}`}
@@ -230,12 +243,12 @@ export default function BusinessProfilePage() {
           <input
             id="industry-input"
             type="text"
-            value={industry}
+            value={industry ?? ""}
             onChange={(e) => setIndustry(e.target.value)}
             placeholder="e.g. Ecommerce / Retail"
             className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
           />
-          {hasAnalyzeData && (
+          {hasDetectedIndustry && (
             <button
               type="button"
               onClick={() => setEditingIndustry(false)}
@@ -248,7 +261,7 @@ export default function BusinessProfilePage() {
       )}
 
       {/* ── Detected: brand color ── */}
-      {hasAnalyzeData && !editingColor ? (
+      {hasDetectedColor && !editingColor ? (
         <DetectedField
           label="Brand color"
           value={
@@ -264,25 +277,29 @@ export default function BusinessProfilePage() {
         />
       ) : (
         <div>
-          <p className="mb-2 text-sm font-medium text-[color:var(--color-text-primary)]">Brand color</p>
+          <p className="mb-2 text-sm font-medium text-[color:var(--color-text-primary)]">
+            {hasAnalyzeData ? "We couldn't detect a brand color — pick one" : "Brand color"}
+          </p>
           <div className="flex items-center gap-3 mb-3">
             <div
               className="h-10 w-10 rounded-lg border border-black/10 flex-shrink-0"
-              style={{ backgroundColor: brandColor }}
+              style={{ backgroundColor: brandColor ?? "var(--color-border)" }}
             />
-            <span className="font-mono text-sm text-[color:var(--color-text-secondary)] tabular-nums">{brandColor}</span>
+            <span className="font-mono text-sm text-[color:var(--color-text-secondary)] tabular-nums">
+              {brandColor ?? "Not set"}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <input
               type="color"
-              value={brandColor}
+              value={brandColor ?? "#165DFF"}
               onChange={(e) => setBrandColor(e.target.value)}
               className="h-9 w-9 cursor-pointer rounded-lg border border-[color:var(--color-border)] p-0.5"
               aria-label="Pick brand color"
             />
             <span className="text-xs text-[color:var(--color-text-secondary)]">Choose a color</span>
           </div>
-          {hasAnalyzeData && (
+          {hasDetectedColor && (
             <button
               type="button"
               onClick={() => setEditingColor(false)}

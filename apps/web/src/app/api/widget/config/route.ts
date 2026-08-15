@@ -133,7 +133,7 @@ export async function GET(request: Request) {
   const campaign = await prisma.campaign.findFirst({
     where: {
       websiteId: website.id,
-      status: isPreview ? { notIn: ["DRAFT", "FAILED", "GENERATING"] } : "ACTIVE"
+      status: isPreview ? { notIn: ["DRAFT", "FAILED", "GENERATING", "ARCHIVED"] } : "ACTIVE"
     },
     orderBy: { createdAt: "desc" },
     include: {

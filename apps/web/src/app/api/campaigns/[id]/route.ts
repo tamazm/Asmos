@@ -143,3 +143,42 @@ export async function PATCH(
 
   return Response.json({ campaign: updated });
 }
+
+// Deletes a campaign — a real row delete only when there's genuinely nothing
+// to lose (no leads captured, no events recorded on any of its variants);
+// otherwise archives it (status: ARCHIVED) so it disappears from the
+// campaigns list and is never served, without cascading away a merchant's
+// real captured leads/analytics. See the CampaignStatus.ARCHIVED comment in
+// schema.prisma.
+export async function DELETE(
+  _request: Request,
+  ctx: RouteContext<"/api/campaigns/[id]">,
+) {
+  const { userId } = await auth();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await ctx.params;
+  const account = await getOrCreateAccount();
+  const campaign = await prisma.campaign.findFirst({
+    where: { id, accountId: account.id },
+    select: { id: true },
+  });
+  if (!campaign) {
+    return Response.json({ error: "Campaign not found" }, { status: 404 });
+  }
+
+  const [leadCount, eventCount] = await Promise.all([
+    prisma.lead.count({ where: { variant: { campaignId: id } } }),
+    prisma.campaignEvent.count({ where: { variant: { campaignId: id } } }),
+  ]);
+
+  if (leadCount === 0 && eventCount === 0) {
+    await prisma.campaign.delete({ where: { id: campaign.id } });
+    return Response.json({ ok: true, mode: "deleted" });
+  }
+
+  await prisma.campaign.update({ where: { id: campaign.id }, data: { status: "ARCHIVED" } });
+  return Response.json({ ok: true, mode: "archived" });
+}
