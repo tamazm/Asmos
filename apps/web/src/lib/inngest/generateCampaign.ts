@@ -321,7 +321,7 @@ async function runGeneration(
           design: {
             headline: output.baseline.spec.headline,
             body: output.baseline.spec.subhead,
-            primaryColor: brandTokens.palette[0] ?? "#165DFF",
+            primaryColor: output.baseline.spec.design_tokens.palette[0],
             ctaText: output.baseline.spec.cta,
             imageUrl: output.baseline.spec.image_url,
           },
@@ -332,18 +332,26 @@ async function runGeneration(
             pages: pageTargeting,
           },
           popupSpec: output.baseline.spec as unknown as Prisma.InputJsonValue,
+          // brandFonts/palette come from THIS spec's own design_tokens (forced
+          // from a real scraped design inside generatePopupWithVariants), not
+          // the outer brandTokens variable computed before that call — that
+          // variable reflects the merchant's own site/the old fallback chain,
+          // which generation no longer uses at all. Reading it here would
+          // silently undo the whole scraped-only guarantee for every popup
+          // actually rendered, even though the AI's own output already had
+          // the right values.
           generatedCode: renderPopupTemplate(output.baseline.spec.template_id, {
             headline: output.baseline.spec.headline,
             subhead: output.baseline.spec.subhead,
             cta: output.baseline.spec.cta,
-            primaryColor: brandTokens.palette[0] ?? "#165DFF",
+            primaryColor: output.baseline.spec.design_tokens.palette[0],
             couponCode: output.baseline.spec.coupon_code,
             goal,
             layoutStyle: output.baseline.spec.layout_style,
             imageUrl: output.baseline.spec.image_url,
             dna: output.baseline.spec.dna,
-            brandFonts: brandTokens,
-            palette: brandTokens.palette,
+            brandFonts: output.baseline.spec.design_tokens,
+            palette: output.baseline.spec.design_tokens.palette,
             discountPercent: output.baseline.spec.discount_percent,
           }),
         },
@@ -354,7 +362,7 @@ async function runGeneration(
           design: {
             headline: v.spec.headline,
             body: v.spec.subhead,
-            primaryColor: brandTokens.palette[0] ?? "#165DFF",
+            primaryColor: v.spec.design_tokens.palette[0],
             ctaText: v.spec.cta,
             imageUrl: v.spec.image_url,
           },
@@ -365,14 +373,14 @@ async function runGeneration(
             headline: v.spec.headline,
             subhead: v.spec.subhead,
             cta: v.spec.cta,
-            primaryColor: brandTokens.palette[0] ?? "#165DFF",
+            primaryColor: v.spec.design_tokens.palette[0],
             couponCode: v.spec.coupon_code,
             goal,
             layoutStyle: v.spec.layout_style,
             imageUrl: v.spec.image_url,
             dna: v.spec.dna,
-            brandFonts: brandTokens,
-            palette: brandTokens.palette,
+            brandFonts: v.spec.design_tokens,
+            palette: v.spec.design_tokens.palette,
             discountPercent: v.spec.discount_percent,
           }),
           testAxis: v.test_axis,

@@ -45,7 +45,7 @@ function PopupWidget({
   campaignName,
   compact,
 }: PopupPreviewCardProps & { compact?: boolean }) {
-  const color = primaryColor ?? "#165DFF";
+  const color = primaryColor ?? "#111827";
   const textColor = btnTextColor(color);
   const px = compact ? "px-3.5 pt-3 pb-3.5" : "px-5 pt-4 pb-5";
   const headlineSize = compact ? "text-[13px]" : "text-[17px]";
@@ -136,7 +136,7 @@ export function PopupPreviewCard({
   headline = "Get 10% off your first order",
   body = "Subscribe and receive a welcome discount on anything in the store.",
   ctaText = "Claim my discount",
-  primaryColor = "#165DFF",
+  primaryColor = "#111827",
   campaignName = "Your Store",
   generatedCode,
 }: PopupPreviewCardProps) {

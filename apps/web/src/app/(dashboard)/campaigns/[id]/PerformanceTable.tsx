@@ -208,7 +208,7 @@ export function PerformanceTable({ variants }: { variants: VariantStat[] }) {
             render: (row) => (
               <Sparkline
                 data={row.trend}
-                color={typeof row.color === "string" && row.color.startsWith("var(") ? "#165DFF" : row.color}
+                color={typeof row.color === "string" && row.color.startsWith("var(") ? "#111827" : row.color}
               />
             ),
           },

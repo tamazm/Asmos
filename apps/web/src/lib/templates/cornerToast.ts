@@ -14,7 +14,9 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
   const goal = props.goal ?? "BOTH";
   const flow = resolveFlow(goal, dna);
 
-  const accent = primaryColor || "#165DFF";
+  // Neutral, not Asmos's own brand blue — generation now guarantees a real
+  // colour on every spec, so this only fires on a malformed/legacy spec.
+  const accent = primaryColor || "#111827";
 
   // layout_style selects which edge the toast docks to.
   const anchor =

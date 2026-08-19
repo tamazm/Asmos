@@ -98,7 +98,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
         : confidenceVsControl(controlSample, { impressions, conversions: submissions }),
       headline: design.headline ?? "",
       body: design.body ?? "",
-      primaryColor: design.primaryColor ?? "#165DFF",
+      primaryColor: design.primaryColor ?? "#111827",
       ctaText: design.ctaText ?? "",
       status: variant.status,
       tournamentRound: variant.tournamentRound,

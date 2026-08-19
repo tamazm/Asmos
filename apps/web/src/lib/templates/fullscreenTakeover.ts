@@ -16,7 +16,9 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
   const goal = props.goal ?? "BOTH";
   const flow = resolveFlow(goal, dna);
 
-  const accent = primaryColor || "#165DFF";
+  // Neutral, not Asmos's own brand blue — generation now guarantees a real
+  // colour on every spec, so this only fires on a malformed/legacy spec.
+  const accent = primaryColor || "#111827";
   const bgImg = imageUrl || DEFAULT_FALLBACK_IMAGE;
   // No image_url means the accent gradient below, not a stock photo standing in
   // for one — see splitScreen.ts for the reasoning.

@@ -144,7 +144,7 @@ export default async function VariantDetailPage(props: {
       <VisualEditor 
         campaignId={campaignId}
         variantId={variantId}
-        defaultColor="#165DFF"
+        defaultColor="#111827"
         initialDesign={design}
       />
 

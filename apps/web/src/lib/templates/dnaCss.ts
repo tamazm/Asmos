@@ -387,7 +387,7 @@ export function dnaTokens(
   brand?: BrandFontHints | null,
   palette?: readonly string[] | null,
 ): string {
-  const accent = accentInput || "#165DFF";
+  const accent = accentInput || "#111827";
 
   // The store's *second* brand colour. /api/analyze pulls 3-6 of them into
   // brandTokens.palette and every call site used palette[0] and threw the rest

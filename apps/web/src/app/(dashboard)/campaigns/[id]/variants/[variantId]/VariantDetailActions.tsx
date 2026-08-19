@@ -174,7 +174,7 @@ export function VariantDetailActions({
             </label>
             <input
               type="color"
-              value={draft.primaryColor ?? "#165DFF"}
+              value={draft.primaryColor ?? "#111827"}
               onChange={(e) =>
                 setDraft({ ...draft, primaryColor: e.target.value })
               }

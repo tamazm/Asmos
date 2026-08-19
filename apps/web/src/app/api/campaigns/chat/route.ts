@@ -42,7 +42,7 @@ const MOCK_DRAFT: GeneratedCampaign = {
   design: {
     headline: "Spin to Win a Discount!",
     body: "Give the wheel a spin for an exclusive offer just for you.",
-    primaryColor: "#165DFF",
+    primaryColor: "#111827",
     ctaText: "Spin Now",
   },
   formFields: ["email"],

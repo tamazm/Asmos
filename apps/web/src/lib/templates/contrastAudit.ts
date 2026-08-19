@@ -56,7 +56,7 @@ function themeInk(props: ResolvedTemplateProps, accent: string): string {
 
 export function auditPopupContrast(props: ResolvedTemplateProps): ContrastViolation[] {
   const { dna } = props;
-  const accent = props.primaryColor || "#165DFF";
+  const accent = props.primaryColor || "#111827";
 
   // The fullscreen takeover paints its own dark scrim over a photograph and
   // overrides every ink token to white; measuring it against the card surface
@@ -102,7 +102,7 @@ export function auditPopupContrast(props: ResolvedTemplateProps): ContrastViolat
 
 /** Convenience for tests and the audit script. */
 export function ctaContrast(props: ResolvedTemplateProps): number | null {
-  const accent = props.primaryColor || "#165DFF";
+  const accent = props.primaryColor || "#111827";
   if (props.dna.button_fill !== "solid") return null;
   return contrastHex(onColor(accent, "#141417", "#ffffff"), accent);
 }

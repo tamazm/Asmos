@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     ? {
         headline: spec.headline,
         body: spec.subhead,
-        primaryColor: spec.design_tokens.palette[0] ?? body.design?.primaryColor ?? "#165DFF",
+        primaryColor: spec.design_tokens.palette[0] ?? body.design?.primaryColor ?? "#111827",
         ctaText: spec.cta,
       }
     : body.design;
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
           headline: spec.headline,
           subhead: spec.subhead,
           cta: spec.cta,
-          primaryColor: spec.design_tokens.palette[0] ?? body.design?.primaryColor ?? "#165DFF",
+          primaryColor: spec.design_tokens.palette[0] ?? body.design?.primaryColor ?? "#111827",
           couponCode: spec.coupon_code,
           imageUrl: spec.image_url,
           goal: "BOTH",

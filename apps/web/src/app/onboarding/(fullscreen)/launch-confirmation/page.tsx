@@ -29,8 +29,8 @@ interface Campaign {
 
 // ─── Derive readable text color for brand color ───────────────────────────────
 function readableColor(hex: string): string {
-  const s = (hex ?? "#165DFF").trim();
-  let r = 22, g = 93, b = 255;
+  const s = (hex ?? "#111827").trim();
+  let r = 17, g = 24, b = 39;
   if (s[0] === "#") {
     const full = s.length === 4 ? "#" + s[1] + s[1] + s[2] + s[2] + s[3] + s[3] : s;
     r = parseInt(full.slice(1, 3), 16);
@@ -57,7 +57,7 @@ function MiniPopupPreview({
   label: string;
   variantIndex: "A" | "B" | string;
 }) {
-  const color = design.primaryColor ?? "#165DFF";
+  const color = design.primaryColor ?? "#111827";
   const textColor = readableColor(color);
   const VARIANT_COLORS = ["#3B82F6", "#8B5CF6"];
   const badgeColor = VARIANT_COLORS[["A", "B", "C", "D"].indexOf(variantIndex)] ?? "#3B82F6";
@@ -260,7 +260,7 @@ function SuccessState({
               "A/B test results update in real time",
             ].map((step, i) => (
               <div key={i} className="flex items-start gap-2.5">
-                <CheckIcon color={primaryColor === "#165DFF" ? "#22C55E" : primaryColor} />
+                <CheckIcon color={primaryColor === "#111827" ? "#22C55E" : primaryColor} />
                 <span className="text-sm text-[color:var(--color-text-primary)]">{step}</span>
               </div>
             ))}
@@ -392,7 +392,7 @@ function LaunchConfirmationContent() {
   // ─── Success state ─────────────────────────────────────────────────────────
   const variants = campaign.variants ?? [];
   const primaryDesign = variants[0]?.design ?? {};
-  const primaryColor = primaryDesign.primaryColor ?? "#165DFF";
+  const primaryColor = primaryDesign.primaryColor ?? "#111827";
 
   if (launched) {
     return (

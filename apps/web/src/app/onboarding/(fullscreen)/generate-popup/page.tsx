@@ -154,7 +154,7 @@ export default function GeneratePopupPage() {
   const [stepIndex, setStepIndex] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
   const [storeName, setStoreName] = useState("your store");
-  const [primaryColor, setPrimaryColor] = useState("#165DFF");
+  const [primaryColor, setPrimaryColor] = useState("#111827");
   const [preview, setPreview] = useState<{ headline: string; subhead: string; cta: string; code: string } | null>(null);
 
   useEffect(() => {
@@ -198,7 +198,7 @@ export default function GeneratePopupPage() {
       } catch { /* ignore */ }
 
       const name = analyzeData.storeName ?? "My Store";
-      const color = analyzeData.brandColor ?? "#165DFF";
+      const color = analyzeData.brandColor ?? "#111827";
       setStoreName(name);
       setPrimaryColor(color);
 

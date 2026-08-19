@@ -381,7 +381,7 @@ export function VariantManager({
                 <div className="flex items-center gap-2">
                   <input
                     type="color"
-                    value={draft.primaryColor ?? "#165DFF"}
+                    value={draft.primaryColor ?? "#111827"}
                     onChange={(e) => setDraft({ ...draft, primaryColor: e.target.value })}
                     className="h-9 w-9 cursor-pointer rounded border border-[color:var(--color-border)]"
                   />

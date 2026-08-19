@@ -79,7 +79,7 @@ export async function POST() {
             design: {
               headline: "Spin to Win 20% Off!",
               body: "Give it a spin for an exclusive discount.",
-              primaryColor: "#165DFF",
+              primaryColor: "#111827",
               ctaText: "Spin Now",
             },
             formFields: ["email"],
@@ -161,7 +161,7 @@ export async function POST() {
             design: {
               headline: "Wait! Get 15% Off",
               body: "Before you go, here's a discount just for you.",
-              primaryColor: "#165DFF",
+              primaryColor: "#111827",
               ctaText: "Claim Discount",
             },
             formFields: ["email"],
@@ -215,7 +215,7 @@ export async function POST() {
             design: {
               headline: "Scratch & Save",
               body: "Reveal your holiday discount.",
-              primaryColor: "#165DFF",
+              primaryColor: "#111827",
               ctaText: "Scratch Now",
             },
             formFields: ["name", "email"],

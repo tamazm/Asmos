@@ -1555,8 +1555,12 @@ export async function generatePopupWithVariants(
 const HEX_RE = /^#[0-9a-f]{6}$/i;
 
 export async function industryFallbackColor(industry: string | undefined): Promise<string> {
-  const ASMOS_BLUE = "#165DFF";
-  if (!industry) return ASMOS_BLUE;
+  // Neutral, not Asmos's own brand blue — this whole function is now a
+  // dead-for-purpose safety net anyway: generatePopupWithVariants throws
+  // before generation can ever reach a point where this return value would
+  // actually be used (see the top of that function).
+  const NEUTRAL_FALLBACK = "#111827";
+  if (!industry) return NEUTRAL_FALLBACK;
   try {
     const bucket = normalizeIndustry(industry);
     const examples = await prisma.scrapedPopupExample.findMany({
@@ -1590,7 +1594,7 @@ export async function industryFallbackColor(industry: string | undefined): Promi
   } catch (err) {
     console.warn("[popupGeneration] failed to fetch industry fallback colour, using default:", err);
   }
-  return ASMOS_BLUE;
+  return NEUTRAL_FALLBACK;
 }
 
 /**

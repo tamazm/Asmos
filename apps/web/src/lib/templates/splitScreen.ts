@@ -16,7 +16,9 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
   const goal = props.goal ?? "BOTH";
   const flow = resolveFlow(goal, dna);
 
-  const accent = primaryColor || "#165DFF";
+  // Neutral, not Asmos's own brand blue — generation now guarantees a real
+  // colour on every spec, so this only fires on a malformed/legacy spec.
+  const accent = primaryColor || "#111827";
   const img = imageUrl || DEFAULT_FALLBACK_IMAGE;
 
   // image_treatment is the DNA's say on imagery; layout_style is the AI's say

@@ -489,7 +489,7 @@ async function heuristicAnalysis(url: string) {
   return {
     storeName,
     industry: "Ecommerce / Retail",
-    brandColor: "#165DFF",
+    brandColor: "#111827",
     description: "",
     logoUrl: "",
     score,
