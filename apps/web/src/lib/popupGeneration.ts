@@ -1443,10 +1443,16 @@ export async function generatePopupWithVariants(
   input: PopupGenerationInput,
   briefs?: GenerationBriefs,
 ): Promise<PopupGenerationOutput> {
+  // The merchant's own real measured colour, if the caller found one (via
+  // brandTokensFromAnalyzeResult/StoreProfile) — captured before it gets
+  // overridden below. Used only to judge which scraped examples are actually
+  // relevant to THIS merchant; never applied as an output colour itself.
+  const queryColor = input.brand_tokens?.palette?.[0] ?? null;
+
   // Generation is scraped-data-only now: no merchant site extraction, no
   // generic default. Resolved before any provider call, both to fail fast
   // and so a missing-coverage failure never costs an AI call.
-  const scrapedDesigns = await pickScrapedDesigns(input.store.category, input.constraints.variant_count + 1);
+  const scrapedDesigns = await pickScrapedDesigns(input.store.category, input.constraints.variant_count + 1, queryColor);
   if (scrapedDesigns.length === 0) {
     throw new Error(
       `No scraped popup examples available for industry "${normalizeIndustry(input.store.category)}" — cannot generate without scraped design data. Scrape some sites in this industry first.`,
@@ -1604,15 +1610,56 @@ export async function industryFallbackColor(industry: string | undefined): Promi
  * to throw when this comes back empty (see generatePopupWithVariants) rather
  * than degrading to anything else.
  */
-async function pickScrapedDesigns(industry: string | null | undefined, count: number): Promise<ScrapedPopupDesign[]> {
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = hex.match(/^#([0-9a-f]{6})$/i);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** Straight RGB Euclidean distance — cheap, good enough for "same ballpark". */
+function colorDistance(a: string, b: string): number {
+  const ca = hexToRgb(a);
+  const cb = hexToRgb(b);
+  if (!ca || !cb) return Infinity;
+  return Math.sqrt((ca[0] - cb[0]) ** 2 + (ca[1] - cb[1]) ** 2 + (ca[2] - cb[2]) ** 2);
+}
+
+function designColor(d: ScrapedPopupDesign): string {
+  return d.accentColor ?? d.backgroundColor ?? d.palette[0]?.hex ?? "";
+}
+
+/**
+ * Scraped designs for a merchant's industry, ranked by relevance rather than
+ * pure recency or pure chance. With hundreds of rows in one industry, always
+ * taking "most recent" leaves most of them permanently unused, and picking
+ * randomly turns design quality into a coin flip. Instead: when the
+ * merchant's own real colour is known (queryColor — measured off their site,
+ * never used as the output colour itself, only to judge relevance), rank the
+ * whole pool by colour closeness and take the closest matches. Falls back to
+ * recency when there's no colour to match against at all (a brand-new store,
+ * or one whose extraction genuinely found nothing).
+ */
+async function pickScrapedDesigns(
+  industry: string | null | undefined,
+  count: number,
+  queryColor: string | null,
+): Promise<ScrapedPopupDesign[]> {
   const bucket = normalizeIndustry(industry ?? "");
   const rows = await prisma.scrapedPopupExample.findMany({
     where: { industry: bucket, present: true },
     orderBy: { scrapedAt: "desc" },
-    take: Math.max(count, 10), // a pool bigger than needed, so baseline/variants can draw distinct ones
+    take: 200, // a wide pool to rank within — the poolSize below is the actual selection count
     select: { design: true },
   });
-  return rows.map((r) => r.design as ScrapedPopupDesign).filter((d): d is ScrapedPopupDesign => Boolean(d));
+  const designs = rows.map((r) => r.design as ScrapedPopupDesign).filter((d): d is ScrapedPopupDesign => Boolean(d));
+  const poolSize = Math.max(count, 5);
+
+  if (!queryColor) return designs.slice(0, poolSize);
+
+  return [...designs]
+    .sort((a, b) => colorDistance(queryColor, designColor(a)) - colorDistance(queryColor, designColor(b)))
+    .slice(0, poolSize);
 }
 
 /**

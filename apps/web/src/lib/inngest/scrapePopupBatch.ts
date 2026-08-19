@@ -1,6 +1,7 @@
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
 import { POPUP_SCRAPE_FN, normalizeIndustry, normalizePopupScrapeResult, normalizeUrl } from "@/lib/popupScraping";
+import { takePageScreenshot, extractColorsFromScreenshot } from "@/lib/screenshotColors";
 
 // Scraped popup design library — see lib/popupScraping.ts and
 // popupGeneration.ts's getScrapedExamplesSection. Triggered from the
@@ -56,6 +57,33 @@ export const scrapePopupBatch = inngest.createFunction(
           }
           const body = await res.json();
           const result = normalizePopupScrapeResult(body?.data ?? body);
+
+          // The page loaded fine but our DOM selectors found no popup —
+          // rather than waste the scrape, fall back to a plain screenshot
+          // and pull a colour signal out of it algorithmically (colorthief,
+          // no AI vision call). Can't recover structure/copy/fonts this way
+          // — a flat image has no DOM — only colour, so this fills in just
+          // that much and leaves everything else null.
+          let present = result.present;
+          let design = result.design;
+          let screenshot = result.screenshot;
+          if (!present) {
+            const pageShot = await takePageScreenshot(url, BROWSERLESS_TOKEN);
+            if (pageShot) {
+              const colors = await extractColorsFromScreenshot(pageShot);
+              if (colors.palette.length > 0) {
+                present = true;
+                screenshot = pageShot;
+                design = {
+                  ...design,
+                  palette: colors.palette,
+                  accentColor: colors.accentColor,
+                  backgroundColor: colors.backgroundColor,
+                };
+              }
+            }
+          }
+
           // Explicit segment (typed or pasted as "url, industry") always wins;
           // otherwise auto-assign from the page's own title/meta description
           // and the popup's own copy — no more requiring one per URL.
@@ -66,10 +94,10 @@ export const scrapePopupBatch = inngest.createFunction(
               normalizedUrl,
               segment: segment.trim() || "(auto-detected)",
               industry,
-              present: result.present,
+              present,
               html: result.html,
-              design: result.design,
-              screenshot: result.screenshot,
+              design,
+              screenshot,
             },
           });
           return { status: "scraped" as const };
