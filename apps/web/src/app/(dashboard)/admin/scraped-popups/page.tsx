@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { isSuperadminEmail } from "@/lib/superadmin";
 import Link from "next/link";
 import { ScrapeForm } from "./ScrapeForm";
+import type { ScrapedPopupDesign } from "@/lib/popupScraping";
 
 // The scraped popup design library (see lib/popupScraping.ts and
 // popupGeneration.ts's getScrapedExamplesSection): trigger a new scrape
@@ -63,50 +64,77 @@ export default async function ScrapedPopupsPage() {
               {industry} ({rows.length})
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {rows.map((e) => (
-                <div
-                  key={e.id}
-                  className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] overflow-hidden flex flex-col"
-                >
-                  {e.screenshot ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- base64 data URL, not an optimizable remote image
-                    <img
-                      src={`data:image/jpeg;base64,${e.screenshot}`}
-                      alt=""
-                      className="w-full h-40 object-cover object-top bg-[color:var(--color-surface-sunken)]"
-                    />
-                  ) : (
-                    <div className="w-full h-40 flex items-center justify-center bg-[color:var(--color-surface-sunken)] text-xs text-[color:var(--color-text-secondary)]">
-                      No screenshot captured
+              {rows.map((e) => {
+                const d = (e.design ?? {}) as Partial<ScrapedPopupDesign>;
+                const swatches = [d.backgroundColor, d.accentColor, d.textColor].filter(
+                  (c): c is string => typeof c === "string",
+                );
+                return (
+                  <div
+                    key={e.id}
+                    className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] overflow-hidden flex flex-col"
+                  >
+                    {e.screenshot ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- base64 data URL, not an optimizable remote image
+                      <img
+                        src={`data:image/jpeg;base64,${e.screenshot}`}
+                        alt=""
+                        className="w-full h-40 object-cover object-top bg-[color:var(--color-surface-sunken)]"
+                      />
+                    ) : (
+                      <div className="w-full h-40 flex items-center justify-center bg-[color:var(--color-surface-sunken)] text-xs text-[color:var(--color-text-secondary)]">
+                        No screenshot captured
+                      </div>
+                    )}
+                    <div className="p-4 flex flex-col gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant="neutral">{d.template ?? "unknown"}</Badge>
+                        <Badge variant="neutral">{d.layout ?? "unknown"}</Badge>
+                        {d.buttonShape && <Badge variant="neutral">{d.buttonShape} button</Badge>}
+                        {d.density && <Badge variant="neutral">{d.density}</Badge>}
+                      </div>
+                      {swatches.length > 0 && (
+                        <div className="flex items-center gap-1.5" title="background / accent / text">
+                          {swatches.map((hex, i) => (
+                            <span
+                              key={i}
+                              className="inline-block h-4 w-4 rounded-full border border-black/10"
+                              style={{ backgroundColor: hex }}
+                            />
+                          ))}
+                          <span className="font-mono text-[10px] text-[color:var(--color-text-secondary)]">
+                            {swatches.join(" / ")}
+                          </span>
+                        </div>
+                      )}
+                      {(d.headlineFont || d.bodyFont) && (
+                        <p className="text-[11px] text-[color:var(--color-text-secondary)] truncate">
+                          {[d.headlineFont, d.bodyFont].filter(Boolean).join(" / ")}
+                        </p>
+                      )}
+                      {d.headline && (
+                        <p className="text-sm font-medium text-[color:var(--color-text-primary)] leading-snug">
+                          {d.headline}
+                        </p>
+                      )}
+                      {d.subhead && (
+                        <p className="text-xs text-[color:var(--color-text-secondary)] leading-snug">{d.subhead}</p>
+                      )}
+                      {d.ctaText && (
+                        <span className="text-xs font-medium text-[color:var(--color-primary)]">CTA: {d.ctaText}</span>
+                      )}
+                      <a
+                        href={e.sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] truncate mt-1"
+                      >
+                        {e.sourceUrl}
+                      </a>
                     </div>
-                  )}
-                  <div className="p-4 flex flex-col gap-2">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="neutral">{e.templateGuess ?? "unknown"}</Badge>
-                      <Badge variant="neutral">{e.layoutGuess ?? "unknown"}</Badge>
-                    </div>
-                    {e.headline && (
-                      <p className="text-sm font-medium text-[color:var(--color-text-primary)] leading-snug">
-                        {e.headline}
-                      </p>
-                    )}
-                    {e.subhead && (
-                      <p className="text-xs text-[color:var(--color-text-secondary)] leading-snug">{e.subhead}</p>
-                    )}
-                    {e.ctaText && (
-                      <span className="text-xs font-medium text-[color:var(--color-primary)]">CTA: {e.ctaText}</span>
-                    )}
-                    <a
-                      href={e.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] truncate mt-1"
-                    >
-                      {e.sourceUrl}
-                    </a>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         ))

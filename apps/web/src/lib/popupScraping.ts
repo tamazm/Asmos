@@ -87,22 +87,132 @@ export function normalizeUrl(raw: string): string {
 
 export type PaletteEntry = { hex: string; areaShare: number };
 
+/**
+ * Everything about a scraped popup's design, as one connected object —
+ * matching the shape of lib/popupDna.ts's knobs (colour by role, typography,
+ * shape, density, imagery) rather than a handful of disconnected facts. This
+ * is what makes a scraped example actually comparable to a generated one:
+ * you can see that the button's own colour, shape and fill go together, not
+ * just that the popup had a blue palette and separately a pill-shaped button
+ * somewhere.
+ */
+export type ScrapedPopupDesign = {
+  template: "split-screen" | "corner-toast" | "fullscreen-takeover" | null;
+  layout: string | null;
+
+  headline: string | null;
+  subhead: string | null;
+  ctaText: string | null;
+
+  // Colour by role — not just a flat palette. backgroundColor/accentColor/
+  // textColor answer "what IS the blue" (the card? the button? the text?),
+  // which a flat list of hex codes can't.
+  palette: PaletteEntry[];
+  backgroundColor: string | null; // the popup card's own background
+  accentColor: string | null; // the CTA button's own fill colour
+  textColor: string | null; // the headline's own text colour
+
+  headlineFont: string | null;
+  bodyFont: string | null;
+  headlineFontSize: string | null;
+  fontWeight: string | null;
+
+  cornerRadius: string | null; // the card's own border-radius
+  buttonRadius: string | null;
+  buttonShape: "rect" | "rounded" | "pill" | null;
+  buttonFill: "solid" | "outline" | null;
+
+  padding: string | null;
+  density: "compact" | "regular" | "airy" | null;
+
+  hasImage: boolean;
+  imagePosition: "side" | "top" | "background" | "none";
+
+  hasShadow: boolean;
+};
+
 export type PopupScrapeResult = {
   present: boolean;
   selector: string | null;
   html: string | null;
-  headline: string | null;
-  subhead: string | null;
-  ctaText: string | null;
-  templateGuess: "split-screen" | "corner-toast" | "fullscreen-takeover" | null;
-  layoutGuess: string | null;
-  palette: PaletteEntry[];
+  design: ScrapedPopupDesign;
   screenshot: string | null; // base64, no data: prefix
   // Page title + meta/OG description + the popup's own headline/subhead,
   // concatenated — feed this into normalizeIndustry() to auto-assign an
   // industry bucket instead of requiring one to be typed in per URL.
   industrySignal: string;
 };
+
+const EMPTY_DESIGN: ScrapedPopupDesign = {
+  template: null,
+  layout: null,
+  headline: null,
+  subhead: null,
+  ctaText: null,
+  palette: [],
+  backgroundColor: null,
+  accentColor: null,
+  textColor: null,
+  headlineFont: null,
+  bodyFont: null,
+  headlineFontSize: null,
+  fontWeight: null,
+  cornerRadius: null,
+  buttonRadius: null,
+  buttonShape: null,
+  buttonFill: null,
+  padding: null,
+  density: null,
+  hasImage: false,
+  imagePosition: "none",
+  hasShadow: false,
+};
+
+function normalizeDesign(raw: unknown): ScrapedPopupDesign {
+  if (!raw || typeof raw !== "object") return EMPTY_DESIGN;
+  const d = raw as Record<string, unknown>;
+  const str = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
+  const template = str(d.template);
+  const buttonShape = str(d.buttonShape);
+  const buttonFill = str(d.buttonFill);
+  const density = str(d.density);
+  const imagePosition = str(d.imagePosition);
+  return {
+    template:
+      template === "split-screen" || template === "corner-toast" || template === "fullscreen-takeover"
+        ? template
+        : null,
+    layout: str(d.layout),
+    headline: str(d.headline),
+    subhead: str(d.subhead),
+    ctaText: str(d.ctaText),
+    palette: Array.isArray(d.palette)
+      ? (d.palette as unknown[])
+          .filter((p): p is { hex: string; areaShare: number } => {
+            const entry = p as { hex?: unknown; areaShare?: unknown };
+            return typeof entry?.hex === "string" && typeof entry?.areaShare === "number";
+          })
+          .slice(0, 8)
+      : [],
+    backgroundColor: str(d.backgroundColor),
+    accentColor: str(d.accentColor),
+    textColor: str(d.textColor),
+    headlineFont: str(d.headlineFont),
+    bodyFont: str(d.bodyFont),
+    headlineFontSize: str(d.headlineFontSize),
+    fontWeight: str(d.fontWeight),
+    cornerRadius: str(d.cornerRadius),
+    buttonRadius: str(d.buttonRadius),
+    buttonShape: buttonShape === "rect" || buttonShape === "rounded" || buttonShape === "pill" ? buttonShape : null,
+    buttonFill: buttonFill === "solid" || buttonFill === "outline" ? buttonFill : null,
+    padding: str(d.padding),
+    density: density === "compact" || density === "regular" || density === "airy" ? density : null,
+    hasImage: Boolean(d.hasImage),
+    imagePosition:
+      imagePosition === "side" || imagePosition === "top" || imagePosition === "background" ? imagePosition : "none",
+    hasShadow: Boolean(d.hasShadow),
+  };
+}
 
 /**
  * Normalises whatever the Browserless /function call returned into a typed
@@ -114,39 +224,18 @@ export function normalizePopupScrapeResult(raw: unknown): PopupScrapeResult {
     present: false,
     selector: null,
     html: null,
-    headline: null,
-    subhead: null,
-    ctaText: null,
-    templateGuess: null,
-    layoutGuess: null,
-    palette: [],
+    design: EMPTY_DESIGN,
     screenshot: null,
     industrySignal: "",
   };
   if (!raw || typeof raw !== "object") return empty;
   const d = raw as Record<string, unknown>;
   const str = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
-  const templateGuess = str(d.templateGuess);
   return {
     present: Boolean(d.present),
     selector: str(d.selector),
     html: str(d.html),
-    headline: str(d.headline),
-    subhead: str(d.subhead),
-    ctaText: str(d.ctaText),
-    templateGuess:
-      templateGuess === "split-screen" || templateGuess === "corner-toast" || templateGuess === "fullscreen-takeover"
-        ? templateGuess
-        : null,
-    layoutGuess: str(d.layoutGuess),
-    palette: Array.isArray(d.palette)
-      ? (d.palette as unknown[])
-          .filter((p): p is { hex: string; areaShare: number } => {
-            const entry = p as { hex?: unknown; areaShare?: unknown };
-            return typeof entry?.hex === "string" && typeof entry?.areaShare === "number";
-          })
-          .slice(0, 8)
-      : [],
+    design: normalizeDesign(d.design),
     screenshot: str(d.screenshot),
     industrySignal: typeof d.industrySignal === "string" ? d.industrySignal : "",
   };
@@ -272,6 +361,22 @@ export default async function ({ page, context }) {
     const headlineEl = popupEl.querySelector("h1, h2, [class*='headline'], [class*='title']");
     const subheadEl = popupEl.querySelector("p, [class*='subhead'], [class*='subtitle']");
     const ctaEl = popupEl.querySelector("button[type='submit'], button, [class*='cta'], a[class*='btn']");
+    const imgEl = popupEl.querySelector("img");
+
+    // getComputedStyle always returns colour in rgb()/rgba() form — even when
+    // the source CSS uses a custom property (var(--brand)), the computed
+    // value is the browser's fully resolved colour, never the literal
+    // "var(...)" string — but it's never "#rrggbb" either, so this has to be
+    // converted or every entry silently fails the "#rrggbb" check wherever
+    // this palette gets consumed downstream (industryFallbackColor).
+    const toHex = (rgbStr) => {
+      const m = rgbStr.match(/^rgba?\(([^)]+)\)$/i);
+      if (!m) return null;
+      const p = m[1].split(",").map((x) => parseFloat(x.trim()));
+      if (p.length < 3 || p.slice(0, 3).some((n) => !Number.isFinite(n))) return null;
+      const c = (n) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, "0");
+      return "#" + c(p[0]) + c(p[1]) + c(p[2]);
+    };
 
     // Colour by painted area, scoped to just the popup's own descendants —
     // same technique as storeExtraction.ts's DOM_EXTRACTION_FN.
@@ -285,7 +390,9 @@ export default async function ({ page, context }) {
       const area = r.width * r.height;
       for (const c of [s.backgroundColor, s.color]) {
         if (!c || c === "rgba(0, 0, 0, 0)" || c === "transparent") continue;
-        paint.set(c, (paint.get(c) || 0) + area);
+        const hex = toHex(c);
+        if (!hex) continue;
+        paint.set(hex, (paint.get(hex) || 0) + area);
       }
     }
     const totalArea = [...paint.values()].reduce((a, b) => a + b, 0) || 1;
@@ -294,23 +401,99 @@ export default async function ({ page, context }) {
       .slice(0, 6)
       .map(([hex, area]) => ({ hex, areaShare: area / totalArea }));
 
+    // Card-level: the popup's own background, corner radius, padding/density,
+    // and whether it has a visible shadow — read straight off popupEl itself,
+    // not inferred from the painted-area sweep above.
+    const backgroundColor = toHex(style.backgroundColor);
+    const cornerRadius = style.borderRadius || null;
+    const padding = style.padding || null;
+    const hasShadow = Boolean(style.boxShadow) && style.boxShadow !== "none";
+    let density = null;
+    const padNums = padding && padding.match(/[\d.]+/g);
+    if (padNums) {
+      const maxPad = Math.max(...padNums.map(Number));
+      density = maxPad < 16 ? "compact" : maxPad > 32 ? "airy" : "regular";
+    }
+
+    // Button-level: the CTA's own fill colour, corner radius (→ shape), and
+    // whether it's filled or outline — read off ctaEl specifically, so
+    // "accentColor" answers "what colour IS the button", not just "some
+    // colour appeared somewhere in the popup".
+    let accentColor = null, buttonRadius = null, buttonShape = null, buttonFill = null;
+    if (ctaEl) {
+      const btnStyle = getComputedStyle(ctaEl);
+      const btnRect = ctaEl.getBoundingClientRect();
+      accentColor = toHex(btnStyle.backgroundColor);
+      buttonRadius = btnStyle.borderRadius || null;
+      const radiusPx = parseFloat(btnStyle.borderRadius) || 0;
+      buttonShape = radiusPx >= btnRect.height / 2 - 1 && btnRect.height > 0 ? "pill" : radiusPx > 4 ? "rounded" : "rect";
+      const hasBg = btnStyle.backgroundColor && btnStyle.backgroundColor !== "rgba(0, 0, 0, 0)" && btnStyle.backgroundColor !== "transparent";
+      const hasBorder = parseFloat(btnStyle.borderWidth) > 0 && btnStyle.borderStyle !== "none";
+      buttonFill = hasBg ? "solid" : hasBorder ? "outline" : "solid";
+    }
+
+    // Typography: headline's own font/size/weight/colour, body's own font —
+    // not the popup's aggregate style, the specific element's.
+    let headlineFont = null, headlineFontSize = null, fontWeight = null, textColor = null;
+    if (headlineEl) {
+      const hStyle = getComputedStyle(headlineEl);
+      headlineFont = hStyle.fontFamily || null;
+      headlineFontSize = hStyle.fontSize || null;
+      fontWeight = hStyle.fontWeight || null;
+      textColor = toHex(hStyle.color);
+    }
+    const bodyFont = subheadEl ? (getComputedStyle(subheadEl).fontFamily || null) : null;
+
+    // Imagery: presence + position, from the image's own geometry relative
+    // to the popup card (large + tall → background; wide + upper → top band;
+    // anything else with an image → side).
+    let imagePosition = "none";
+    if (imgEl) {
+      const imgRect = imgEl.getBoundingClientRect();
+      if (imgRect.width >= rect.width * 0.8 && imgRect.height >= rect.height * 0.5) {
+        imagePosition = "background";
+      } else if (imgRect.top < rect.top + rect.height * 0.3 && imgRect.width >= rect.width * 0.7) {
+        imagePosition = "top";
+      } else {
+        imagePosition = "side";
+      }
+    }
+
     return {
       present: true,
       selector: popupEl.className || popupEl.tagName,
       html: popupEl.outerHTML.slice(0, 20000),
-      headline: txt(headlineEl),
-      subhead: txt(subheadEl),
-      ctaText: txt(ctaEl),
-      templateGuess,
-      layoutGuess,
-      palette,
+      design: {
+        template: templateGuess,
+        layout: layoutGuess,
+        headline: txt(headlineEl),
+        subhead: txt(subheadEl),
+        ctaText: txt(ctaEl),
+        palette,
+        backgroundColor,
+        accentColor,
+        textColor,
+        headlineFont,
+        bodyFont,
+        headlineFontSize,
+        fontWeight,
+        cornerRadius,
+        buttonRadius,
+        buttonShape,
+        buttonFill,
+        padding,
+        density,
+        hasImage: Boolean(imgEl),
+        imagePosition,
+        hasShadow,
+      },
     };
   });
 
   // Built out here, not inside page.evaluate() above — that callback runs in
   // the browser context with no closure over pageSignal (a plain Node/outer
   // variable at this point).
-  data.industrySignal = [pageSignal, data.headline, data.subhead].filter(Boolean).join(" . ");
+  data.industrySignal = [pageSignal, data.design && data.design.headline, data.design && data.design.subhead].filter(Boolean).join(" . ");
 
   if (!data.present) {
     return { data, type: "application/json" };

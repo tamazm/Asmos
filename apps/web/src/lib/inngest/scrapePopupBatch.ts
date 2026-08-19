@@ -68,12 +68,7 @@ export const scrapePopupBatch = inngest.createFunction(
               industry,
               present: result.present,
               html: result.html,
-              headline: result.headline,
-              subhead: result.subhead,
-              ctaText: result.ctaText,
-              templateGuess: result.templateGuess,
-              layoutGuess: result.layoutGuess,
-              palette: result.palette,
+              design: result.design,
               screenshot: result.screenshot,
             },
           });

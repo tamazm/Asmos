@@ -546,12 +546,16 @@ model ScrapedPopupExample {
 
   present       Boolean  @default(false)
   html          String?  @db.Text
-  headline      String?
-  subhead       String?
-  ctaText       String?
-  templateGuess String? // split-screen | corner-toast | fullscreen-takeover
-  layoutGuess   String?
-  palette       Json? // [{ hex, areaShare }] — same shape as StoreProfile.palette
+  // Everything about the design itself, as one connected object — copy,
+  // colour (by role: card background, CTA accent, headline text — not just a
+  // flat palette), typography, shape, density, imagery — matching the shape
+  // of lib/popupDna.ts's knobs so a scraped example is actually comparable to
+  // a generated one. See ScrapedPopupDesign in lib/popupScraping.ts. Used to
+  // be six separate flat columns (headline/subhead/ctaText/templateGuess/
+  // layoutGuess/palette) with no connection between them — you could see a
+  // popup had a blue palette and separately that it had a pill button, but
+  // nothing said the button *was* the blue thing.
+  design        Json?
   screenshot    String?  @db.Text // base64 data: URL, cropped to just the popup element
 
   scrapedAt     DateTime @default(now())

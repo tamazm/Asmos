@@ -17,12 +17,13 @@ import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 import { confidenceVsControl } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
 import { formatImageLibraryForPrompt, isLibraryImage, UNSERVED_STORE_TYPES } from "@/lib/imageLibrary";
-import { normalizeIndustry } from "@/lib/popupScraping";
+import { normalizeIndustry, type ScrapedPopupDesign } from "@/lib/popupScraping";
 import {
   dnaFingerprint,
   normalizeDna,
   popupDnaJsonSchema,
   type PopupDna,
+  type CornerRadius,
 } from "@/lib/popupDna";
 import {
   briefToPromptSection,
@@ -1225,7 +1226,7 @@ async function getScrapedExamplesSection(rawIndustry: string | null | undefined)
       where: { industry, present: true },
       orderBy: { scrapedAt: "desc" },
       take: 5,
-      select: { templateGuess: true, layoutGuess: true, headline: true, subhead: true, ctaText: true },
+      select: { design: true },
     });
     if (examples.length === 0) return ""; // no off-industry examples — same "when in doubt, null" rule as imagery
     // Deliberately NOT including these examples' own colours: brand_tokens.palette
@@ -1235,13 +1236,20 @@ async function getScrapedExamplesSection(rawIndustry: string | null | undefined)
     // this" — is a strictly weaker instruction than a lock, and risks exactly
     // the failure this section should never cause: the model reaching for
     // some other store's colour instead of this merchant's own.
+    const lines = examples
+      .map((e) => e.design as Partial<ScrapedPopupDesign> | null)
+      .filter((d): d is Partial<ScrapedPopupDesign> => d !== null)
+      .map((d) => {
+        const shape = [d.buttonShape, d.buttonFill].filter(Boolean).join("/");
+        const extras = [d.density, shape].filter(Boolean).join(", ");
+        return `- ${d.template ?? "unknown"}/${d.layout ?? "unknown"}${extras ? ` (${extras})` : ""}: "${d.headline}" / "${d.subhead}" / CTA "${d.ctaText}"`;
+      });
+    if (lines.length === 0) return "";
     return (
       "\n\nREAL EXAMPLES FROM THIS INDUSTRY (scraped from high-traffic live sites — for structural and\n" +
       "tonal grounding only; never take colour from these, only from brand_tokens.palette above; do not\n" +
       "copy any of these verbatim):\n" +
-      examples
-        .map((e) => `- ${e.templateGuess ?? "unknown"}/${e.layoutGuess ?? "unknown"}: "${e.headline}" / "${e.subhead}" / CTA "${e.ctaText}"`)
-        .join("\n")
+      lines.join("\n")
     );
   } catch (err) {
     console.warn("[popupGeneration] failed to fetch scraped examples, continuing without them:", err);
@@ -1435,6 +1443,32 @@ export async function generatePopupWithVariants(
   input: PopupGenerationInput,
   briefs?: GenerationBriefs,
 ): Promise<PopupGenerationOutput> {
+  // Generation is scraped-data-only now: no merchant site extraction, no
+  // generic default. Resolved before any provider call, both to fail fast
+  // and so a missing-coverage failure never costs an AI call.
+  const scrapedDesigns = await pickScrapedDesigns(input.store.category, input.constraints.variant_count + 1);
+  if (scrapedDesigns.length === 0) {
+    throw new Error(
+      `No scraped popup examples available for industry "${normalizeIndustry(input.store.category)}" — cannot generate without scraped design data. Scrape some sites in this industry first.`,
+    );
+  }
+
+  // Colour/font ground truth now comes from the scraped design, not the
+  // merchant's own analyzed site — overrides whatever the caller computed
+  // via brandTokensFromAnalyzeResult before calling here. The existing
+  // prompt language ("brand_tokens.palette are LOCKED... use as ground
+  // truth") is unchanged; what it describes now is just different.
+  const primary = scrapedDesigns[0];
+  input.brand_tokens = {
+    palette: [primary.accentColor, primary.backgroundColor, primary.textColor].filter(
+      (c): c is string => Boolean(c),
+    ),
+    type_display: primary.headlineFont ?? "system-ui, -apple-system, sans-serif",
+    type_body: primary.bodyFont ?? "system-ui, -apple-system, sans-serif",
+    imagery_style: primary.hasImage ? "product-forward" : "minimal",
+    signature_element_suggestion: "match the reference popup's own visual treatment",
+  };
+
   const systemPrompt =
     POPUP_GENERATION_SYSTEM_PROMPT +
     (await getLearnedPatternsSection()) +
@@ -1447,7 +1481,24 @@ export async function generatePopupWithVariants(
 
   const finish = (result: PopupGenerationOutput): PopupGenerationOutput => {
     const briefed = briefs ? applyBriefs(result, briefs) : result;
-    return applyContentGuardrails(normalizeOutputDna(briefed), maxDiscountPercent);
+    // Structure/shape/density/imagery forced from real scraped designs —
+    // cycling through the pool so baseline and each variant can still read
+    // as visually distinct from each other, even though every value traces
+    // back to a real scraped popup rather than the model's own invention.
+    // Copy is untouched. Applied before normalizeOutputDna so its safety net
+    // still coerces anything this step left alone.
+    const designed: PopupGenerationOutput = {
+      ...briefed,
+      baseline: {
+        ...briefed.baseline,
+        spec: applyScrapedDesign(briefed.baseline.spec, scrapedDesigns[0]),
+      },
+      variants: briefed.variants.map((v, i) => ({
+        ...v,
+        spec: applyScrapedDesign(v.spec, scrapedDesigns[(i + 1) % scrapedDesigns.length]),
+      })),
+    };
+    return applyContentGuardrails(normalizeOutputDna(designed), maxDiscountPercent);
   };
 
   // Provider priority: Bedrock (AWS) → Anthropic direct → Gemini
@@ -1501,6 +1552,8 @@ export async function generatePopupWithVariants(
  * secretly Asmos's. Falls back to Asmos's blue only when there's no scraped
  * data for that industry either — the one case nothing real is available.
  */
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+
 export async function industryFallbackColor(industry: string | undefined): Promise<string> {
   const ASMOS_BLUE = "#165DFF";
   if (!industry) return ASMOS_BLUE;
@@ -1510,10 +1563,21 @@ export async function industryFallbackColor(industry: string | undefined): Promi
       where: { industry: bucket, present: true },
       orderBy: { scrapedAt: "desc" },
       take: 10,
-      select: { palette: true },
+      select: { design: true },
     });
     for (const e of examples) {
-      const palette = e.palette;
+      const design = e.design as Partial<ScrapedPopupDesign> | null;
+      if (!design) continue;
+      // The CTA button's own colour is the most deliberately "brand" choice
+      // in a popup — merchants pick that colour on purpose, whereas the
+      // overall painted-area palette below is just as likely to be a large
+      // neutral background or body-text colour with nothing brand-like
+      // about it. Prefer it; fall back to the palette only if no button was
+      // captured on that particular popup.
+      if (typeof design.accentColor === "string" && HEX_RE.test(design.accentColor)) {
+        return design.accentColor;
+      }
+      const palette = design.palette;
       if (!Array.isArray(palette) || palette.length === 0) continue;
       const sorted = [...palette].sort((a, b) => {
         const aShare = (a as { areaShare?: number })?.areaShare ?? 0;
@@ -1521,12 +1585,74 @@ export async function industryFallbackColor(industry: string | undefined): Promi
         return bShare - aShare;
       });
       const hex = (sorted[0] as { hex?: unknown })?.hex;
-      if (typeof hex === "string" && /^#[0-9a-f]{6}$/i.test(hex)) return hex;
+      if (typeof hex === "string" && HEX_RE.test(hex)) return hex;
     }
   } catch (err) {
     console.warn("[popupGeneration] failed to fetch industry fallback colour, using default:", err);
   }
   return ASMOS_BLUE;
+}
+
+/**
+ * Real scraped popup designs for a merchant's industry — up to `count`
+ * distinct ones, most recent first. Generation is now scraped-data-only: no
+ * merchant's own site extraction, no generic default. Callers are expected
+ * to throw when this comes back empty (see generatePopupWithVariants) rather
+ * than degrading to anything else.
+ */
+async function pickScrapedDesigns(industry: string | null | undefined, count: number): Promise<ScrapedPopupDesign[]> {
+  const bucket = normalizeIndustry(industry ?? "");
+  const rows = await prisma.scrapedPopupExample.findMany({
+    where: { industry: bucket, present: true },
+    orderBy: { scrapedAt: "desc" },
+    take: Math.max(count, 10), // a pool bigger than needed, so baseline/variants can draw distinct ones
+    select: { design: true },
+  });
+  return rows.map((r) => r.design as ScrapedPopupDesign).filter((d): d is ScrapedPopupDesign => Boolean(d));
+}
+
+/**
+ * Forces a spec's structure/shape/density/imagery to match a real scraped
+ * design — the same "code-level enforcement, not just a prompt instruction"
+ * lesson the colour lock already applies, extended to everything visual.
+ * Copy (headline/subhead/cta/etc.) is untouched: that stays the model's own
+ * work, informed but not dictated by scraped examples.
+ */
+function applyScrapedDesign(spec: PopupSpec, d: ScrapedPopupDesign): PopupSpec {
+  const cornerBucket = (px: string | null): CornerRadius => {
+    const n = px ? parseFloat(px) : 0;
+    if (!Number.isFinite(n) || n <= 0) return "sharp";
+    return n < 14 ? "soft" : n < 28 ? "rounded" : "pill";
+  };
+  const layout = d.layout;
+  const validLayout = layout === "split-left" || layout === "split-right" || layout === "centered" || layout === "minimal";
+  const palette = [d.accentColor, d.backgroundColor, d.textColor].filter((c): c is string => Boolean(c));
+
+  return {
+    ...spec,
+    template_id: d.template ?? spec.template_id,
+    layout_style: validLayout ? (layout as PopupSpec["layout_style"]) : spec.layout_style,
+    design_tokens: {
+      palette: palette.length > 0 ? palette : spec.design_tokens.palette,
+      type_display: d.headlineFont ?? spec.design_tokens.type_display,
+      type_body: d.bodyFont ?? spec.design_tokens.type_body,
+    },
+    dna: {
+      ...spec.dna,
+      corner_radius: cornerBucket(d.cornerRadius),
+      button_shape: d.buttonShape ?? spec.dna.button_shape,
+      button_fill: d.buttonFill === "solid" || d.buttonFill === "outline" ? d.buttonFill : spec.dna.button_fill,
+      density: d.density ?? spec.dna.density,
+      image_treatment: !d.hasImage
+        ? "none"
+        : d.imagePosition === "top"
+          ? "top_band"
+          : d.imagePosition === "background"
+            ? "background"
+            : "side",
+      elevation: d.hasShadow ? "raised" : "flat",
+    },
+  };
 }
 
 export async function brandTokensFromAnalyzeResult(result: {
