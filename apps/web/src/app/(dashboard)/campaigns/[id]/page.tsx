@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { confidenceVsControl } from "@/lib/stats";
+import { summarizeVariantDiagnostics } from "@/lib/campaignDiagnostics";
 import { VariantManager, type VariantStat } from "./VariantManager";
 import { InsightsPanel, type InsightRow } from "./InsightsPanel";
 import { AnalyticsTab } from "./AnalyticsTab";
@@ -122,6 +123,24 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
   const overallConversionRate =
     totals.impressions > 0 ? (totals.submissions / totals.impressions) * 100 : 0;
 
+  // Behavioural diagnosis for the Analytics tab. Rolled up across every variant
+  // rather than per-variant: the merchant question this answers is "why isn't
+  // this popup converting", and per-variant telemetry is usually too thin to
+  // split. Events are already loaded above, so this costs no extra query.
+  const diagnostics = summarizeVariantDiagnostics({
+    variantId: campaign.id,
+    events: campaign.variants.flatMap((variant: any) =>
+      (variant.events ?? []).map((event: any) => ({
+        id: event.id,
+        type: event.type,
+        visitorId: event.visitorId ?? null,
+        details: event.details,
+      })),
+    ),
+    impressions: totals.impressions,
+    submissions: totals.submissions,
+  });
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -190,7 +209,7 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
           {
             key: "analytics",
             label: "Analytics",
-            content: <AnalyticsTab key="analytics-content" variants={variantStats} />,
+            content: <AnalyticsTab key="analytics-content" variants={variantStats} diagnostics={diagnostics} />,
           },
           {
             key: "variants",
