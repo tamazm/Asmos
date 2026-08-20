@@ -16,6 +16,8 @@ import { anthropic } from "@/lib/anthropic";
 import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 import { confidenceVsControl } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
+import { hogqlString, isPostHogQueryConfigured, queryPostHog } from "@/lib/posthog-server";
+import { classifyUserIntent, userIntentLevelFromScore } from "@/lib/userIntent";
 import { formatImageLibraryForPrompt, isLibraryImage, UNSERVED_STORE_TYPES } from "@/lib/imageLibrary";
 import { normalizeIndustry, type ScrapedPopupDesign } from "@/lib/popupScraping";
 import {
@@ -38,9 +40,6 @@ import {
 
 
 // ─── Environment ─────────────────────────────────────────────────────────────
-const POSTHOG_PERSONAL_API_KEY = process.env.POSTHOG_PERSONAL_API_KEY ?? "";
-const POSTHOG_PROJECT_ID = process.env.POSTHOG_PROJECT_ID ?? "";
-const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com";
 const HAS_ANTHROPIC_KEY = Boolean(process.env.ANTHROPIC_API_KEY);
 const HAS_AWS_KEY = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
 const AWS_REGION = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "eu-north-1";
@@ -50,6 +49,24 @@ const BEDROCK_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
 
 export type SignificanceFlag = "conclusive" | "inconclusive" | "insufficient_data";
 export type TestAxis = "trigger" | "friction" | "copy" | "layout" | "visual";
+
+export type UserIntentAnalytics = {
+  total_visitors: number;
+  low_intent_visitors: number;
+  medium_intent_visitors: number;
+  high_intent_visitors: number;
+  high_intent_rate: number;
+  average_intent_score: number | null;
+};
+
+const EMPTY_USER_INTENT: UserIntentAnalytics = {
+  total_visitors: 0,
+  low_intent_visitors: 0,
+  medium_intent_visitors: 0,
+  high_intent_visitors: 0,
+  high_intent_rate: 0,
+  average_intent_score: null,
+};
 
 export type BrandTokens = {
   palette: string[];           // hex colors, 4-6 entries
@@ -100,6 +117,9 @@ export type AnalyticsVariant = {
   // Pre-classified from the fields above (see classifyFailurePatterns) so the
   // model doesn't have to re-derive the same heuristic on every call.
   failure_patterns: FailurePattern[];
+  // Highest demonstrated intent per visitor, aggregated for campaign
+  // improvement only. This does not affect bandit traffic allocation.
+  intent: UserIntentAnalytics;
 };
 
 export type UxSignals = {
@@ -346,6 +366,12 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
     - "insufficient_data" -> fall back to the cold-start ranked order below; don't over-fit to noise.
     - Prefer citing a failure_pattern + its concrete evidence in motivating_metric over a bare
       percentage — that's the difference between "this is what's happening" and "this is why."
+  - USER INTENT (analytics.variants[].intent) is aggregate diagnostic evidence for creating the next
+    variants only. Never use it to target an individual visitor or to change traffic allocation.
+    - high_intent_rate is the share of tracked visitors whose strongest demonstrated score reached 60+.
+    - High intent with low conversion points to popup friction, clarity, or trust: preserve the audience
+      and fix the experience. Mostly low intent points first to trigger timing or offer relevance.
+    - Cite an intent cohort in motivating_metric when it materially changes the diagnosis.
 - If analytics.variants is empty (cold start):
   - Use the ranked default order: trigger/timing -> friction -> copy/offer framing -> layout -> visual/micro-details.
   - Generate exactly constraints.variant_count variants (0 = no variants, only baseline).
@@ -690,7 +716,7 @@ export function computeSignificanceFlag(
 
 export async function fetchVariantAnalytics(campaignId: string): Promise<AnalyticsVariant[]> {
   // Prefer PostHog query API if configured
-  if (POSTHOG_PERSONAL_API_KEY && POSTHOG_PROJECT_ID) {
+  if (isPostHogQueryConfigured()) {
     try {
       return await fetchFromPostHog(campaignId);
     } catch (err) {
@@ -701,27 +727,12 @@ export async function fetchVariantAnalytics(campaignId: string): Promise<Analyti
   return fetchFromPostgres(campaignId);
 }
 
-async function postHogQuery<T = unknown>(hogql: string): Promise<T[]> {
-  const res = await fetch(`${POSTHOG_HOST}/api/projects/${POSTHOG_PROJECT_ID}/query/`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${POSTHOG_PERSONAL_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query: { kind: "HogQLQuery", query: hogql } }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error(`PostHog query failed: ${res.status}`);
-  const data = await res.json();
-  return (data.results ?? []) as T[];
-}
-
 async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]> {
   // Use PostHog Events API to aggregate asmos_popup_* events per variant.
   // avg_dismiss_ms added for the AI popup variation roadmap (Phase 0) —
   // dismiss_after_ms is only present on asmos_popup_dismissed events, so
   // avgIf naturally ignores rows where it's null.
-  const rows = await postHogQuery<[string, number, number, number, number | null]>(`
+  const rows = await queryPostHog<[string, number, number, number, number | null]>(`
     SELECT
       properties.variant_id AS variant_id,
       countIf(event = 'asmos_popup_shown') AS impressions,
@@ -730,7 +741,7 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
       avgIf(toFloat(properties.dismiss_after_ms), event = 'asmos_popup_dismissed') AS avg_dismiss_ms
     FROM events
     WHERE
-      properties.campaign_id = '${campaignId}'
+      properties.campaign_id = ${hogqlString(campaignId)}
       AND event IN ('asmos_popup_shown', 'asmos_popup_converted', 'asmos_popup_dismissed')
       AND timestamp > now() - interval 90 day
     GROUP BY variant_id
@@ -738,20 +749,51 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
 
   if (rows.length === 0) return [];
 
+  // One intent cohort per visitor and variant. A visitor can progress from
+  // low to high across a session, so use their highest demonstrated score
+  // instead of counting every intermediate event as a separate person.
+  let intentRows: Array<[string, number, number, number, number, number | null]> = [];
+  try {
+    intentRows = await queryPostHog<[string, number, number, number, number, number | null]>(`
+      SELECT
+        variant_id,
+        countIf(visitor_intent_score < 30) AS low_intent_visitors,
+        countIf(visitor_intent_score >= 30 AND visitor_intent_score < 60) AS medium_intent_visitors,
+        countIf(visitor_intent_score >= 60) AS high_intent_visitors,
+        count() AS total_visitors,
+        round(avg(visitor_intent_score), 1) AS average_intent_score
+      FROM (
+        SELECT
+          toString(properties.variant_id) AS variant_id,
+          distinct_id,
+          max(toFloat(properties.user_intent_score)) AS visitor_intent_score
+        FROM events
+        WHERE
+          properties.campaign_id = ${hogqlString(campaignId)}
+          AND properties.user_intent_score IS NOT NULL
+          AND timestamp > now() - interval 90 day
+        GROUP BY variant_id, distinct_id
+      )
+      GROUP BY variant_id
+    `);
+  } catch (err) {
+    console.warn("[popupGeneration] PostHog intent query failed, continuing without it:", err);
+  }
+
   // Funnel-step breakdown: widget_interaction is fired (see
   // /api/widget/events) whenever a template reports a step transition or
   // field-level engagement (funnel_step property). Separate query since it's
   // a different event name/shape than the asmos_popup_* aggregate above.
   let funnelRows: Array<[string, string, number]> = [];
   try {
-    funnelRows = await postHogQuery<[string, string, number]>(`
+    funnelRows = await queryPostHog<[string, string, number]>(`
       SELECT
         properties.variant_id AS variant_id,
         properties.funnel_step AS step,
         count() AS n
       FROM events
       WHERE
-        properties.campaign_id = '${campaignId}'
+        properties.campaign_id = ${hogqlString(campaignId)}
         AND event = 'widget_interaction'
         AND properties.funnel_step IS NOT NULL
         AND timestamp > now() - interval 90 day
@@ -771,6 +813,31 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
   // writes every event to CampaignEvent first, and the per-session summary is
   // a nested JSON blob that's far cheaper to aggregate here than in HogQL.
   const uxByVariant = await fetchUxSignalsFromPostgres(campaignId);
+
+  // PostHog returns plain counts as JSON numbers but Decimals (anything from
+  // round(avg(...))) as strings, so coerce instead of trusting the tuple type.
+  const toNumber = (value: unknown): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const intentByVariant = new Map<string, UserIntentAnalytics>(
+    intentRows.map(([variantId, low, medium, high, total, average]) => {
+      const totalVisitors = toNumber(total);
+      const highVisitors = toNumber(high);
+      const averageScore = Number(average);
+      return [
+        variantId,
+        {
+          total_visitors: totalVisitors,
+          low_intent_visitors: toNumber(low),
+          medium_intent_visitors: toNumber(medium),
+          high_intent_visitors: highVisitors,
+          high_intent_rate: totalVisitors > 0 ? highVisitors / totalVisitors : 0,
+          average_intent_score: Number.isFinite(averageScore) ? averageScore : null,
+        },
+      ];
+    }),
+  );
 
   // Find control variant stats for significance computation
   const controlVariant = await prisma.variant.findFirst({
@@ -808,6 +875,7 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
       avg_dismiss_after_ms: typeof avg_dismiss_ms === "number" ? Math.round(avg_dismiss_ms) : null,
       funnel: funnelByVariant.get(variant_id) ?? [],
       ux: uxByVariant.get(variant_id) ?? EMPTY_UX,
+      intent: intentByVariant.get(variant_id) ?? EMPTY_USER_INTENT,
     };
     return { ...base, failure_patterns: classifyFailurePatterns(base) };
   });
@@ -854,6 +922,52 @@ async function fetchUxSignalsFromPostgres(campaignId: string): Promise<Map<strin
   return out;
 }
 
+function summarizeUserIntent(events: Array<{
+  id: string;
+  type: string;
+  visitorId: string | null;
+  details: unknown;
+}>): UserIntentAnalytics {
+  const highestScoreByVisitor = new Map<string, number>();
+  for (const event of events) {
+    const details = (event.details ?? {}) as Record<string, unknown>;
+    const storedScore = details.userIntentScore;
+    const computed = classifyUserIntent({
+      eventType: event.type,
+      step: details.step as number | string | undefined,
+      scrollDepthPct: details.scrollDepthPct as number | undefined,
+      timeOnPageSeconds: details.timeOnPageSeconds as number | undefined,
+      dismissAfterMs: details.dismissAfterMs as number | undefined,
+      deadClicks: details.deadClicks as number | undefined,
+      rageClicks: details.rageClicks as number | undefined,
+      fieldFocusCount: details.fieldFocusCount as number | undefined,
+      timeToFirstKeystrokeMs: details.timeToFirstKeystrokeMs as number | null | undefined,
+      typedChars: details.typedChars as number | undefined,
+      abandonedField: details.abandonedField as boolean | undefined,
+      ctaHoverNoClickMs: details.ctaHoverNoClickMs as number | undefined,
+      scrolledInside: details.scrolledInside as boolean | undefined,
+      reachedStep: details.reachedStep as number | undefined,
+      converted: details.converted as boolean | undefined,
+    });
+    const score = typeof storedScore === "number" ? storedScore : computed.score;
+    const visitorKey = event.visitorId ?? `event:${event.id}`;
+    highestScoreByVisitor.set(visitorKey, Math.max(highestScoreByVisitor.get(visitorKey) ?? 0, score));
+  }
+
+  const scores = [...highestScoreByVisitor.values()];
+  if (scores.length === 0) return EMPTY_USER_INTENT;
+  const counts = { low: 0, medium: 0, high: 0 };
+  for (const score of scores) counts[userIntentLevelFromScore(score)] += 1;
+  return {
+    total_visitors: scores.length,
+    low_intent_visitors: counts.low,
+    medium_intent_visitors: counts.medium,
+    high_intent_visitors: counts.high,
+    high_intent_rate: counts.high / scores.length,
+    average_intent_score: Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 10) / 10,
+  };
+}
+
 async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]> {
   const variants = await prisma.variant.findMany({
     where: { campaignId, status: { not: "ELIMINATED" } },
@@ -862,7 +976,7 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
       testAxis: true,
       design: true,
       isControl: true,
-      events: { select: { type: true, details: true } },
+      events: { select: { id: true, type: true, visitorId: true, details: true } },
     },
   });
 
@@ -920,6 +1034,7 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
       avg_dismiss_after_ms,
       funnel,
       ux: aggregateUxSignals(sessionSummaries),
+      intent: summarizeUserIntent(v.events),
     };
     return { ...base, failure_patterns: classifyFailurePatterns(base) };
   });
