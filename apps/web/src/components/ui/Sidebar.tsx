@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/cn";
 import Image from "next/image";
+import { UserButton } from "@/components/ui/MockUserButton";
 
 const NAV_ITEMS = [
   {
@@ -100,16 +101,23 @@ const NAV_ITEMS = [
 export function Sidebar({
   businessName,
   isSuperadmin = false,
+  userName,
+  userEmail,
+  userVerified = false,
 }: {
   businessName?: string;
   isSuperadmin?: boolean;
+  userName?: string;
+  userEmail?: string;
+  /** True when at least one of the account's sites has a verified install. */
+  userVerified?: boolean;
 }) {
   const pathname = usePathname();
 
   return (
     <aside className="flex h-full w-56 flex-shrink-0 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
-      {/* Logo area */}
-      <div className="flex h-14 items-center border-b border-[color:var(--color-border)] px-4">
+      {/* Logo area — height matches the top bar so the two align across the seam */}
+      <div className="flex h-20 items-center justify-between gap-2 border-b border-[color:var(--color-border)] px-4">
         <Image
           src="/assets/asmos-logo-primary-lightbg.webp"
           alt="Asmos"
@@ -118,10 +126,23 @@ export function Sidebar({
           priority
           className="h-6 w-auto"
         />
+        <Link
+          href="/settings"
+          title={businessName ? `${businessName} workspace` : "Workspace settings"}
+          aria-label={businessName ? `${businessName} workspace settings` : "Workspace settings"}
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] transition-colors duration-200 hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]"
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <path d="M3.5 4.5 6 2l2.5 2.5M3.5 7.5 6 10l2.5-2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </Link>
       </div>
 
       {/* Navigation */}
       <nav className="flex flex-1 flex-col gap-0.5 px-3 py-3">
+        <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--color-text-secondary)]">
+          Main
+        </p>
         {NAV_ITEMS.map((item) => {
           const active =
             pathname === item.href || pathname?.startsWith(`${item.href}/`);
@@ -184,40 +205,51 @@ export function Sidebar({
         )}
       </nav>
 
-      {/* Footer hint — Double-Bezel callout */}
-      <div className="px-3 py-3 border-t border-[color:var(--color-border)] flex flex-col gap-2.5">
-        {/* Workspace section */}
-        {businessName && (
-          <div className="flex items-center gap-2 px-1 py-1">
-            <div
-              className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-[6px] text-[10px] font-bold text-white"
-              style={{ backgroundColor: "#165DFF" }}
-              aria-hidden="true"
-            >
-              {businessName.charAt(0).toUpperCase()}
-            </div>
-            <span className="truncate text-xs font-medium text-[color:var(--color-text-primary)]">
-              {businessName}
-            </span>
-          </div>
-        )}
-        {/* Outer shell */}
-        <div className="rounded-[1rem] border border-[color:var(--color-primary)]/20 bg-[color:var(--color-primary-light)] p-1">
-          {/* Inner core */}
-          <div
-            className="rounded-[0.625rem] bg-[color:var(--color-primary-light)] px-3 py-2.5"
-            style={{ boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)" }}
+      {/* Account row — avatar opens the account menu, the rest opens settings */}
+      <div className="border-t border-[color:var(--color-border)] px-3 py-3">
+        <div className="flex items-center gap-2.5">
+          <UserButton />
+          <Link
+            href="/settings"
+            className="group -mx-1 flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1 transition-colors duration-200 hover:bg-[color:var(--color-surface-sunken)]"
           >
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)] animate-pulse" aria-hidden="true" />
-              <p className="text-xs font-semibold text-[color:var(--color-primary)]">
-                AI is optimizing
-              </p>
-            </div>
-            <p className="text-xs text-[color:var(--color-text-secondary)] leading-relaxed">
-              Traffic routes to your best variant automatically.
-            </p>
-          </div>
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1">
+                <span className="truncate text-[13px] font-semibold text-[color:var(--color-text-primary)]">
+                  {userName ?? businessName ?? "Account"}
+                </span>
+                {userVerified && (
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    className="shrink-0 text-[color:var(--color-primary)]"
+                    role="img"
+                    aria-label="Install verified"
+                  >
+                    <circle cx="7" cy="7" r="6.25" fill="currentColor" />
+                    <path d="M4.5 7.2 6.2 8.9 9.6 5.4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </span>
+              {userEmail && (
+                <span className="block truncate text-[11px] text-[color:var(--color-text-secondary)]">
+                  {userEmail}
+                </span>
+              )}
+            </span>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 14 14"
+              fill="none"
+              aria-hidden="true"
+              className="shrink-0 text-[color:var(--color-text-secondary)] transition-transform duration-200 group-hover:translate-x-0.5"
+            >
+              <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </Link>
         </div>
       </div>
     </aside>

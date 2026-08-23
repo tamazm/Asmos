@@ -87,6 +87,15 @@ model Account {
   // Onboarding profile fields (collected during lean onboarding step 1)
   ownerRole      String? // founder | marketer | developer | agency | other
   conversionGoal String? // email_capture | discount | contest | lead_gen
+
+  // Conversion-goal target, set inline from the dashboard's Conversion Goal
+  // card. targetCvr is stored in percentage points (30 = 30%), matching how
+  // conversion rate is displayed everywhere else in the app rather than a
+  // 0-1 fraction that every read site would have to remember to multiply.
+  // Both stay null until the user sets a target; the card renders its setup
+  // state in that case instead of inventing a goal.
+  targetCvr      Float?
+  goalTargetAt   DateTime?
   monthlyTraffic String? // lt_1k | 1k_10k | 10k_100k | gt_100k
   emailPlatform  String? // klaviyo | mailchimp | omnisend | none | other
 
