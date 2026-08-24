@@ -306,7 +306,7 @@ export default function AnalyzeResultsPage() {
       {/* Nav */}
       <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-3.5">
-          <Image src="/assets/asmos-logo-primary-lightbg.webp" alt="Asmos" width={88} height={22} priority className="h-5 w-auto" />
+          <Image src="/assets/logo.webp" alt="Asmos" width={104} height={22} priority className="h-5 w-auto" />
           <Link href="/sign-in" className="text-xs font-medium text-gray-400 hover:text-gray-700 transition-colors">
             Sign in
           </Link>

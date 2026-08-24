@@ -119,9 +119,9 @@ export function Sidebar({
       {/* Logo area — height matches the top bar so the two align across the seam */}
       <div className="flex h-20 items-center justify-between gap-2 border-b border-[color:var(--color-border)] px-4">
         <Image
-          src="/assets/asmos-logo-primary-lightbg.webp"
+          src="/assets/logo.webp"
           alt="Asmos"
-          width={100}
+          width={119}
           height={25}
           priority
           className="h-6 w-auto"

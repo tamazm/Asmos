@@ -11,9 +11,9 @@ export function MarketingFooter() {
         <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-6">
           <div className="col-span-2 sm:col-span-3 lg:col-span-1">
             <Image
-              src="/assets/asmos-logo-primary-lightbg.webp"
+              src="/assets/logo.webp"
               alt="Asmos"
-              width={96}
+              width={114}
               height={24}
               className="h-6 w-auto"
             />

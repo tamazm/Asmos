@@ -34,9 +34,9 @@ export function MarketingHeader() {
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
         <Link href="/" aria-label="Asmos home" className="shrink-0">
           <Image
-            src="/assets/asmos-logo-primary-lightbg.webp"
+            src="/assets/logo.webp"
             alt="Asmos"
-            width={110}
+            width={133}
             height={28}
             priority
             className="h-8 w-auto"

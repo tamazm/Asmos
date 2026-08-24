@@ -9,7 +9,7 @@ export function buildMetadata({
   title,
   description,
   path,
-  image = "/assets/asmos-logo-primary-lightbg.webp",
+  image = "/assets/logo.webp",
   noIndex = false,
 }: {
   title: string;
@@ -48,7 +48,7 @@ export function organizationJsonLd() {
     "@type": "Organization",
     name: SITE_NAME,
     url: SITE_URL,
-    logo: `${SITE_URL}/assets/asmos-logo-primary-lightbg.webp`,
+    logo: `${SITE_URL}/assets/logo.webp`,
     description:
       "Asmos is an AI conversion optimization platform for ecommerce that analyzes, generates, tests, learns from, and continuously improves popup experiences.",
   };
@@ -94,7 +94,7 @@ export function articleJsonLd({
     publisher: {
       "@type": "Organization",
       name: SITE_NAME,
-      logo: { "@type": "ImageObject", url: `${SITE_URL}/assets/asmos-logo-primary-lightbg.webp` },
+      logo: { "@type": "ImageObject", url: `${SITE_URL}/assets/logo.webp` },
     },
     datePublished: publishDate,
     dateModified: updatedDate,
