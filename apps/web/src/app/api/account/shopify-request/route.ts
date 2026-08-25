@@ -1,4 +1,4 @@
-import { currentUser } from "@/lib/auth-adapter";
+import { auth, currentUser } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { isSuperadminEmail } from "@/lib/superadmin";
@@ -9,6 +9,11 @@ import { isSuperadminEmail } from "@/lib/superadmin";
 // after a page refresh.
 
 export async function GET() {
+  const { userId } = await auth();
+  if (!userId) {
+    return Response.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const account = await getOrCreateAccount();
   const existing = await prisma.shopifyIntegrationRequest.findUnique({
     where: { accountId: account.id },
