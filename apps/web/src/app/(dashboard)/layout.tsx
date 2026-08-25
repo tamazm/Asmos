@@ -1,9 +1,5 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Sidebar } from "@/components/ui/Sidebar";
-import { NotificationBell } from "@/components/ui/NotificationBell";
-import { TopBarGreeting } from "@/components/ui/TopBarGreeting";
-import { IconPlus } from "@/components/dashboard/icons";
+import { DashboardShell } from "@/components/ui/DashboardShell";
 import { getOrCreateAccount } from "@/lib/account";
 import { authProtect, currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
@@ -37,43 +33,29 @@ export default async function DashboardLayout({
     where: { accountId: account.id, installVerified: true },
   });
 
+  // `fixed inset-0` (not h-[100dvh]) is deliberate: it pins the shell to
+  // the viewport regardless of <body>'s own box height (body is
+  // `min-h-full flex flex-col` in the root layout, which can end up
+  // slightly taller than the viewport). Sizing this shell to just
+  // "h-[100dvh]" let body grow past the viewport in that case, giving a
+  // second, outer scrollbar on top of this shell's intentional inner
+  // overflow-y-auto on <main> — the "double scroll" bug. Fixed
+  // positioning removes this div from document flow entirely, so body's
+  // content height collapses to ~0 and can never independently scroll.
+  // (DashboardShell owns that fixed-inset-0 wrapper; see that file for the
+  // mobile collapsible-sidebar behavior itself.)
   return (
-    // `fixed inset-0` (not h-[100dvh]) is deliberate: it pins the shell to
-    // the viewport regardless of <body>'s own box height (body is
-    // `min-h-full flex flex-col` in the root layout, which can end up
-    // slightly taller than the viewport). Sizing this shell to just
-    // "h-[100dvh]" let body grow past the viewport in that case, giving a
-    // second, outer scrollbar on top of this shell's intentional inner
-    // overflow-y-auto on <main> — the "double scroll" bug. Fixed
-    // positioning removes this div from document flow entirely, so body's
-    // content height collapses to ~0 and can never independently scroll.
-    <div className="fixed inset-0 flex overflow-hidden bg-[color:var(--color-surface-sunken)]">
-      <Sidebar
-        businessName={account.name}
-        isSuperadmin={isSuperadmin}
-        userName={displayName}
-        userEmail={userEmail}
-        userVerified={verifiedSites > 0}
-      />
-      <div className="flex flex-1 flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="flex h-20 shrink-0 items-center justify-between gap-4 border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6">
-          <TopBarGreeting name={displayName} imageUrl={imageUrl} />
-          <div className="flex shrink-0 items-center gap-3">
-            <NotificationBell />
-            <Link
-              href="/campaigns/new"
-              className="inline-flex h-10 items-center gap-1.5 rounded-lg bg-[color:var(--color-primary)] px-4 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]"
-            >
-              <IconPlus />
-              Create Pop-up
-            </Link>
-          </div>
-        </header>
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto px-6 py-6">{children}</main>
-      </div>
-      {isSuperadmin && <TesterToolkit />}
-    </div>
+    <DashboardShell
+      businessName={account.name}
+      isSuperadmin={isSuperadmin}
+      userName={displayName}
+      userEmail={userEmail}
+      userVerified={verifiedSites > 0}
+      displayName={displayName}
+      imageUrl={imageUrl}
+      testerToolkit={isSuperadmin ? <TesterToolkit /> : null}
+    >
+      {children}
+    </DashboardShell>
   );
 }

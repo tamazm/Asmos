@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import toast from "react-hot-toast";
 import { PageHeader } from "@/components/ui/PageHeader";
 
 type IntegrationStatus = "disconnected" | "connecting" | "connected" | "error";
@@ -14,85 +15,96 @@ interface Integration {
   icon: React.ReactNode;
 }
 
-const INTEGRATIONS: Integration[] = [
-  {
-    id: "klaviyo",
-    name: "Klaviyo",
-    description: "Sync captured leads directly into Klaviyo lists and trigger email flows.",
-    category: "email",
-    docsUrl: "https://www.klaviyo.com/",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#1A1A1A" />
-        <text x="8" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">K</text>
-      </svg>
-    ),
-  },
-  {
-    id: "mailchimp",
-    name: "Mailchimp",
-    description: "Add email submissions to Mailchimp audiences automatically.",
-    category: "email",
-    docsUrl: "https://mailchimp.com/",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#FFE01B" />
-        <text x="9" y="27" fontSize="18" fontWeight="bold" fill="#1A1A1A" fontFamily="serif">M</text>
-      </svg>
-    ),
-  },
-  {
-    id: "shopify",
-    name: "Shopify",
-    description: "Pull product catalog data and sync discount codes with Shopify.",
-    category: "ecommerce",
-    docsUrl: "https://shopify.com/",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#96BF48" />
-        <text x="12" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">S</text>
-      </svg>
-    ),
-  },
-  {
-    id: "zapier",
-    name: "Zapier",
-    description: "Connect Asmos to 5000+ apps. Trigger zaps on lead capture events.",
-    category: "automation",
-    docsUrl: "https://zapier.com/",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#FF4A00" />
-        <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">Z</text>
-      </svg>
-    ),
-  },
-  {
-    id: "hubspot",
-    name: "HubSpot",
-    description: "Send leads to HubSpot CRM contacts and lists.",
-    category: "email",
-    docsUrl: "https://hubspot.com/",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#FF7A59" />
-        <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">H</text>
-      </svg>
-    ),
-  },
-  {
-    id: "webhooks",
-    name: "Webhooks",
-    description: "Receive real-time POST notifications on lead captured and variant winner events.",
-    category: "automation",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#6366F1" />
-        <path d="M12 28l4-8 4 4 4-6 4 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-];
+// ── Disabled facade integrations ────────────────────────────────────────────
+// Klaviyo, Mailchimp, HubSpot, Zapier: the "Connect" flow genuinely saved an
+// API key, but no background job ever read it back out to forward leads —
+// so from a merchant's perspective, clicking Connect did nothing. Commented
+// out (not deleted) until the sync job exists. See IntegrationCard below,
+// still used if any of these come back.
+//
+// const DISABLED_INTEGRATIONS: Integration[] = [
+//   {
+//     id: "klaviyo",
+//     name: "Klaviyo",
+//     description: "Sync captured leads directly into Klaviyo lists and trigger email flows.",
+//     category: "email",
+//     docsUrl: "https://www.klaviyo.com/",
+//     icon: (
+//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+//         <rect width="40" height="40" rx="8" fill="#1A1A1A" />
+//         <text x="8" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">K</text>
+//       </svg>
+//     ),
+//   },
+//   {
+//     id: "mailchimp",
+//     name: "Mailchimp",
+//     description: "Add email submissions to Mailchimp audiences automatically.",
+//     category: "email",
+//     docsUrl: "https://mailchimp.com/",
+//     icon: (
+//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+//         <rect width="40" height="40" rx="8" fill="#FFE01B" />
+//         <text x="9" y="27" fontSize="18" fontWeight="bold" fill="#1A1A1A" fontFamily="serif">M</text>
+//       </svg>
+//     ),
+//   },
+//   {
+//     id: "zapier",
+//     name: "Zapier",
+//     description: "Connect Asmos to 5000+ apps. Trigger zaps on lead capture events.",
+//     category: "automation",
+//     docsUrl: "https://zapier.com/",
+//     icon: (
+//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+//         <rect width="40" height="40" rx="8" fill="#FF4A00" />
+//         <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">Z</text>
+//       </svg>
+//     ),
+//   },
+//   {
+//     id: "hubspot",
+//     name: "HubSpot",
+//     description: "Send leads to HubSpot CRM contacts and lists.",
+//     category: "email",
+//     docsUrl: "https://hubspot.com/",
+//     icon: (
+//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+//         <rect width="40" height="40" rx="8" fill="#FF7A59" />
+//         <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">H</text>
+//       </svg>
+//     ),
+//   },
+// ];
+
+const SHOPIFY_INTEGRATION: Integration = {
+  id: "shopify",
+  name: "Shopify",
+  description: "Auto-install the widget and sync product catalog + discount codes with Shopify.",
+  category: "ecommerce",
+  docsUrl: "https://shopify.com/",
+  icon: (
+    <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+      <rect width="40" height="40" rx="8" fill="#96BF48" />
+      <text x="12" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">S</text>
+    </svg>
+  ),
+};
+
+const WEBHOOKS_INTEGRATION: Integration = {
+  id: "webhooks",
+  name: "Webhooks",
+  description: "Receive real-time POST notifications on lead captured and variant winner events.",
+  category: "automation",
+  icon: (
+    <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+      <rect width="40" height="40" rx="8" fill="#6366F1" />
+      <path d="M12 28l4-8 4 4 4-6 4 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+};
+
+const INTEGRATIONS: Integration[] = [SHOPIFY_INTEGRATION, WEBHOOKS_INTEGRATION];
 
 const CATEGORY_LABELS = {
   email: "Email marketing",
@@ -293,6 +305,98 @@ function WebhookCard({ integration }: { integration: Integration }) {
       </div>
 
       <style>{`@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}`}</style>
+    </div>
+  );
+}
+
+// ── Shopify card — "request" instead of "connect" ───────────────────────────
+// The real OAuth integration isn't built yet (see AGENT_NOTES / the Shopify
+// OAuth scoping work). Rather than a fake API-key box that does nothing,
+// this just logs interest with contact info so we know who to follow up
+// with once it ships.
+
+function ShopifyRequestCard({ integration }: { integration: Integration }) {
+  const [requested, setRequested] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/account/shopify-request")
+      .then((r) => r.json())
+      .then((data: { requested: boolean }) => setRequested(Boolean(data.requested)))
+      .catch(() => {})
+      .finally(() => setChecked(true));
+  }, []);
+
+  async function handleRequest() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/account/shopify-request", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Couldn't submit your request. Please try again.");
+        return;
+      }
+      setRequested(true);
+      toast.success("We'll be in touch — you'll receive installation within 24hr.");
+    } catch {
+      toast.error("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="shrink-0">{integration.icon}</div>
+          <div>
+            <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">{integration.name}</p>
+            <p className="text-xs text-[color:var(--color-text-secondary)]">{CATEGORY_LABELS[integration.category]}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {requested ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-success)]">
+              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
+              Requested
+            </span>
+          ) : (
+            <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-text-secondary)]">
+              Not connected
+            </span>
+          )}
+        </div>
+      </div>
+
+      <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{integration.description}</p>
+
+      <p className="text-xs text-[color:var(--color-text-secondary)] italic">
+        {requested
+          ? "We'll be in touch — you'll receive installation within 24hr."
+          : "Direct Shopify OAuth install is coming soon. Request it and we'll notify you when it's live."}
+      </p>
+
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleRequest}
+          disabled={loading || requested || !checked}
+          className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white transition-colors duration-150 disabled:opacity-50 cursor-pointer"
+        >
+          {requested ? "Requested" : loading ? "Requesting..." : "Request Shopify integration"}
+        </button>
+        {integration.docsUrl && (
+          <a
+            href={integration.docsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-[color:var(--color-primary)] hover:underline"
+          >
+            Docs
+          </a>
+        )}
+      </div>
     </div>
   );
 }
@@ -515,13 +619,15 @@ export default function IntegrationsPage() {
             {CATEGORY_LABELS[cat]}
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {INTEGRATIONS.filter((i) => i.category === cat).map((integration) =>
-              integration.id === "webhooks" ? (
-                <WebhookCard key={integration.id} integration={integration} />
-              ) : (
-                <IntegrationCard key={integration.id} integration={integration} />
-              ),
-            )}
+            {INTEGRATIONS.filter((i) => i.category === cat).map((integration) => {
+              if (integration.id === "webhooks") {
+                return <WebhookCard key={integration.id} integration={integration} />;
+              }
+              if (integration.id === "shopify") {
+                return <ShopifyRequestCard key={integration.id} integration={integration} />;
+              }
+              return <IntegrationCard key={integration.id} integration={integration} />;
+            })}
           </div>
         </section>
       ))}

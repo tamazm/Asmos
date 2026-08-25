@@ -104,6 +104,7 @@ export function Sidebar({
   userName,
   userEmail,
   userVerified = false,
+  onNavigate,
 }: {
   businessName?: string;
   isSuperadmin?: boolean;
@@ -111,11 +112,13 @@ export function Sidebar({
   userEmail?: string;
   /** True when at least one of the account's sites has a verified install. */
   userVerified?: boolean;
+  /** Called when a nav link is clicked — closes the mobile overlay, if open. */
+  onNavigate?: () => void;
 }) {
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-56 flex-shrink-0 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+    <aside className="flex h-full w-64 lg:w-56 flex-shrink-0 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
       {/* Logo area — height matches the top bar so the two align across the seam */}
       <div className="flex h-20 items-center justify-between gap-2 border-b border-[color:var(--color-border)] px-4">
         <Image
@@ -165,6 +168,7 @@ export function Sidebar({
             <Link
               key={item.href}
               href={item.href}
+              onClick={onNavigate}
               className={cn(
                 "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200",
                 active
@@ -187,6 +191,7 @@ export function Sidebar({
         {isSuperadmin && (
           <Link
             href="/admin"
+            onClick={onNavigate}
             className={cn(
               "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200 mt-4",
               pathname === "/admin"
