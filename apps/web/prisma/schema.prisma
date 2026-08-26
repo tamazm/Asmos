@@ -126,6 +126,7 @@ model Account {
   campaigns                 Campaign[]
   invites                   Invite[]
   notifications             Notification[]
+  shopifyShop               ShopifyShop?
 }
 
 model User {
@@ -448,6 +449,23 @@ model CampaignInsight {
   createdAt DateTime @default(now())
 
   @@index([campaignId, createdAt])
+}
+
+// A Shopify shop that has installed the app. accountId is unique — one
+// Account per shop; the tenant is auto-provisioned on first install, no
+// Clerk sign-up involved (this is what "well integrated app" requires).
+// accessToken is encrypted at rest — see src/lib/crypto.ts.
+model ShopifyShop {
+  id            String    @id @default(cuid())
+  accountId     String    @unique
+  account       Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  shopDomain    String    @unique // e.g. "example.myshopify.com"
+  accessToken   String
+  scope         String
+  installedAt   DateTime  @default(now())
+  uninstalledAt DateTime?
+
+  @@index([shopDomain])
 }
 
 // In-app notification bell items
