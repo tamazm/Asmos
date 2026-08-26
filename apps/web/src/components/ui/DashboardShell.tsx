@@ -63,7 +63,7 @@ export function DashboardShell({
         />
       </div>
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top bar */}
         <header className="flex h-20 shrink-0 items-center justify-between gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 lg:px-6">
           <div className="flex min-w-0 items-center gap-2">
@@ -97,7 +97,7 @@ export function DashboardShell({
           </div>
         </header>
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto px-4 py-6 lg:px-6">{children}</main>
+        <main className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 lg:px-6">{children}</main>
       </div>
       {testerToolkit}
     </div>

@@ -56,7 +56,7 @@ export function TeamManagement({
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+    <div className="flex min-w-0 flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 sm:p-6">
       <h2 className="text-sm font-medium text-[color:var(--color-text-primary)]">
         Team
       </h2>
@@ -65,13 +65,13 @@ export function TeamManagement({
         {members.map((member) => (
           <div
             key={member.id}
-            className="flex items-center justify-between gap-3 rounded-lg border border-[color:var(--color-border)] px-4 py-3"
+            className="flex min-w-0 items-start justify-between gap-3 rounded-lg border border-[color:var(--color-border)] px-3 py-3 sm:items-center sm:px-4"
           >
-            <div>
-              <p className="text-sm text-[color:var(--color-text-primary)]">
+            <div className="min-w-0">
+              <p className="break-words text-sm text-[color:var(--color-text-primary)]">
                 {member.name ?? member.email}
               </p>
-              <p className="text-xs text-[color:var(--color-text-secondary)]">
+              <p className="break-all text-xs text-[color:var(--color-text-secondary)]">
                 {member.email}
               </p>
             </div>
@@ -88,10 +88,10 @@ export function TeamManagement({
           {invites.map((invite) => (
             <div
               key={invite.id}
-              className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-[color:var(--color-border)] px-4 py-3"
+              className="flex min-w-0 flex-col items-stretch justify-between gap-3 rounded-lg border border-dashed border-[color:var(--color-border)] px-3 py-3 sm:flex-row sm:items-center sm:px-4"
             >
-              <div>
-                <p className="text-sm text-[color:var(--color-text-primary)]">
+              <div className="min-w-0">
+                <p className="break-all text-sm text-[color:var(--color-text-primary)]">
                   {invite.email}
                 </p>
                 <Badge variant="neutral">{invite.role}</Badge>
@@ -108,8 +108,8 @@ export function TeamManagement({
         </div>
       )}
 
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
+      <div className="flex min-w-0 flex-col items-stretch gap-2 sm:flex-row sm:items-end">
+        <div className="min-w-0 flex-1">
           <label className="mb-1 block text-sm font-medium text-[color:var(--color-text-primary)]">
             Invite a teammate
           </label>
@@ -124,12 +124,12 @@ export function TeamManagement({
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as "MEMBER" | "ADMIN")}
-          className="rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 bg-[color:var(--color-surface)]"
+          className="w-full rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-sm outline-none transition-colors duration-150 focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 sm:w-auto"
         >
           <option value="MEMBER">Member</option>
           <option value="ADMIN">Admin</option>
         </select>
-        <Button onClick={sendInvite} className={inviting ? "opacity-60" : ""}>
+        <Button onClick={sendInvite} className={inviting ? "w-full opacity-60 sm:w-auto" : "w-full sm:w-auto"}>
           {inviting ? "Sending…" : "Send invite"}
         </Button>
       </div>

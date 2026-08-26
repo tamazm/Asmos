@@ -118,7 +118,7 @@ export function Sidebar({
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-64 lg:w-56 flex-shrink-0 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+    <aside className="flex h-full w-64 max-w-[calc(100vw_-_2rem)] flex-shrink-0 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)] lg:w-56 lg:max-w-none">
       {/* Logo area — height matches the top bar so the two align across the seam */}
       <div className="flex h-20 items-center justify-between gap-2 border-b border-[color:var(--color-border)] px-4">
         <Image
@@ -127,10 +127,11 @@ export function Sidebar({
           width={119}
           height={25}
           priority
-          className="h-6 w-auto"
+          className="h-6 w-auto max-w-[calc(100%_-_2.25rem)]"
         />
         <Link
           href="/settings"
+          onClick={onNavigate}
           title={businessName ? `${businessName} workspace` : "Workspace settings"}
           aria-label={businessName ? `${businessName} workspace settings` : "Workspace settings"}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] transition-colors duration-200 hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]"
@@ -142,7 +143,7 @@ export function Sidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-1 flex-col gap-0.5 px-3 py-3">
+      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-3">
         <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[color:var(--color-text-secondary)]">
           Main
         </p>
@@ -170,7 +171,7 @@ export function Sidebar({
               href={item.href}
               onClick={onNavigate}
               className={cn(
-                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200",
+                "flex min-h-10 min-w-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200",
                 active
                   ? "bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
                   : "text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]",
@@ -178,10 +179,10 @@ export function Sidebar({
               aria-current={active ? "page" : undefined}
             >
               {item.icon}
-              <span className="truncate">{displayLabel}</span>
+              <span className="min-w-0 truncate">{displayLabel}</span>
               {active && (
                 <span
-                  className="ml-auto h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)] flex-shrink-0"
+                  className="ml-auto h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[color:var(--color-primary)]"
                   aria-hidden="true"
                 />
               )}
@@ -193,7 +194,7 @@ export function Sidebar({
             href="/admin"
             onClick={onNavigate}
             className={cn(
-              "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200 mt-4",
+              "mt-4 flex min-h-10 min-w-0 items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200",
               pathname === "/admin"
                 ? "bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
                 : "text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]",
@@ -205,7 +206,7 @@ export function Sidebar({
               <path d="M14 5L8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M2 5L8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Superadmin
+            <span className="min-w-0 truncate">Superadmin</span>
           </Link>
         )}
       </nav>
@@ -216,6 +217,7 @@ export function Sidebar({
           <UserButton />
           <Link
             href="/settings"
+            onClick={onNavigate}
             className="group -mx-1 flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1 transition-colors duration-200 hover:bg-[color:var(--color-surface-sunken)]"
           >
             <span className="min-w-0 flex-1">

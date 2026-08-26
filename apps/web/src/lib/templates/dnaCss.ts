@@ -673,6 +673,25 @@ export function sharedComponentCss(dna: PopupDna): string {
   const bgBlock = dna.accent_placement === "background_block";
 
   return `
+    #asmosPopupOverlay .asmos-content,
+    #asmosPopupOverlay .popup-step,
+    #asmosPopupOverlay .asmos-form,
+    #asmosPopupOverlay .asmos-code {
+      min-width: 0;
+      max-width: 100%;
+      box-sizing: border-box;
+    }
+    #asmosPopupOverlay .asmos-headline,
+    #asmosPopupOverlay .asmos-sub,
+    #asmosPopupOverlay .asmos-eyebrow,
+    #asmosPopupOverlay .asmos-proof,
+    #asmosPopupOverlay .asmos-privacy,
+    #asmosPopupOverlay .asmos-cta,
+    #asmosPopupOverlay .asmos-dismiss,
+    #asmosPopupOverlay .asmos-field-label,
+    #asmosPopupOverlay .asmos-code > span {
+      overflow-wrap: anywhere;
+    }
     #asmosPopupOverlay .asmos-headline {
       font-family: var(--asmos-font-display);
       font-size: var(--asmos-headline-size);
@@ -776,6 +795,8 @@ export function sharedComponentCss(dna: PopupDna): string {
       text-decoration: none;
       transition: transform 140ms ease, opacity 140ms ease;
       font-family: inherit;
+      max-width: 100%;
+      white-space: normal;
     }
     #asmosPopupOverlay .asmos-cta:hover { opacity: 0.92; transform: translateY(-1px); }
     #asmosPopupOverlay .asmos-cta:active { transform: translateY(0); }
@@ -814,6 +835,7 @@ export function sharedComponentCss(dna: PopupDna): string {
     }
     #asmosPopupOverlay .asmos-email-input {
       width: 100%;
+      min-width: 0;
       box-sizing: border-box;
       ${dna.form_layout === "inline" ? "flex: 1 1 auto;" : "margin-bottom: 10px;"}
       padding: 13px 15px;
@@ -894,6 +916,11 @@ export function sharedComponentCss(dna: PopupDna): string {
       color: var(--asmos-fg);
       font-weight: 700;
       letter-spacing: 0.08em;
+      flex-wrap: wrap;
+    }
+    #asmosPopupOverlay .asmos-code > span {
+      min-width: 0;
+      flex: 1 1 12ch;
     }
     #asmosPopupOverlay .asmos-code button {
       background: var(--asmos-fg);
@@ -905,6 +932,7 @@ export function sharedComponentCss(dna: PopupDna): string {
       font-weight: 650;
       font-family: inherit;
       cursor: pointer;
+      flex: 0 0 auto;
     }
 
     #asmosPopupOverlay .asmos-close {

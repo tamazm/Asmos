@@ -1,4 +1,3 @@
-// @ts-expect-error
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { getOrCreateAccount } from "@/lib/account";
@@ -20,7 +19,7 @@ export default async function SettingsPage() {
   ]);
 
   const accountTab = (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <AccountSettingsForm
         initialName={account.name}
         initialIndustry={account.industry}
@@ -45,9 +44,9 @@ export default async function SettingsPage() {
   const billingTab = (
     <div className="flex flex-col gap-6">
       {/* Current plan */}
-      <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-sm">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+      <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-sm sm:p-6">
+        <div className="flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:items-start">
+          <div className="min-w-0">
             <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">Current plan</p>
             <p className="mt-1 text-2xl font-bold text-[color:var(--color-text-primary)] capitalize">{account.planTier.toLowerCase()}</p>
             <div className="mt-2 flex items-center gap-2">
@@ -58,7 +57,7 @@ export default async function SettingsPage() {
           </div>
           <button
             disabled
-            className="rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white opacity-50 cursor-not-allowed"
+            className="w-full rounded-lg bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white opacity-50 cursor-not-allowed sm:w-auto"
           >
             Upgrade plan
           </button>
@@ -70,7 +69,7 @@ export default async function SettingsPage() {
         <div className="px-5 py-3.5 border-b border-[color:var(--color-border)]">
           <p className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">Plan comparison</p>
         </div>
-        <table className="w-full text-sm">
+        <table className="hidden w-full text-sm sm:table">
           <thead>
             <tr className="border-b border-[color:var(--color-border)]">
               <th className="px-5 py-3 text-left text-xs font-medium text-[color:var(--color-text-secondary)] w-1/3">Feature</th>
@@ -98,6 +97,37 @@ export default async function SettingsPage() {
             ))}
           </tbody>
         </table>
+        <div className="divide-y divide-[color:var(--color-border)] sm:hidden">
+          {[
+            { feature: "Price", starter: "$29", growth: "$79", scale: "$199" },
+            { feature: "Campaigns", starter: "3", growth: "10", scale: "Unlimited" },
+            { feature: "Impressions/mo", starter: "10k", growth: "100k", scale: "1M" },
+            { feature: "A/B testing", starter: "No", growth: "Yes", scale: "Yes" },
+            { feature: "AI optimization", starter: "No", growth: "Yes", scale: "Yes" },
+            { feature: "API access", starter: "No", growth: "No", scale: "Yes" },
+            { feature: "Support", starter: "Email", growth: "Priority", scale: "Dedicated" },
+          ].map((row) => (
+            <div key={row.feature} className="p-4">
+              <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">
+                {row.feature}
+              </p>
+              <dl className="mt-2 grid min-w-0 grid-cols-3 gap-2 text-center text-xs tabular-nums">
+                <div className="min-w-0">
+                  <dt className="text-[color:var(--color-text-secondary)]">Starter</dt>
+                  <dd className="mt-0.5 break-words text-[color:var(--color-text-primary)]">{row.starter}</dd>
+                </div>
+                <div className="min-w-0 rounded-md bg-[color:var(--color-primary-light)]/50 px-1 py-1">
+                  <dt className="text-[color:var(--color-primary)]">Growth</dt>
+                  <dd className="mt-0.5 break-words font-medium text-[color:var(--color-primary)]">{row.growth}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-[color:var(--color-text-secondary)]">Scale</dt>
+                  <dd className="mt-0.5 break-words text-[color:var(--color-text-primary)]">{row.scale}</dd>
+                </div>
+              </dl>
+            </div>
+          ))}
+        </div>
       </div>
 
       <p className="text-xs text-center text-[color:var(--color-text-secondary)]">
@@ -107,7 +137,7 @@ export default async function SettingsPage() {
   );
 
   const notificationsTab = (
-    <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-sm">
+    <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-sm sm:p-6">
       <p className="mb-1 text-sm font-semibold text-[color:var(--color-text-primary)]">Notification preferences</p>
       <p className="mb-5 text-sm text-[color:var(--color-text-secondary)]">Choose which in-app and email alerts you receive.</p>
       <div className="flex flex-col gap-4">
@@ -125,7 +155,7 @@ export default async function SettingsPage() {
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex min-w-0 flex-col gap-6">
       <PageHeader title="Settings" />
       <SettingsTabs
         tabs={[
@@ -154,10 +184,10 @@ function NotificationToggle({
   defaultOn: boolean;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-3 border-b border-[color:var(--color-border)] last:border-0">
-      <div>
+    <div className="flex min-w-0 items-start justify-between gap-3 border-b border-[color:var(--color-border)] py-3 last:border-0 sm:gap-4">
+      <div className="min-w-0">
         <p className="text-sm font-medium text-[color:var(--color-text-primary)]">{label}</p>
-        <p className="text-xs text-[color:var(--color-text-secondary)]">{description}</p>
+        <p className="break-words text-xs text-[color:var(--color-text-secondary)]">{description}</p>
       </div>
       <div
         className={[

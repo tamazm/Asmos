@@ -12,8 +12,12 @@ export function SettingsTabs({
   const activeTab = tabs.find((t) => t.key === active);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex gap-1 border-b border-[color:var(--color-border)]">
+    <div className="flex min-w-0 flex-col gap-6">
+      <div
+        className="flex flex-wrap gap-x-1 border-b border-[color:var(--color-border)]"
+        role="tablist"
+        aria-label="Settings sections"
+      >
         {tabs.map((tab) => (
           <button
             key={tab.key}
@@ -21,7 +25,7 @@ export function SettingsTabs({
             aria-selected={active === tab.key}
             onClick={() => setActive(tab.key)}
             className={cn(
-              "px-4 py-2.5 text-sm font-medium transition-colors duration-150 border-b-2 -mb-px cursor-pointer",
+              "-mb-px min-h-11 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors duration-150 cursor-pointer sm:px-4",
               active === tab.key
                 ? "border-[color:var(--color-primary)] text-[color:var(--color-primary)]"
                 : "border-transparent text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]",
@@ -31,7 +35,7 @@ export function SettingsTabs({
           </button>
         ))}
       </div>
-      <div>{activeTab?.content}</div>
+      <div className="min-w-0">{activeTab?.content}</div>
     </div>
   );
 }

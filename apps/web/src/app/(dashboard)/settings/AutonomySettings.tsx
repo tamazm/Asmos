@@ -59,7 +59,7 @@ export function AutonomySettings({ defaultLevel = "ASSISTED" }: { defaultLevel?:
   }
 
   return (
-    <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6 shadow-sm flex flex-col gap-5">
+    <div className="flex min-w-0 flex-col gap-5 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-sm sm:p-6">
       <div>
         <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">AI optimization autonomy</p>
         <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
@@ -77,7 +77,7 @@ export function AutonomySettings({ defaultLevel = "ASSISTED" }: { defaultLevel?:
               aria-checked={isSelected}
               onClick={() => setSelected(option.value)}
               className={cn(
-                "flex items-start gap-4 rounded-xl border p-4 text-left transition-colors duration-150 cursor-pointer",
+                "flex min-w-0 items-start gap-3 rounded-xl border p-3 text-left transition-colors duration-150 cursor-pointer sm:gap-4 sm:p-4",
                 isSelected
                   ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)]"
                   : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] hover:bg-[color:var(--color-surface-sunken)]",
@@ -97,7 +97,7 @@ export function AutonomySettings({ defaultLevel = "ASSISTED" }: { defaultLevel?:
                   <span className="h-1.5 w-1.5 rounded-full bg-white" />
                 )}
               </span>
-              <div>
+              <div className="min-w-0">
                 <p
                   className={cn(
                     "text-sm font-semibold",
@@ -108,7 +108,7 @@ export function AutonomySettings({ defaultLevel = "ASSISTED" }: { defaultLevel?:
                 >
                   {option.title}
                 </p>
-                <p className="mt-0.5 text-xs text-[color:var(--color-text-secondary)]">
+                <p className="mt-0.5 break-words text-xs text-[color:var(--color-text-secondary)]">
                   {option.description}
                 </p>
               </div>
@@ -119,13 +119,13 @@ export function AutonomySettings({ defaultLevel = "ASSISTED" }: { defaultLevel?:
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={handleSave}
           disabled={saving}
           className="rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150 disabled:opacity-60"
         >
-          {saving ? "Saving..." : "Save preference"}
+          {saving ? "Saving…" : "Save preference"}
         </button>
         {saved && (
           <span className="text-xs text-green-600 font-medium">Saved</span>

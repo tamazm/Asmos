@@ -204,10 +204,14 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
          the old centred layout left roughly 60% of the screen as empty scrim
          with the content floating in the middle of it. */
       #asmosPopupOverlay .asmos-content {
-        padding: 26px 22px calc(env(safe-area-inset-bottom, 0px) + 10vh);
-        justify-content: flex-end;
+        padding: max(72px, calc(24px + env(safe-area-inset-top))) max(20px, env(safe-area-inset-right)) max(24px, calc(env(safe-area-inset-bottom, 0px) + 10vh)) max(20px, env(safe-area-inset-left));
+        justify-content: safe flex-end;
       }
       #asmosPopupOverlay .asmos-headline { max-width: 100%; }
+      #asmosPopupOverlay .asmos-close {
+        top: max(12px, env(safe-area-inset-top));
+        right: max(12px, env(safe-area-inset-right));
+      }
       #asmosPopupOverlay .asmos-form { display: block; width: 100%; }
       #asmosPopupOverlay .asmos-form .asmos-cta { width: 100%; }
       #asmosPopupOverlay .asmos-email-input { margin-bottom: 10px; }
