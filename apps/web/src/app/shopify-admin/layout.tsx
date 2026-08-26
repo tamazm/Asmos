@@ -21,8 +21,11 @@ export default function ShopifyAdminLayout({ children }: { children: React.React
   return (
     <>
       <meta name="shopify-api-key" content={process.env.NEXT_PUBLIC_SHOPIFY_API_KEY} />
+      {/* eslint-disable @next/next/no-sync-scripts -- intentional: Shopify requires these
+          unbundled and parser-blocking, not deferred/async; see comment above. */}
       <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" />
       <script src="https://cdn.shopify.com/shopifycloud/polaris.js" />
+      {/* eslint-enable @next/next/no-sync-scripts */}
       {children}
     </>
   );
