@@ -24,7 +24,7 @@ const barlowCondensed = Barlow_Condensed({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Asmos — AI Conversion Optimization for Ecommerce",
+    default: "Asmos | AI Conversion Optimization for Ecommerce",
     template: "%s | Asmos",
   },
   description:

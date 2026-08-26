@@ -9,7 +9,7 @@ export type { PopupTemplateProps, ResolvedTemplateProps } from "./types";
 
 // template_id -> render function dispatch. Add a new template by writing a
 // render*Template(props: ResolvedTemplateProps) function (see splitScreen.ts
-// for the pattern — structure only; chrome, copy and behaviour come from
+// for the pattern - structure only; chrome, copy and behaviour come from
 // lib/templates/runtime.ts and lib/templates/dnaCss.ts) and registering it
 // here plus in popupGeneration.ts's template_id enum.
 export type TemplateId = "split-screen" | "corner-toast" | "fullscreen-takeover";
@@ -25,8 +25,8 @@ export function renderPopupTemplate(
   props: PopupTemplateProps,
 ): string {
   const render = (templateId && TEMPLATES[templateId as TemplateId]) || TEMPLATES["split-screen"];
-  // Normalizing here (rather than in each template) means every call site —
-  // generation, the dashboard preview, /store-preview — gets the same
+  // Normalizing here (rather than in each template) means every call site -
+  // generation, the dashboard preview, /store-preview - gets the same
   // back-compat behaviour for Variant rows written before the DNA existed.
   const resolved: ResolvedTemplateProps = {
     ...props,
@@ -53,7 +53,7 @@ export function renderPopupTemplate(
  * Same render, but reports what would ship unreadable instead of only logging.
  *
  * Generation uses this to reject a candidate spec and resample rather than
- * persisting a Variant nobody can use — see `popupGeneration.ts`.
+ * persisting a Variant nobody can use - see `popupGeneration.ts`.
  */
 export function renderPopupTemplateChecked(
   templateId: string | null | undefined,

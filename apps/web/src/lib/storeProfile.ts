@@ -8,8 +8,8 @@ import type { DomExtraction, PaletteEntry, Provenance } from "@/lib/storeExtract
  * Persisting what we learned about a store, and handing it back to generation.
  *
  * The problem this solves: `Account` had exactly two brand columns, `industry`
- * and `brandColor`. Everything else /api/analyze produced — palette, typefaces,
- * imagery style, signature element, detected popup — lived in sessionStorage
+ * and `brandColor`. Everything else /api/analyze produced - palette, typefaces,
+ * imagery style, signature element, detected popup - lived in sessionStorage
  * through onboarding and was dropped at signup, survived into a campaign only
  * because NewCampaignForm spread the raw blob into generationContext, and was
  * explicitly discarded by evaluateKnockout from round two onward.
@@ -141,7 +141,7 @@ function paletteHexes(palette: unknown): string[] {
 }
 
 /**
- * The profile as BrandTokens, or null when there is nothing measured to offer —
+ * The profile as BrandTokens, or null when there is nothing measured to offer -
  * so callers fall through to their existing source rather than to a palette of
  * one synthetic colour.
  */

@@ -1,4 +1,4 @@
-// Dummy data for the Knockout Bracket / Performance UI pass — no real bandit
+// Dummy data for the Knockout Bracket / Performance UI pass - no real bandit
 // logic behind these numbers yet. Swap for live per-variant stats once the
 // underlying calculation is built.
 

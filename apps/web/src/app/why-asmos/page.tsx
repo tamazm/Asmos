@@ -6,7 +6,7 @@ import { CTA } from "@/lib/site";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Why Asmos — Autonomous Conversion Optimization vs. Popup Builders",
+  title: "Why Asmos | Autonomous Conversion Optimization vs. Popup Builders",
   description:
     "Traditional popup tools help you build forms. Asmos continuously improves them. See how Asmos compares to Klaviyo, Mailchimp, and OptiMonk.",
   path: "/why-asmos",
@@ -105,7 +105,7 @@ function Cell({ cell, emphasize }: { cell: Cell; emphasize?: boolean }) {
   }
   return (
     <span className={base}>
-      <span className="text-[color:var(--color-text-secondary)]">—</span>
+      <span className="text-[color:var(--color-text-secondary)]">-</span>
       {cell.label && <span className="text-[color:var(--color-text-secondary)]">{cell.label}</span>}
     </span>
   );
@@ -232,7 +232,7 @@ export default function WhyAsmosPage() {
           <p className="mb-3 text-sm text-[color:var(--color-text-secondary)] text-center max-w-xl mx-auto reveal">
             Klaviyo, Mailchimp, and OptiMonk are powerful marketing and popup tools. Asmos is built around a different objective: continuously optimizing conversion performance.
           </p>
-          <p className="mb-10 text-[11px] text-[color:var(--color-text-secondary)] text-center">✓ Included · ◐ Limited / partial · — Not core / unavailable</p>
+          <p className="mb-10 text-[11px] text-[color:var(--color-text-secondary)] text-center">✓ Included · ◐ Limited / partial · - Not core / unavailable</p>
           <div className="overflow-x-auto reveal-eager">
             <table className="w-full min-w-[720px] border-collapse rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-left">
               <thead>
@@ -263,7 +263,7 @@ export default function WhyAsmosPage() {
               Use Asmos to optimize how visitors become subscribers. Keep using your existing email and SMS platform to communicate with them afterward.
             </p>
             <div className="mt-6 flex items-center justify-center">
-              <FlowRow steps={["Visitor", "Asmos — Conversion + Lead Capture", "Klaviyo / Mailchimp / Omnisend", "Customer"]} tone="muted" />
+              <FlowRow steps={["Visitor", "Asmos: Conversion + Lead Capture", "Klaviyo / Mailchimp / Omnisend", "Customer"]} tone="muted" />
             </div>
           </div>
         </div>

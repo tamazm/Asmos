@@ -162,7 +162,7 @@ export default function GeneratePopupPage() {
     ranRef.current = true;
 
     async function run() {
-      // Read sessionStorage — populated during the /analyze pre-signup scan
+      // Read sessionStorage - populated during the /analyze pre-signup scan
       let analyzeData: AnalyzeResult = {};
       let offerType = "percent_discount";
       let offerValue = "10";
@@ -232,7 +232,7 @@ export default function GeneratePopupPage() {
 
       // Set preview (AI or sensible default). Colour prefers the real
       // generated design_tokens.palette over `color` (the pre-signup guess,
-      // possibly just the "#165DFF" placeholder) — this used to show, and
+      // possibly just the "#165DFF" placeholder) - this used to show, and
       // then permanently save, the guess even when the AI call succeeded
       // and returned a real palette.
       const spec = popup?.baseline?.spec;
@@ -247,7 +247,7 @@ export default function GeneratePopupPage() {
 
       await new Promise((r) => setTimeout(r, 700));
 
-      // ── Step 3: Publish — create campaign immediately ──
+      // ── Step 3: Publish - create campaign immediately ──
       setStepIndex(3);
       setPhase("creating");
 
@@ -264,7 +264,7 @@ export default function GeneratePopupPage() {
       const specToUse = spec;
 
       const campaignPayload = {
-        name: `${name} — Email Capture`,
+        name: `${name}: Email Capture`,
         type: "FORM",
         design: {
           headline: specToUse?.headline ?? `Get ${offerValue || "10"}% off your first order`,
@@ -412,7 +412,7 @@ export default function GeneratePopupPage() {
               <path d="M3 8l3.5 3.5L13 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <p className="text-xs text-emerald-800 leading-relaxed">
-              Campaign is live. Asmos will autonomously create A/B test variants and shift traffic to the winner — no action needed from you.
+              Campaign is live. Asmos will autonomously create A/B test variants and shift traffic to the winner. No action is needed from you.
             </p>
           </div>
         )}

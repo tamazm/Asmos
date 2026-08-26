@@ -61,7 +61,7 @@ export function parseRgba(value: string | null | undefined): { rgb: Rgb; alpha: 
 }
 
 /**
- * Resolves any token the theme tables emit — hex or rgba — to an opaque hex,
+ * Resolves any token the theme tables emit - hex or rgba - to an opaque hex,
  * compositing over `backdrop` when it is translucent. Returns null for anything
  * else (a `color-mix()` string, a CSS variable), so callers can skip rather
  * than guess.
@@ -81,7 +81,7 @@ export function resolveToHex(value: string, backdrop: string): string | null {
  * Needed because contrast has to be measured against the surface that actually
  * paints. Measuring against the untinted base leaves a 5-12% error, which is
  * exactly enough to let a pair land at 4.2:1 while the maths believed it was at
- * 4.6:1 — the whole residual failure band after the first pass of this fix.
+ * 4.6:1 - the whole residual failure band after the first pass of this fix.
  */
 export function mixHex(base: string, accent: string, percent: number): string {
   if (percent <= 0) return base;
@@ -191,7 +191,7 @@ export function ensureContrast(fg: string, bg: string, target = 4.5): string {
   // Contrast is monotonic in t here (we are moving strictly toward one
   // luminance extreme), so binary search converges exactly. A fixed-step scan
   // stops at whichever step first clears, which lands a little under target
-  // once quantised back to 8-bit — the difference between shipping 4.48:1 and
+  // once quantised back to 8-bit - the difference between shipping 4.48:1 and
   // 4.5:1, which is the difference between failing and passing the check.
   if (contrastRatio(at(1), b) < target) return toHex(at(1)); // no headroom; give the best there is
 

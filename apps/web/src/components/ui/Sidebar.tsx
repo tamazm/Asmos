@@ -112,14 +112,14 @@ export function Sidebar({
   userEmail?: string;
   /** True when at least one of the account's sites has a verified install. */
   userVerified?: boolean;
-  /** Called when a nav link is clicked — closes the mobile overlay, if open. */
+  /** Called when a nav link is clicked - closes the mobile overlay, if open. */
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
 
   return (
     <aside className="flex h-full w-64 max-w-[calc(100vw_-_2rem)] flex-shrink-0 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)] lg:w-56 lg:max-w-none">
-      {/* Logo area — height matches the top bar so the two align across the seam */}
+      {/* Logo area - height matches the top bar so the two align across the seam */}
       <div className="flex h-20 items-center justify-between gap-2 border-b border-[color:var(--color-border)] px-4">
         <Image
           src="/assets/logo.webp"
@@ -211,7 +211,7 @@ export function Sidebar({
         )}
       </nav>
 
-      {/* Account row — avatar opens the account menu, the rest opens settings */}
+      {/* Account row - avatar opens the account menu, the rest opens settings */}
       <div className="border-t border-[color:var(--color-border)] px-3 py-3">
         <div className="flex items-center gap-2.5">
           <UserButton />

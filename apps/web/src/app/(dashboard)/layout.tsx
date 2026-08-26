@@ -39,7 +39,7 @@ export default async function DashboardLayout({
   // slightly taller than the viewport). Sizing this shell to just
   // "h-[100dvh]" let body grow past the viewport in that case, giving a
   // second, outer scrollbar on top of this shell's intentional inner
-  // overflow-y-auto on <main> — the "double scroll" bug. Fixed
+  // overflow-y-auto on <main> - the "double scroll" bug. Fixed
   // positioning removes this div from document flow entirely, so body's
   // content height collapses to ~0 and can never independently scroll.
   // (DashboardShell owns that fixed-inset-0 wrapper; see that file for the

@@ -1,6 +1,6 @@
 // Curated Unsplash placeholder image library for AI popup generation.
 //
-// Single source of truth for every Unsplash hotlink used across the app —
+// Single source of truth for every Unsplash hotlink used across the app -
 // previously the same ~3-4 photo IDs were hardcoded independently in
 // popupGeneration.ts's prompt, splitScreen.ts's fallback, and
 // VisualEditor.tsx's manual picker, so "unique popup every time" broke down
@@ -17,20 +17,20 @@
 // ─── CURATION CONTRACT ──────────────────────────────────────────────────────
 //
 // EVERY image in this file must be free of legible text, numerals, percentage
-// signs, price tags, and signage. This is not a style preference — it is a
+// signs, price tags, and signage. This is not a style preference - it is a
 // correctness requirement, because the popup's copy is generated independently
 // of the image and the two will contradict each other.
 //
 // This rule exists because it was already violated. The library used to carry a
 // "General / Abstract / Discount" category whose only entry was a photograph of
 // gift boxes with "SALE" and a large "50%" printed across it. The generator was
-// explicitly told to reach for that category when no other one fit — so a store
+// explicitly told to reach for that category when no other one fit - so a store
 // running a 10% offer shipped a popup reading "A 10% welcome credit" directly
 // underneath a photo of the number 50%. There is no prompt wording that fixes
 // that; the only fix is not to have such an image in the pool.
 //
 // The whole discount/abstract category is gone with it. A popup with nothing
-// relevant to show should show nothing — see `image_treatment: "none"` and the
+// relevant to show should show nothing - see `image_treatment: "none"` and the
 // null-image handling in splitScreen.ts / fullscreenTakeover.ts. An irrelevant
 // image is strictly worse than no image.
 //
@@ -54,7 +54,7 @@ export type ImageCategory =
  *
  * This is the fix for a specific and embarrassing failure: a children's
  * clothing store got a popup backed by a photograph of a dark adult menswear
- * shop. The model had not chosen badly — it had chosen *blind*. The prompt menu
+ * shop. The model had not chosen badly - it had chosen *blind*. The prompt menu
  * emitted bare URLs grouped under a category name, so "Fashion / Apparel" was
  * the only information available, and these descriptions existed solely as
  * comments in this file that nothing ever read.
@@ -69,7 +69,7 @@ const PHOTO_IDS: Record<ImageCategory, LibraryPhoto[]> = {
   fashion_apparel: [
     {
       id: "1483985988355-763728e1935b",
-      description: "adult womenswear rail in a dim boutique, moody and monochrome — adult fashion only",
+      description: "adult womenswear rail in a dim boutique, moody and monochrome - adult fashion only",
     },
     {
       id: "1560472354-b33ff0c44a43",
@@ -177,7 +177,7 @@ export function isLibraryImage(url: string | null | undefined): boolean {
 
 // Formats the library as a prompt-ready menu, grouped by category, for the
 // AI popup generation system prompt (see popupGeneration.ts). Presenting an
-// explicit menu — rather than "here are 3 examples, invent similar ones" —
+// explicit menu - rather than "here are 3 examples, invent similar ones" -
 // is deliberate: it removes the incentive/need for the model to hallucinate
 // a plausible-looking but nonexistent Unsplash URL.
 export function formatImageLibraryForPrompt(): string {
@@ -205,7 +205,7 @@ export function formatImageLibraryForPrompt(): string {
  *
  * Named explicitly because "pick the closest category" is the instruction that
  * put an adult menswear boutique behind a children's store's popup. There is no
- * closest category for a toy shop — there is only a wrong one.
+ * closest category for a toy shop - there is only a wrong one.
  */
 export const UNSERVED_STORE_TYPES = [
   "children's / baby / kids' clothing, toys or nursery",

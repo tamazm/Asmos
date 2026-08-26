@@ -50,7 +50,7 @@ export const evaluateKnockout = inngest.createFunction(
           variants: true,
           account: true,
           // The store profile is what stops the brand decaying to a single hex
-          // after round one — see the brandTokens block below.
+          // after round one - see the brandTokens block below.
           website: { include: { storeProfile: true } },
         },
       });
@@ -77,7 +77,7 @@ export const evaluateKnockout = inngest.createFunction(
       return { message: "Round advanced" };
     }
 
-    // The round is full but still has multiple contenders — eliminate anyone
+    // The round is full but still has multiple contenders - eliminate anyone
     // the posterior says is not going to win, before doing anything else. This
     // is what narrows a round down to the single winner the advance-round
     // branch above is waiting for.
@@ -136,7 +136,7 @@ export const evaluateKnockout = inngest.createFunction(
         const pBest = probabilityBest(arms, prior);
 
         // Never eliminate the last arm standing, and never eliminate more than
-        // one per evaluation — each elimination changes the posterior of every
+        // one per evaluation - each elimination changes the posterior of every
         // survivor, so they should be taken one at a time.
         const ranked = arms
           .filter((a) => (pBest[a.id] ?? 0) < ELIMINATION_THRESHOLD)
@@ -168,7 +168,7 @@ export const evaluateKnockout = inngest.createFunction(
             });
           });
           console.log(
-            `[evaluateKnockout] campaign ${campaign.id} round ${currentRound}: eliminated ${target?.name ?? targetId} — ${decision.reason}`,
+            `[evaluateKnockout] campaign ${campaign.id} round ${currentRound}: eliminated ${target?.name ?? targetId} - ${decision.reason}`,
           );
           return { message: "Eliminated underperforming variant", eliminated: 1 };
         }
@@ -220,7 +220,7 @@ export const evaluateKnockout = inngest.createFunction(
 
     const accountIndustry = campaign.account.industry ?? "Ecommerce / Retail";
     // The account's own brandColor field is deliberately not a colour source
-    // anywhere in generation (see brandTokensFromAnalyzeResult) — computed
+    // anywhere in generation (see brandTokensFromAnalyzeResult) - computed
     // once here as the last-resort fallback for the raw primaryColor writes
     // below, so a variant whose design_tokens.palette is somehow still empty
     // doesn't fall back to a stale/placeholder account colour either.
@@ -231,7 +231,7 @@ export const evaluateKnockout = inngest.createFunction(
     const controlDesign = (controlVariant?.design ?? {}) as Record<string, unknown>;
     // Page targeting is a campaign-level choice made once at creation (see
     // NewCampaignForm.tsx) and copied identically onto every variant's
-    // targeting.pages by generateCampaign.ts — carry it forward onto
+    // targeting.pages by generateCampaign.ts - carry it forward onto
     // knockout-generated variants too, or a new round would silently reset
     // "only show on /product/*" back to "show everywhere".
     const controlTargeting = (controlVariant?.targeting ?? {}) as { pages?: unknown };
@@ -243,13 +243,13 @@ export const evaluateKnockout = inngest.createFunction(
     // the tournament generated after round one was built from a synthetic
     // palette derived from one hex, with type_display "system-ui" and
     // imagery_style "clean and minimal". The brand was at its strongest in
-    // round one and gone by round two — which is exactly the period during
+    // round one and gone by round two - which is exactly the period during
     // which the bandit decides what "works" for this store.
     //
     // Source order: the store profile persisted at analysis time (durable,
     // survives re-analysis and campaign edits), then the campaign's own
     // generationContext (what the merchant saw at creation). No account
-    // colour fallback — see brandTokensFromAnalyzeResult.
+    // colour fallback - see brandTokensFromAnalyzeResult.
     const storeProfile = campaign.website.storeProfile ?? null;
     const contextTokens = (campaign.generationContext as { brandTokens?: unknown } | null)?.brandTokens;
     const contextStyles = (campaign.generationContext as { computedStyles?: unknown } | null)?.computedStyles;

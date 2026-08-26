@@ -6,7 +6,7 @@ import { TrafficCalculatorClient } from "@/components/marketing/TrafficCalculato
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Traffic Calculator — Estimate Your Ecommerce Traffic Opportunity",
+  title: "Traffic Calculator | Estimate Your Ecommerce Traffic Opportunity",
   description:
     "Model how growth in your website traffic translates into customers and revenue, and see why conversion rate determines whether that traffic pays off.",
   path: "/tools/traffic-calculator",

@@ -171,7 +171,7 @@ export function AnalyticsTab({
         ))}
       </div>
 
-      {/* Diagnosis — what the numbers above actually mean */}
+      {/* Diagnosis - what the numbers above actually mean */}
       <div className={`rounded-2xl border p-5 ${verdict.ring} ${verdict.bg}`}>
         <div className="flex flex-wrap items-center gap-2">
           <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${verdict.chip}`}>
@@ -201,7 +201,7 @@ export function AnalyticsTab({
           <p className="text-sm text-[color:var(--color-text-secondary)]">
             {diagnostics.measuredSessions === 0
               ? "No interaction telemetry recorded yet. This fills in once visitors start opening the popup."
-              : "No friction pattern is common enough to flag. Visitors who don't convert are leaving without a shared, fixable reason — which usually points at the offer rather than the popup."}
+              : "No friction pattern is common enough to flag. Visitors who don't convert are leaving without a shared, fixable reason - which usually points at the offer rather than the popup."}
           </p>
         ) : (
           <div className="flex flex-col gap-3">

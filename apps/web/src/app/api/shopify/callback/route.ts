@@ -1,7 +1,7 @@
 import { shopify } from "@/lib/shopify/client";
 import { getOrCreateAccountForShop } from "@/lib/shopify/tenant";
 
-// GET /api/shopify/callback — OAuth callback Shopify redirects to after the
+// GET /api/shopify/callback - OAuth callback Shopify redirects to after the
 // merchant approves scopes on the /api/shopify/install redirect. Exchanges
 // the code for an offline access token, provisions the Account/ShopifyShop
 // (no Clerk sign-up involved), then redirects into the embedded admin.

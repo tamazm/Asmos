@@ -5,7 +5,7 @@ import type { RewardType } from ".prisma/client";
 
 const VALID_TYPES: RewardType[] = ["COUPON", "DISCOUNT_PERCENT", "DISCOUNT_FIXED", "FREE_SHIPPING", "GIFT"];
 
-// Manual reward creation — the rewards page previously only ever showed
+// Manual reward creation - the rewards page previously only ever showed
 // rewards the AI had created as a side effect of generating a campaign.
 // This lets a merchant add any reward type directly (a second free-shipping
 // tier, a manually-authored gift, extra discount rules, etc.) and attach it

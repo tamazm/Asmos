@@ -2,8 +2,8 @@
 --
 -- 1. StoreProfile: what we actually understand about a merchant's store.
 --    Until now the only brand columns anywhere were Account.industry and
---    Account.brandColor, two strings. Everything else /api/analyze produced —
---    palette, typefaces, imagery style, signature element, detected popup —
+--    Account.brandColor, two strings. Everything else /api/analyze produced -
+--    palette, typefaces, imagery style, signature element, detected popup -
 --    lived in sessionStorage through onboarding and was dropped at signup, and
 --    evaluateKnockout explicitly discarded it from round two onward. That is
 --    why generated popups got the store's name right and nothing else.

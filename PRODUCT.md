@@ -1,10 +1,10 @@
-# Asmos — Product Context
+# Asmos - Product Context
 
 ## Product Purpose
 Asmos is a popup + behavioral AI platform for e-commerce and SaaS businesses. It lets merchants launch on-site popups, capture leads, and run A/B experiments that automatically optimize toward the best-performing variant via bandit-based allocation.
 
 ## Register
-**product** — the design serves the product (app UI, onboarding, dashboard, tool surfaces). The pre-auth landing/analyze screens lean brand/marketing but still sit within the product shell.
+**product** - the design serves the product (app UI, onboarding, dashboard, tool surfaces). The pre-auth landing/analyze screens lean brand/marketing but still sit within the product shell.
 
 ## Users
 - Primary: E-commerce store owners (Shopify, WooCommerce, custom) who want more email signups and conversions
@@ -30,22 +30,22 @@ Asmos is a popup + behavioral AI platform for e-commerce and SaaS businesses. It
 - No inline emoji in UI copy
 
 ## Strategic Principles
-1. **Clarity over cleverness** — every screen has one primary action
-2. **Progressive disclosure** — don't ask for everything upfront
-3. **Trust signals** — clean, professional, not scrappy
-4. **Speed to value** — onboarding should feel like 3 steps, not 10
+1. **Clarity over cleverness** - every screen has one primary action
+2. **Progressive disclosure** - don't ask for everything upfront
+3. **Trust signals** - clean, professional, not scrappy
+4. **Speed to value** - onboarding should feel like 3 steps, not 10
 
 ## Onboarding Flow
-1. `/` — URL input (analyze my store)
-2. `/analyze` — live scanning animation
-3. `/analyze/results` — detected brand info, confirm
-4. `/sign-up` or `/sign-in` — Clerk auth
-5. `/onboarding/business-profile` — industry + brand color
-6. `/onboarding/connect-store` — install snippet
-7. `/dashboard` — main app
+1. `/` - URL input (analyze my store)
+2. `/analyze` - live scanning animation
+3. `/analyze/results` - detected brand info, confirm
+4. `/sign-up` or `/sign-in` - Clerk auth
+5. `/onboarding/business-profile` - industry + brand color
+6. `/onboarding/connect-store` - install snippet
+7. `/dashboard` - main app
 
 ## Session Storage Keys
-- `asmos_analyze_result` — `{ storeName, industry, brandColor, description, logoUrl, storeUrl }`
+- `asmos_analyze_result` - `{ storeName, industry, brandColor, description, logoUrl, storeUrl }`
 
 ## Voice + Copy Rules
 - Short imperatives for CTAs: "Analyze my store", "Create account", "Copy snippet"

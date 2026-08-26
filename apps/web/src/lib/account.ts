@@ -8,10 +8,10 @@ import { isSuperadminEmail } from "@/lib/superadmin";
 // accountId, while leaving ordinary account-holder requests completely
 // unchanged: explicitAccountId is only ever honored after confirming the
 // caller's own email is in the superadmin allowlist, so a non-superadmin
-// passing an arbitrary accountId has zero effect — they still just get
+// passing an arbitrary accountId has zero effect - they still just get
 // their own account via getOrCreateAccount(), exactly as before this
 // function existed. Returns null only for "explicit id given, caller is a
-// superadmin, but that account doesn't exist" — callers should 404 on that.
+// superadmin, but that account doesn't exist" - callers should 404 on that.
 export async function resolveAccountForRequest(explicitAccountId?: string | null) {
   if (explicitAccountId) {
     const user = await currentUser();
@@ -64,7 +64,7 @@ export async function getOrCreateAccount() {
         data: {
           accountId: account.id,
           websiteId: account.websites[0].id,
-          name: `${lead.storeName ?? lead.storeUrl} — Email Capture`,
+          name: `${lead.storeName ?? lead.storeUrl}: Email Capture`,
           type: "FORM",
           status: "GENERATING",
           generationContext: { 

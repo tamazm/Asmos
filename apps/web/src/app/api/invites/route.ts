@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       acceptUrl,
     });
   } catch {
-    // Invite is still created — email delivery failing shouldn't block the invite itself.
+    // Invite is still created - email delivery failing shouldn't block the invite itself.
   }
 
   return Response.json({ invite });

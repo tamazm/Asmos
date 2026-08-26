@@ -9,7 +9,7 @@ type Phase = "idle" | "analyzing" | "error";
 type DiscountPreference = "ai_choice" | "percentage" | "free_shipping" | "fixed_prize";
 type PageTargetMode = "all" | "include" | "exclude";
 
-// No platform-wide cap — merchants can set whatever max discount they want.
+// No platform-wide cap - merchants can set whatever max discount they want.
 // This is just a sanity bound on the input itself (mirrors
 // MAX_SANE_DISCOUNT_PERCENT in lib/popupGeneration.ts), not a business rule.
 const DISCOUNT_PERCENT_INPUT_MAX = 100;
@@ -24,13 +24,13 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
   const [error, setError] = useState<string | null>(null);
   const [showManual, setShowManual] = useState(false);
 
-  // Personalization (optional — everything defaults to "let the AI decide" /
+  // Personalization (optional - everything defaults to "let the AI decide" /
   // "show everywhere" so skipping this section doesn't slow anyone down).
   const [showPersonalize, setShowPersonalize] = useState(false);
   const [discountPreference, setDiscountPreference] = useState<DiscountPreference>("ai_choice");
   const [maxDiscountPercent, setMaxDiscountPercent] = useState(DEFAULT_MAX_DISCOUNT_PERCENT);
   const [fixedPrizeDescription, setFixedPrizeDescription] = useState("");
-  // Optional quantity caps — left blank/0 means "unlimited" for free
+  // Optional quantity caps - left blank/0 means "unlimited" for free
   // shipping, or the platform default (see DEFAULT_GIFT_REDEMPTIONS in
   // lib/limits.ts) for a fixed prize, since a physical/limited-inventory
   // reward should never silently default to unlimited.
@@ -96,10 +96,10 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
       }
       const result = await resAnalyze.json();
 
-      const name = campaignName.trim() || `${result.storeName ?? "My Store"} — Email Capture`;
+      const name = campaignName.trim() || `${result.storeName ?? "My Store"}: Email Capture`;
 
       // Personalization inputs (see the "Personalize your popup" section
-      // below) — undefined/omitted when left at their defaults, so
+      // below) - undefined/omitted when left at their defaults, so
       // generateCampaign.ts's "ai_choice"/"show everywhere" defaults apply
       // exactly as before for anyone who didn't open that section.
       const pageTargeting =
@@ -185,7 +185,7 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
         </div>
         <h1 className="text-2xl font-bold text-[color:var(--color-text-primary)]">Launch a popup</h1>
         <p className="mt-1 text-sm text-[color:var(--color-text-secondary)]">
-          Enter your store URL — Asmos AI scans your brand and designs a popup in seconds.
+          Enter your store URL. Asmos AI scans your brand and designs a popup in seconds.
         </p>
       </div>
 
@@ -214,7 +214,7 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                 </div>
                 <div>
                   <label htmlFor="campaign-name" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
-                    Campaign name <span className="font-normal text-[color:var(--color-text-secondary)]">(optional — auto-filled from store)</span>
+                    Campaign name <span className="font-normal text-[color:var(--color-text-secondary)]">(optional - auto-filled from store)</span>
                   </label>
                   <input
                     id="campaign-name"
@@ -285,7 +285,7 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                 </div>
               </div>
 
-              {/* Personalize your popup (optional) — discount type/cap + page targeting */}
+              {/* Personalize your popup (optional) - discount type/cap + page targeting */}
               <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
                 <button
                   type="button"
@@ -351,7 +351,7 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                             className="w-20 rounded-lg border border-[color:var(--color-border)] px-2 py-1.5 text-sm outline-none focus:border-[color:var(--color-primary)]"
                           />
                           <span className="text-sm text-[color:var(--color-text-secondary)]">
-                            % — the AI will never suggest more than this
+                            % - the AI will never suggest more than this
                           </span>
                         </div>
                       )}
@@ -399,14 +399,14 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                               className="w-28 rounded-lg border border-[color:var(--color-border)] px-2 py-1.5 text-sm outline-none focus:border-[color:var(--color-primary)]"
                             />
                             <span className="text-sm text-[color:var(--color-text-secondary)]">
-                              redemptions (defaults to 40 — prizes are finite)
+                              redemptions (defaults to 40 - prizes are finite)
                             </span>
                           </div>
                         </div>
                       )}
 
                       <p className="mt-2 text-xs text-[color:var(--color-text-secondary)]">
-                        A popup never shows if its campaign has no reward left to give — Asmos
+                        A popup never shows if its campaign has no reward left to give - Asmos
                         automatically stocks a starting batch of codes/redemptions when you launch, and
                         you can top these up any time from the Rewards page.
                       </p>
@@ -468,7 +468,7 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                             <div className="max-h-48 overflow-y-auto rounded-lg border border-[color:var(--color-border)] p-2">
                               {scrapedPages.length === 0 ? (
                                 <p className="p-2 text-xs text-[color:var(--color-text-secondary)]">
-                                  Couldn&apos;t find any pages automatically — enter paths manually above.
+                                  Couldn&apos;t find any pages automatically - enter paths manually above.
                                 </p>
                               ) : (
                                 <div className="flex flex-col gap-1">
@@ -502,10 +502,10 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                 <p className="text-xs font-semibold uppercase tracking-widest text-[color:var(--color-text-secondary)]">What Asmos AI does automatically</p>
                 {[
                   "Scans your homepage for brand colors, typography, and style",
-                  "Detects any existing popups and improves them — or creates from scratch",
+                  "Detects any existing popups and improves them - or creates from scratch",
                   "Writes personalized headline, subhead and CTA for your store category",
-                  "Generates a self-contained popup — live in one click",
-                  "Auto-tests variants via the bandit — no manual A/B setup needed",
+                  "Generates a self-contained popup - live in one click",
+                  "Auto-tests variants via the bandit - no manual A/B setup needed",
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2">
                     <svg className="mt-0.5 shrink-0 text-emerald-500" width="12" height="12" viewBox="0 0 16 16" fill="none">

@@ -5,7 +5,7 @@ import { useEffect } from "react";
 /**
  * Wires up the .reveal / .reveal-eager / .reveal-stagger scroll-in
  * animations (see globals.css) via IntersectionObserver. Mount once per
- * page — rendered from MarketingFooter so every marketing page gets it
+ * page - rendered from MarketingFooter so every marketing page gets it
  * without needing to remember to add it individually. IntersectionObserver
  * fires an initial callback for already-in-viewport elements, so anything
  * above the fold at mount time reveals immediately rather than staying

@@ -19,9 +19,9 @@ const HAS_GEMINI_KEY = Boolean(process.env.GEMINI_API_KEY);
 const MOCK_MODE = !HAS_ANTHROPIC_KEY && !HAS_GEMINI_KEY && process.env.NODE_ENV !== "production";
 
 const SYSTEM_PROMPT_BASE =
-  "You help merchants design on-site popup marketing campaigns (spin-the-wheel, scratch card, or plain form) through a short conversation. Ask a quick clarifying question if the goal is unclear; otherwise propose a complete draft right away and refine it as the merchant reacts. Keep replies short and conversational — a sentence or two, not a report. Whenever you have enough information to propose or update the full draft, call update_campaign with the complete campaign object. Keep copy short and punchy, pick a campaign type that fits the goal, and make reward weights sum to a reasonable distribution for wheel/scratch types (a single reward with weight 1 is fine for plain forms).";
+  "You help merchants design on-site popup marketing campaigns (spin-the-wheel, scratch card, or plain form) through a short conversation. Ask a quick clarifying question if the goal is unclear; otherwise propose a complete draft right away and refine it as the merchant reacts. Keep replies short and conversational - a sentence or two, not a report. Whenever you have enough information to propose or update the full draft, call update_campaign with the complete campaign object. Keep copy short and punchy, pick a campaign type that fits the goal, and make reward weights sum to a reasonable distribution for wheel/scratch types (a single reward with weight 1 is fine for plain forms).";
 
-// account.brandColor is deliberately not used here — same reasoning as
+// account.brandColor is deliberately not used here - same reasoning as
 // popupGeneration.ts's brandTokensFromAnalyzeResult: a merchant-set/stored
 // account field, not something measured, and it was letting the same stale-
 // value problem back in through this separate (wheel/scratch-card) chat
@@ -57,7 +57,7 @@ const MOCK_DRAFT: GeneratedCampaign = {
 function mockChatTurn(history: unknown[], userMessage: string) {
   const isFirstTurn = history.length === 0;
   const assistantText = isFirstTurn
-    ? `[Mock mode — no API key set] Here's a sample draft so you can try the flow. Add a real key to get actual AI-generated campaigns from "${userMessage}".`
+    ? `[Mock mode - no API key set] Here's a sample draft so you can try the flow. Add a real key to get actual AI-generated campaigns from "${userMessage}".`
     : `[Mock mode] Pretending I updated the draft for: "${userMessage}".`;
 
   return {

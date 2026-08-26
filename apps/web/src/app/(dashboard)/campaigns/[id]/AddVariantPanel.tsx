@@ -19,7 +19,7 @@ const GENERATION_STEPS = [
 function generateVariantCopy(seed: string): { headline: string; body: string; ctaText: string } {
   const headlines = [
     "Unlock Your Exclusive Deal Today",
-    "Get 20% Off — Limited Time Only",
+    "Get 20% Off - Limited Time Only",
     "Join 10,000+ Happy Customers",
     "Your Free Gift is Waiting",
     "Don't Miss This Special Offer",
@@ -238,7 +238,7 @@ export function AddVariantPanel({
   const [state, setState] = useState<GenerationState>("idle");
   const [error, setError] = useState<string | null>(null);
 
-  // Form fields — optional manual overrides
+  // Form fields - optional manual overrides
   const [headline, setHeadline] = useState("");
   const [body, setBody] = useState("");
   const [ctaText, setCtaText] = useState("");
@@ -462,7 +462,7 @@ export function AddVariantPanel({
             Add variant
           </button>
           <p className="text-xs text-[color:var(--color-text-secondary)]">
-            Add challengers to the bracket — the bandit auto-routes traffic.
+            Add challengers to the bracket - the bandit auto-routes traffic.
           </p>
         </div>
       )}
@@ -627,7 +627,7 @@ export function AddVariantPanel({
               </div>
             )}
 
-            {/* Done state — show generated variant card */}
+            {/* Done state - show generated variant card */}
             {isDone && generated && !isSuccess && (
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
                 {/* Variant card */}

@@ -40,7 +40,7 @@ export function KnockoutBracketWithVariants({
       {/* Knockout bracket */}
       <KnockoutBracket variants={variants} />
 
-      {/* Scheduled variants — only when there are non-control variants */}
+      {/* Scheduled variants - only when there are non-control variants */}
       {nonControlVariants.length > 0 && (
         <ScheduledVariants
           variants={variants}

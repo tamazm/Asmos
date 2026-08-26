@@ -115,7 +115,7 @@ export function EmailCaptureCalculatorClient() {
               onChange={(e) => setTargetCVRInput(Number(e.target.value))}
               className="input-glow w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm focus:outline-none"
             />
-            <p className="mt-1.5 text-[11px] text-[color:var(--color-text-secondary)]">The rate you want to model reaching — set your own goal.</p>
+            <p className="mt-1.5 text-[11px] text-[color:var(--color-text-secondary)]">The rate you want to model reaching - set your own goal.</p>
           </div>
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-xs font-medium text-[color:var(--color-text-secondary)]" title="The percentage of newly captured email subscribers who eventually make a purchase.">
@@ -253,7 +253,7 @@ export function EmailCaptureCalculatorClient() {
           {/* Send me my results */}
           <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
             {leadStatus === "sent" ? (
-              <p className="text-center text-sm font-medium text-[color:var(--color-text-primary)]">Sent — check your inbox for your calculation and revenue opportunity.</p>
+              <p className="text-center text-sm font-medium text-[color:var(--color-text-primary)]">Sent. Check your inbox for your calculation and revenue opportunity.</p>
             ) : (
               <form onSubmit={handleSendReport} className="flex flex-col sm:flex-row items-end gap-3">
                 <div className="flex-1 w-full">

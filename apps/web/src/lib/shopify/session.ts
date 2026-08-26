@@ -4,7 +4,7 @@ export class InvalidSessionTokenError extends Error {}
 
 // Verifies the App Bridge session token every embedded-admin request must
 // carry as `Authorization: Bearer <token>`. Throws InvalidSessionTokenError
-// on anything missing/malformed/expired — callers turn that into a 401.
+// on anything missing/malformed/expired - callers turn that into a 401.
 export async function verifySessionToken(request: Request): Promise<{ shopDomain: string }> {
   const authHeader = request.headers.get("authorization") ?? request.headers.get("Authorization");
   const token = authHeader?.match(/^Bearer (.+)$/)?.[1];

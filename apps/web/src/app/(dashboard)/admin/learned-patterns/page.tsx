@@ -8,11 +8,11 @@ import { isSuperadminEmail } from "@/lib/superadmin";
 import Link from "next/link";
 import { approveLearnedPattern, rejectLearnedPattern } from "./actions";
 
-// AI popup variation roadmap, Phase 4 — review surface for patterns mined
+// AI popup variation roadmap, Phase 4 - review surface for patterns mined
 // across all accounts (lib/inngest/mineCrossAccountPatterns.ts, runs weekly).
 // Deliberately human-gated: nothing here reaches the live system prompt
 // until a superadmin approves it (see popupGeneration.ts's
-// getLearnedPatternsSection). Rejecting is just as important as approving —
+// getLearnedPatternsSection). Rejecting is just as important as approving -
 // a false-positive pattern promoted to every customer's popups at once is
 // the failure mode this page exists to prevent.
 export default async function LearnedPatternsPage() {
@@ -44,7 +44,7 @@ export default async function LearnedPatternsPage() {
         </div>
         <PageHeader title="Learned Patterns" />
         <p className="mt-2 text-sm text-[color:var(--color-text-secondary)] max-w-2xl">
-          Candidates mined weekly across every account&apos;s campaign performance — patterns that conclusively
+          Candidates mined weekly across every account&apos;s campaign performance - patterns that conclusively
           won in at least 5 independent campaigns within the same category. Approving a pattern adds it to the
           system prompt used for every future AI generation; rejecting discards it. Nothing here affects live
           generation until you act on it.
@@ -118,10 +118,10 @@ export default async function LearnedPatternsPage() {
                       {p.category} / {p.testAxis} / {p.failurePattern}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-[color:var(--color-text-secondary)]">
-                      {p.reviewedBy ?? "—"}
+                      {p.reviewedBy ?? "-"}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-[color:var(--color-text-secondary)]">
-                      {p.reviewedAt ? p.reviewedAt.toLocaleString() : "—"}
+                      {p.reviewedAt ? p.reviewedAt.toLocaleString() : "-"}
                     </td>
                   </tr>
                 ))}

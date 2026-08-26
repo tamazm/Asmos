@@ -128,7 +128,7 @@ export function AnalyticsExplorer({ data }: { data: SuperadminAnalyticsData }) {
                     <tr key={row.dimension}>
                       <td className="px-4 py-2 text-[color:var(--color-text-primary)]">{row.dimension || "unknown"}</td>
                       <td className="px-4 py-2 text-right font-semibold tabular-nums text-[color:var(--color-text-primary)]">
-                        {row.value === null ? "—" : row.value.toLocaleString()}
+                        {row.value === null ? "-" : row.value.toLocaleString()}
                       </td>
                     </tr>
                   ))}
@@ -182,15 +182,15 @@ export function AnalyticsExplorer({ data }: { data: SuperadminAnalyticsData }) {
                       <td className="whitespace-nowrap px-3 py-2 text-[color:var(--color-text-secondary)]">{displayTime(event.timestamp)}</td>
                       <td className="px-3 py-2 font-mono text-[11px] text-[color:var(--color-text-primary)]">{event.event}</td>
                       <td className="max-w-56 px-3 py-2">
-                        <div className="truncate text-[color:var(--color-text-primary)]">{event.variantName || "—"}</div>
-                        <div className="truncate text-[10px] text-[color:var(--color-text-secondary)]">{event.campaignId || "—"}</div>
+                        <div className="truncate text-[color:var(--color-text-primary)]">{event.variantName || "-"}</div>
+                        <div className="truncate text-[10px] text-[color:var(--color-text-secondary)]">{event.campaignId || "-"}</div>
                       </td>
                       <td className="px-3 py-2">
                         <span className={`inline-flex rounded-full px-2 py-0.5 font-semibold ${intentClass(event.intentLevel)}`}>
                           {event.intentLevel || "unknown"}{event.intentScore === null ? "" : ` · ${event.intentScore}`}
                         </span>
                       </td>
-                      <td className="px-3 py-2">{event.device || "—"}</td>
+                      <td className="px-3 py-2">{event.device || "-"}</td>
                       <td className="max-w-40 truncate px-3 py-2 font-mono text-[10px] text-[color:var(--color-text-secondary)]">{event.distinctId}</td>
                     </tr>
                   ))}

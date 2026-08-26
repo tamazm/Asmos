@@ -1,5 +1,5 @@
 # High-Converting Popup Design Library
-### Email Capture & % Off Deal Modals — Design, UX, and Build Guide
+### Email Capture & % Off Deal Modals - Design, UX, and Build Guide
 
 Built from analysis of 8 live examples (Pact, mindbodygreen, Bloom, HexClad, Beckett Simonon, Princess Polly, Camilla, and a publisher signup flow) plus current conversion-rate optimization research.
 
@@ -7,14 +7,14 @@ Built from analysis of 8 live examples (Pact, mindbodygreen, Bloom, HexClad, Bec
 
 ## 0. How This Library Is Organized
 
-1. **Psychology** — why these patterns work
-2. **Pattern taxonomy** — the 4 popup archetypes, with when to use each
-3. **Anatomy & layout system** — the reusable skeleton every high-performer shares
-4. **Copywriting formulas** — headline/CTA/microcopy templates
-5. **Motion & interaction design** — timers, scratch, spin, transitions
-6. **UX rules, triggers & accessibility** — timing, frequency capping, a11y
-7. **Build from scratch — vanilla HTML/CSS/JS**
-8. **Build from scratch — React**
+1. **Psychology** - why these patterns work
+2. **Pattern taxonomy** - the 4 popup archetypes, with when to use each
+3. **Anatomy & layout system** - the reusable skeleton every high-performer shares
+4. **Copywriting formulas** - headline/CTA/microcopy templates
+5. **Motion & interaction design** - timers, scratch, spin, transitions
+6. **UX rules, triggers & accessibility** - timing, frequency capping, a11y
+7. **Build from scratch - vanilla HTML/CSS/JS**
+8. **Build from scratch - React**
 9. **Discount-code reveal patterns**
 10. **QA checklist + A/B testing roadmap**
 11. **Annotated reference gallery** (15 examples)
@@ -30,11 +30,11 @@ Every pattern in this library is a delivery mechanism for one or more of these f
 |---|---|---|
 | **Reciprocity** | Give something small before asking for something | "You've got a gift" / "Here's 10% off" framing *before* the email field appears |
 | **Loss aversion** | Losing feels ~2x stronger than an equivalent gain | Countdown timers, "your discount expires," loss-framed copy over gain-framed copy |
-| **Scarcity** | Cialdini's principle — rare = valuable | "First order only," genuine stock/time limits |
+| **Scarcity** | Cialdini's principle - rare = valuable | "First order only," genuine stock/time limits |
 | **Commitment & consistency (micro-yes)** | A small first "yes" (closing a quiz question, starting a scratch) increases follow-through on the bigger ask (email) | Two-step flows, quiz-gated popups, scratch/spin mechanics |
 | **Curiosity gap / variable reward** | Unknown outcomes trigger dopamine more than known ones | "Mystery discount," spin wheels, scratch cards |
 
-**Benchmark conversion rates** (blended from multiple 2026 industry studies — use as directional, not guaranteed):
+**Benchmark conversion rates** (blended from multiple 2026 industry studies - use as directional, not guaranteed):
 
 | Format | Typical conversion rate | Notes |
 |---|---|---|
@@ -50,11 +50,11 @@ Every pattern in this library is a delivery mechanism for one or more of these f
 
 Two consistent findings worth designing around:
 - Every additional required form field reduces conversion by roughly 10–15%, so ask for the absolute minimum on step one.
-- Fabricated urgency (timers that reset, "3 left" that never runs out) produces a short-term lift and a long-term trust penalty — a meaningful share of shoppers say they now discount urgency messaging outright because they've been burned before.
+- Fabricated urgency (timers that reset, "3 left" that never runs out) produces a short-term lift and a long-term trust penalty - a meaningful share of shoppers say they now discount urgency messaging outright because they've been burned before.
 
 ---
 
-## 2. Pattern Taxonomy — 4 Popup Archetypes
+## 2. Pattern Taxonomy - 4 Popup Archetypes
 
 ### A. Single-Step Direct Offer
 Headline + one or two fields + CTA, no gating. Fastest to build, lowest ceiling.
@@ -66,11 +66,11 @@ Headline + one or two fields + CTA, no gating. Fastest to build, lowest ceiling.
 ### B. Two-Step Gated Reveal ("teaser → capture → code")
 This is the dominant pattern across Pact, mindbodygreen, Bloom, and HexClad. Three screens:
 
-1. **Teaser screen** — "You've got X" / "You've got $Y off," countdown starts, single CTA ("Claim," "Join for Access") — no field yet. This is a reciprocity + curiosity hook with zero friction.
-2. **Capture screen** — one field (email or phone), countdown still visible and now lower, CTA restates the benefit ("Continue," "Join for Access").
-3. **Reveal screen** — code shown in a dashed "coupon" box, copy button, CTA to shop ("Shop Now").
+1. **Teaser screen** - "You've got X" / "You've got $Y off," countdown starts, single CTA ("Claim," "Join for Access") - no field yet. This is a reciprocity + curiosity hook with zero friction.
+2. **Capture screen** - one field (email or phone), countdown still visible and now lower, CTA restates the benefit ("Continue," "Join for Access").
+3. **Reveal screen** - code shown in a dashed "coupon" box, copy button, CTA to shop ("Shop Now").
 
-**Why it outperforms single-step:** the visitor has already taken one free micro-action (clicking "Claim") before being asked for information — commitment & consistency plus a live countdown compounding loss aversion.
+**Why it outperforms single-step:** the visitor has already taken one free micro-action (clicking "Claim") before being asked for information - commitment & consistency plus a live countdown compounding loss aversion.
 
 **Use when:** you want to combine urgency + reciprocity, or you're capturing both email and phone in sequence.
 
@@ -79,12 +79,12 @@ Adds one question before the offer: "What brings you to Pact?" / "What are you l
 
 **Why it works:** it's a zero-cost micro-commitment, and it gives you first-party segmentation data for the welcome flow that follows (e.g., send fitness-goal shoppers different follow-up emails than skincare shoppers).
 
-**Use when:** you have genuinely different follow-up flows/products per segment — don't add this step just for the conversion lift if you can't act on the data.
+**Use when:** you have genuinely different follow-up flows/products per segment - don't add this step just for the conversion lift if you can't act on the data.
 
 ### D. Gamified Interaction (spin wheel / scratch card / pick-a-box)
 Replaces a static claim button with a small game. Scratch card (Beckett Simonon) reveals text/prize under a canvas-drawn "foil" layer; spin wheel reveals a randomized prize behind a pointer.
 
-**Why it works:** variable reward + play framing lowers the perceived cost of giving up an email address — users report the exchange as "fun" rather than "transactional," which is why this format posts the highest raw conversion numbers of any pattern.
+**Why it works:** variable reward + play framing lowers the perceived cost of giving up an email address - users report the exchange as "fun" rather than "transactional," which is why this format posts the highest raw conversion numbers of any pattern.
 
 **Use when:** brand tone is casual/fun (fashion, beauty, food, fitness); avoid for luxury or clinical/medical brands where a "game" undercuts trust.
 
@@ -109,12 +109,12 @@ Every high-performing popup in the reference set (regardless of archetype) is bu
 
 ### Layout shells (two dominant shapes across the reference set)
 
-**Shell 1 — Split screen (Pact, mindbodygreen, Camilla, Beckett Simonon)**
+**Shell 1 - Split screen (Pact, mindbodygreen, Camilla, Beckett Simonon)**
 - 40–55% lifestyle photography (fixed, full-bleed, no crop artifacts) on one side
 - 45–60% content panel on a flat/near-white background on the other
 - On mobile: image collapses to a top band (30–40vh) or becomes a background image behind a translucent content panel (Bloom's approach)
 
-**Shell 2 — Centered card over dimmed background (Princess Polly, publisher example)**
+**Shell 2 - Centered card over dimmed background (Princess Polly, publisher example)**
 - Single centered card, 380–460px wide
 - Page content dimmed behind a 50–70% opacity black/dark overlay
 - Simpler to build, works for any brand, slightly lower visual impact than Shell 1
@@ -129,22 +129,22 @@ Use an 8px base unit throughout:
 
 ### Typography pairing
 Two patterns dominate:
-1. **Serif headline + sans body** (Pact, Camilla) — signals heritage/craft, pair a display serif (e.g., a Georgia/Playfair-style face) at 28–36px with a clean grotesk body at 14–16px.
-2. **Bold sans throughout** (mindbodygreen, Bloom, HexClad) — signals modern/energetic, use a single sans family with weight variation (800 for headline, 400–500 for body).
+1. **Serif headline + sans body** (Pact, Camilla) - signals heritage/craft, pair a display serif (e.g., a Georgia/Playfair-style face) at 28–36px with a clean grotesk body at 14–16px.
+2. **Bold sans throughout** (mindbodygreen, Bloom, HexClad) - signals modern/energetic, use a single sans family with weight variation (800 for headline, 400–500 for body).
 
 Rules that hold across every reference example:
 - Headline: 24–40px, tight line-height (1.05–1.2), always the highest-contrast text on the screen
-- Body/subhead: 13–16px, line-height 1.4–1.6, muted color (not pure black — use a dark gray)
+- Body/subhead: 13–16px, line-height 1.4–1.6, muted color (not pure black - use a dark gray)
 - Never more than 2 type families in one popup
 
 ### Color & CTA contrast
-- CTA button must be the single highest-contrast element after the headline — if your brand's primary color is muted, consider a secondary accent purely for CTAs (HexClad's red-on-black, mindbodygreen's orange-on-blue)
+- CTA button must be the single highest-contrast element after the headline - if your brand's primary color is muted, consider a secondary accent purely for CTAs (HexClad's red-on-black, mindbodygreen's orange-on-blue)
 - Dark/moody backgrounds (HexClad) work for premium/technical products; light/neutral backgrounds (Pact, Camilla) work for soft/lifestyle products
-- Countdown timers should be visually distinct from body text — monospace or tabular-nums, often boxed or circled
+- Countdown timers should be visually distinct from body text - monospace or tabular-nums, often boxed or circled
 
 ### Mobile-specific rules
 - Fields and CTA buttons need 44×44px minimum tap targets (Apple/Google HIG minimum)
-- Never let a modal exceed 100vh — if content is close, cap modal height and let the content panel (not the whole page) scroll
+- Never let a modal exceed 100vh - if content is close, cap modal height and let the content panel (not the whole page) scroll
 - Sticky-bottom CTA is acceptable on mobile if the offer/headline is visible above the fold of the modal itself
 
 ---
@@ -154,7 +154,7 @@ Rules that hold across every reference example:
 Across every top-performing example (yours and researched), 4 rules hold:
 
 1. **Lead with the benefit, not the action.** "Get 15% off" outperforms "Sign up for updates."
-2. **Clarity beats cleverness.** The value must be instantly parseable — "10% Off Your First Order" beats a vague teaser with no number.
+2. **Clarity beats cleverness.** The value must be instantly parseable - "10% Off Your First Order" beats a vague teaser with no number.
 3. **Urgency must be real.** A countdown tied to an actual session/campaign window, not a timer that silently resets on refresh.
 4. **CTAs are actions, not labels.** "Claim My Discount" / "Unlock 10% Off" beats "Submit" or "Continue" wherever the offer can be restated in the button itself.
 
@@ -172,8 +172,8 @@ Across every top-performing example (yours and researched), 4 rules hold:
 - **Teaser step CTA:** "Claim Discount," "Join for Access," "Scratch Here," "Let's Go"
 - **Capture step CTA:** "Continue," "Activate 10% Off," "Join for Access"
 - **Reveal step CTA:** "Shop Now," "Start Shopping," "Continue"
-- **Dismiss link (loss-framed, low emphasis):** "No thanks," "No, I'll pay full price" (use sparingly — the latter can feel aggressive/guilt-trippy; test it)
-- **Fine print (always include if capturing phone/SMS):** consent language for recurring automated marketing messages, opt-out instructions, link to terms/privacy — this is a legal requirement in most jurisdictions (TCPA in the US), not optional styling.
+- **Dismiss link (loss-framed, low emphasis):** "No thanks," "No, I'll pay full price" (use sparingly - the latter can feel aggressive/guilt-trippy; test it)
+- **Fine print (always include if capturing phone/SMS):** consent language for recurring automated marketing messages, opt-out instructions, link to terms/privacy - this is a legal requirement in most jurisdictions (TCPA in the US), not optional styling.
 
 ---
 
@@ -181,8 +181,8 @@ Across every top-performing example (yours and researched), 4 rules hold:
 
 ### Countdown timer
 - Format: `mm:ss`, tabular/monospace numerals so digits don't jitter the layout as they change
-- Duration: session-based (10–20 minutes) is most common and most defensible as "real" — avoid multi-hour timers on an email popup, they read as fake
-- On expiry: don't just silently vanish the offer — either extend gracefully once, or swap to a non-urgent fallback message. A timer that hits zero and does nothing visible destroys trust for next time.
+- Duration: session-based (10–20 minutes) is most common and most defensible as "real" - avoid multi-hour timers on an email popup, they read as fake
+- On expiry: don't just silently vanish the offer - either extend gracefully once, or swap to a non-urgent fallback message. A timer that hits zero and does nothing visible destroys trust for next time.
 
 ### Scratch-card reveal
 - Implementation: `<canvas>` overlay drawn with a solid "foil" color, `globalCompositeOperation = 'destination-out'` erases pixels under the pointer/touch path
@@ -191,7 +191,7 @@ Across every top-performing example (yours and researched), 4 rules hold:
 
 ### Spin wheel
 - Implementation: CSS `transform: rotate()` on an SVG or divided `<div>` wheel, eased with a long `cubic-bezier` timing function (3–5s spin) landing on a pre-determined segment
-- Weight prizes server-side or in config — never let the visible spin be purely cosmetic if you're promising randomness; decide the outcome before or during the animation, not after
+- Weight prizes server-side or in config - never let the visible spin be purely cosmetic if you're promising randomness; decide the outcome before or during the animation, not after
 - Disable the spin button after use (one spin per session) and store result in `localStorage`/cookie to prevent repeat-spinning via refresh
 
 ### Step transitions
@@ -201,7 +201,7 @@ Across every top-performing example (yours and researched), 4 rules hold:
 ### Entry animation
 - Modal: fade + slight scale-up (0.95 → 1) over 200–250ms
 - Overlay: fade to 50–70% opacity black, ~150ms
-- Avoid slide-in-from-edge for centered modals — it reads as an ad unit, not part of the site
+- Avoid slide-in-from-edge for centered modals - it reads as an ad unit, not part of the site
 
 ---
 
@@ -211,21 +211,21 @@ Across every top-performing example (yours and researched), 4 rules hold:
 | Trigger | Recommended threshold | Best for |
 |---|---|---|
 | Time delay | 5–15 seconds | Simple content sites, blogs |
-| Scroll depth | 25–50% of page | Product/landing pages — visitor has shown intent |
+| Scroll depth | 25–50% of page | Product/landing pages - visitor has shown intent |
 | Exit intent (desktop) | Mouse leaves viewport toward tab/URL bar | Recovering visitors who'd otherwise leave with zero capture |
 | Exit intent (mobile) | Fast upward scroll / back-button press (mouse-based exit intent doesn't exist on touch) | Mobile-specific recovery |
-| On-load | Immediate | Only for genuinely time-boxed campaigns (flash sale) — otherwise this is the most-hated pattern in usability research |
+| On-load | Immediate | Only for genuinely time-boxed campaigns (flash sale) - otherwise this is the most-hated pattern in usability research |
 
 ### Frequency capping (non-negotiable)
 - Never show the same popup twice in one session
 - Suppress for 7–30 days after a dismissal, and suppress permanently after a successful conversion
 - Store state in `localStorage` (client-only) at minimum; back it with a server-side flag against the customer record once they've converted, since `localStorage` clears on new devices/incognito
 
-### Modal vs. non-modal — pick correctly
-Per Nielsen Norman Group's distinction: a **modal** blocks interaction with the page behind it; a **non-modal** (like a corner toast) does not. Email/discount capture popups should always be true modals — that's what makes the ask feel intentional rather than incidental — but that comes with obligations:
-- Never stack a second modal on top of a first (e.g., don't chain a "sign up" modal into a "confirm your birthday" modal into a survey — dismissing one only to find another creates anxiety and makes users feel lost)
+### Modal vs. non-modal - pick correctly
+Per Nielsen Norman Group's distinction: a **modal** blocks interaction with the page behind it; a **non-modal** (like a corner toast) does not. Email/discount capture popups should always be true modals - that's what makes the ask feel intentional rather than incidental - but that comes with obligations:
+- Never stack a second modal on top of a first (e.g., don't chain a "sign up" modal into a "confirm your birthday" modal into a survey - dismissing one only to find another creates anxiety and makes users feel lost)
 - Never put primary site navigation behind a modal-only interaction
-- Never put long scrollable content (full T&Cs, full articles) inside a small modal — link out instead
+- Never put long scrollable content (full T&Cs, full articles) inside a small modal - link out instead
 
 ### Accessibility checklist
 - **Focus trap:** on open, move focus into the modal and trap Tab/Shift+Tab cycling within it; on close, return focus to the element that triggered it
@@ -237,9 +237,9 @@ Per Nielsen Norman Group's distinction: a **modal** blocks interaction with the 
 
 ---
 
-## 7. Build From Scratch — Vanilla HTML / CSS / JS
+## 7. Build From Scratch - Vanilla HTML / CSS / JS
 
-This is a complete, dependency-free two-step gated-reveal popup (Pattern B) — the highest-value pattern to have as a reusable base, since single-step and quiz-gate are subsets of it.
+This is a complete, dependency-free two-step gated-reveal popup (Pattern B) - the highest-value pattern to have as a reusable base, since single-step and quiz-gate are subsets of it.
 
 ### 7.1 HTML structure
 
@@ -552,7 +552,7 @@ This is a complete, dependency-free two-step gated-reveal popup (Pattern B) — 
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
-    }).catch(() => {}); // fail open — still show the code
+    }).catch(() => {}); // fail open - still show the code
     goToStep(3);
   });
 
@@ -580,9 +580,9 @@ This is a complete, dependency-free two-step gated-reveal popup (Pattern B) — 
 
 ---
 
-## 8. Build From Scratch — React
+## 8. Build From Scratch - React
 
-Component-based version of the same pattern, split into a reusable shell plus hooks. Style with your own CSS module or Tailwind — class names below are illustrative.
+Component-based version of the same pattern, split into a reusable shell plus hooks. Style with your own CSS module or Tailwind - class names below are illustrative.
 
 ### 8.1 Hooks
 
@@ -749,7 +749,7 @@ export default function DiscountPopup({ code = 'WELCOME10', onSubscribe }) {
 }
 ```
 
-### 8.3 Scratch-card reveal (canvas, framework-agnostic — usable inside a React `useRef` + `useEffect`)
+### 8.3 Scratch-card reveal (canvas, framework-agnostic - usable inside a React `useRef` + `useEffect`)
 
 ```jsx
 // ScratchCard.jsx
@@ -925,14 +925,14 @@ export default function SpinWheel({ onResult }) {
 
 Two approaches seen in the reference set:
 
-**1. Manual copy code** (Bloom, HexClad, publisher example) — code shown in a dashed/bordered box with a "Copy" button. Use when the storefront checkout requires a manually entered promo field.
+**1. Manual copy code** (Bloom, HexClad, publisher example) - code shown in a dashed/bordered box with a "Copy" button. Use when the storefront checkout requires a manually entered promo field.
 
-**2. Auto-apply on click-through** (Camilla's second panel: "Use code WELCOME10" with a "Start Shopping" button that also sets a session cookie or query param your checkout reads) — removes a step at checkout, generally converts slightly better since it removes a manual paste step, but requires backend/platform support (Shopify Scripts, discount-link URLs like `?discount=CODE`).
+**2. Auto-apply on click-through** (Camilla's second panel: "Use code WELCOME10" with a "Start Shopping" button that also sets a session cookie or query param your checkout reads) - removes a step at checkout, generally converts slightly better since it removes a manual paste step, but requires backend/platform support (Shopify Scripts, discount-link URLs like `?discount=CODE`).
 
 **Code display component rules:**
 - Monospace or letter-spaced font so the code is unambiguous (no confusing 0/O or 1/l)
 - Copy button must give immediate feedback (checkmark icon or "Copied!" text swap for ~2 seconds)
-- Always show the code as plain, selectable text as a fallback — don't render it only as an image or canvas element
+- Always show the code as plain, selectable text as a fallback - don't render it only as an image or canvas element
 
 ---
 
@@ -950,12 +950,12 @@ Two approaches seen in the reference set:
 - [ ] Popup does not trigger on already-converted/logged-in customers
 
 ### What to A/B test, in priority order
-1. **Offer type** — % off vs. free shipping vs. free gift (biggest lever, test first)
-2. **Single-step vs. two-step** — does the extra step lift or suppress conversion for your specific audience?
-3. **Headline copy** — benefit-led phrasing variants
-4. **Trigger timing** — exit-intent vs. scroll-depth vs. time-delay
-5. **Static vs. gamified** — only worth testing once the above are settled, since gamification adds build complexity
-6. **CTA button copy** — smallest lever, test last
+1. **Offer type** - % off vs. free shipping vs. free gift (biggest lever, test first)
+2. **Single-step vs. two-step** - does the extra step lift or suppress conversion for your specific audience?
+3. **Headline copy** - benefit-led phrasing variants
+4. **Trigger timing** - exit-intent vs. scroll-depth vs. time-delay
+5. **Static vs. gamified** - only worth testing once the above are settled, since gamification adds build complexity
+6. **CTA button copy** - smallest lever, test last
 
 ---
 
@@ -972,19 +972,19 @@ Two approaches seen in the reference set:
 | Beckett Simonon | Gamified scratch card | Canvas-based foil reveal; product photography stays visible throughout, unscratched card as CTA itself |
 | Princess Polly | Two-step, centered card | Simple centered-card shell (no split layout); confirmation screen sets expectation that code arrives by email |
 | Camilla | Two-step, email + phone, dual exit paths | "No Thank You" explicit dismiss option; auto-styled code display on reveal ("Use code WELCOME10") |
-| Publisher (book site) | Single-step, multi-field lead form | More fields than typical ecommerce (name, DOB) — justified by content personalization, not just a discount |
+| Publisher (book site) | Single-step, multi-field lead form | More fields than typical ecommerce (name, DOB) - justified by content personalization, not just a discount |
 
 **Additional researched examples worth studying:**
 
 | Brand / Source | Pattern | Notable technique |
 |---|---|---|
-| Gymshark | Non-modal corner popup | Deliberately non-intrusive top-corner placement, avoids blocking hero imagery — a useful contrast to full-modal patterns |
-| Allbirds | Add-to-cart confirmation (non-modal) | Dual CTA ("View Cart" / "Continue Shopping") — shows the same shell system applies beyond capture/discount use cases |
+| Gymshark | Non-modal corner popup | Deliberately non-intrusive top-corner placement, avoids blocking hero imagery - a useful contrast to full-modal patterns |
+| Allbirds | Add-to-cart confirmation (non-modal) | Dual CTA ("View Cart" / "Continue Shopping") - shows the same shell system applies beyond capture/discount use cases |
 | Boll & Branch | Full-screen popup | Full-viewport takeover matched to premium brand photography before showing the storefront |
-| The New Yorker | Single-field minimalist | Zero discount — value proposition is editorial content alone, proving offer-led copy isn't mandatory if brand equity is strong |
+| The New Yorker | Single-field minimalist | Zero discount - value proposition is editorial content alone, proving offer-led copy isn't mandatory if brand equity is strong |
 | Morning Brew | Benefit-led, no discount | Headline states a specific outcome ("a smarter way to start your day") rather than a percentage |
 | The Hustle | Social proof | Subscriber-count framing ("Join 2M+ readers") substitutes for a discount as the trust signal |
-| HubSpot | Exit-intent lead magnet | Gated content offer (ebook/guide) instead of a discount — same two-step mechanics, different reward type |
+| HubSpot | Exit-intent lead magnet | Gated content offer (ebook/guide) instead of a discount - same two-step mechanics, different reward type |
 
 ---
 
@@ -992,10 +992,10 @@ Two approaches seen in the reference set:
 
 - **Never fake a countdown.** A timer that silently resets on refresh is detectable by attentive users and, once caught, discounts every future urgency message from your brand.
 - **Never fake scarcity.** "Only 3 left" that's static/permanent is a compliance risk in several jurisdictions and a trust risk everywhere.
-- **Disclose SMS terms clearly.** Message frequency, "message and data rates may apply," and a clear opt-out method are legal requirements in the US (TCPA) and expected practice elsewhere — don't bury this in tiny gray text below the fold of the popup.
+- **Disclose SMS terms clearly.** Message frequency, "message and data rates may apply," and a clear opt-out method are legal requirements in the US (TCPA) and expected practice elsewhere - don't bury this in tiny gray text below the fold of the popup.
 - **Respect exit-intent restraint.** One exit-intent popup per session, never chained into a second ask immediately after dismissal.
 - **Don't gate core navigation.** A popup should always be closable and should never be the only path to browsing the site.
 
 ---
 
-*This guide is a living reference — as you ship variants, extend Section 11 with your own performance notes (which pattern actually won for which traffic segment) so it compounds into a genuine internal playbook rather than a one-time brief.*
+*This guide is a living reference - as you ship variants, extend Section 11 with your own performance notes (which pattern actually won for which traffic segment) so it compounds into a genuine internal playbook rather than a one-time brief.*

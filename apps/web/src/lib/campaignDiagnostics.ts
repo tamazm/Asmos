@@ -5,16 +5,16 @@
  *
  * The dashboard used to show impressions and conversion rate and nothing else,
  * which tells a merchant that something is wrong but never what. The widget has
- * been recording the missing half for a while — per-session interaction
+ * been recording the missing half for a while - per-session interaction
  * telemetry (dead clicks, rage clicks, field abandonment, CTA hesitation,
- * time-to-first-keystroke) and a per-event intent score — but until now it was
+ * time-to-first-keystroke) and a per-event intent score - but until now it was
  * only ever read by the popup generator and PostHog. This module turns those
  * same rows into plain-language findings for the person paying for the product.
  *
  * Reads Postgres (`CampaignEvent.details`) rather than the PostHog Query API on
  * purpose: this is customer-facing, and it must not go blank for accounts whose
  * PostHog keys aren't configured. `CampaignEvent` is always written, PostHog is
- * a mirror — see the comment in /api/widget/events.
+ * a mirror - see the comment in /api/widget/events.
  *
  * Deliberately self-contained. The equivalent logic in popupGeneration.ts drags
  * in the Anthropic / Bedrock / Gemini SDKs at module scope, and importing it
@@ -82,7 +82,7 @@ export type FrictionFinding = {
   sessions: number;
   /** Share of the denominator below showing this, 0..1. */
   rate: number;
-  /** What the rate is a share of — dismissal-based findings don't use sessions. */
+  /** What the rate is a share of - dismissal-based findings don't use sessions. */
   denominator: "sessions" | "dismissals";
   severity: "high" | "medium" | "low";
 };
@@ -213,7 +213,7 @@ const FRICTION_COPY: Record<FrictionKey, FrictionCopy> = {
     headline: "Visitors clicked things that aren't clickable",
     meaning:
       "They wanted to act but couldn't tell what the button was. Something in the design reads as interactive when it isn't.",
-    fix: "Make the button unmistakably a button — stronger contrast, more padding, and no other element styled to compete with it.",
+    fix: "Make the button unmistakably a button - stronger contrast, more padding, and no other element styled to compete with it.",
   },
   interaction_rage: {
     key: "interaction_rage",
@@ -225,7 +225,7 @@ const FRICTION_COPY: Record<FrictionKey, FrictionCopy> = {
     key: "field_abandonment",
     headline: "Visitors opened the email field, then left without typing",
     meaning:
-      "The offer worked — the ask didn't. They got as far as the field and reconsidered giving you their address.",
+      "The offer worked - the ask didn't. They got as far as the field and reconsidered giving you their address.",
     fix: "Reassure at the point of hesitation: a short privacy line under the field, and restate the reward next to it rather than on the previous step.",
   },
   cta_hesitation: {
@@ -334,7 +334,7 @@ export function summarizeVariantDiagnostics(input: {
     findings.push(finding("slow_to_engage", keystrokeTimes.length, measuredSessions));
   }
 
-  // Dismissals have their own denominator — every dismissal is measured, but
+  // Dismissals have their own denominator - every dismissal is measured, but
   // not every dismissal produces a session summary.
   const quickDismissals = dismissTimings.filter((ms) => ms < QUICK_DISMISS_MS).length;
   if (dismissTimings.length > 0 && quickDismissals / dismissTimings.length > 0.3) {
@@ -386,7 +386,7 @@ function buildVerdict(input: {
       tone: "unknown",
       headline: "No behavioural data recorded",
       detail:
-        "This variant has traffic but no interaction telemetry. That usually means the widget script on the site predates behavioural tracking — reinstall it to start collecting.",
+        "This variant has traffic but no interaction telemetry. That usually means the widget script on the site predates behavioural tracking - reinstall it to start collecting.",
     };
   }
 
@@ -397,7 +397,7 @@ function buildVerdict(input: {
       tone: "friction",
       headline: "You're reaching interested people and losing them",
       detail: top
-        ? `${Math.round(intent.highRate * 100)}% of visitors showed strong intent but only ${(conversionRate * 100).toFixed(1)}% converted. The gap is the popup, not the audience — start with "${top.headline.toLowerCase()}".`
+        ? `${Math.round(intent.highRate * 100)}% of visitors showed strong intent but only ${(conversionRate * 100).toFixed(1)}% converted. The gap is the popup, not the audience - start with "${top.headline.toLowerCase()}".`
         : `${Math.round(intent.highRate * 100)}% of visitors showed strong intent but only ${(conversionRate * 100).toFixed(1)}% converted. The offer is landing; something between interest and submit is not.`,
     };
   }
@@ -406,7 +406,7 @@ function buildVerdict(input: {
     return {
       tone: "reach",
       headline: "Most visitors never engage with this popup",
-      detail: `Just ${intent.high.toLocaleString()} of ${intent.trackedVisitors.toLocaleString()} scored visitors reached high intent. Fixing the form won't move this — it's a question of when the popup appears and whether the offer is relevant to the page it appears on.`,
+      detail: `Just ${intent.high.toLocaleString()} of ${intent.trackedVisitors.toLocaleString()} scored visitors reached high intent. Fixing the form won't move this - it's a question of when the popup appears and whether the offer is relevant to the page it appears on.`,
     };
   }
 

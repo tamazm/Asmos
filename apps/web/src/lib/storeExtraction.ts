@@ -13,7 +13,7 @@
  *    models are unreliable at naming exact hex, which is why output could feel
  *    almost-but-not-quite on-brand even when the pipeline "worked".
  *  - Fonts came from the same guess, or from regexing `--font-heading` out of
- *    the raw HTML string — which is not where a modern Shopify or Next
+ *    the raw HTML string - which is not where a modern Shopify or Next
  *    storefront keeps its CSS.
  *  - `brandColor` fell back to `#165DFF`, Asmos's own blue, indistinguishable
  *    downstream from a successful extraction.
@@ -27,15 +27,15 @@
  * ----------------------
  * Four sources, ranked by confidence, each recording its provenance:
  *
- *  1. `fetchCatalogue`  — the store's own product data. Shopify exposes the
+ *  1. `fetchCatalogue` - the store's own product data. Shopify exposes the
  *     whole catalogue at /products.json with no key; WooCommerce has the Store
  *     API; everything else usually emits JSON-LD Product schema for SEO. This
- *     single request answers what they sell, who for, and at what price — every
+ *     single request answers what they sell, who for, and at what price - every
  *     question the screenshot could only guess at.
- *  2. `DOM_EXTRACTION_FN` — real `getComputedStyle` values via Browserless's
+ *  2. `DOM_EXTRACTION_FN` - real `getComputedStyle` values via Browserless's
  *     /function endpoint. We were already paying for a headless browser and
  *     only asking it for a photograph.
- *  3. `paletteFromPixels`  — colour measured from the screenshot's actual
+ *  3. `paletteFromPixels` - colour measured from the screenshot's actual
  *     pixels when the DOM pass is unavailable.
  *  4. A vision/text model, for judgment only: voice, audience, what is
  *     distinctive. See the prompt in /api/analyze/route.ts.
@@ -291,7 +291,7 @@ async function fetchJsonLdCatalogue(html: string): Promise<CatalogueSummary | nu
 
 /**
  * Tries every catalogue source in confidence order. Returns null only when the
- * store exposes nothing — in which case the caller should say so rather than
+ * store exposes nothing - in which case the caller should say so rather than
  * inventing a category.
  */
 export async function fetchCatalogue(storeUrl: string, html = ""): Promise<CatalogueSummary | null> {
@@ -321,7 +321,7 @@ export async function fetchCatalogue(storeUrl: string, html = ""): Promise<Catal
  * paying for the browser that can read them.
  *
  * Kept as a string rather than a real function so it can be posted verbatim,
- * and deliberately dependency-free — it runs in the merchant's page context.
+ * and deliberately dependency-free - it runs in the merchant's page context.
  */
 export const DOM_EXTRACTION_FN = `
 export default async function ({ page, context }) {
@@ -466,7 +466,7 @@ function hex({ r, g, b }: { r: number; g: number; b: number }): string {
  * Turns painted-area measurements into a brand palette.
  *
  * Drops neutrals (near-white, near-black, near-grey), which are page chrome
- * rather than brand, and merges colours that are close enough to read as one —
+ * rather than brand, and merges colours that are close enough to read as one -
  * two near-identical blues in the output look like a rendering mistake, not a
  * two-colour identity.
  */
@@ -520,8 +520,8 @@ export function paletteFromDom(colorsByArea: { color: string; area: number }[]):
  * `ai_choice` previously mapped a category to an offer through five hardcoded
  * lines in the prompt (fashion → percentage, home goods → free shipping…). With
  * a real price band this becomes a defensible calculation: a £15 average order
- * should not be offering 15% off — £2.25 is not an incentive, it is a rounding
- * error — where free shipping over £30 both converts and raises basket size.
+ * should not be offering 15% off - £2.25 is not an incentive, it is a rounding
+ * error - where free shipping over £30 both converts and raises basket size.
  * A £400 order should not be discounted at all.
  */
 export function recommendOffer(catalogue: CatalogueSummary | null): {

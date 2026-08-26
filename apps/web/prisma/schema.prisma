@@ -43,7 +43,7 @@ enum CampaignStatus {
   PAUSED
   FAILED
   // Soft-delete: used instead of an actual row delete once a campaign has
-  // real history (leads captured, events recorded) worth keeping — see
+  // real history (leads captured, events recorded) worth keeping - see
   // DELETE handler in app/api/campaigns/[id]/route.ts. Hidden from the
   // campaigns list and never served by the widget, same as any non-ACTIVE
   // status, but the data survives.
@@ -62,7 +62,7 @@ enum RewardType {
   DISCOUNT_PERCENT
   DISCOUNT_FIXED
   FREE_SHIPPING
-  // A non-monetary/fixed prize (free gift, tote bag, sample, etc.) — has a
+  // A non-monetary/fixed prize (free gift, tote bag, sample, etc.) - has a
   // free-text label/description instead of a discount amount or code.
   GIFT
 }
@@ -75,7 +75,7 @@ enum CampaignEventType {
   DISMISSED
 }
 
-// A customer business — the tenant boundary for every other model.
+// A customer business - the tenant boundary for every other model.
 model Account {
   id         String   @id @default(cuid())
   name       String
@@ -114,7 +114,7 @@ model Account {
 
   // API-key connections for facade integrations (Klaviyo, Mailchimp, HubSpot,
   // Shopify, Zapier). Keyed by integration id: { [id]: { apiKey, connectedAt } }.
-  // Storage only for now — no background job forwards leads to these yet.
+  // Storage only for now - no background job forwards leads to these yet.
   integrationCredentials Json?
 
   planTier           PlanTier           @default(FREE)
@@ -148,7 +148,7 @@ enum InviteStatus {
   REVOKED
 }
 
-// A pending teammate invite — becomes a User once the invitee signs up and accepts.
+// A pending teammate invite - becomes a User once the invitee signs up and accepts.
 model Invite {
   id         String       @id @default(cuid())
   accountId  String
@@ -181,8 +181,8 @@ model Website {
 
 /// What we actually understand about a merchant's store.
 ///
-/// Before this existed, the entire output of /api/analyze — palette, typefaces,
-/// imagery style, signature element, detected popup — lived in sessionStorage
+/// Before this existed, the entire output of /api/analyze - palette, typefaces,
+/// imagery style, signature element, detected popup - lived in sessionStorage
 /// through onboarding and was then dropped: the only brand columns anywhere
 /// were Account.industry and Account.brandColor, two strings. It survived into
 /// a campaign only because NewCampaignForm happened to spread the raw analyze
@@ -192,7 +192,7 @@ model Website {
 ///
 /// Every field records where it came from and how confident we are, in
 /// `sources`, so the generator can weight a measured palette differently from
-/// an inferred brand voice — and so a field that failed extraction reads as
+/// an inferred brand voice - and so a field that failed extraction reads as
 /// null rather than as a plausible-looking default.
 model StoreProfile {
   id        String  @id @default(cuid())
@@ -278,14 +278,14 @@ model Campaign {
 
 // One design/copy/offer to test within a campaign. A campaign always has at least
 // one variant (created as "Control" at publish time); additional variants turn it
-// into an A/B test — see Variant Manager / Test Results pages.
+// into an A/B test - see Variant Manager / Test Results pages.
 model Variant {
   id         String   @id @default(cuid())
   campaignId String
   campaign   Campaign @relation("CampaignVariants", fields: [campaignId], references: [id], onDelete: Cascade)
 
   name            String
-  // Fixed-split traffic allocation across a campaign's variants (Phase 3 — no bandit yet).
+  // Fixed-split traffic allocation across a campaign's variants (Phase 3 - no bandit yet).
   trafficPercent  Int           @default(100)
   isControl       Boolean       @default(false)
   status          VariantStatus @default(ACTIVE)
@@ -297,7 +297,7 @@ model Variant {
   eliminationStrikes Int        @default(0)
 
   // Popup builder output: design, form fields, targeting/trigger rules.
-  // Kept as JSON rather than normalized tables — no querying needs beyond
+  // Kept as JSON rather than normalized tables - no querying needs beyond
   // "load config for this variant" until the bandit phase needs to compare
   // structured fields across variants.
   design     Json?
@@ -305,7 +305,7 @@ model Variant {
   targeting  Json?
 
   // Schema-driven popup generation output (lib/popupGeneration.ts).
-  // testAxis is the single lever this variant tests — used by the bandit allocator
+  // testAxis is the single lever this variant tests - used by the bandit allocator
   // and PostHog to attribute conversion deltas without ambiguity.
   testAxis         String? // "trigger | friction | copy | layout | visual"
   popupSpec        Json?   // Structured AI popup spec (trigger, headline, subhead, cta, fields, design_tokens)
@@ -333,12 +333,12 @@ model RewardRule {
   category    String?
   description String?
   type        RewardType
-  // Legacy single shared code — still supported, used when no CouponCode pool exists.
+  // Legacy single shared code - still supported, used when no CouponCode pool exists.
   couponCode  String?
   // Win probability weight for game-based popups (wheel/scratch card); ignored for plain forms.
   weight      Int        @default(1)
 
-  // Generic redemption cap, independent of the CouponCode pool mechanism —
+  // Generic redemption cap, independent of the CouponCode pool mechanism -
   // lets any reward type (not just COUPON) be "a fixed amount, not
   // unlimited" (e.g. "the first 200 free-shipping claims"). Null = unlimited.
   // redemptionsCount is incremented once per lead this reward is handed to
@@ -348,7 +348,7 @@ model RewardRule {
 
   // Lets a reward be paused (excluded from selection and from the
   // "campaign has an available reward" popup-eligibility check) without
-  // deleting it or losing its redemption history — used by the rewards page
+  // deleting it or losing its redemption history - used by the rewards page
   // when editing/reassigning.
   active Boolean @default(true)
 
@@ -360,7 +360,7 @@ model RewardRule {
   @@index([campaignId])
 }
 
-// A pool of individual, single-use codes for a RewardRule — imported via CSV,
+// A pool of individual, single-use codes for a RewardRule - imported via CSV,
 // bulk-generated, or both. When present, claiming this reward hands out one
 // unused code instead of the shared RewardRule.couponCode.
 model CouponCode {
@@ -395,7 +395,7 @@ model Lead {
   rewardClaimedCode String?
 
   // Which specific RewardRule this lead was granted (set alongside
-  // rewardClaimedCode in api/widget/leads/route.ts) — needed to attribute
+  // rewardClaimedCode in api/widget/leads/route.ts) - needed to attribute
   // redemptions against non-coupon reward types (FREE_SHIPPING/GIFT/etc.)
   // that don't otherwise leave any per-lead row the way CouponCode does.
   rewardRuleId String?
@@ -415,7 +415,7 @@ model Lead {
 //
 // visitorId/details added for the AI popup variation roadmap (Phase 0): a
 // first-party per-visitor id (set by widget.js, also used as the PostHog
-// distinct_id — previously every visitor of a variant shared one synthetic
+// distinct_id - previously every visitor of a variant shared one synthetic
 // id, which broke funnels/cohorts) plus flexible behavioral context (scroll
 // depth, dismiss timing, funnel step reached, referrer/UTMs). Kept as JSON
 // rather than a wide column set since this signal set is expected to grow
@@ -434,7 +434,7 @@ model CampaignEvent {
   @@index([visitorId])
 }
 
-// Periodic AI-generated performance review for a campaign (Phase 6 — see
+// Periodic AI-generated performance review for a campaign (Phase 6 - see
 // lib/insights.ts and /api/cron/insights). Distinct from the bandit's live
 // traffic reallocation: this is the slow, explanatory layer that reads the
 // bandit's results and occasionally proposes a new variant to test.
@@ -451,10 +451,10 @@ model CampaignInsight {
   @@index([campaignId, createdAt])
 }
 
-// A Shopify shop that has installed the app. accountId is unique — one
+// A Shopify shop that has installed the app. accountId is unique - one
 // Account per shop; the tenant is auto-provisioned on first install, no
 // Clerk sign-up involved (this is what "well integrated app" requires).
-// accessToken is encrypted at rest — see src/lib/crypto.ts.
+// accessToken is encrypted at rest - see src/lib/crypto.ts.
 model ShopifyShop {
   id            String    @id @default(cuid())
   accountId     String    @unique
@@ -524,13 +524,13 @@ enum LearnedPatternStatus {
 
 // AI popup variation roadmap, Phase 4: candidate patterns mined across ALL
 // accounts by the mine-cross-account-patterns cron (see
-// lib/inngest/mineCrossAccountPatterns.ts) — e.g. "in the fashion/beauty
+// lib/inngest/mineCrossAccountPatterns.ts) - e.g. "in the fashion/beauty
 // category, popups with a 'premature_dismissal' pattern conclusively improve
 // after switching the trigger axis, across N independent campaigns."
 //
 // Deliberately human-gated: rows are created as DRAFT and never
 // auto-promoted. Only APPROVED rows get woven into the live system prompt
-// (see popupGeneration.ts's getLearnedPatternsSection) — a bad pattern with
+// (see popupGeneration.ts's getLearnedPatternsSection) - a bad pattern with
 // a false-positive read would otherwise degrade every customer's popups at
 // once, so a human reviews each candidate before it affects generation.
 model LearnedPattern {
@@ -556,30 +556,30 @@ model LearnedPattern {
 //
 // Unlike LearnedPattern above, there's no human-approval gate here: the sites
 // fed into the scraper (lib/popupScraping.ts's POPUP_SCRAPE_FN, run by a
-// local-only, gitignored script — never a deployed job) are hand-picked by a
+// local-only, gitignored script - never a deployed job) are hand-picked by a
 // human to be popular, high-traffic stores, so a captured row is trusted the
-// moment it exists. The only filter generation applies is `present` — a
+// moment it exists. The only filter generation applies is `present` - a
 // scrape that found no popup on the page has nothing useful to offer.
 model ScrapedPopupExample {
   id            String   @id @default(cuid())
   sourceUrl     String
   // Host + path, lowercased, protocol/www/query/hash/trailing-slash stripped
-  // (lib/popupScraping.ts's normalizeUrl) — the dedupe key, so scraping
+  // (lib/popupScraping.ts's normalizeUrl) - the dedupe key, so scraping
   // https://Example.com/ twice (or with/without www, http vs https) doesn't
   // produce two rows or spend a second Browserless call on the same site.
   normalizedUrl String   @unique
   segment       String // raw label as scraped, e.g. "Retail"
-  industry      String // normalized bucket (lib/popupScraping.ts's normalizeIndustry) — what generation matches on
+  industry      String // normalized bucket (lib/popupScraping.ts's normalizeIndustry) - what generation matches on
 
   present       Boolean  @default(false)
   html          String?  @db.Text
-  // Everything about the design itself, as one connected object — copy,
-  // colour (by role: card background, CTA accent, headline text — not just a
-  // flat palette), typography, shape, density, imagery — matching the shape
+  // Everything about the design itself, as one connected object - copy,
+  // colour (by role: card background, CTA accent, headline text - not just a
+  // flat palette), typography, shape, density, imagery - matching the shape
   // of lib/popupDna.ts's knobs so a scraped example is actually comparable to
   // a generated one. See ScrapedPopupDesign in lib/popupScraping.ts. Used to
   // be six separate flat columns (headline/subhead/ctaText/templateGuess/
-  // layoutGuess/palette) with no connection between them — you could see a
+  // layoutGuess/palette) with no connection between them - you could see a
   // popup had a blue palette and separately that it had a pill button, but
   // nothing said the button *was* the blue thing.
   design        Json?

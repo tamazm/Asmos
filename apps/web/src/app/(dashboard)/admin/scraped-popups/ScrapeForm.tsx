@@ -14,13 +14,13 @@ export function ScrapeForm() {
     try {
       const result = await runScrapeBatch(text);
       if (result.ok) {
-        setStatus({ ok: true, message: `Queued ${result.count} site${result.count === 1 ? "" : "s"} — refresh this page in a few minutes to see results.` });
+        setStatus({ ok: true, message: `Queued ${result.count} site${result.count === 1 ? "" : "s"}. Refresh this page in a few minutes to see results.` });
         setText("");
       } else {
         setStatus({ ok: false, message: result.error });
       }
     } catch {
-      setStatus({ ok: false, message: "Request failed — try again." });
+      setStatus({ ok: false, message: "Request failed. Try again." });
     } finally {
       setRunning(false);
     }
@@ -30,9 +30,9 @@ export function ScrapeForm() {
     <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 flex flex-col gap-3">
       <h2 className="text-sm font-semibold text-[color:var(--color-text-primary)]">Run a new scrape</h2>
       <p className="text-xs text-[color:var(--color-text-secondary)]">
-        One site per line — just the URL. Industry is auto-detected from the page&apos;s own title, meta
+        One site per line - just the URL. Industry is auto-detected from the page&apos;s own title, meta
         description and popup copy, so you don&apos;t need to type it in (add <code>, industry</code> after a URL
-        only if you want to override the guess). Runs in the background (Inngest) — this page won&apos;t update
+        only if you want to override the guess). Runs in the background (Inngest) - this page won&apos;t update
         live, so refresh it after a few minutes to see new rows land.
       </p>
       <textarea

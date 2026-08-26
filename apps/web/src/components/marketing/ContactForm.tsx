@@ -60,7 +60,7 @@ export function ContactForm() {
           ✓
         </div>
         <p className="text-sm font-medium text-[color:var(--color-text-primary)]">
-          Thanks — we&apos;ve received your message. We&apos;ll get back to you shortly.
+          Thanks. We&apos;ve received your message and will get back to you shortly.
         </p>
       </div>
     );

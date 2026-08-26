@@ -12,7 +12,7 @@ async function findOwnedReward(rewardId: string, accountId: string) {
 }
 
 // Edit a reward's details, pause/resume it, or reassign it to a different
-// campaign. Reassignment is just an update to campaignId — a RewardRule
+// campaign. Reassignment is just an update to campaignId - a RewardRule
 // isn't otherwise tied to any one variant, so moving it to another campaign
 // (also owned by this account) is safe and immediate.
 export async function PATCH(
@@ -77,7 +77,7 @@ export async function PATCH(
         return Response.json({ error: "maxRedemptions must be between 1 and 1,000,000, or null for unlimited" }, { status: 400 });
       }
       // Never silently allow shrinking the cap below what's already been
-      // redeemed — that would make an already-fulfilled reward look
+      // redeemed - that would make an already-fulfilled reward look
       // "over-claimed" rather than just closed off to new redemptions.
       if (n < reward.redemptionsCount) {
         return Response.json(
@@ -111,7 +111,7 @@ export async function PATCH(
 
 // Deleting a reward cascades to its CouponCode pool (schema: onDelete
 // Cascade) and clears rewardRuleId on any leads that redeemed it (onDelete
-// SetNull) — their claimed code text stays visible via
+// SetNull) - their claimed code text stays visible via
 // Lead.rewardClaimedCode either way.
 export async function DELETE(
   request: Request,

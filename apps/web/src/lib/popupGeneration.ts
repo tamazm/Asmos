@@ -104,14 +104,14 @@ export type AnalyticsVariant = {
   significance_flag: SignificanceFlag;
   // Added for the AI popup variation roadmap (Phase 0/2): how long people
   // took to give up (null if no dismissals with timing data yet), and how
-  // far they got through the popup's own funnel before dropping off — the
+  // far they got through the popup's own funnel before dropping off - the
   // detail that turns "conversion is low" into "people open it but never
   // reach the email field" or "they focus the email field, then leave."
   avg_dismiss_after_ms: number | null;
   funnel: FunnelStepCount[];
   // Interaction-level telemetry (see lib/templates/runtime.ts). This is the
   // layer that distinguishes "the offer is weak" from "they cannot find the
-  // email field" — conversion rate alone cannot tell those apart, which is
+  // email field" - conversion rate alone cannot tell those apart, which is
   // why the AI previously had nothing useful to learn from.
   ux: UxSignals;
   // Pre-classified from the fields above (see classifyFailurePatterns) so the
@@ -161,7 +161,7 @@ export type PopupGenerationInput = {
     multivariate: boolean;
     max_discount_percent: number;
     // Merchant's own choice at campaign creation (see NewCampaignForm.tsx's
-    // "What's the offer?" question) — "ai_choice" (default) lets the model
+    // "What's the offer?" question) - "ai_choice" (default) lets the model
     // pick per the CREATE_NEW category-inference rules; the others pin the
     // offer type/amount so the model writes copy around it instead of
     // inventing its own discount.
@@ -173,10 +173,10 @@ export type PopupGenerationInput = {
   goal: "EMAIL" | "DISCOUNT" | "BOTH";
   /**
    * Two-tier variant policy (see the VARIANT DIVERGENCE POLICY section of the
-   * system prompt). "explore" while the campaign is still cold — variants are
+   * system prompt). "explore" while the campaign is still cold - variants are
    * supposed to look substantially different so we learn which region of the
    * design space this store responds to. "exploit" once real traffic has
-   * produced a leader — variants differ by one knob so a delta is attributable.
+   * produced a leader - variants differ by one knob so a delta is attributable.
    */
   testing_mode: "explore" | "exploit";
   /**
@@ -189,7 +189,7 @@ export type PopupGenerationInput = {
     recent_headlines: string[];
     recent_fingerprints: string[];
   };
-  // ISO date (YYYY-MM-DD), computed fresh per call (see buildPopupInput) —
+  // ISO date (YYYY-MM-DD), computed fresh per call (see buildPopupInput) -
   // NOT baked into the static system prompt, which is a module-level
   // constant evaluated once at process start and would otherwise go stale.
   // Referenced by the CONTENT & COMPLIANCE GUARDRAILS section to keep
@@ -221,7 +221,7 @@ export type PopupSpec = {
   // free-shipping/fixed-amount/gift-card offer instead).
   discount_percent: number | null;
   // Which physical template renders this spec (see lib/templates/index.ts).
-  // Added for the AI popup variation roadmap (Phase 3) — previously every
+  // Added for the AI popup variation roadmap (Phase 3) - previously every
   // popup used the same split-screen template regardless of what the AI
   // chose, with layout_style only varying its CSS within that one skeleton.
   template_id: TemplateId;
@@ -280,19 +280,19 @@ CRITICAL CONSTRAINTS (never break these):
 - Return ONLY valid JSON matching the output schema. No prose, no markdown fences, no explanation outside the JSON.
 - Never write HTML. The server renders the popup from your JSON spec using the template named by template_id.
 
-CONTENT & COMPLIANCE GUARDRAILS (never break these — enforced server-side too, but get it right here first):
+CONTENT & COMPLIANCE GUARDRAILS (never break these - enforced server-side too, but get it right here first):
 - Never suggest, imply, or offer anything illegal, regulated, or inappropriate as a discount, prize, or
-  reward — no prescription/controlled substances, no weapons/firearms/ammunition/explosives, no alcohol or
+  reward - no prescription/controlled substances, no weapons/firearms/ammunition/explosives, no alcohol or
   tobacco as a giveaway, no adult content. Rewards must always be standard e-commerce fare: a percentage or
   fixed discount, free shipping, a gift card, or the store's own merchandise.
 - Never mention a real third-party brand, franchise, character, or copyrighted property that isn't the
-  store's own — don't borrow recognizable IP to make an offer sound bigger than it is.
+  store's own - don't borrow recognizable IP to make an offer sound bigger than it is.
 - Today's date is given at the very top of the user message (as current_date). Only reference a seasonal or
   holiday moment (Christmas, Black Friday, back-to-school, summer sale, etc.) if it is genuinely near in
-  time to current_date — never write "Christmas" copy in the middle of summer or "summer sale" copy in
+  time to current_date - never write "Christmas" copy in the middle of summer or "summer sale" copy in
   winter. If in doubt, skip the seasonal framing entirely and write an evergreen offer instead.
 - \`discount_percent\` (see POPUP DESIGN REQUIREMENTS) must never exceed constraints.max_discount_percent.
-  This is a hard ceiling, not a suggestion — if you're tempted to write a bigger number for impact, cap it
+  This is a hard ceiling, not a suggestion - if you're tempted to write a bigger number for impact, cap it
   at constraints.max_discount_percent instead and let the framing (urgency, exclusivity, first-order-only)
   do the persuasive work.
 
@@ -310,12 +310,12 @@ IMPROVE_EXISTING
 
 CREATE_NEW
 - Use brand_tokens as ground truth for palette, type, and signature element. Never invent a palette when brand_tokens are supplied.
-- Check constraints.offer_preference first — this is the merchant's own explicit choice, and overrides the
+- Check constraints.offer_preference first - this is the merchant's own explicit choice, and overrides the
   category-inference below whenever it isn't "ai_choice":
   - "percentage": write a percentage discount (respecting max_discount_percent). Set discount_percent accordingly.
-  - "free_shipping": the offer IS free shipping — do not also invent a percentage discount. discount_percent = null.
+  - "free_shipping": the offer IS free shipping - do not also invent a percentage discount. discount_percent = null.
   - "fixed_prize": the offer is constraints.offer_preference.fixed_prize_description verbatim (a gift card,
-    a specific product, a fixed-dollar credit, etc.) — write copy around exactly that, don't reinterpret it
+    a specific product, a fixed-dollar credit, etc.) - write copy around exactly that, don't reinterpret it
     as a percentage. discount_percent = null unless the merchant's description itself states a percentage.
   - "ai_choice" (default): infer likely offer type from store.category:
     fashion/beauty -> first-order percentage discount
@@ -327,7 +327,7 @@ CREATE_NEW
   Override if store.category or price point suggests longer consideration window
   (high-ticket items -> time-delay over exit-intent).
 - Choose a layout_style and image treatment (see POPUP BLUEPRINT below) that fits the store's category and
-  existing brand — this is what makes each store's popup feel different from the last one you generated.
+  existing brand - this is what makes each store's popup feel different from the last one you generated.
 - Output one baseline popup: full spec plus self-contained HTML code.
 - diagnosis array must be empty for CREATE_NEW mode.
 
@@ -340,13 +340,13 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
     dismiss_rate alone only tell you THAT something is failing, not WHY. Use the richer fields to pick
     a more precise fix within whichever axis you've already identified as highest-leverage:
     - "low_offer_appeal" (few people engage with the popup at all beyond it appearing) -> points at
-      trigger axis (wrong moment/too easy to ignore) or copy axis (headline/offer isn't compelling) —
+      trigger axis (wrong moment/too easy to ignore) or copy axis (headline/offer isn't compelling) -
       prefer whichever the funnel array suggests: near-zero engagement at any step points at trigger;
       some engagement but stalling immediately after points at copy.
     - "form_friction" (people reach the email field but don't convert) -> friction axis: cut fields,
       question whether goal=BOTH's two-step flow is adding friction rather than reducing it here.
     - "premature_dismissal" (avg_dismiss_after_ms is low and dismiss_rate is high) -> trigger axis:
-      the popup is very likely firing at the wrong moment or feels intrusive — test a later/gentler
+      the popup is very likely firing at the wrong moment or feels intrusive - test a later/gentler
       trigger before touching copy or layout.
     - "cant_find_the_cta" (visitors click parts of the popup that aren't clickable) -> the
       button doesn't read as a button, or the wrong element looks primary. Change
@@ -365,7 +365,7 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
       acting. Cut words, raise dna.type_scale, lower dna.density.
     - "insufficient_data" -> fall back to the cold-start ranked order below; don't over-fit to noise.
     - Prefer citing a failure_pattern + its concrete evidence in motivating_metric over a bare
-      percentage — that's the difference between "this is what's happening" and "this is why."
+      percentage - that's the difference between "this is what's happening" and "this is why."
   - USER INTENT (analytics.variants[].intent) is aggregate diagnostic evidence for creating the next
     variants only. Never use it to target an individual visitor or to change traffic allocation.
     - high_intent_rate is the share of tracked visitors whose strongest demonstrated score reached 60+.
@@ -376,11 +376,11 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
   - Use the ranked default order: trigger/timing -> friction -> copy/offer framing -> layout -> visual/micro-details.
   - Generate exactly constraints.variant_count variants (0 = no variants, only baseline).
   - Each variant isolates ONE axis change from the baseline.
-- VARIANT DIVERGENCE POLICY (read testing_mode in the input — this replaces the old
+- VARIANT DIVERGENCE POLICY (read testing_mode in the input - this replaces the old
   "always isolate exactly one axis" rule, which produced variant sets that were
   visually interchangeable and therefore untestable in practice):
   - testing_mode == "explore" (cold start, no meaningful traffic yet): every variant gets
-    its OWN design brief and is SUPPOSED to look substantially different from control —
+    its OWN design brief and is SUPPOSED to look substantially different from control -
     different template, different flow, different urgency treatment, different copy angle.
     You are mapping which region of the design space this store responds to, not measuring
     a single knob. Do not try to hold everything else constant; the briefs already differ.
@@ -391,21 +391,21 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
     specs differ only in delay_seconds or only in a synonym-level copy change, that is a
     wasted arm of the test.
 - motivating_metric must be in plain language for a store owner's dashboard, e.g.:
-  "62% of visitors who open this popup never reach the email field (form_friction) — testing a
+  "62% of visitors who open this popup never reach the email field (form_friction) - testing a
   one-field, no-name variant" or "people who dismiss are gone in under 2s on average (premature_dismissal)
-  — testing a later trigger" — cite the behavioral pattern and its evidence, not just a conversion delta.
+ - testing a later trigger" - cite the behavioral pattern and its evidence, not just a conversion delta.
   Use "cold_start_default_priority" if no data yet.
 
-PSYCHOLOGICAL FOUNDATION (from Asmos's design research — every layout/copy choice below should serve at least one of these)
-- Reciprocity: state the gift in the headline before asking for anything — "you've got 10% off" framing, not a generic "join us."
-- Loss aversion: frame the offer as something to lose ("your discount expires"), not only something to gain — loses roughly twice as strong as an equivalent gain, psychologically.
-- Scarcity: only claim urgency that is real (genuine first-order-only, genuine time limits) — fabricated countdowns produce a short-term lift and a lasting trust penalty once visitors notice the timer never actually runs out.
-- Commitment & consistency: for goal "BOTH", the two-step teaser→capture flow converts better than a single flat form because the first CTA click is a free micro-yes that makes the email ask feel like a natural next step, not a cold request — write the teaser headline as an invitation to claim something already earned.
-- Every additional required form field costs roughly 10-15% conversion — default to email-only unless there's a specific reason for more.
+PSYCHOLOGICAL FOUNDATION (from Asmos's design research - every layout/copy choice below should serve at least one of these)
+- Reciprocity: state the gift in the headline before asking for anything - "you've got 10% off" framing, not a generic "join us."
+- Loss aversion: frame the offer as something to lose ("your discount expires"), not only something to gain - loses roughly twice as strong as an equivalent gain, psychologically.
+- Scarcity: only claim urgency that is real (genuine first-order-only, genuine time limits) - fabricated countdowns produce a short-term lift and a lasting trust penalty once visitors notice the timer never actually runs out.
+- Commitment & consistency: for goal "BOTH", the two-step teaser→capture flow converts better than a single flat form because the first CTA click is a free micro-yes that makes the email ask feel like a natural next step, not a cold request - write the teaser headline as an invitation to claim something already earned.
+- Every additional required form field costs roughly 10-15% conversion - default to email-only unless there's a specific reason for more.
 
-DESIGN BRIEFS (THE MOST IMPORTANT SECTION — READ IT BEFORE WRITING ANYTHING)
+DESIGN BRIEFS (THE MOST IMPORTANT SECTION - READ IT BEFORE WRITING ANYTHING)
 Each popup you are asked for comes with its own DESIGN BRIEF at the end of the user
-message. The brief pre-selects the structural and visual choices — template, layout,
+message. The brief pre-selects the structural and visual choices - template, layout,
 step flow, urgency treatment, theme, density, button treatment, form layout, and the
 copy angle and voice. Those choices are re-applied server-side after you respond, so a
 brief you ignore does not become a popup you designed; it becomes a popup whose copy no
@@ -417,14 +417,14 @@ remaining DNA so that the given structure works as well as it possibly can.
 - Populate the \`dna\` object on every spec. Every field is required.
 - Honour every "REQUIRED STRUCTURE" line in the brief exactly.
 - The brief tells you whether to write an eyebrow, a social proof line, a privacy note,
-  and an opt-out link. "null" means the element is not rendered at all — do not write a
+  and an opt-out link. "null" means the element is not rendered at all - do not write a
   placeholder, and do not write "none" as a string.
 - \`capture_headline\`/\`capture_subhead\`/\`capture_cta\`, \`reveal_*\` and \`success_*\` are
   the copy for the later steps. Write them properly. They are shown to real visitors.
-  Do NOT fall back on "Almost there" or "Your code is ready" — those were the old
+  Do NOT fall back on "Almost there" or "Your code is ready" - those were the old
   hardcoded strings and they are the single most repetitive thing in the product.
 
-BANNED PHRASES (these are what every popup used to say — never write them again):
+BANNED PHRASES (these are what every popup used to say - never write them again):
 - "Limited Time Offer", "Limited Time", "Don't Miss Out", "Wait!", "Hold On!"
 - "Get 15% Off Your First Order" and every "Get N% Off Your First Order" variant
 - "Enter your email below to unlock your exclusive discount code"
@@ -434,15 +434,15 @@ Write something specific to THIS store instead. If your headline would work verb
 any other e-commerce store on earth, it is the wrong headline.
 
 NOVELTY
-The input includes \`novelty.recent_headlines\` and \`novelty.recent_fingerprints\` —
+The input includes \`novelty.recent_headlines\` and \`novelty.recent_fingerprints\` -
 what this account has already been shown. Do not reproduce, lightly reword, or
 structurally clone any of them. This is a hard requirement, not a stylistic preference:
 a merchant who sees the same popup twice concludes the AI does nothing.
 
 IMAGERY
 - Set \`image_url\` to ONE exact URL from the library below. Each entry lists what is
-  actually IN the photograph — choose on the description, not on the category heading.
-  Do not invent an Unsplash URL — a fabricated photo ID will 404, and any URL not in
+  actually IN the photograph - choose on the description, not on the category heading.
+  Do not invent an Unsplash URL - a fabricated photo ID will 404, and any URL not in
   this list is discarded server-side.
 - Set it to null when the brief's \`dna.image_treatment\` is "none".
 - **Default to null.** An image is only worth including when the photo's own subject
@@ -451,7 +451,7 @@ IMAGERY
   assembled by a machine that has never seen the shop. The popup renders well without
   one, so when in doubt, null.
 - This library CANNOT serve the following store types. For any of them, image_url MUST
-  be null — there is no acceptable substitute, only a wrong one:
+  be null - there is no acceptable substitute, only a wrong one:
 ${UNSERVED_STORE_TYPES.map((t) => `    · ${t}`).join("\n")}
 - Vary which exact image you pick across variants and generations rather than always
   reaching for the first one listed in a category:
@@ -569,7 +569,7 @@ const popupOutputSchema = {
 const GENERATE_POPUP_TOOL: Anthropic.Tool = {
   name: "generate_popup",
   description:
-    "Generate a complete popup design with baseline and test variants for an e-commerce store. Always call this — it is the only output format accepted.",
+    "Generate a complete popup design with baseline and test variants for an e-commerce store. Always call this - it is the only output format accepted.",
   input_schema: popupOutputSchema as unknown as Anthropic.Tool.InputSchema,
   strict: true,
 };
@@ -577,15 +577,15 @@ const GENERATE_POPUP_TOOL: Anthropic.Tool = {
 // ─── Failure-Pattern Taxonomy (AI popup variation roadmap, Phase 1) ───────────
 //
 // Turns the raw numbers in AnalyticsVariant into named, human-readable
-// diagnoses — the difference between "conversion is low" and "people open it
+// diagnoses - the difference between "conversion is low" and "people open it
 // but only 1 in 20 ever reach the email field." Deliberately built only from
 // signals we actually capture today (funnel steps, dismiss timing). Once
 // Phase 1's session recording is enabled for an account, PostHog's own
 // rage-click/dead-click events would sharpen "cant_find_or_use_cta" beyond
-// this heuristic — that's a natural follow-up once real replay data exists,
+// this heuristic - that's a natural follow-up once real replay data exists,
 // not something to fake from aggregate counts alone.
 
-const MIN_SAMPLE_FOR_PATTERN = 30; // lower bar than significance — these are diagnostic hints, not a/b conclusions
+const MIN_SAMPLE_FOR_PATTERN = 30; // lower bar than significance - these are diagnostic hints, not a/b conclusions
 
 export type FailurePattern =
   | "low_offer_appeal"      // shown a lot, almost nobody engages with the teaser/CTA at all
@@ -599,7 +599,7 @@ export type FailurePattern =
   | "insufficient_data";
 
 // Fraction of measured sessions exhibiting a UX signal before we call it a
-// pattern rather than noise. Deliberately generous — these are diagnostic
+// pattern rather than noise. Deliberately generous - these are diagnostic
 // hints handed to a model that weighs them, not automated decisions.
 const UX_SIGNAL_THRESHOLD = 0.12;
 const MIN_SESSIONS_FOR_UX_PATTERN = 20;
@@ -729,7 +729,7 @@ export async function fetchVariantAnalytics(campaignId: string): Promise<Analyti
 
 async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]> {
   // Use PostHog Events API to aggregate asmos_popup_* events per variant.
-  // avg_dismiss_ms added for the AI popup variation roadmap (Phase 0) —
+  // avg_dismiss_ms added for the AI popup variation roadmap (Phase 0) -
   // dismiss_after_ms is only present on asmos_popup_dismissed events, so
   // avgIf naturally ignores rows where it's null.
   const rows = await queryPostHog<[string, number, number, number, number | null]>(`
@@ -1012,7 +1012,7 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
       const details = e.details as (SessionSummary & { step?: number | string }) | null;
       const step = details?.step;
       if (step === undefined || step === null) continue;
-      // The per-session summary is a rollup, not a funnel milestone — counting
+      // The per-session summary is a rollup, not a funnel milestone - counting
       // it as a funnel step would double-count every view.
       if (step === "session_summary") {
         sessionSummaries.push(details ?? {});
@@ -1043,14 +1043,14 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
 // ─── Input Builder ────────────────────────────────────────────────────────────
 
 // Default cap on any AI-suggested percentage discount when the merchant
-// hasn't set their own — not a platform-wide ceiling. Merchants can set
+// hasn't set their own - not a platform-wide ceiling. Merchants can set
 // max_discount_percent to anything they want via the campaign creation
 // form's "Percentage off" option (buildPopupInput's maxDiscountPercent);
 // whatever they choose (or this default, if they didn't) is what
 // applyContentGuardrails enforces server-side against the model's output.
 export const DEFAULT_MAX_DISCOUNT_PERCENT = 15;
 
-// Basic sanity bounds on the discount input itself — not a business rule,
+// Basic sanity bounds on the discount input itself - not a business rule,
 // just rejecting nonsensical values (negative, or literally "unlimited%").
 const MIN_SANE_DISCOUNT_PERCENT = 1;
 const MAX_SANE_DISCOUNT_PERCENT = 100;
@@ -1143,14 +1143,14 @@ export async function fetchNoveltyMemory(accountId: string): Promise<{
       recentFingerprints: Array.from(fingerprints).slice(0, 15),
     };
   } catch (err) {
-    // Novelty is an optimization, not a correctness requirement — a DB hiccup
+    // Novelty is an optimization, not a correctness requirement - a DB hiccup
     // here should degrade variety, never block a campaign from generating.
     console.warn("[popupGeneration] novelty memory lookup failed, continuing without it:", err);
     return { recentHeadlines: [], recentFingerprints: [] };
   }
 }
 
-// ─── Generation — Claude Haiku ────────────────────────────────────────────────
+// ─── Generation - Claude Haiku ────────────────────────────────────────────────
 
 async function generateWithClaude(
   input: PopupGenerationInput,
@@ -1179,7 +1179,7 @@ async function generateWithClaude(
   return toolUse.input as PopupGenerationOutput;
 }
 
-// ─── Generation — Gemini fallback ────────────────────────────────────────────
+// ─── Generation - Gemini fallback ────────────────────────────────────────────
 
 async function generateWithGemini(
   input: PopupGenerationInput,
@@ -1234,7 +1234,7 @@ async function generateWithGemini(
   return call.args as PopupGenerationOutput;
 }
 
-// ─── Generation — Bedrock (primary when AWS keys present) ────────────────────
+// ─── Generation - Bedrock (primary when AWS keys present) ────────────────────
 
 async function generateWithBedrock(
   input: PopupGenerationInput,
@@ -1278,7 +1278,7 @@ async function generateWithBedrock(
 }
 
 // None of the SDK calls below set their own timeout, and the AWS SDK's default
-// Node HTTP handler in particular has no request timeout — a Bedrock access/
+// Node HTTP handler in particular has no request timeout - a Bedrock access/
 // networking misconfiguration can hang instead of erroring. This whole function
 // runs inside a single Inngest step.run() (see lib/inngest/generateCampaign.ts);
 // if it hangs long enough, the Vercel function gets killed by its maxDuration
@@ -1303,7 +1303,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 // AI popup variation roadmap, Phase 4: append human-approved cross-account
 // patterns (see lib/inngest/mineCrossAccountPatterns.ts and
 // /admin/learned-patterns) to the base system prompt at generation time.
-// Best-effort — a DB hiccup here should never block generation, it just
+// Best-effort - a DB hiccup here should never block generation, it just
 // means this call runs on the base prompt without the extra patterns.
 async function getLearnedPatternsSection(): Promise<string> {
   try {
@@ -1315,7 +1315,7 @@ async function getLearnedPatternsSection(): Promise<string> {
     });
     if (patterns.length === 0) return "";
     return (
-      "\n\nLEARNED PATTERNS (mined across all Asmos accounts, human-approved — treat as extra prior\n" +
+      "\n\nLEARNED PATTERNS (mined across all Asmos accounts, human-approved - treat as extra prior\n" +
       "knowledge to weigh alongside this store's own analytics, not a replacement for them; this\n" +
       "store's own data always wins if it conflicts with a pattern below):\n" +
       patterns.map((p) => `- ${p.description}`).join("\n")
@@ -1327,7 +1327,7 @@ async function getLearnedPatternsSection(): Promise<string> {
 }
 
 // Real popups scraped from high-traffic live sites (see lib/popupScraping.ts
-// and scripts/popup-scraper/), industry-matched — the model's only source of
+// and scripts/popup-scraper/), industry-matched - the model's only source of
 // actual visual/structural grounding, instead of picking template_id and
 // layout_style as blind enum names. No review gate, unlike learned patterns
 // above: the source sites are hand-picked to already be high quality, so a
@@ -1343,12 +1343,12 @@ async function getScrapedExamplesSection(rawIndustry: string | null | undefined)
       take: 5,
       select: { design: true },
     });
-    if (examples.length === 0) return ""; // no off-industry examples — same "when in doubt, null" rule as imagery
+    if (examples.length === 0) return ""; // no off-industry examples - same "when in doubt, null" rule as imagery
     // Deliberately NOT including these examples' own colours: brand_tokens.palette
     // (the merchant's own analyzed site) is the one and only colour source and is
     // explicitly locked/never-invented elsewhere in this prompt. Showing a
-    // second, concrete set of hex codes here — even captioned "don't copy
-    // this" — is a strictly weaker instruction than a lock, and risks exactly
+    // second, concrete set of hex codes here - even captioned "don't copy
+    // this" - is a strictly weaker instruction than a lock, and risks exactly
     // the failure this section should never cause: the model reaching for
     // some other store's colour instead of this merchant's own.
     const lines = examples
@@ -1361,7 +1361,7 @@ async function getScrapedExamplesSection(rawIndustry: string | null | undefined)
       });
     if (lines.length === 0) return "";
     return (
-      "\n\nREAL EXAMPLES FROM THIS INDUSTRY (scraped from high-traffic live sites — for structural and\n" +
+      "\n\nREAL EXAMPLES FROM THIS INDUSTRY (scraped from high-traffic live sites - for structural and\n" +
       "tonal grounding only; never take colour from these, only from brand_tokens.palette above; do not\n" +
       "copy any of these verbatim):\n" +
       lines.join("\n")
@@ -1376,7 +1376,7 @@ async function getScrapedExamplesSection(rawIndustry: string | null | undefined)
 //
 // The prompt instructs the model not to suggest illegal/regulated/absurd
 // rewards, not to borrow third-party IP, to keep seasonal copy in-season,
-// and to respect max_discount_percent — but a prompt instruction is
+// and to respect max_discount_percent - but a prompt instruction is
 // advisory, not enforcement. This is the actual enforcement: applied to
 // every spec (baseline + every variant) from every provider, right before
 // generatePopupWithVariants returns, so nothing downstream (DB, widget,
@@ -1386,7 +1386,7 @@ async function getScrapedExamplesSection(rawIndustry: string | null | undefined)
 // The blocklist is intentionally short and scoped to genuinely
 // non-negotiable categories (controlled substances, weapons/explosives,
 // alcohol/tobacco as a giveaway) rather than an attempt at general content
-// moderation — broad copyrighted-IP detection isn't something a static list
+// moderation - broad copyrighted-IP detection isn't something a static list
 // can cover, so that's handled by the prompt instruction alone.
 const BLOCKED_REWARD_TERMS = [
   "prescription", "opioid", "oxycontin", "xanax", "vicodin", "adderall",
@@ -1403,7 +1403,7 @@ function containsBlockedTerm(text: string): boolean {
 }
 
 // Downgrades any "NN%" mention in text that exceeds maxPercent to maxPercent
-// — a defensive text-level backstop alongside clamping the structured
+// - a defensive text-level backstop alongside clamping the structured
 // discount_percent field, since the model could in principle state a bigger
 // number in prose even if the structured field is clamped separately.
 function clampPercentMentions(text: string, maxPercent: number): string {
@@ -1470,7 +1470,7 @@ function buildUserMessage(input: PopupGenerationInput, briefs?: GenerationBriefs
     parts.push(
       "",
       "════════════════════════════════════════════════════════════════",
-      "DESIGN BRIEFS — these are binding. Every locked value below is",
+      "DESIGN BRIEFS - these are binding. Every locked value below is",
       "re-applied server-side after you respond, so copy that contradicts",
       "its own brief ships as a broken popup.",
       "════════════════════════════════════════════════════════════════",
@@ -1485,7 +1485,7 @@ function buildUserMessage(input: PopupGenerationInput, briefs?: GenerationBriefs
     parts.push(
       "",
       input.testing_mode === "explore"
-        ? "These briefs deliberately differ from each other. Do not try to normalise them into a house style — the divergence IS the experiment."
+        ? "These briefs deliberately differ from each other. Do not try to normalise them into a house style - the divergence IS the experiment."
         : "These briefs differ from the control by exactly one knob each. Keep everything else, including the copy, as close to the control as the brief allows so the result is attributable.",
     );
   }
@@ -1520,7 +1520,7 @@ function applyBriefs(output: PopupGenerationOutput, briefs: GenerationBriefs): P
  *
  * `image_url` is typed as a free string in the tool schema, so nothing stopped
  * the model returning a hallucinated photo ID (404s on the merchant's site) or
- * a URL recalled from training — uncurated, and quite possibly carrying text or
+ * a URL recalled from training - uncurated, and quite possibly carrying text or
  * a percentage burned into the pixels. That last case is the one that bit:
  * imagery is generated independently of copy, so a photo with "50%" in it will
  * happily sit above a 10% offer.
@@ -1559,7 +1559,7 @@ export async function generatePopupWithVariants(
   briefs?: GenerationBriefs,
 ): Promise<PopupGenerationOutput> {
   // The merchant's own real measured colour, if the caller found one (via
-  // brandTokensFromAnalyzeResult/StoreProfile) — captured before it gets
+  // brandTokensFromAnalyzeResult/StoreProfile) - captured before it gets
   // overridden below. Used only to judge which scraped examples are actually
   // relevant to THIS merchant; never applied as an output colour itself.
   const queryColor = input.brand_tokens?.palette?.[0] ?? null;
@@ -1570,12 +1570,12 @@ export async function generatePopupWithVariants(
   const scrapedDesigns = await pickScrapedDesigns(input.store.category, input.constraints.variant_count + 1, queryColor);
   if (scrapedDesigns.length === 0) {
     throw new Error(
-      `No scraped popup examples available for industry "${normalizeIndustry(input.store.category)}" — cannot generate without scraped design data. Scrape some sites in this industry first.`,
+      `No scraped popup examples available for industry "${normalizeIndustry(input.store.category)}" - cannot generate without scraped design data. Scrape some sites in this industry first.`,
     );
   }
 
   // Colour/font ground truth now comes from the scraped design, not the
-  // merchant's own analyzed site — overrides whatever the caller computed
+  // merchant's own analyzed site - overrides whatever the caller computed
   // via brandTokensFromAnalyzeResult before calling here. The existing
   // prompt language ("brand_tokens.palette are LOCKED... use as ground
   // truth") is unchanged; what it describes now is just different.
@@ -1596,13 +1596,13 @@ export async function generatePopupWithVariants(
     (await getScrapedExamplesSection(input.store?.category));
   const userMessage = buildUserMessage(input, briefs);
   // Whatever the merchant configured (or DEFAULT_MAX_DISCOUNT_PERCENT if
-  // they didn't) — already sanity-bounded in buildPopupInput, not re-capped
+  // they didn't) - already sanity-bounded in buildPopupInput, not re-capped
   // against a platform ceiling here.
   const maxDiscountPercent = input.constraints.max_discount_percent;
 
   const finish = (result: PopupGenerationOutput): PopupGenerationOutput => {
     const briefed = briefs ? applyBriefs(result, briefs) : result;
-    // Structure/shape/density/imagery forced from real scraped designs —
+    // Structure/shape/density/imagery forced from real scraped designs -
     // cycling through the pool so baseline and each variant can still read
     // as visually distinct from each other, even though every value traces
     // back to a real scraped popup rather than the model's own invention.
@@ -1667,16 +1667,16 @@ export async function generatePopupWithVariants(
  * failed rendered a popup that visibly matched *our* brand, not theirs, by
  * sheer coincidence of failure. Reaches into the same scraped-popup-by-
  * industry data getScrapedExamplesSection uses, and takes a real dominant
- * colour from a real popup in that industry instead — still not this
+ * colour from a real popup in that industry instead - still not this
  * specific merchant's own colour (nothing can substitute for that), but a
  * plausible one for their kind of store rather than a generic default that's
  * secretly Asmos's. Falls back to Asmos's blue only when there's no scraped
- * data for that industry either — the one case nothing real is available.
+ * data for that industry either - the one case nothing real is available.
  */
 const HEX_RE = /^#[0-9a-f]{6}$/i;
 
 export async function industryFallbackColor(industry: string | undefined): Promise<string> {
-  // Neutral, not Asmos's own brand blue — this whole function is now a
+  // Neutral, not Asmos's own brand blue - this whole function is now a
   // dead-for-purpose safety net anyway: generatePopupWithVariants throws
   // before generation can ever reach a point where this return value would
   // actually be used (see the top of that function).
@@ -1694,7 +1694,7 @@ export async function industryFallbackColor(industry: string | undefined): Promi
       const design = e.design as Partial<ScrapedPopupDesign> | null;
       if (!design) continue;
       // The CTA button's own colour is the most deliberately "brand" choice
-      // in a popup — merchants pick that colour on purpose, whereas the
+      // in a popup - merchants pick that colour on purpose, whereas the
       // overall painted-area palette below is just as likely to be a large
       // neutral background or body-text colour with nothing brand-like
       // about it. Prefer it; fall back to the palette only if no button was
@@ -1719,7 +1719,7 @@ export async function industryFallbackColor(industry: string | undefined): Promi
 }
 
 /**
- * Real scraped popup designs for a merchant's industry — up to `count`
+ * Real scraped popup designs for a merchant's industry - up to `count`
  * distinct ones, most recent first. Generation is now scraped-data-only: no
  * merchant's own site extraction, no generic default. Callers are expected
  * to throw when this comes back empty (see generatePopupWithVariants) rather
@@ -1732,7 +1732,7 @@ function hexToRgb(hex: string): [number, number, number] | null {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
-/** Straight RGB Euclidean distance — cheap, good enough for "same ballpark". */
+/** Straight RGB Euclidean distance - cheap, good enough for "same ballpark". */
 function colorDistance(a: string, b: string): number {
   const ca = hexToRgb(a);
   const cb = hexToRgb(b);
@@ -1749,7 +1749,7 @@ function designColor(d: ScrapedPopupDesign): string {
  * pure recency or pure chance. With hundreds of rows in one industry, always
  * taking "most recent" leaves most of them permanently unused, and picking
  * randomly turns design quality into a coin flip. Instead: when the
- * merchant's own real colour is known (queryColor — measured off their site,
+ * merchant's own real colour is known (queryColor - measured off their site,
  * never used as the output colour itself, only to judge relevance), rank the
  * whole pool by colour closeness and take the closest matches. Falls back to
  * recency when there's no colour to match against at all (a brand-new store,
@@ -1764,7 +1764,7 @@ async function pickScrapedDesigns(
   const rows = await prisma.scrapedPopupExample.findMany({
     where: { industry: bucket, present: true },
     orderBy: { scrapedAt: "desc" },
-    take: 200, // a wide pool to rank within — the poolSize below is the actual selection count
+    take: 200, // a wide pool to rank within - the poolSize below is the actual selection count
     select: { design: true },
   });
   const designs = rows.map((r) => r.design as ScrapedPopupDesign).filter((d): d is ScrapedPopupDesign => Boolean(d));
@@ -1779,7 +1779,7 @@ async function pickScrapedDesigns(
 
 /**
  * Forces a spec's structure/shape/density/imagery to match a real scraped
- * design — the same "code-level enforcement, not just a prompt instruction"
+ * design - the same "code-level enforcement, not just a prompt instruction"
  * lesson the colour lock already applies, extended to everything visual.
  * Copy (headline/subhead/cta/etc.) is untouched: that stays the model's own
  * work, informed but not dictated by scraped examples.
@@ -1829,20 +1829,20 @@ export async function brandTokensFromAnalyzeResult(result: {
 }): Promise<BrandTokens> {
   // brandColor (an account-level field a merchant can manually set, or that
   // analysis may have written there) is deliberately NOT a colour source
-  // here anymore — only a genuinely measured palette counts. It used to be:
+  // here anymore - only a genuinely measured palette counts. It used to be:
   // any account whose colour got stuck on a stale or placeholder value (see
   // the onboarding/settings fixes earlier this session) would keep feeding
   // that value into every future generation regardless of what the store's
   // own site actually measures to. Colour now comes exclusively from what
-  // was actually measured, or — failing that — a real colour from a scraped
+  // was actually measured, or - failing that - a real colour from a scraped
   // popup in the same industry, never from this account-level field.
   if (result.brandTokens?.palette?.length) return result.brandTokens;
 
   // No measured palette. brandTokensFromStoreProfile can still return a real
   // (non-null) object here whenever type_display was measured even if the
-  // colour-by-painted-area pass came up empty (a plausible split — reading a
+  // colour-by-painted-area pass came up empty (a plausible split - reading a
   // font off getComputedStyle is far more reliable than measuring dominant
-  // colour) — preserve whatever WAS measured, just fill in the colour.
+  // colour) - preserve whatever WAS measured, just fill in the colour.
   const primaryColor = await industryFallbackColor(result.industry);
   if (result.brandTokens) {
     return { ...result.brandTokens, palette: [primaryColor] };

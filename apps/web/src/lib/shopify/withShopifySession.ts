@@ -8,7 +8,7 @@ type ShopifyRouteHandler = (
 ) => Promise<Response>;
 
 // Wraps a shopify-admin API route handler with session-token verification
-// and tenant resolution — the Shopify analog of calling auth() +
+// and tenant resolution - the Shopify analog of calling auth() +
 // getOrCreateAccount() at the top of a Clerk-gated route. Every route under
 // /api/shopify/admin/* should be wrapped with this.
 export function withShopifySession(handler: ShopifyRouteHandler) {

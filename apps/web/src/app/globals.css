@@ -5,7 +5,7 @@
   --background: #ffffff;
   --foreground: oklch(13% 0.025 255);
 
-  /* Asmos Blue — OKLCH for perceptual accuracy */
+  /* Asmos Blue - OKLCH for perceptual accuracy */
   --color-primary:       oklch(48% 0.255 258);
   --color-primary-dark:  oklch(40% 0.245 258);
   --color-primary-light: oklch(96% 0.025 258);
@@ -164,7 +164,7 @@ body {
   transform: translateY(0);
 }
 
-/* Eager variant — fires earlier, used for key product visuals */
+/* Eager variant - fires earlier, used for key product visuals */
 .reveal-eager {
   opacity: 0;
   transform: translateY(12px);
@@ -355,7 +355,7 @@ body {
   border: 1px solid color-mix(in oklch, var(--color-border) 80%, transparent);
 }
 
-/* ─── Float on hover — used for elevated demo/feature cards ─────────────── */
+/* ─── Float on hover - used for elevated demo/feature cards ─────────────── */
 @media (prefers-reduced-motion: no-preference) {
   .hover-float {
     transition: transform 380ms var(--ease-out-expo), box-shadow 380ms var(--ease-out-expo);
@@ -365,7 +365,7 @@ body {
   }
 }
 
-/* ─── Hatch divider — thin diagonal-stripe band between sections ───────── */
+/* ─── Hatch divider - thin diagonal-stripe band between sections ───────── */
 .hatch-divider {
   height: 28px;
   background-image: repeating-linear-gradient(
@@ -378,7 +378,7 @@ body {
   opacity: 0.55;
 }
 
-/* ─── Dark textured tile — blog card image placeholder ──────────────────── */
+/* ─── Dark textured tile - blog card image placeholder ──────────────────── */
 .tile-texture {
   background-color: oklch(15% 0.012 255);
   background-image: repeating-linear-gradient(

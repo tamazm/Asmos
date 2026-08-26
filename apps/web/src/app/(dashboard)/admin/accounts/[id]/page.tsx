@@ -16,7 +16,7 @@ import { CampaignAdminList } from "./CampaignAdminList";
 import { RewardsBoard, type RewardRow } from "@/app/(dashboard)/rewards/RewardsBoard";
 
 // Per-account detail view for superadmins: everything about one merchant in
-// one place — team, websites, plan/generation controls, and every campaign
+// one place - team, websites, plan/generation controls, and every campaign
 // with its generated popups (with live preview + performance) and controls
 // to retry/delete a campaign. Previously the only surface was the flat
 // accounts table on /admin, which had no drill-down at all.
@@ -47,7 +47,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
   if (!account) notFound();
 
   // Same query/shape as rewards/page.tsx, scoped to this account instead of
-  // the logged-in superadmin's own — RewardsBoard's writes are threaded with
+  // the logged-in superadmin's own - RewardsBoard's writes are threaded with
   // overrideAccountId so they land on this account (see
   // lib/account.ts's resolveAccountForRequest).
   const rewards = await prisma.rewardRule.findMany({
@@ -228,7 +228,7 @@ export default async function AccountDetailPage({ params }: { params: Promise<{ 
         </div>
       </section>
 
-      {/* Rewards — same board account holders see on /rewards, editing this
+      {/* Rewards - same board account holders see on /rewards, editing this
           account's rewards instead of the superadmin's own. */}
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold text-[color:var(--color-text)]">Rewards</h2>

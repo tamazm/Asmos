@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
 
-// The Shopify-side analog of getOrCreateAccount() in src/lib/account.ts —
+// The Shopify-side analog of getOrCreateAccount() in src/lib/account.ts -
 // keyed by shop domain instead of a Clerk user, since embedded merchants
 // never see a Clerk sign-up screen (see plan: "well integrated app").
 // Auto-provisions Account + ShopifyShop on first install; on reinstall,

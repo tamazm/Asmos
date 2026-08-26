@@ -45,7 +45,7 @@ export function GenerationStatusScreen({
           setStage(campaign.generationStage);
         }
       } catch {
-        // Transient network hiccup — just try again on the next tick.
+        // Transient network hiccup - just try again on the next tick.
       }
     }, POLL_INTERVAL_MS);
 
@@ -150,7 +150,7 @@ export function GenerationStatusScreen({
       </ol>
 
       <p className="text-xs text-[color:var(--color-text-secondary)] max-w-xs">
-        This usually takes under a minute. Feel free to navigate away — we&apos;ll keep working in
+        This usually takes under a minute. Feel free to navigate away - we&apos;ll keep working in
         the background and this page will update automatically when it&apos;s ready.
       </p>
     </div>

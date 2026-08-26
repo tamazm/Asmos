@@ -1,7 +1,7 @@
 /**
  * lib/screenshotColors.ts
  *
- * Non-AI colour extraction from a screenshot — pure pixel quantization
+ * Non-AI colour extraction from a screenshot - pure pixel quantization
  * (colorthief, backed by sharp), never a vision-model call. Server-only:
  * sharp is a native binding and must never end up in a client bundle, which
  * is why this lives in its own file instead of inside popupScraping.ts
@@ -12,7 +12,7 @@
  * otherwise be a wasted scrape into at least a real colour signal, pulled
  * straight from the page's own screenshot instead of guessing.
  *
- * Deliberately narrow — a flat screenshot has no DOM, so it can only ever
+ * Deliberately narrow - a flat screenshot has no DOM, so it can only ever
  * yield colour. It can never recover template/layout/copy/fonts/shape;
  * those need a real element to read computed styles off of, which is
  * exactly what this path doesn't have.
@@ -22,11 +22,11 @@ import type { PaletteEntry } from "@/lib/popupScraping";
 
 export type ScreenshotColors = {
   palette: PaletteEntry[];
-  // The most saturated/eye-catching colour on the page — the closest a flat
+  // The most saturated/eye-catching colour on the page - the closest a flat
   // screenshot can get to "what a button's brand colour probably looks
   // like", short of actually finding the button.
   accentColor: string | null;
-  // The most dominant colour by area — usually the page's own background.
+  // The most dominant colour by area - usually the page's own background.
   backgroundColor: string | null;
 };
 
@@ -34,7 +34,7 @@ const EMPTY: ScreenshotColors = { palette: [], accentColor: null, backgroundColo
 
 /**
  * Same Browserless /screenshot request shape as api/analyze/route.ts's
- * takeScreenshot — a full above-the-fold capture, not the cropped
+ * takeScreenshot - a full above-the-fold capture, not the cropped
  * popup-element screenshot POPUP_SCRAPE_FN takes when it actually finds a
  * popup. Used only as the fallback when that DOM-based capture found
  * nothing on a page that otherwise loaded fine.
@@ -56,7 +56,7 @@ export async function takePageScreenshot(url: string, browserlessToken: string):
     });
     if (!res.ok) return null;
     const buf = await res.arrayBuffer();
-    if (buf.byteLength < 1000) return null; // suspiciously small — likely a blocked/blank response
+    if (buf.byteLength < 1000) return null; // suspiciously small - likely a blocked/blank response
     return Buffer.from(buf).toString("base64");
   } catch (err) {
     console.warn("[screenshotColors] fallback screenshot failed:", err);
@@ -72,7 +72,7 @@ export async function extractColorsFromScreenshot(base64Jpeg: string): Promise<S
       getSwatches(buf),
     ]);
     // getPalette's array order reflects its quantization tree, not proportion
-    // — sort by area share so callers (and backgroundColor below) can rely
+    // - sort by area share so callers (and backgroundColor below) can rely
     // on index 0 actually being the most dominant colour.
     const palette: PaletteEntry[] = (rawPalette ?? [])
       .map((c) => ({ hex: c.hex(), areaShare: c.proportion }))

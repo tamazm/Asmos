@@ -101,7 +101,7 @@ export function BlogIndexClient({ posts }: { posts: BlogPost[] }) {
       {/* Newsletter */}
       <div className="mt-16 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-8 text-center max-w-xl mx-auto">
         <h2 className="mb-1.5 text-lg font-bold text-[color:var(--color-text-primary)]">Get conversion insights in your inbox</h2>
-        <p className="mb-5 text-xs text-[color:var(--color-text-secondary)]">New experiments, benchmarks, and ecommerce CRO ideas — without the generic marketing advice.</p>
+        <p className="mb-5 text-xs text-[color:var(--color-text-secondary)]">New experiments, benchmarks, and ecommerce CRO ideas - without the generic marketing advice.</p>
         {newsletterStatus === "sent" ? (
           <p className="text-sm font-medium text-[color:var(--color-text-primary)]">You&apos;re on the list.</p>
         ) : (

@@ -39,7 +39,7 @@ function statusBadgeVariant(status: string): "success" | "warning" | "neutral" |
 }
 
 function pct(n: number, d: number): string {
-  if (d <= 0) return "—";
+  if (d <= 0) return "-";
   return `${((n / d) * 100).toFixed(1)}%`;
 }
 
@@ -102,7 +102,7 @@ function VariantRow({ variant, stats, leadCount }: { variant: VariantItem; stats
           {variant.generatedCode ? (
             <iframe
               srcDoc={variant.generatedCode}
-              title={`Preview — ${variant.name}`}
+              title={`Preview: ${variant.name}`}
               className="w-full rounded-lg border-0 bg-white"
               style={{ height: 520 }}
               sandbox="allow-scripts allow-same-origin"
@@ -129,7 +129,7 @@ function CampaignCard({
   const router = useRouter();
 
   // deleteCampaign/retryCampaign only revalidate "/superadmin" (see
-  // superadmin/actions.ts) — they don't know about this account page's
+  // superadmin/actions.ts) - they don't know about this account page's
   // path. router.refresh() re-runs this route's server component with
   // fresh data regardless, so the list updates without needing every
   // action to know every page that might display its result.

@@ -37,14 +37,14 @@ const DENSITY_PAD: Record<PopupDna["density"], { y: string; x: string }> = {
 /**
  * Spacing as hierarchy, not as rhythm.
  *
- * Every gap used to be `--asmos-gap` or `calc(--asmos-gap * 1.6)` — a 12px and
+ * Every gap used to be `--asmos-gap` or `calc(--asmos-gap * 1.6)` - a 12px and
  * a 19px, evenly distributed down the stack. Even spacing is the second-loudest
  * generated-design tell: it tells the eye that every element is equally related
  * to its neighbours, which is never true. An eyebrow belongs to the headline it
  * sits above; the form is a separate movement entirely.
  *
  * So: `tight` binds a label to the thing it labels, `text` separates lines of
- * the same thought, and `break` is a real gap — 3-5x tight — before the ask.
+ * the same thought, and `break` is a real gap - 3-5x tight - before the ask.
  * The ratio is what reads as considered, not the absolute values.
  */
 const DENSITY_SPACE: Record<PopupDna["density"], { tight: string; text: string; brk: string }> = {
@@ -56,7 +56,7 @@ const DENSITY_SPACE: Record<PopupDna["density"], { tight: string; text: string; 
 /**
  * Type contrast.
  *
- * The old scale ran 22/30/42 headline against 13/15/17 sub — a ratio of about
+ * The old scale ran 22/30/42 headline against 13/15/17 sub - a ratio of about
  * 2.4:1 at every step. That is close enough that the two read as one texture,
  * which is why the result looked like a form with a bold label rather than
  * something with a voice. Premium layouts run 3.5-4:1 and let the supporting
@@ -77,7 +77,7 @@ const TYPE_SUB: Record<PopupDna["type_scale"], string> = {
 /**
  * Backdrop weight.
  *
- * These were 0 / 0.28 / 0.55 / 0.8, and `overlay_weight` was drawn uniformly —
+ * These were 0 / 0.28 / 0.55 / 0.8, and `overlay_weight` was drawn uniformly -
  * so one modal in four shipped with *no scrim at all*, floating over live page
  * content with nothing separating it. That reads as a rendering fault rather
  * than as a design choice: without figure/ground separation the merchant's own
@@ -97,8 +97,8 @@ const OVERLAY_RGBA: Record<PopupDna["overlay_weight"], string> = {
 /**
  * Shadow language.
  *
- * A single `box-shadow: 0 28px 60px -18px` — which is what every popup used to
- * ship with — reads as a blurred smudge under a rectangle. Real depth is
+ * A single `box-shadow: 0 28px 60px -18px` - which is what every popup used to
+ * ship with - reads as a blurred smudge under a rectangle. Real depth is
  * layered: a tight contact shadow that says the object has an edge, a mid
  * diffusion that says it's above the page, and a wide ambient that says how far
  * above. The inset hairline on the top edge is the light source; it's the
@@ -118,7 +118,7 @@ const ELEVATION_SHADOW: Record<PopupDna["elevation"], string> = {
   ].join(", "),
 };
 
-/** The light-source hairline. Only reads on a light surface — skip it on dark. */
+/** The light-source hairline. Only reads on a light surface - skip it on dark. */
 function innerHighlight(dna: PopupDna): string {
   if (dna.elevation === "flat") return "";
   return dna.theme === "light" ? ", inset 0 1px 0 rgba(255,255,255,0.9)" : "";
@@ -132,7 +132,7 @@ type ThemeColors = { bg: string; fg: string; muted: string; border: string; fiel
  * How far the accent bleeds into the card surface itself.
  *
  * A card is the largest area on screen. Leaving it pure white while the brand
- * colour sits on one 48px button is why the output read as "a form" — the
+ * colour sits on one 48px button is why the output read as "a form" - the
  * palette was present but not perceptible. Even 5% of accent mixed into the
  * background changes the character of the whole popup, and at these levels
  * text contrast is unaffected.
@@ -188,11 +188,11 @@ function themeColors(dna: PopupDna, accent: string): ThemeColors {
       };
     case "brand": {
       // The accent becomes the surface, not just the button. A genuinely
-      // different-looking popup from the same palette — no new colors invented.
+      // different-looking popup from the same palette - no new colors invented.
       //
       // The ink is computed, not assumed. This theme used to hardcode white,
       // which meant a store whose brand colour is a yellow or a lime shipped a
-      // popup where *nothing* on the card was readable — not the headline, not
+      // popup where *nothing* on the card was readable - not the headline, not
       // the subhead, not the button label. It is the single worst contrast
       // failure the renderer could produce, because it fails the whole surface
       // at once rather than one element.
@@ -274,7 +274,7 @@ function buttonColors(
     }
     default: {
       // The former `fg: "#ffffff"` unconditionally. Measured across 400
-      // generated popups, that put 34.5% of CTA labels below 4.5:1 — entirely
+      // generated popups, that put 34.5% of CTA labels below 4.5:1 - entirely
       // determined by how light the store's brand colour happens to be.
       const fg = onColor(accent, "#141417", "#ffffff");
       return { bg: accent, fg: ensureContrast(fg, accent, 4.5), border: accent };
@@ -287,7 +287,7 @@ function buttonColors(
 /**
  * Only consumed by modal templates, which is why "none" is not honoured here:
  * a modal without a backdrop isn't a quieter modal, it's a broken one. The knob
- * still controls *how much*, just not *whether* — see OVERLAY_RGBA.
+ * still controls *how much*, just not *whether* - see OVERLAY_RGBA.
  */
 export function overlayColor(dna: PopupDna): string {
   return OVERLAY_RGBA[dna.overlay_weight];
@@ -296,7 +296,7 @@ export function overlayColor(dna: PopupDna): string {
 /**
  * The webfont `@import`, or "" when the pairing needs no network request.
  *
- * MUST be the first thing inside a template's <style> — a stylesheet silently
+ * MUST be the first thing inside a template's <style> - a stylesheet silently
  * ignores an @import that follows any other rule, and the failure mode is
  * "everything renders in the fallback face and nobody can see why".
  */
@@ -320,7 +320,7 @@ export function entranceTransforms(dna: PopupDna): { from: string; to: string } 
 
 /**
  * Mixes a percentage of accent into a surface colour. Returns the base
- * untouched at 0% so `accent_only` emits no color-mix at all — one fewer thing
+ * untouched at 0% so `accent_only` emits no color-mix at all - one fewer thing
  * to go wrong on an old browser that doesn't support it.
  */
 function tintedSurface(base: string, accent: string, percent: number): string {
@@ -335,7 +335,7 @@ const HEX = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
  *
  * Skips anything too close to the primary (two near-identical blues read as one
  * colour and just look like a rendering mistake) and anything that is really a
- * neutral — scrapers routinely return #fff, #000 and page-background greys
+ * neutral - scrapers routinely return #fff, #000 and page-background greys
  * alongside the real brand colours, and using one of those as an "accent"
  * produces a grey badge on a white card.
  */
@@ -391,7 +391,7 @@ export function dnaTokens(
 
   // The store's *second* brand colour. /api/analyze pulls 3-6 of them into
   // brandTokens.palette and every call site used palette[0] and threw the rest
-  // away — so a brand with a real two-colour identity rendered as one blue
+  // away - so a brand with a real two-colour identity rendered as one blue
   // button. Falling back to the primary keeps single-colour brands unchanged.
   const accent2 = pickSecondAccent(accent, palette);
 
@@ -399,7 +399,7 @@ export function dnaTokens(
 
   // Every contrast decision below is made against the surface that actually
   // paints, tint included. Measuring against the untinted base leaves a 5-12%
-  // error — small, but exactly enough to let a pair sit at 4.2:1 while the
+  // error - small, but exactly enough to let a pair sit at 4.2:1 while the
   // maths believed it cleared 4.5:1.
   const surface = mixHex(c.bg, accent, SURFACE_TINT[dna.color_usage]);
 
@@ -419,7 +419,7 @@ export function dnaTokens(
   const mutedResolved = resolveToHex(c.muted, surface);
   const mutedToken = mutedResolved ? ensureContrast(mutedResolved, surface, 4.5) : c.muted;
 
-  // The eyebrow takes the second accent where there is one — but only when that
+  // The eyebrow takes the second accent where there is one - but only when that
   // colour is legible as small uppercase type on this surface. A pale secondary
   // brand colour set at 11px is decoration, not a label.
   const eyebrowCandidate = dna.color_usage === "accent_only" ? accent : accent2;
@@ -436,7 +436,7 @@ export function dnaTokens(
   const fgToken = fgResolved ? ensureContrast(fgResolved, surface, 4.5) : c.fg;
 
   // Display faces differ in apparent size at the same px, so the headline scale
-  // is corrected per pairing — otherwise `type_scale: large` means something
+  // is corrected per pairing - otherwise `type_scale: large` means something
   // different depending on which font happened to be drawn.
   const headlinePx = Math.round(
     parseInt(TYPE_HEADLINE[dna.type_scale], 10) * fonts.displayScale,
@@ -493,7 +493,7 @@ export function dnaTokens(
 /**
  * What happens on the surface behind the copy.
  *
- * All of these are pure CSS — no images, no filters, nothing that costs a
+ * All of these are pure CSS - no images, no filters, nothing that costs a
  * request or blocks paint on a merchant's page. `mesh` and `glow` are layered
  * radial gradients; `paper` is a barely-there warm wash plus a hairline rule
  * under the eyebrow; `block` is a hard colour field. `backdrop-filter` is
@@ -538,7 +538,7 @@ function surfaceCss(dna: PopupDna): string {
 
     case "paper":
       // The rule runs the full width of the card, not the width of the text
-      // column — it bleeds through the content padding to the card's own edges.
+      // column - it bleeds through the content padding to the card's own edges.
       // Elements that respect the padding box on all four sides are what makes
       // a layout read as a container with things dropped into it. One element
       // crossing that boundary is the cheapest signal that someone decided
@@ -570,7 +570,7 @@ function surfaceCss(dna: PopupDna): string {
 
     case "block":
       // The colour block starts at the card's own corner rather than inside the
-      // padding — it reads as a printed tab, not as a badge someone centred.
+      // padding - it reads as a printed tab, not as a badge someone centred.
       // The headline gets negative tracking and a tighter leading than the type
       // system's default, because at poster size the default gaps between
       // letters and lines look like a bug.
@@ -581,7 +581,7 @@ function surfaceCss(dna: PopupDna): string {
       margin: calc(var(--asmos-pad-y) * -1) 0 var(--asmos-space-text) calc(var(--asmos-pad-x) * -1);
       background: var(--asmos-accent);
       /* The eyebrow sits ON the accent here, so it needs ink chosen for the
-         accent — not the surface-derived --asmos-eyebrow, and not a hardcoded
+         accent - not the surface-derived --asmos-eyebrow, and not a hardcoded
          white that vanishes on a pale brand colour. */
       color: var(--asmos-on-accent);
       letter-spacing: 0.16em;
@@ -603,7 +603,7 @@ function surfaceCss(dna: PopupDna): string {
  * Keys the photograph to the brand palette.
  *
  * A full-colour stock photo dropped into a rectangle beside the copy always
- * reads as decoration — it has its own palette, its own light, and no
+ * reads as decoration - it has its own palette, its own light, and no
  * relationship to the card it's sitting in. Desaturating it and pushing the
  * brand colours back through it makes it part of the design instead of an
  * illustration next to the design, and it has the useful side effect of making
@@ -644,7 +644,7 @@ function imageStyleCss(dna: PopupDna): string {
 /**
  * The CTA is the one element where a little theatre pays for itself. A coloured
  * shadow in the button's own hue reads as the button emitting light rather than
- * casting a shadow — it is the cheapest "this was designed" signal available,
+ * casting a shadow - it is the cheapest "this was designed" signal available,
  * and it draws the eye to the only thing we want clicked.
  */
 function ctaTreatmentCss(dna: PopupDna): string {
@@ -716,7 +716,7 @@ export function sharedComponentCss(dna: PopupDna): string {
       ${dna.text_align === "center" ? "margin-left: auto; margin-right: auto;" : ""}
       text-wrap: pretty;
     }
-    /* The eyebrow belongs to the headline — bound tight, not spaced evenly.
+    /* The eyebrow belongs to the headline - bound tight, not spaced evenly.
        It takes the *second* accent where there is one: a two-colour popup reads
        as a brand, a one-colour popup reads as a template with a colour setting. */
     #asmosPopupOverlay .asmos-eyebrow {
@@ -813,7 +813,7 @@ export function sharedComponentCss(dna: PopupDna): string {
     }
     /* A full-width button is a mobile convention that got applied everywhere.
        On a left-axis composition it flattens the layout back into a stack of
-       equal bars — the button, the field and the headline all the same width.
+       equal bars - the button, the field and the headline all the same width.
        Schools built on a left axis get a button sized to its own label, which
        is what makes the composition look decided rather than filled in. */
     #asmosPopupOverlay .asmos-form .asmos-cta {
@@ -968,7 +968,7 @@ export function sharedComponentCss(dna: PopupDna): string {
 
     /* Staggered entrance. A popup whose parts arrive in reading order reads as
        composed; one where everything lands at once reads as a page load. The
-       delays are short enough that nobody consciously notices — which is the
+       delays are short enough that nobody consciously notices - which is the
        point. Children of a step revealed *later* (the capture screen after a
        teaser) are already settled, since .is-open is on by then. */
     #asmosPopupOverlay .popup-step > * {

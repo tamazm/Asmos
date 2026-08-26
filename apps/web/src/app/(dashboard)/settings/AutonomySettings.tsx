@@ -38,7 +38,7 @@ export function AutonomySettings({ defaultLevel = "ASSISTED" }: { defaultLevel?:
     setSaved(false);
     setError(null);
     try {
-      // Optimistic save — PATCH /api/account with autonomyLevel
+      // Optimistic save - PATCH /api/account with autonomyLevel
       const res = await fetch("/api/account", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -46,7 +46,7 @@ export function AutonomySettings({ defaultLevel = "ASSISTED" }: { defaultLevel?:
         body: JSON.stringify({ autonomyLevel: selected }),
       });
       if (!res.ok) {
-        // The API validates name — we send without name so it may 400; that's acceptable
+        // The API validates name - we send without name so it may 400; that's acceptable
         // for this preferences field; treat as optimistic success
       }
       setSaved(true);

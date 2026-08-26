@@ -2,15 +2,15 @@ import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
 import { fetchVariantAnalytics, type TestAxis, type FailurePattern } from "@/lib/popupGeneration";
 
-// AI popup variation roadmap, Phase 4 — the "guidelines get smarter across
+// AI popup variation roadmap, Phase 4 - the "guidelines get smarter across
 // accounts" loop. Runs weekly, looks at every ACTIVE campaign's already-
-// computed analytics (reusing fetchVariantAnalytics — the same
+// computed analytics (reusing fetchVariantAnalytics - the same
 // significance/failure-pattern logic evaluateKnockout.ts uses per campaign,
 // not a separate parallel implementation), and looks for (axis, failure
 // pattern, category) combinations that conclusively won across MANY
-// independent campaigns — not just one merchant's fluke.
+// independent campaigns - not just one merchant's fluke.
 //
-// Writes DRAFT rows only. Nothing here ever touches the live system prompt —
+// Writes DRAFT rows only. Nothing here ever touches the live system prompt -
 // see popupGeneration.ts's getLearnedPatternsSection, which only reads
 // APPROVED rows, and /admin/learned-patterns, which is where a human
 // approves or rejects each candidate.
@@ -33,7 +33,7 @@ export const mineCrossAccountPatterns = inngest.createFunction(
     type Observation = { axis: TestAxis; pattern: FailurePattern; category: string; campaignId: string };
     const observations: Observation[] = [];
 
-    // One analytics fetch per campaign — not the most efficient shape for a
+    // One analytics fetch per campaign - not the most efficient shape for a
     // platform with heavy traffic, but this reuses fetchVariantAnalytics's
     // already-correct control-relative significance logic rather than
     // re-deriving it in a separate global SQL query, and it's a weekly batch

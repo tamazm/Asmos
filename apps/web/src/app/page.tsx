@@ -176,13 +176,13 @@ const FEATURES = [
   { icon: IconIntegrations, title: "Email & SMS Integrations", body: "Connect captured leads directly to Klaviyo, Mailchimp, Omnisend, and other lifecycle tools." },
 ];
 
-// Real, code-verifiable product facts — not marketing outcomes. See
+// Real, code-verifiable product facts - not marketing outcomes. See
 // lib/limits.ts (MAX_VARIANTS_PER_ROUND.SCALE) and evaluateKnockout.ts
 // (ALL_AXES, the Inngest cron trigger) for the source of each number.
 const STATS = [
-  { value: 5, suffix: "", label: "Test axes evaluated automatically", body: "Trigger, friction, copy, layout, and visual — Asmos isolates one variable at a time." },
+  { value: 5, suffix: "", label: "Test axes evaluated automatically", body: "Trigger, friction, copy, layout, and visual - Asmos isolates one variable at a time." },
   { value: 30, suffix: "", label: "Variants tested per round on Scale", body: "The knockout tournament scales its bracket size with your plan." },
-  { value: 24, suffix: "/7", label: "Autonomous evaluation", body: "Traffic reallocates and new variants get generated on a schedule — no manual triggers." },
+  { value: 24, suffix: "/7", label: "Autonomous evaluation", body: "Traffic reallocates and new variants get generated on a schedule - no manual triggers." },
 ];
 
 const AI_LEARNINGS = [
@@ -263,7 +263,7 @@ export default async function LandingPage() {
           className="mb-10"
           eyebrow="How it works"
           heading={<>How <Accent>Asmos</Accent> works</>}
-          sub="Three steps, running continuously — not a checklist you manage by hand."
+          sub="Three steps, running continuously - not a checklist you manage by hand."
         />
         <div className="mx-auto max-w-5xl divide-y divide-[color:var(--color-border)]">
           <HowItWorksRow
@@ -407,14 +407,14 @@ export default async function LandingPage() {
             </div>
           ))}
         </div>
-        <p className="mt-6 text-center text-[11px] text-[color:var(--color-text-secondary)]">Example insights — actual learnings are generated from your store&apos;s data.</p>
+        <p className="mt-6 text-center text-[11px] text-[color:var(--color-text-secondary)]">Example insights - actual learnings are generated from your store&apos;s data.</p>
       </section>
 
       <HatchDivider />
 
       {/* ── 10. Free Optimization Analysis (soft offramp before pricing) ── */}
       <section className="px-5 py-16 sm:py-20 bg-[color:var(--color-surface)]">
-        <SectionIntro eyebrow="Free tool" heading={<>Not ready to start? <Accent>Analyze</Accent> your store first.</>} sub="Paste your store URL and get a limited conversion analysis with actionable optimization opportunities — no account required." />
+        <SectionIntro eyebrow="Free tool" heading={<>Not ready to start? <Accent>Analyze</Accent> your store first.</>} sub="Paste your store URL and get a limited conversion analysis with actionable optimization opportunities - no account required." />
         <div className="mt-6">
           <HomepageForm />
         </div>
@@ -443,7 +443,7 @@ export default async function LandingPage() {
           className="mb-10"
           eyebrow="Pricing"
           heading={<>Flexible pricing built around your <Accent>traffic</Accent>.</>}
-          sub="Every plan includes the full Asmos platform. Pricing scales with your traffic and level of support — not locked features."
+          sub="Every plan includes the full Asmos platform. Pricing scales with your traffic and level of support - not locked features."
         />
         <PricingClient />
         <div className="mt-4 text-center">
@@ -467,7 +467,7 @@ export default async function LandingPage() {
 
       <HatchDivider />
 
-      {/* ── 13. FAQ — split layout: intro left, accordion right ─────────── */}
+      {/* ── 13. FAQ - split layout: intro left, accordion right ─────────── */}
       <section className="px-5 py-16 sm:py-20 bg-[color:var(--color-surface-sunken)]">
         <div className="mx-auto max-w-6xl overflow-hidden rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_1.4fr]">
@@ -531,7 +531,7 @@ export default async function LandingPage() {
         </div>
       </section>
 
-      {/* ── 16. Why Asmos exists — a real pull-quote, not a fabricated
+      {/* ── 16. Why Asmos exists - a real pull-quote, not a fabricated
              customer testimonial ──────────────────────────────────────── */}
       <section className="px-5 py-16 sm:py-24 bg-[color:var(--color-surface)]">
         <SectionIntro className="mb-8" eyebrow="Why Asmos exists" heading={<>Built for <Accent>evidence</Accent>, not guesswork.</>} />

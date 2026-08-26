@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
  * Counts up from 0 to `value` once it scrolls into view. Same
  * IntersectionObserver-on-mount pattern as ScrollReveal, but self-contained
  * since each counter animates its own number rather than toggling a shared
- * CSS class — the animated value has to live in JS state.
+ * CSS class - the animated value has to live in JS state.
  */
 export function StatCounter({
   value,
@@ -22,7 +22,7 @@ export function StatCounter({
   const ref = useRef<HTMLSpanElement | null>(null);
   const [display, setDisplay] = useState(0);
   const [started, setStarted] = useState(false);
-  // Lazy initializer runs on mount, not inside an effect — window is guarded
+  // Lazy initializer runs on mount, not inside an effect - window is guarded
   // for the SSR render pass, where this client component still renders once.
   const [prefersReducedMotion] = useState(
     () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches,

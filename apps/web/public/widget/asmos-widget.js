@@ -28,7 +28,7 @@
   var shown = false;
 
   // ─── Behavioral context (AI popup variation roadmap, Phase 0) ──────────────
-  // Persistent first-party per-visitor id — used as the PostHog distinct_id
+  // Persistent first-party per-visitor id - used as the PostHog distinct_id
   // (see /api/widget/events) so funnels/cohorts/replay correlate correctly,
   // instead of every visitor of a variant sharing one synthetic id.
   var VISITOR_ID_KEY = "asmos_visitor_id";
@@ -118,7 +118,7 @@
   }
 
   // Exposed for AI-generated template scripts (variant.generatedCode) to
-  // call directly — see lib/templates/*.ts. Same contract as public/widget.js.
+  // call directly - see lib/templates/*.ts. Same contract as public/widget.js.
   window.__asmos_track_event = function (type, extra) {
     if (chosenVariant) postEvent(chosenVariant.id, type, extra);
   };
@@ -138,7 +138,7 @@
         bootstrap: { distinctID: visitorId },
       });
     } catch (e) {
-      // Tracking is best-effort — never let it break the popup itself.
+      // Tracking is best-effort - never let it break the popup itself.
     }
   }
 
@@ -148,7 +148,7 @@
     try {
       var existing = localStorage.getItem(CONSENT_KEY);
       if (existing) { if (existing === "accepted") onAccept(); return; }
-    } catch (e) { /* storage unavailable — fall through to asking */ }
+    } catch (e) { /* storage unavailable - fall through to asking */ }
 
     if (consent && consent.required === false) { onAccept(); return; }
 
@@ -192,12 +192,12 @@
   // ─── Variant selection (weighted, sticky per visitor) ──────────────────────
   // Two real bugs fixed here:
   // 1. `trafficPercent || 100` treated an eliminated variant's explicit
-  //    trafficPercent: 0 as if it were 100 (0 is falsy in JS) — so a
+  //    trafficPercent: 0 as if it were 100 (0 is falsy in JS) - so a
   //    knockout-eliminated variant could still consume most/all traffic
   //    instead of the 0% it was actually assigned. Only fall back to an
   //    even default when trafficPercent is genuinely missing (null/
   //    undefined), never when it's a real, deliberate 0.
-  // 2. No visitor ever stuck to the variant they were first shown — every
+  // 2. No visitor ever stuck to the variant they were first shown - every
   //    call re-rolled Math.random() fresh, so the same person could see a
   //    different variant on a later visit mid-campaign, which both breaks
   //    a consistent visitor experience and muddies the bandit's own
@@ -301,7 +301,7 @@
       .replace(/"/g, "&quot;");
   }
 
-  // ─── Styles (legacy card fallback — used when a variant has no AI-rendered
+  // ─── Styles (legacy card fallback - used when a variant has no AI-rendered
   // generatedCode, e.g. WHEEL/SCRATCH_CARD types or older data) ─────────────
   function injectStyles(primary) {
     if (document.getElementById("asmos-styles")) return;
@@ -500,7 +500,7 @@
     chosenVariant = pickVariant(cfg.id, cfg.variants, cfg.forcedVariantId);
 
     // AI popup variation roadmap, Phase 0/3: render the AI-designed template
-    // (split-screen / corner-toast / fullscreen-takeover — see
+    // (split-screen / corner-toast / fullscreen-takeover - see
     // lib/templates/*.ts) when the variant has one, instead of always
     // falling back to the generic hardcoded card below. The generated
     // template's own inline script handles its own DOM/tracking via the
@@ -587,7 +587,7 @@
     btn.disabled = true;
     btn.textContent = "One moment...";
 
-    // Fields must be flat (email/name/phone) — /api/widget/leads reads them
+    // Fields must be flat (email/name/phone) - /api/widget/leads reads them
     // as top-level body properties, not nested under a "fields" object.
     var payload = Object.assign(
       { variantId: chosenVariant.id, consentGiven: true },
@@ -604,7 +604,7 @@
       .then(function (res) { return res.json().catch(function () { return {}; }); })
       .then(function (resData) {
         // /api/widget/leads already creates the SUBMISSION CampaignEvent
-        // server-side — don't also fire one from here, that would double-count.
+        // server-side - don't also fire one from here, that would double-count.
         converted = true;
         showSuccess(resData.reward ? [resData.reward] : chosenVariant.rewards);
       })
@@ -616,7 +616,7 @@
 
   // ─── Trigger setup ────────────────────────────────────────────────────────
   // Advanced targeting: show on every page (default), only on specific
-  // pages, or every page except specific ones — set at campaign creation
+  // pages, or every page except specific ones - set at campaign creation
   // (see NewCampaignForm.tsx's "Where should this show" question) and
   // carried through unchanged into variant.targeting.pages by
   // generateCampaign.ts / evaluateKnockout.ts. Supports exact path match
@@ -683,7 +683,7 @@
 
       // trigger/delaySeconds/page-targeting live in each variant's
       // `targeting` JSON (not on the campaign object itself), but are set
-      // identically across a campaign's variants at generation time — read
+      // identically across a campaign's variants at generation time - read
       // from the forced/first variant as the representative config. (This
       // also fixes a bug where every campaign silently used the hardcoded
       // time_delay/5s default regardless of what was actually configured,

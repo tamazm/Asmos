@@ -6,7 +6,7 @@
  * sessionStorage so no database access is needed.
  *
  * Rate-limited to 5 requests per IP per minute to prevent abuse.
- * Returns only the baseline (no variants yet — those come after signup via cron).
+ * Returns only the baseline (no variants yet - those come after signup via cron).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
 
   // Assemble brand tokens from the analysis result. brandColor (whatever the
   // client posted, e.g. onboarding's colour picker state) is deliberately not
-  // a colour source here — see brandTokensFromAnalyzeResult.
+  // a colour source here - see brandTokensFromAnalyzeResult.
   const industry = typeof body.industry === "string" ? body.industry : undefined;
   const brandTokens: BrandTokens = await brandTokensFromAnalyzeResult({
     brandTokens: body.brandTokens as BrandTokens | undefined,
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
     brandTokens,
     existingPopup,
     computedStyles,
-    analyticsVariants: [], // cold start — no PostHog data yet (pre-signup)
+    analyticsVariants: [], // cold start - no PostHog data yet (pre-signup)
     variantCount: 0,       // baseline only for the teaser
     multivariate: false,
     testingMode: "explore",

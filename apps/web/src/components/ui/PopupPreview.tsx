@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 /**
- * PopupPreview — a high-fidelity mockup of the popup Asmos builds.
+ * PopupPreview - a high-fidelity mockup of the popup Asmos builds.
  * Shows inside a minimal browser chrome so visitors can picture it on their store.
  * Design goal: make someone think "I want that on my store."
  */
@@ -68,7 +68,7 @@ export function PopupPreview() {
         {/* Store page background */}
         <div className="relative bg-[#fafaf9] overflow-hidden" style={{ minHeight: 320 }}>
 
-          {/* Store skeleton — subtle, doesn't distract */}
+          {/* Store skeleton - subtle, doesn't distract */}
           <div className="absolute inset-0 p-4 pointer-events-none">
             {/* Nav skeleton */}
             <div className="flex items-center justify-between mb-4">
@@ -92,7 +92,7 @@ export function PopupPreview() {
             </div>
           </div>
 
-          {/* Page dim overlay — simulates popup backdrop */}
+          {/* Page dim overlay - simulates popup backdrop */}
           <div className="absolute inset-0 bg-black/18" />
 
           {/* ─── THE POPUP ─────────────────────────────────────────── */}
@@ -103,7 +103,7 @@ export function PopupPreview() {
                 boxShadow: "0 24px 64px rgba(0,0,0,0.22), 0 4px 16px rgba(0,0,0,0.10)",
               }}
             >
-              {/* Top image band — lifestyle product photo simulation */}
+              {/* Top image band - lifestyle product photo simulation */}
               <div
                 className="relative h-[106px] overflow-hidden"
                 style={{
@@ -112,7 +112,7 @@ export function PopupPreview() {
               >
                 {/* Abstract product shapes */}
                 <div className="absolute inset-0 overflow-hidden">
-                  {/* Circle — soft glow */}
+                  {/* Circle - soft glow */}
                   <div
                     className="absolute"
                     style={{

@@ -12,7 +12,7 @@ import type { ScrapedPopupDesign } from "@/lib/popupScraping";
 // popupGeneration.ts's getScrapedExamplesSection): trigger a new scrape
 // (ScrapeForm → actions.ts's runScrapeBatch → lib/inngest/scrapePopupBatch.ts)
 // and browse what's already there. No approve/reject step, unlike
-// /admin/learned-patterns — the source sites are hand-picked to already be
+// /admin/learned-patterns - the source sites are hand-picked to already be
 // high-traffic and high-quality, so a scraped row feeds generation the
 // moment it's inserted.
 export default async function ScrapedPopupsPage() {
@@ -46,7 +46,7 @@ export default async function ScrapedPopupsPage() {
         <PageHeader title="Scraped Popup Design Library" />
         <p className="mt-2 text-sm text-[color:var(--color-text-secondary)] max-w-2xl">
           Real popups captured from high-traffic live sites, grouped by industry. Every row here is already
-          being read by generation (see getScrapedExamplesSection) — there is no review step, since the source
+          being read by generation (see getScrapedExamplesSection) - there is no review step, since the source
           sites are hand-picked to already be high quality.
         </p>
       </div>
@@ -55,7 +55,7 @@ export default async function ScrapedPopupsPage() {
 
       {examples.length === 0 ? (
         <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-8 text-center text-sm text-[color:var(--color-text-secondary)]">
-          Nothing scraped yet. Paste some sites above and run a scrape — it takes a few minutes to land.
+          Nothing scraped yet. Paste some sites above and run a scrape - it takes a few minutes to land.
         </div>
       ) : (
         [...byIndustry.entries()].map(([industry, rows]) => (

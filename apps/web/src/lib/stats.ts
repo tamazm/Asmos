@@ -1,4 +1,4 @@
-// Basic frequentist two-proportion z-test — Phase 3 has no bandit yet, just a
+// Basic frequentist two-proportion z-test - Phase 3 has no bandit yet, just a
 // significance check so a customer can "declare a winner" with some confidence.
 
 function erf(x: number): number {
@@ -29,7 +29,7 @@ export type ConversionSample = { impressions: number; conversions: number };
  * there isn't enough data (either side has 0 impressions) to say anything.
  *
  * This is a ONE-SIDED quantity by construction: 97 means "97% confident the
- * variant is better", 3 means "97% confident it is worse". Read it as such —
+ * variant is better", 3 means "97% confident it is worse". Read it as such -
  * see `twoSidedPValue` for the symmetric statement, and note that callers who
  * flag both `>= 95` and `<= 5` are working at a two-sided alpha of 0.10, not
  * 0.05.

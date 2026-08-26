@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma";
 import { POPUP_SCRAPE_FN, normalizeIndustry, normalizePopupScrapeResult, normalizeUrl } from "@/lib/popupScraping";
 import { takePageScreenshot, extractColorsFromScreenshot } from "@/lib/screenshotColors";
 
-// Scraped popup design library — see lib/popupScraping.ts and
+// Scraped popup design library - see lib/popupScraping.ts and
 // popupGeneration.ts's getScrapedExamplesSection. Triggered from the
 // superadmin dashboard (/admin/scraped-popups's ScrapeForm, via
-// actions.ts's runScrapeBatch), not on a schedule — an admin pastes a list
+// actions.ts's runScrapeBatch), not on a schedule - an admin pastes a list
 // of high-traffic sites and this runs the batch in the background so the
 // request doesn't have to sit through N sequential Browserless calls.
 //
@@ -29,7 +29,7 @@ export const scrapePopupBatch = inngest.createFunction(
       const outcome = await step.run(`scrape-${url}`, async () => {
         const normalizedUrl = normalizeUrl(url);
 
-        // Skip sites already in the table — no duplicate rows, and no
+        // Skip sites already in the table - no duplicate rows, and no
         // wasted Browserless call for a site we already have. This also
         // covers the same URL appearing twice within one pasted batch: the
         // loop is sequential, so the first occurrence's row already exists
@@ -58,11 +58,11 @@ export const scrapePopupBatch = inngest.createFunction(
           const body = await res.json();
           const result = normalizePopupScrapeResult(body?.data ?? body);
 
-          // The page loaded fine but our DOM selectors found no popup —
+          // The page loaded fine but our DOM selectors found no popup -
           // rather than waste the scrape, fall back to a plain screenshot
           // and pull a colour signal out of it algorithmically (colorthief,
           // no AI vision call). Can't recover structure/copy/fonts this way
-          // — a flat image has no DOM — only colour, so this fills in just
+          // - a flat image has no DOM - only colour, so this fills in just
           // that much and leaves everything else null.
           let present = result.present;
           let design = result.design;
@@ -86,7 +86,7 @@ export const scrapePopupBatch = inngest.createFunction(
 
           // Explicit segment (typed or pasted as "url, industry") always wins;
           // otherwise auto-assign from the page's own title/meta description
-          // and the popup's own copy — no more requiring one per URL.
+          // and the popup's own copy - no more requiring one per URL.
           const industry = segment.trim() ? normalizeIndustry(segment) : normalizeIndustry(result.industrySignal || url);
           await prisma.scrapedPopupExample.create({
             data: {
@@ -103,7 +103,7 @@ export const scrapePopupBatch = inngest.createFunction(
           return { status: "scraped" as const };
         } catch (err) {
           // A unique-constraint hit here means a concurrent run scraped the
-          // same site between our check above and this write — treat that
+          // same site between our check above and this write - treat that
           // as a skip, not a failure, same as the pre-check catching it.
           const message = err instanceof Error ? err.message : String(err);
           if (message.includes("Unique constraint")) {

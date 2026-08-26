@@ -6,16 +6,16 @@
 // at it (creating the Website row if it doesn't exist yet for that
 // account), so the live widget starts serving the right campaign per store.
 //
-// DRY RUN BY DEFAULT — prints exactly what it would change and does not
+// DRY RUN BY DEFAULT - prints exactly what it would change and does not
 // write anything. Review the output, then re-run with --apply to execute.
 //
 // Usage (from apps/web/):
 //   npx tsx scripts/backfill-website-assignment.ts            # dry run
 //   npx tsx scripts/backfill-website-assignment.ts --apply    # actually applies it
 //
-// Safe to run against production DATABASE_URL — it only ever touches
+// Safe to run against production DATABASE_URL - it only ever touches
 // Campaign.websiteId and creates missing Website rows; it never deletes
-// anything (old, now-empty Website rows are left in place — harmless, and
+// anything (old, now-empty Website rows are left in place - harmless, and
 // deleting them could break an already-installed widget snippet that still
 // references that URL).
 
@@ -44,14 +44,14 @@ async function main() {
   let errors = 0;
 
   // Cache Website find-or-create decisions within this run so campaigns
-  // sharing the same (accountId, url) — which is normal and fine — only
+  // sharing the same (accountId, url) - which is normal and fine - only
   // resolve/create the Website row once instead of racing each other.
   const resolved = new Map<string, { id: string; url: string; isNew: boolean }>();
 
   for (const campaign of campaigns) {
     const storeUrlRaw = (campaign.generationContext as { storeUrl?: unknown } | null)?.storeUrl;
     if (typeof storeUrlRaw !== "string" || !storeUrlRaw.trim()) {
-      console.log(`SKIP  campaign ${campaign.id} ("${campaign.name}") — no generationContext.storeUrl to derive from. Currently on website ${campaign.websiteId} (${campaign.website.url}). Leave as-is or fix manually.`);
+      console.log(`SKIP  campaign ${campaign.id} ("${campaign.name}") - no generationContext.storeUrl to derive from. Currently on website ${campaign.websiteId} (${campaign.website.url}). Leave as-is or fix manually.`);
       skippedNoUrl++;
       continue;
     }
@@ -114,7 +114,7 @@ async function main() {
   if (APPLY) {
     console.log(`Applied. Errors:        ${errors}`);
   } else {
-    console.log(`\nThis was a DRY RUN — nothing was changed. Re-run with --apply to execute.`);
+    console.log(`\nThis was a DRY RUN - nothing was changed. Re-run with --apply to execute.`);
   }
 }
 

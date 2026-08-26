@@ -30,7 +30,7 @@ export function DashboardEmptyState() {
     setPhase("generating");
     setError(null);
 
-    const name = `${analyzeResult.storeName ?? "My Store"} — Email Capture`;
+    const name = `${analyzeResult.storeName ?? "My Store"}: Email Capture`;
 
     try {
       const res = await fetch("/api/campaigns", {

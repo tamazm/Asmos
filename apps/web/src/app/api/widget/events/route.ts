@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as {
     variantId?: string;
     type?: string;
-    // First-party per-visitor id, set by widget.js (localStorage) — lets us
+    // First-party per-visitor id, set by widget.js (localStorage) - lets us
     // correlate events from the same visitor and gives PostHog a real
     // distinct_id instead of one shared synthetic id per variant.
     visitorId?: string;
@@ -33,14 +33,14 @@ export async function POST(request: Request) {
     scrollDepthPct?: number;
     timeOnPageSeconds?: number;
     dismissAfterMs?: number;
-    // Funnel step reached at the time of this event — a step number (e.g.
+    // Funnel step reached at the time of this event - a step number (e.g.
     // teaser -> capture) or a named milestone (e.g. "email_field_focus"),
     // set by the popup template's own script.
     step?: number | string;
     // ── Interaction telemetry (lib/templates/runtime.ts) ──
     // Sent once per popup view as step: "session_summary", plus on individual
     // milestone events. These are what let the generator distinguish "the
-    // offer is weak" from "they could not find the email field" — impressions
+    // offer is weak" from "they could not find the email field" - impressions
     // and conversions alone cannot tell those two apart, which is why popup
     // improvements previously had nothing concrete to act on.
     deadClicks?: number;
@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     },
   });
 
-  // Only these two event types feed the bandit — skip the recompute query on
+  // Only these two event types feed the bandit - skip the recompute query on
   // INTERACTION/GIFT_CLAIMED/DISMISSED writes. Deferred via after() so a slow/failed
   // reallocation never delays or breaks the widget's event ack, and keeps
   // running after the response is sent instead of racing the function exit.
@@ -172,7 +172,7 @@ export async function POST(request: Request) {
   }
 
   // Forward behavioral context to PostHog as a fire-and-forget background task.
-  // PostHog is the observability/explainability layer — not the bandit data source.
+  // PostHog is the observability/explainability layer - not the bandit data source.
   // Skip silently if NEXT_PUBLIC_POSTHOG_KEY is not configured.
   if (isPostHogCaptureConfigured()) {
     const {
@@ -190,7 +190,7 @@ export async function POST(request: Request) {
 
     // Real per-visitor id when the widget sends one; fall back to the old
     // per-variant synthetic id so events from a not-yet-updated widget.js
-    // don't get dropped or crash — just degrade to the old (broken) grouping.
+    // don't get dropped or crash - just degrade to the old (broken) grouping.
     const distinctId = visitorId || `widget_visitor_${variantId}`;
 
     after(async () => {
@@ -216,7 +216,7 @@ export async function POST(request: Request) {
         const asmosEventName = asmosEventMap[eventType];
 
         const sharedProperties = {
-          // Attribution properties — required by the popup generation schema
+          // Attribution properties - required by the popup generation schema
           store_id: variant?.campaignId ? `campaign_${variant.campaignId}` : undefined,
           campaign_id: variant?.campaignId,
           popup_id: variant?.campaignId,   // popup_id == campaign_id in current schema

@@ -132,12 +132,12 @@ export default function BusinessProfilePage() {
   const router = useRouter();
   const [analyzeData, setAnalyzeData] = useState<AnalyzeResult | null>(null);
 
-  // Detected (prefilled) state — null means "nothing detected". Brand colour
+  // Detected (prefilled) state - null means "nothing detected". Brand colour
   // used to live here too (a picker feeding Account.brandColor), but colour
   // is no longer a product-level, merchant-set concept at all: generation
   // sources colour exclusively from what's measured on the store's own site
   // or, failing that, a real scraped colour from the same industry (see
-  // popupGeneration.ts's brandTokensFromAnalyzeResult) — never a manually
+  // popupGeneration.ts's brandTokensFromAnalyzeResult) - never a manually
   // chosen/stored value, which was letting a stale or placeholder colour
   // silently govern every popup an account ever generated.
   const [industry, setIndustry] = useState<string | null>(null);
@@ -174,7 +174,7 @@ export default function BusinessProfilePage() {
 
   const hasAnalyzeData = analyzeData !== null;
   // Only show the confident "Detected: ..." framing when a value was
-  // genuinely detected for THAT field — hasAnalyzeData alone just means the
+  // genuinely detected for THAT field - hasAnalyzeData alone just means the
   // analyze step ran, not that every field it looked for was found.
   const hasDetectedIndustry = industry !== null;
 
@@ -235,7 +235,7 @@ export default function BusinessProfilePage() {
           <label htmlFor="industry-input" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
             Industry
           </label>
-          {/* A fixed list, not free text — this is what generation matches
+          {/* A fixed list, not free text - this is what generation matches
               scraped industry examples against (see lib/popupScraping.ts's
               normalizeIndustry), so picking one of the exact buckets here
               guarantees an exact match instead of hoping keyword-matching

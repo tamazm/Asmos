@@ -36,7 +36,7 @@ export function DashboardShell({
     <div className="fixed inset-0 flex overflow-hidden bg-[color:var(--color-surface-sunken)]">
       <Toaster position="bottom-right" toastOptions={{ duration: 4000 }} />
 
-      {/* Mobile backdrop — clicking it closes the nav overlay */}
+      {/* Mobile backdrop - clicking it closes the nav overlay */}
       {navOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/40 lg:hidden"

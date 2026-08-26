@@ -71,7 +71,7 @@ export function MarketingHeader() {
             {CTA.primary.label}
           </Link>
 
-          {/* Hamburger — everything below lg */}
+          {/* Hamburger - everything below lg */}
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}

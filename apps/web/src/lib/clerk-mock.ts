@@ -1,5 +1,5 @@
 /**
- * Mock shim for @clerk/nextjs/server — used when MOCK_AUTH=true.
+ * Mock shim for @clerk/nextjs/server - used when MOCK_AUTH=true.
  * Returns a hardcoded fake user so we can screenshot the app without real Clerk auth.
  */
 

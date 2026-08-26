@@ -91,7 +91,7 @@ export default async function CampaignsListPage() {
             className="mt-1 max-w-xs text-sm text-[color:var(--color-text-secondary)]"
             style={{ textWrap: "pretty" } as React.CSSProperties}
           >
-            Enter your store URL and Asmos will design and launch a branded popup in seconds — no manual setup needed.
+            Enter your store URL and Asmos will design and launch a branded popup in seconds, with no manual setup needed.
           </p>
           <Link
             href="/campaigns/new"

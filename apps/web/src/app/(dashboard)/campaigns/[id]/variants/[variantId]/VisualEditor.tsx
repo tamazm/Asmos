@@ -19,7 +19,7 @@ export function VisualEditor({
   campaignId: string;
   variantId: string;
   // Only used as the colour picker's starting point on the rare variant that
-  // somehow has no primaryColor of its own yet — not "the brand colour" as a
+  // somehow has no primaryColor of its own yet - not "the brand colour" as a
   // product concept (see popupGeneration.ts's brandTokensFromAnalyzeResult).
   defaultColor: string;
   initialDesign: {

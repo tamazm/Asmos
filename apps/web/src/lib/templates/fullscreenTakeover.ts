@@ -4,7 +4,7 @@ import { dnaTokens, sharedComponentCss, dnaFontImport } from "./dnaCss";
 import { closeMarkup, resolveFlow, runtimeScript, stepsMarkup } from "./runtime";
 
 /**
- * FULLSCREEN TAKEOVER — edge-to-edge, maximum prominence.
+ * FULLSCREEN TAKEOVER - edge-to-edge, maximum prominence.
  *
  * The DNA's `theme` doesn't apply the way it does on a card: content sits on a
  * photographic background, so text is always light-on-scrim regardless. What
@@ -16,12 +16,12 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
   const goal = props.goal ?? "BOTH";
   const flow = resolveFlow(goal, dna);
 
-  // Neutral, not Asmos's own brand blue — generation now guarantees a real
+  // Neutral, not Asmos's own brand blue - generation now guarantees a real
   // colour on every spec, so this only fires on a malformed/legacy spec.
   const accent = primaryColor || "#111827";
   const bgImg = imageUrl || DEFAULT_FALLBACK_IMAGE;
   // No image_url means the accent gradient below, not a stock photo standing in
-  // for one — see splitScreen.ts for the reasoning.
+  // for one - see splitScreen.ts for the reasoning.
   const useImage = dna.image_treatment !== "none" && Boolean(imageUrl);
 
   // Scrim strength tracks overlay_weight, but never drops below the level that
@@ -104,7 +104,7 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
       overscroll-behavior: contain;
       ${align}
       /* Keep the padding tokens honest for any bleed-to-edge surface
-         treatment — this template's padding is its own, not the density scale's. */
+         treatment - this template's padding is its own, not the density scale's. */
       --asmos-pad-y: 32px;
       --asmos-pad-x: 32px;
       padding: 32px;
@@ -142,7 +142,7 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
     #asmosPopupOverlay .asmos-offer { color: #fff; }
     #asmosPopupOverlay .asmos-offer-label { color: rgba(255,255,255,0.72); }
     /* Both the figure and the headline are display-size here, so they have to
-       share a viewport rather than each claiming one. Sized in vh, not vw —
+       share a viewport rather than each claiming one. Sized in vh, not vw -
        the constraint that was being exceeded is vertical. */
     #asmosPopupOverlay .asmos-offer-value { font-size: clamp(44px, 11vh, 92px); }
     #asmosPopupOverlay .asmos-offer-unit { font-size: clamp(20px, 4.4vh, 36px); }
@@ -177,7 +177,7 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
       // An OUTLINE button on this template is text directly on the dark scrim,
       // so it wants white ink and a white hairline. A DARK-fill button already
       // resolves to a light panel with dark ink (see buttonColors) and must be
-      // left alone: forcing white here put a white label on a #f5f5f7 button —
+      // left alone: forcing white here put a white label on a #f5f5f7 button -
       // a measured 1.09:1, i.e. an invisible primary call-to-action, on roughly
       // 3% of every popup this system generated.
       dna.button_fill === "outline"
@@ -195,8 +195,8 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
 
     @media (max-width: 720px) {
       /* The composition axis survives the breakpoint. This block used to force
-         "align-items: center; text-align: center", so layout_style — and with
-         it the whole left/centre decision — was inert on most of the traffic.
+         "align-items: center; text-align: center", so layout_style - and with
+         it the whole left/centre decision - was inert on most of the traffic.
          The headline keeps its own vw-based clamp above; it already scales.
 
          Anchoring the stack to the lower half also gives the takeover a real

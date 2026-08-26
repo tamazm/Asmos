@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 // (/api/account/webhook) since it predates this and has extra fields
 // (signing secret, enabled flag) that don't apply here.
 //
-// This only stores and returns the key — nothing reads it yet to actually
+// This only stores and returns the key - nothing reads it yet to actually
 // forward leads to these providers. That sync job doesn't exist yet.
 
 const KNOWN_INTEGRATION_IDS = ["klaviyo", "mailchimp", "hubspot", "shopify", "zapier"] as const;
@@ -88,7 +88,7 @@ export async function PATCH(request: Request) {
   } else {
     const apiKey = body.apiKey?.trim() ?? "";
     if (apiKey.length < 8) {
-      return Response.json({ error: "API key looks too short — double-check you pasted the whole thing." }, { status: 400 });
+      return Response.json({ error: "API key looks too short - double-check you pasted the whole thing." }, { status: 400 });
     }
     creds[integrationId] = { apiKey, connectedAt: new Date().toISOString() };
   }

@@ -16,7 +16,7 @@ interface Integration {
 
 // ── Disabled facade integrations ────────────────────────────────────────────
 // Klaviyo, Mailchimp, HubSpot, Zapier: the "Connect" flow genuinely saved an
-// API key, but no background job ever read it back out to forward leads —
+// API key, but no background job ever read it back out to forward leads -
 // so from a merchant's perspective, clicking Connect did nothing. Commented
 // out (not deleted) until the sync job exists. See IntegrationCard below,
 // still used if any of these come back.
@@ -296,7 +296,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
 // ── Generic facade card (Klaviyo, Mailchimp, etc.) ─────────────────────────
 // The API key is genuinely saved (PATCH /api/account/integrations) and
 // survives reloads. What doesn't exist yet is a background job that reads
-// this key back out and actually pushes leads to the provider — hence the
+// this key back out and actually pushes leads to the provider - hence the
 // "sync is still manual" note rather than claiming full automation.
 
 function IntegrationCard({ integration }: { integration: Integration }) {
@@ -405,11 +405,11 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 
       <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{integration.description}</p>
 
-      {/* Automatic lead-forwarding isn't built yet — the key is genuinely
+      {/* Automatic lead-forwarding isn't built yet - the key is genuinely
           saved, but nothing reads it back out to push leads to the provider. */}
       <p className="text-xs text-[color:var(--color-text-secondary)] italic">
         {status === "connected"
-          ? "Key saved. Automatic lead sync is still being built — export leads manually or use Webhooks + Zapier for now."
+          ? "Key saved. Automatic lead sync is still being built - export leads manually or use Webhooks + Zapier for now."
           : "Automatic lead sync is still being built. Use Webhooks + Zapier in the meantime."}
       </p>
 

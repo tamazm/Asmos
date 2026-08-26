@@ -17,7 +17,7 @@ async function verifySuperadmin() {
 // AI popup variation roadmap, Phase 4: the human-approval gate for patterns
 // mined across accounts (see lib/inngest/mineCrossAccountPatterns.ts).
 // Approving a row here is the only way a mined pattern can ever affect live
-// generation — see popupGeneration.ts's getLearnedPatternsSection, which
+// generation - see popupGeneration.ts's getLearnedPatternsSection, which
 // only reads status=APPROVED rows.
 export async function approveLearnedPattern(id: string) {
   const email = await verifySuperadmin();

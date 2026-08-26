@@ -1,8 +1,8 @@
 -- Dedupe key for scraped popups (see model comment in schema.prisma). Adds
 -- normalizedUrl, backfills it for any rows already scraped (approximating
 -- lib/popupScraping.ts's normalizeUrl in SQL: lowercase, strip protocol/www/
--- query/hash/trailing slash), removes any duplicates that already exist —
--- keeping the most recently scraped row per site — then enforces uniqueness
+-- query/hash/trailing slash), removes any duplicates that already exist -
+-- keeping the most recently scraped row per site - then enforces uniqueness
 -- going forward so the same site is never scraped into two rows again.
 
 -- AlterTable

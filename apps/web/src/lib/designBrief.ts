@@ -9,7 +9,7 @@
  * empty analytics, the same variant count, the same goal, the same fallback
  * category and palette, the same system prompt. Identical input plus a
  * heavily-constrained tool schema means an LLM returns the mode of its
- * distribution every time — which is exactly why every store got
+ * distribution every time - which is exactly why every store got
  * "Get 15% Off Your First Order" with a 10-minute timer, forever. Temperature
  * doesn't fix that; the distribution is genuinely peaked.
  *
@@ -57,7 +57,7 @@ const LAYOUT_STYLES: readonly LayoutStyle[] = ["split-left", "split-right", "cen
 // ─── Seeded RNG ──────────────────────────────────────────────────────────────
 
 /**
- * mulberry32 — small, fast, good enough for design sampling. Seeded so a
+ * mulberry32 - small, fast, good enough for design sampling. Seeded so a
  * generation can be replayed exactly from the seed we persist alongside the
  * spec, which is the difference between "the popup looked wrong" and "here is
  * the popup that looked wrong".
@@ -86,7 +86,7 @@ function choose<T>(rng: () => number, list: readonly T[]): T {
   return list[Math.floor(rng() * list.length) % list.length];
 }
 
-/** Weighted choice — for knobs where the options aren't equally sensible. */
+/** Weighted choice - for knobs where the options aren't equally sensible. */
 function weighted<T extends string>(rng: () => number, weights: Record<T, number>): T {
   const entries = Object.entries(weights) as [T, number][];
   const total = entries.reduce((sum, [, w]) => sum + w, 0);
@@ -102,18 +102,18 @@ function weighted<T extends string>(rng: () => number, weights: Record<T, number
 
 /**
  * The persuasion angle the headline should take. Sampling this is what stops
- * every store from getting the same "Get 15% Off Your First Order" —
+ * every store from getting the same "Get 15% Off Your First Order" -
  * the model isn't choosing an angle any more, it's writing to one.
  */
 export const COPY_ANGLES = [
-  "reciprocity — lead with the gift as already given, not as something to earn",
-  "loss aversion — frame it as something they'd be walking away from",
-  "genuine scarcity — a real, honest limit (first order only, limited stock), never a fabricated countdown",
-  "curiosity — hint at the value without fully revealing it, so opening it is the payoff",
-  "insider/community — framed as joining something, not receiving a coupon",
-  "plain utility — no persuasion theatre at all, just a clear, useful exchange stated once",
-  "concierge — a helpful, service-first offer that happens to include a discount",
-  "celebration — tied to a genuine store milestone or a new arrival, not a fake holiday",
+  "reciprocity - lead with the gift as already given, not as something to earn",
+  "loss aversion - frame it as something they'd be walking away from",
+  "genuine scarcity - a real, honest limit (first order only, limited stock), never a fabricated countdown",
+  "curiosity - hint at the value without fully revealing it, so opening it is the payoff",
+  "insider/community - framed as joining something, not receiving a coupon",
+  "plain utility - no persuasion theatre at all, just a clear, useful exchange stated once",
+  "concierge - a helpful, service-first offer that happens to include a discount",
+  "celebration - tied to a genuine store milestone or a new arrival, not a fake holiday",
 ] as const;
 
 export const COPY_MOODS = [
@@ -139,13 +139,13 @@ export const CTA_SHAPES = [
  * An art direction is a *coherent* set of choices, not an independent knob.
  *
  * Sampling every knob uniformly and calling the result a design is how you get
- * a serif editorial headline sitting on a pill button with a 28px radius — each
+ * a serif editorial headline sitting on a pill button with a 28px radius - each
  * choice defensible, the combination incoherent. So the school is drawn first
  * and then constrains the draw: it fixes the aesthetic primitives outright
  * (typography, depth, surface) and narrows the pools the structural knobs are
  * sampled from.
  *
- * Crucially it *narrows* rather than fixes those — two editorial popups still
+ * Crucially it *narrows* rather than fixes those - two editorial popups still
  * differ in density, flow, timer and layout. The combinatorics survive; they
  * just stop producing combinations no designer would ship.
  */
@@ -179,7 +179,7 @@ type ArtPreset = {
    * field, so it fills all four, and the result is eight stacked elements that
    * each dilute the one above. A designer's first move on this brief is to
    * delete three of them. Sampling each independently at ~40% put an average of
-   * 1.7 on every popup and all four on roughly one in twenty — this caps it.
+   * 1.7 on every popup and all four on roughly one in twenty - this caps it.
    */
   maxSupporting: number;
 };
@@ -192,7 +192,7 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
     // A weighted SET, not one value.
     //
     // `type_pairing` used to be hard-assigned from art_direction, which made
-    // it an alias rather than an axis and — far worse — made
+    // it an alias rather than an axis and - far worse - made
     // `type_pairing: "brand"` unreachable. fonts.ts carries a 24-family match
     // table and resolveBrandPairing exists precisely to serve the store's own
     // typeface; nothing could ever select it, so the entire brand-font
@@ -201,7 +201,7 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
     // belongs to this store" signal available, and it was switched off.
     //
     // `brand` is re-weighted upward at draw time whenever the store actually
-    // has a servable typeface — see drawBrief.
+    // has a servable typeface - see drawBrief.
     typePairings: { editorial: 6, brand: 3, grotesque: 1 },
     elevation: "raised",
     surfaces: { paper: 7, plain: 3 },
@@ -212,7 +212,7 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
     densities: ["airy", "regular"],
     typeScales: ["large", "medium"],
     leftAxisOdds: 0.92,
-    // Editorial carries colour quietly — a paper surface with a whisper of
+    // Editorial carries colour quietly - a paper surface with a whisper of
     // accent in it, not a colour field.
     colorUsages: ["tinted_surface", "duo_accent"],
     // A 96px numeral is a poster device. Editorial states the offer in words.
@@ -225,7 +225,7 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
   },
 
   // Poster logic: the offer is the object. Heavy face, colour block, no radius,
-  // no shadow — flatness is the statement.
+  // no shadow - flatness is the statement.
   bold: {
     typePairings: { bold: 6, brand: 3, geometric: 1 },
     elevation: "flat",
@@ -258,7 +258,7 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
     densities: ["regular", "airy"],
     typeScales: ["medium", "large"],
     // The one school where centring is a legitimate design choice rather than
-    // a default — a glow has a centre, and the composition can sit on it.
+    // a default - a glow has a centre, and the composition can sit on it.
     leftAxisOdds: 0.5,
     colorUsages: ["tinted_surface", "duo_accent"],
     heroOfferOdds: 0.55,
@@ -320,7 +320,7 @@ export type DesignBrief = {
  *
  * `elevation` is a pure function of `art_direction` (each school has one depth
  * language), so including both counts the same decision twice and inflates
- * dnaDistance — which is what decides whether two variants are "different
+ * dnaDistance - which is what decides whether two variants are "different
  * enough" to be worth testing. `type_pairing` and `surface_treatment` are now
  * genuinely independent draws, so they stay.
  */
@@ -347,7 +347,7 @@ function briefFingerprint(locked: DesignBrief["locked"], wantsEyebrow: boolean, 
 export type BriefOptions = {
   /**
    * Whether the store has a display typeface we can actually serve. Gates
-   * `type_pairing: "brand"` — drawing it for a store whose font we cannot load
+   * `type_pairing: "brand"` - drawing it for a store whose font we cannot load
    * produces an arm identical to the school default, which is a wasted test.
    */
   hasBrandFont?: boolean;
@@ -356,7 +356,7 @@ export type BriefOptions = {
    *
    * When it cannot, `button_fill: "solid"` is withheld. The renderer will now
    * always produce a *readable* button (see lib/color.ts), but the honest fix
-   * for a pale yellow or lime brand is not black-on-yellow — that reads as a
+   * for a pale yellow or lime brand is not black-on-yellow - that reads as a
    * warning label, not as a brand. A dark neutral button carrying the accent on
    * its border is the design the DNA already has vocabulary for.
    */
@@ -417,7 +417,7 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
       : weighted(rng, { side: 5, top_band: 3, none: 2, background: 0 } as Record<PopupDna["image_treatment"], number>);
 
   // Bias toward the store's own typeface when there actually is one that
-  // Google serves — otherwise `brand` degrades to the school's default anyway
+  // Google serves - otherwise `brand` degrades to the school's default anyway
   // (see resolveFonts), so drawing it would just be a wasted arm.
   const pairingWeights = { ...preset.typePairings } as Record<string, number>;
   if (opts.hasBrandFont) pairingWeights.brand = (pairingWeights.brand ?? 0) * 2;
@@ -459,7 +459,7 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
     // A corner toast has no backdrop, so its overlay_weight is inert and can be
     // drawn freely. For the two overlay templates it is load-bearing, and
     // drawing it uniformly meant a quarter of them shipped with a backdrop of
-    // "none" — a card sitting on live, undimmed page content. Bias hard toward
+    // "none" - a card sitting on live, undimmed page content. Bias hard toward
     // a scrim that actually separates figure from ground.
     overlay_weight:
       template_id === "corner-toast"
@@ -488,7 +488,7 @@ function drawBrief(seed: number, opts: BriefOptions): DesignBrief {
     { key: "dismiss", on: rng() < 0.3 },
   ];
 
-  // The timer is an optional element too, and it was never counted as one —
+  // The timer is an optional element too, and it was never counted as one -
   // which is how a popup ended up with a countdown, an eyebrow, a proof line,
   // a privacy line and a dismiss link all at once.
   let budget = preset.maxSupporting - (timer_mode === "none" ? 0 : 1);
@@ -529,7 +529,7 @@ export function buildDesignBrief(seed: number, opts: BriefOptions = {}): DesignB
     const candidate = drawBrief(hashSeed(seed, attempt), opts);
     if (avoid.length === 0) return candidate;
 
-    // Distance to the *nearest* thing we're avoiding is what matters — being
+    // Distance to the *nearest* thing we're avoiding is what matters - being
     // far from one recent popup is worthless if it's a clone of another.
     const nearest = Math.min(...avoid.map((f) => dnaDistance(candidate.fingerprint, f)));
     if (nearest >= 0.6) return candidate;
@@ -542,7 +542,7 @@ export function buildDesignBrief(seed: number, opts: BriefOptions = {}): DesignB
   return best ?? drawBrief(seed, opts);
 }
 
-/** Seeded shuffle of the art directions — the deal order for an explore round. */
+/** Seeded shuffle of the art directions - the deal order for an explore round. */
 function dealArtDirections(seed: number): ArtDirection[] {
   const rng = makeRng(seed);
   const deck = [...ART_DIRECTIONS];
@@ -577,7 +577,7 @@ export function buildVariantBriefs(opts: {
 
   // Explore mode deals the art directions out rather than drawing each one
   // independently. With 5 schools and 3 variants, independent draws collide on
-  // the same school about half the time — and a campaign that happens to test
+  // the same school about half the time - and a campaign that happens to test
   // "glass vs glass vs glass" learns nothing about which aesthetic this
   // store's visitors respond to, which is the whole question at cold start.
   const schoolOrder = mode === "explore" ? dealArtDirections(hashSeed(seed, "schools")) : [];
@@ -619,7 +619,7 @@ export function buildVariantBriefs(opts: {
 const PERTURBABLE = [
   // Art direction leads the rotation: it's the largest single visual difference
   // available, so it's the fastest thing to get a clean read on. Perturbing it
-  // re-derives the whole preset — see perturbBrief.
+  // re-derives the whole preset - see perturbBrief.
   "art_direction",
   "color_usage",
   "offer_display",
@@ -659,7 +659,7 @@ export function perturbBrief(base: DesignBrief, seed: number, index: number): De
 
   let locked = { ...base.locked, [knob]: next } as DesignBrief["locked"];
 
-  // Art direction isn't a knob you can swap in isolation — swapping it while
+  // Art direction isn't a knob you can swap in isolation - swapping it while
   // leaving the old preset's typography, depth and surface behind produces a
   // hybrid that belongs to no school and tests nothing. Re-derive the preset so
   // the perturbation is a coherent alternative design, which is what makes the
@@ -672,7 +672,7 @@ export function perturbBrief(base: DesignBrief, seed: number, index: number): De
       elevation: preset.elevation,
       surface_treatment: weighted(rng, preset.surfaces as Record<PopupDna["surface_treatment"], number>),
       text_align: rng() < preset.leftAxisOdds ? "left" : "center",
-      // Re-drawn from the new school's own pools — a bold popup that kept
+      // Re-drawn from the new school's own pools - a bold popup that kept
       // editorial's quiet tint and inline offer isn't a bold popup.
       color_usage: choose(rng, preset.colorUsages),
       offer_display: rng() < preset.heroOfferOdds ? "hero" : "inline",
@@ -701,7 +701,7 @@ export function perturbBrief(base: DesignBrief, seed: number, index: number): De
 /**
  * Reconstructs a brief from a popup that already shipped.
  *
- * Exploit mode perturbs the *current control*, not a freshly sampled design —
+ * Exploit mode perturbs the *current control*, not a freshly sampled design -
  * otherwise "change one knob and measure" would be measuring against a popup
  * nobody has ever seen. Copy direction is re-sampled, since the structure is
  * what we're holding constant, not the wording.
@@ -789,9 +789,9 @@ const ART_DIRECTION_BRIEF: Record<ArtDirection, string> = {
  * lines carrying one idea is the clearest tell there is, and no amount of
  * typography rescues it.
  */
-const COPY_DISCIPLINE = `  COPY DISCIPLINE (these are hard rules — a violation is a rewrite, not a preference):
+const COPY_DISCIPLINE = `  COPY DISCIPLINE (these are hard rules - a violation is a rewrite, not a preference):
   - The subhead must NOT restate the headline. If the headline names the offer,
-    the subhead must add something the reader did not already know — what the
+    the subhead must add something the reader did not already know - what the
     products are, when the email arrives, why the offer exists. If you have
     nothing to add, write a shorter subhead rather than a paraphrase.
   - Headline: 8 words maximum. Under 5 for type_scale "large".
@@ -809,32 +809,32 @@ const COPY_DISCIPLINE = `  COPY DISCIPLINE (these are hard rules — a violation
 export function briefToPromptSection(brief: DesignBrief, label: string): string {
   const l = brief.locked;
   return `${label}
-  REQUIRED STRUCTURE (these are not suggestions — they are re-applied server-side, so
+  REQUIRED STRUCTURE (these are not suggestions - they are re-applied server-side, so
   write copy that actually fits them):
   - template_id: ${l.template_id}
   - layout_style: ${l.layout_style}
-  - dna.art_direction: ${l.art_direction} — ${ART_DIRECTION_BRIEF[l.art_direction]}
+  - dna.art_direction: ${l.art_direction} - ${ART_DIRECTION_BRIEF[l.art_direction]}
   - dna.type_pairing: ${l.type_pairing} (fixed by the art direction; do not restate it)
   - dna.elevation: ${l.elevation}
   - dna.surface_treatment: ${l.surface_treatment}
-  - dna.color_usage: ${l.color_usage} (the card surface itself carries brand colour — do not describe the popup as "clean" or "white")
-  - dna.offer_display: ${l.offer_display}${l.offer_display === "hero" ? " — THE DISCOUNT NUMBER IS RENDERED SEPARATELY at display size above the headline. Set discount_percent, and do NOT repeat the number in the headline; write a headline that works alongside a giant figure it must not duplicate" : " (no display figure — the headline carries the offer)"}
+  - dna.color_usage: ${l.color_usage} (the card surface itself carries brand colour - do not describe the popup as "clean" or "white")
+  - dna.offer_display: ${l.offer_display}${l.offer_display === "hero" ? " - THE DISCOUNT NUMBER IS RENDERED SEPARATELY at display size above the headline. Set discount_percent, and do NOT repeat the number in the headline; write a headline that works alongside a giant figure it must not duplicate" : " (no display figure - the headline carries the offer)"}
   - dna.image_style: ${l.image_style}
-  - dna.text_align: ${l.text_align}${l.text_align === "left" ? " (left-axis composition — the headline sits against a left edge and is capped to a short measure, so write something that breaks naturally over 2-3 lines)" : " (centred composition — keep every line short; centred text with ragged long lines reads as broken)"}
-  - dna.step_flow:${l.step_flow}${l.step_flow === "one_step" ? " (the offer and the email field share ONE screen — there is no teaser click, so the headline must carry the whole ask)" : " (teaser screen first, email field after the click)"}
-  - dna.timer_mode: ${l.timer_mode}${l.timer_mode === "none" ? " (no countdown at all — do NOT write copy that references a ticking clock)" : l.timer_mode === "countdown" ? " (choose a believable timer_seconds and only claim urgency you'd honour)" : " (a static urgency badge — write timer_label, no countdown)"}
+  - dna.text_align: ${l.text_align}${l.text_align === "left" ? " (left-axis composition - the headline sits against a left edge and is capped to a short measure, so write something that breaks naturally over 2-3 lines)" : " (centred composition - keep every line short; centred text with ragged long lines reads as broken)"}
+  - dna.step_flow:${l.step_flow}${l.step_flow === "one_step" ? " (the offer and the email field share ONE screen - there is no teaser click, so the headline must carry the whole ask)" : " (teaser screen first, email field after the click)"}
+  - dna.timer_mode: ${l.timer_mode}${l.timer_mode === "none" ? " (no countdown at all - do NOT write copy that references a ticking clock)" : l.timer_mode === "countdown" ? " (choose a believable timer_seconds and only claim urgency you'd honour)" : " (a static urgency badge - write timer_label, no countdown)"}
   - dna.timer_style: ${l.timer_style}
   - dna.theme: ${l.theme}
-  - dna.image_treatment: ${l.image_treatment}${l.image_treatment === "none" ? " (text-only — image_url should be null)" : ""}
+  - dna.image_treatment: ${l.image_treatment}${l.image_treatment === "none" ? " (text-only - image_url should be null)" : ""}
   - dna.corner_radius: ${l.corner_radius}
   - dna.button_shape: ${l.button_shape}
   - dna.button_fill: ${l.button_fill}
   - dna.accent_placement: ${l.accent_placement}
   - dna.density: ${l.density}
-  - dna.type_scale: ${l.type_scale}${l.type_scale === "large" ? " (large type means FEWER words — keep the headline to 4 words or under)" : ""}
+  - dna.type_scale: ${l.type_scale}${l.type_scale === "large" ? " (large type means FEWER words - keep the headline to 4 words or under)" : ""}
   - dna.overlay_weight: ${l.overlay_weight}
   - dna.entrance: ${l.entrance}
-  - dna.form_layout: ${l.form_layout}${l.form_layout === "inline" ? " (input and button sit side by side — the button label must be 1-2 words)" : ""}
+  - dna.form_layout: ${l.form_layout}${l.form_layout === "inline" ? " (input and button sit side by side - the button label must be 1-2 words)" : ""}
   - dna.close_affordance: ${l.close_affordance}
 
 ${COPY_DISCIPLINE}
@@ -843,7 +843,7 @@ ${COPY_DISCIPLINE}
   - Angle: ${brief.copy_angle}
   - Voice: ${brief.copy_mood}
   - CTA shape: ${brief.cta_shape}
-  - dna.eyebrow: ${brief.wants_eyebrow ? "write a short kicker (2-4 words) that is NOT \"Limited Time Offer\" or any variation of it" : "null — no kicker on this popup"}
+  - dna.eyebrow: ${brief.wants_eyebrow ? "write a short kicker (2-4 words) that is NOT \"Limited Time Offer\" or any variation of it" : "null - no kicker on this popup"}
   - dna.social_proof: ${brief.wants_social_proof ? "write one short line, but ONLY if it would be plausibly true for this store; otherwise null" : "null"}
   - dna.privacy_note: ${brief.wants_privacy_note ? "write a short reassurance line under the form" : "null"}
   - dna.dismiss_text: ${brief.wants_dismiss_link ? "write a low-key opt-out link (do NOT use guilt-trip phrasing like \"No thanks, I'll pay full price\")" : "null"}`;

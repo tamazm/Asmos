@@ -2,7 +2,7 @@ import type { RewardRule } from ".prisma/client";
 
 // The shape callers need to pass in to check/pick availability. `couponCodes`
 // is optional and, when present, MUST already be pre-filtered to unused
-// codes only (`where: { usedAt: null }`) — callers control that via their
+// codes only (`where: { usedAt: null }`) - callers control that via their
 // Prisma `include`/`select` so this module never has to guess.
 type RewardWithAvailability = Pick<
   RewardRule,
@@ -13,7 +13,7 @@ type RewardWithAvailability = Pick<
 
 // A reward is eligible to be handed out if it's turned on and hasn't hit its
 // redemption cap. COUPON rewards additionally need something to actually
-// give out (a legacy shared code, or at least one unused pool code) —
+// give out (a legacy shared code, or at least one unused pool code) -
 // non-coupon types (DISCOUNT_PERCENT, DISCOUNT_FIXED, FREE_SHIPPING, GIFT)
 // don't require a "code": they can be purely informational/applied
 // automatically at checkout, so they're eligible as long as they're active
@@ -31,7 +31,7 @@ export function isRewardAvailable(reward: RewardWithAvailability): boolean {
 }
 
 // Used to gate whether a popup should even be shown at all (see
-// api/widget/config/route.ts) — a campaign whose goal implies a reward but
+// api/widget/config/route.ts) - a campaign whose goal implies a reward but
 // which has nothing currently redeemable to give out must not display.
 export function campaignHasAvailableReward(rewards: RewardWithAvailability[]): boolean {
   return rewards.some(isRewardAvailable);

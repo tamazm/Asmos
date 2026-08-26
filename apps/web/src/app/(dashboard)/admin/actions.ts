@@ -16,14 +16,14 @@ async function verifySuperadmin() {
 
 // Bug fix: these used to let a thrown error cross the Server Action boundary
 // raw. Client callers (AccountsTable) were invoking them as
-// `startTransition(() => updateX(...))` — a plain (non-async) callback whose
+// `startTransition(() => updateX(...))` - a plain (non-async) callback whose
 // return value (the action's promise) was discarded, so any rejection became
 // an unhandled promise rejection in the browser. That's what showed up as
 // "it got changed but errored out": the write itself often succeeded, but
 // the client never awaited the result, so a later hiccup (e.g. a stale
 // Server Action reference after a dev-mode rebuild, or a genuine DB error)
 // surfaced as an uncaught error instead of a clean message. Returning a
-// typed result — and having callers actually await + check it — fixes both
+// typed result - and having callers actually await + check it - fixes both
 // the noisy false-error case and real failures.
 type ActionResult = { success: true } | { success: false; error: string };
 

@@ -5,19 +5,19 @@ import { useEffect, useRef, useState } from "react";
 /**
  * KnockoutBracketPreview
  *
- * Visualizes the bandit-based knockout system — Asmos's core differentiator.
+ * Visualizes the bandit-based knockout system - Asmos's core differentiator.
  * Shows 4 popup variants competing, with 2 getting eliminated and 1 winning.
  * Animates in sequence to tell the story of autonomous optimization.
  *
  * Two visual variants:
- *   default — light card, used in the hero section
- *   dark    — slightly lighter dark, used in the dark knockout section
+ *   default - light card, used in the hero section
+ *   dark - slightly lighter dark, used in the dark knockout section
  */
 
 interface KnockoutBracketPreviewProps {
   variant?: "default" | "dark";
   animated?: boolean;
-  /** When true, renders without its own outer border/shadow — for nesting inside another frame (e.g. the hero's browser-chrome window). */
+  /** When true, renders without its own outer border/shadow - for nesting inside another frame (e.g. the hero's browser-chrome window). */
   embedded?: boolean;
 }
 

@@ -92,7 +92,7 @@ const CHECK_META: CheckMeta[] = [
   {
     key: "popup",
     label: "Email popup",
-    missingHeadline: "Visitors leave without buying — and you lose them forever",
+    missingHeadline: "Visitors leave without buying - and you lose them forever",
     missingBody: "Stores with a high-converting popup recover 4–8% of visitors who leave without purchasing. Without one, every visitor who doesn't buy on the first visit is lost revenue you'll never get back.",
     foundLabel: "Active",
     impact: "high",
@@ -100,7 +100,7 @@ const CHECK_META: CheckMeta[] = [
   {
     key: "emailCapture",
     label: "Capture offer",
-    missingHeadline: "No offer — visitors have no reason to buy now or come back later",
+    missingHeadline: "No offer - visitors have no reason to buy now or come back later",
     missingBody: "A discount or freebie converts fence-sitters into buyers and gives you permission to bring them back. Without it, you pay for traffic you can only use once.",
     foundLabel: "Active",
     impact: "high",
@@ -108,7 +108,7 @@ const CHECK_META: CheckMeta[] = [
   {
     key: "exitIntent",
     label: "Exit-intent recovery",
-    missingHeadline: "70% of your visitors leave without buying — nothing brings them back",
+    missingHeadline: "70% of your visitors leave without buying - nothing brings them back",
     missingBody: "Catching the exit moment with the right offer turns abandoning visitors into customers. Right now that revenue is gone for good.",
     foundLabel: "Active",
     impact: "high",
@@ -124,7 +124,7 @@ const CHECK_META: CheckMeta[] = [
   {
     key: "socialProof",
     label: "Social proof",
-    missingHeadline: "No reviews visible — visitors won't buy without proof others have",
+    missingHeadline: "No reviews visible - visitors won't buy without proof others have",
     missingBody: "93% of shoppers read reviews before handing over money. If first-time visitors can't find social proof, they will buy from someone else.",
     foundLabel: "Present",
     impact: "medium",
@@ -133,7 +133,7 @@ const CHECK_META: CheckMeta[] = [
     key: "stickyBar",
     label: "Announcement bar",
     missingHeadline: "Your best offer disappears the moment visitors scroll",
-    missingBody: "A persistent bar keeps your shipping offer or discount visible the entire visit — the simplest, highest-ROI thing you can add.",
+    missingBody: "A persistent bar keeps your shipping offer or discount visible the entire visit - the simplest, highest-ROI thing you can add.",
     foundLabel: "Present",
     impact: "low",
   },
@@ -217,7 +217,7 @@ export default function AnalyzeResultsPage() {
         if (captured) setEmailState("sent");
       });
 
-      // Kick off popup generation in the background — don't block the page render
+      // Kick off popup generation in the background - don't block the page render
       const cachedPopup = sessionStorage.getItem("asmos_generated_popup");
       if (cachedPopup) {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -236,7 +236,7 @@ export default function AnalyzeResultsPage() {
               setGeneratedPopup(popup as GeneratedPopup);
             }
           })
-          .catch(() => { /* silent — fallback renders without AI popup */ })
+          .catch(() => { /* silent - fallback renders without AI popup */ })
           .finally(() => setPopupGenerating(false));
       }
     } catch { router.replace("/"); }
@@ -409,7 +409,7 @@ export default function AnalyzeResultsPage() {
               </div>
               <p className="text-base font-bold text-white">Full report is on its way</p>
               <p className="mt-1.5 text-sm text-gray-400 leading-relaxed max-w-xs mx-auto">
-                Your revenue breakdown is on its way. Fix every gap with Asmos — takes 3 minutes to get your first popup live and converting.
+                Your revenue breakdown is on its way. Fix every gap with Asmos - takes 3 minutes to get your first popup live and converting.
               </p>
               <button
                 onClick={() => router.push("/sign-up?from=analyze")}
@@ -420,7 +420,7 @@ export default function AnalyzeResultsPage() {
               <p className="mt-2 text-[11px] text-gray-600">No credit card. Free to start.</p>
             </div>
           ) : (
-            /* EMAIL CAPTURE — primary CTA */
+            /* EMAIL CAPTURE - primary CTA */
             <div className="rounded-2xl bg-gray-900 px-5 py-6">
               <p className="text-lg font-extrabold text-white leading-snug">
                 {failedChecks.length > 0
@@ -429,7 +429,7 @@ export default function AnalyzeResultsPage() {
               </p>
               <p className="mt-1.5 text-sm text-gray-400 leading-relaxed">
                 {failedChecks.length > 0
-                  ? "Get the step-by-step fix for each one — and a popup built for your brand, ready to publish in minutes."
+                  ? "Get the step-by-step fix for each one - and a popup built for your brand, ready to publish in minutes."
                   : "Get the full breakdown and see where you can drive more revenue."}
               </p>
               <form onSubmit={handleEmailSubmit} className="mt-5 space-y-3">
@@ -547,7 +547,7 @@ export default function AnalyzeResultsPage() {
                 )}
               </div>
 
-              {/* AI badge — visible after unlock */}
+              {/* AI badge - visible after unlock */}
               {emailState === "sent" && generatedPopup && (
                 <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-gray-900/80 px-2.5 py-1 backdrop-blur-sm">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 flex-shrink-0" />
@@ -555,7 +555,7 @@ export default function AnalyzeResultsPage() {
                 </div>
               )}
 
-              {/* Lock overlay — only if email not submitted */}
+              {/* Lock overlay - only if email not submitted */}
               {emailState !== "sent" && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/70 backdrop-blur-[2px] px-6 text-center">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-900">

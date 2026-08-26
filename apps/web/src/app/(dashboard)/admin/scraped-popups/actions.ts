@@ -9,7 +9,7 @@ const MAX_ROWS_PER_BATCH = 100;
 
 type RunScrapeResult = { ok: true; count: number } | { ok: false; error: string };
 
-// Triggered from ScrapeForm.tsx on this page — parses pasted "url, industry"
+// Triggered from ScrapeForm.tsx on this page - parses pasted "url, industry"
 // lines and queues lib/inngest/scrapePopupBatch.ts. Runs in the background:
 // this action only has to send the event, not wait through N sequential
 // Browserless calls, so it returns in well under a second regardless of
@@ -32,7 +32,7 @@ export async function runScrapeBatch(rawText: string): Promise<RunScrapeResult> 
     })
     .filter((r) => r.url.length > 0);
 
-  // Dedupe within this paste — the Inngest job also skips anything already
+  // Dedupe within this paste - the Inngest job also skips anything already
   // in the table, but no reason to queue the same site twice in one go.
   const seen = new Set<string>();
   const rows = parsed.filter((r) => {
@@ -43,10 +43,10 @@ export async function runScrapeBatch(rawText: string): Promise<RunScrapeResult> 
   });
 
   if (rows.length === 0) {
-    return { ok: false, error: "No valid rows found — one per line, as \"url, industry\"." };
+    return { ok: false, error: "No valid rows found - one per line, as \"url, industry\"." };
   }
   if (rows.length > MAX_ROWS_PER_BATCH) {
-    return { ok: false, error: `Too many rows (${rows.length}) — max ${MAX_ROWS_PER_BATCH} per batch.` };
+    return { ok: false, error: `Too many rows (${rows.length}) - max ${MAX_ROWS_PER_BATCH} per batch.` };
   }
 
   await inngest.send({ name: "popup.scrape_batch", data: { rows } });

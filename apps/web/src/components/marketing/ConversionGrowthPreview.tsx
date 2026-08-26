@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
  * The "Learn & improve automatically" step's visual: a single conversion-rate
  * line climbing over six weeks as Asmos keeps promoting whatever's winning.
  * Deliberately the odd one out next to the multi-variant bracket/graph
- * previews — this one has already finished competing and is just showing
+ * previews - this one has already finished competing and is just showing
  * the compounding result.
  */
 

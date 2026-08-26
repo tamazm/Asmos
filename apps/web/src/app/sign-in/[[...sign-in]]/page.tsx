@@ -66,7 +66,7 @@ export default function SignInPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
 
-  // Clerk correctly renders no form when already signed in — but nothing
+  // Clerk correctly renders no form when already signed in - but nothing
   // was sending the user anywhere in that case, leaving this page stuck.
   useEffect(() => {
     if (isLoaded && isSignedIn) {

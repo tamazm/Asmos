@@ -20,7 +20,7 @@ export default async function RewardsPage() {
       },
       orderBy: { createdAt: "desc" },
     }),
-    // Powers the "assign to campaign" / reassign dropdowns — every campaign
+    // Powers the "assign to campaign" / reassign dropdowns - every campaign
     // is a valid target, not just ones that already have a reward.
     prisma.campaign.findMany({
       where: { accountId: account.id },

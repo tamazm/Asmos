@@ -187,7 +187,7 @@ export function PopupPreviewCard({
         </div>
       </div>
 
-      {/* Outer wrapper — centered, constrained */}
+      {/* Outer wrapper - centered, constrained */}
       <div className="flex items-center justify-center py-4 bg-[color:var(--color-surface-sunken)] rounded-xl mt-4">
         {view === "desktop" ? (
           /* Desktop: wider preview */

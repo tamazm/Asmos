@@ -78,14 +78,14 @@ export function TrafficCalculatorClient() {
             </div>
           </div>
           <p className="mt-4 text-center text-[11px] text-[color:var(--color-text-secondary)]">
-            This models a traffic-growth scenario you define — it is not a prediction or guarantee of actual traffic or revenue.
+            This models a traffic-growth scenario you define - it is not a prediction or guarantee of actual traffic or revenue.
           </p>
         </div>
 
         <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-7 text-center">
           <h3 className="mb-2 text-lg font-bold text-[color:var(--color-text-primary)]">More traffic only pays off if more of it converts.</h3>
           <p className="mb-6 text-sm text-[color:var(--color-text-secondary)] max-w-md mx-auto">
-            Asmos continuously tests and improves the conversion experience so the traffic you already have — and any traffic you add — converts at a higher rate.
+            Asmos continuously tests and improves the conversion experience so the traffic you already have - and any traffic you add - converts at a higher rate.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link href={CTA.primary.href} className="rounded-full bg-[color:var(--color-primary)] px-5 py-2.5 text-sm font-semibold text-white transition-[background-color,transform] duration-200 hover:bg-[color:var(--color-primary-dark)] active:scale-[0.97]">

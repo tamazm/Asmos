@@ -28,7 +28,7 @@ export async function updateVariantDesign(
 
   const reward = variant.campaign.rewards[0];
   // Preserve whichever template/layout the AI originally chose for this
-  // variant (see popupSpec.template_id) — a manual copy/color edit shouldn't
+  // variant (see popupSpec.template_id) - a manual copy/color edit shouldn't
   // silently reset it back to the default split-screen template.
   const existingSpec = (variant.popupSpec ?? {}) as {
     template_id?: string;
@@ -52,7 +52,7 @@ export async function updateVariantDesign(
     layoutStyle: existingSpec.layout_style as "split-left" | "split-right" | "centered" | "minimal" | undefined,
     // Carry the design DNA through a manual edit too. Without this, editing a
     // headline would silently strip the popup's timer, eyebrow, theme, flow
-    // and step copy back to defaults — i.e. reset it to the generic popup.
+    // and step copy back to defaults - i.e. reset it to the generic popup.
     dna: existingSpec.dna as Parameters<typeof renderPopupTemplate>[1]["dna"],
     // Same reasoning as the DNA above: a manual copy edit must not silently
     // drop the popup back to system-ui.

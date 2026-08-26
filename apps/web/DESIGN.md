@@ -1,4 +1,4 @@
-# Asmos — Design System
+# Asmos - Design System
 
 ## Color Tokens
 
@@ -44,7 +44,7 @@
 - **Buttons**: `rounded-lg` (8px)
 - **Inputs**: `rounded-lg` (8px)
 - **Badges**: `rounded-full`
-- **Inner elements in cards**: `rounded-md` (6px) — concentric radius rule
+- **Inner elements in cards**: `rounded-md` (6px) - concentric radius rule
 - Rule: outer radius = inner radius + padding
 
 ## Elevation / Shadows
@@ -52,7 +52,7 @@
 - **Card default**: `shadow-sm` (subtle), `border border-[color:var(--color-border)]`
 - **Card hover**: `shadow-md` with transition
 - **Dropdown/popover**: `shadow-lg ring-1 ring-black/5`
-- No pure black shadows — always tinted or transparent
+- No pure black shadows - always tinted or transparent
 
 ## Components
 
@@ -88,7 +88,7 @@
 
 | Context | Asset |
 |---|---|
-| Light bg (white/mist) — nav, sidebar | `asmos-logo-primary-lightbg.webp` |
+| Light bg (white/mist) - nav, sidebar | `asmos-logo-primary-lightbg.webp` |
 | Centered auth/onboarding | `asmos-logo-stacked-lightbg.webp` |
 | Icon-only / small sizes | `asmos-logo-icononly-lightbg.webp` |
 
@@ -124,9 +124,9 @@ For variant swatches in tables/charts (rotate, do not mix):
 - No side-stripe accent borders on cards
 - No nested cards
 - No `transition: all`
-- No `z-50` spam — use z-index scale: `10` sidebar/nav, `20` dropdowns, `30` modals, `40` toasts
-- No `h-screen` for full-height layouts — use `min-h-[100dvh]`
-- No `width: calc(33% - 1rem)` flex math — use CSS Grid
+- No `z-50` spam - use z-index scale: `10` sidebar/nav, `20` dropdowns, `30` modals, `40` toasts
+- No `h-screen` for full-height layouts - use `min-h-[100dvh]`
+- No `width: calc(33% - 1rem)` flex math - use CSS Grid
 
 ---
 
@@ -153,8 +153,8 @@ Extended stagger variants: `animate-page-enter-delay-4` (280ms). All delays now 
 
 Declared in `globals.css`. Elements start invisible via CSS, then get `.is-visible` applied by JS `IntersectionObserver`:
 
-- `.reveal` — single element fade + slide up (600ms)
-- `.reveal-stagger` — wrapper class; children stagger with 80ms intervals (1–6 children)
+- `.reveal` - single element fade + slide up (600ms)
+- `.reveal-stagger` - wrapper class; children stagger with 80ms intervals (1–6 children)
 
 Apply `IntersectionObserver` in a client component with `threshold: 0.12`.
 
@@ -194,7 +194,7 @@ For standalone icons (empty states, onboarding, type selectors):
 </div>
 ```
 
-### ButtonArrow — Button-in-Button Pattern
+### ButtonArrow - Button-in-Button Pattern
 
 A `ButtonArrow` component exports alongside `Button`. Wraps an arrow icon in its own circular pill for internal kinetic tension on hover.
 
@@ -275,12 +275,12 @@ Shared pieces live in `src/components/dashboard/primitives.tsx`:
 | Piece | Rule |
 |---|---|
 | `DashboardCard` | Card shell. Header = 16px stroke icon + 15px semibold title + optional action slot (`SeeAllLink` or an inline button) |
-| `TrendPill` | Filled triangle + one decimal + optional suffix. **Renders nothing when the prior window is empty** — "no basis for comparison" must not look like "flat" |
+| `TrendPill` | Filled triangle + one decimal + optional suffix. **Renders nothing when the prior window is empty** - "no basis for comparison" must not look like "flat" |
 | `CardEmpty` | Plain centred 12px text. Empty states are quiet, never a styled upsell panel |
 | `RowIcon` | 28px rounded tile for list rows |
 | `formatCompact` | Exact below 100K, `295K` to 1M, `1.2M` above |
 
-Card icons live in `src/components/dashboard/icons.tsx` — one 16px stroke
+Card icons live in `src/components/dashboard/icons.tsx` - one 16px stroke
 family, so every card header reads as the same set.
 
 ### Gauge (Pop-up Performance)
@@ -297,7 +297,7 @@ draws a dot that reads as "a little".
 ### Honest-zero rule
 
 Every dashboard number is counted from the database. Where a comparison is
-impossible — no prior window, no target set, a campaign with one variant —
+impossible - no prior window, no target set, a campaign with one variant -
 `src/lib/dashboardMetrics.ts` returns `null` and the card renders its empty
 state. No placeholder figures, no sample data, per PRODUCT.md.
 
@@ -310,6 +310,6 @@ state. No placeholder figures, no sample data, per PRODUCT.md.
   section name elsewhere (`TopBarGreeting`).
 - Sidebar footer is the account row: Clerk `UserButton` (own click target, so
   sign-out survives) + name + email + chevron to `/settings`. The check beside
-  the name means one concrete thing — at least one website has
-  `installVerified` — and is hidden otherwise.
+  the name means one concrete thing - at least one website has
+  `installVerified` - and is hidden otherwise.
 - Page titles are `sr-only` on the dashboard; the top bar carries identity.

@@ -1,4 +1,4 @@
-# AGENT_NOTES.md — Asmos Repo
+# AGENT_NOTES.md - Asmos Repo
 
 ## Stack
 - **Framework:** Next.js 16 (App Router, Turbopack)
@@ -11,23 +11,23 @@
 ## Key Files
 | File | Purpose |
 |---|---|
-| `prisma/schema.prisma` | Prisma schema — source of truth for DB models |
-| `src/lib/auth-adapter.ts` | Clerk/mock auth proxy — always import `auth()` / `currentUser()` from here |
-| `src/lib/account.ts` | `getOrCreateAccount()` — resolves current user's account |
+| `prisma/schema.prisma` | Prisma schema - source of truth for DB models |
+| `src/lib/auth-adapter.ts` | Clerk/mock auth proxy - always import `auth()` / `currentUser()` from here |
+| `src/lib/account.ts` | `getOrCreateAccount()` - resolves current user's account |
 | `src/lib/prisma.ts` | Prisma client singleton |
-| `src/lib/bandit.ts` | Thompson sampling bandit — recomputes variant traffic weights |
+| `src/lib/bandit.ts` | Thompson sampling bandit - recomputes variant traffic weights |
 | `src/lib/email.ts` | Reward email sender (Resend) |
-| `src/lib/webhook.ts` | **NEW** — outbound webhook dispatch (HMAC-SHA256 signed) |
-| `src/app/api/widget/leads/route.ts` | Widget lead capture POST — CORS open, no auth |
-| `src/app/api/account/webhook/route.ts` | **NEW** — GET/PATCH webhook config (auth-gated) |
+| `src/lib/webhook.ts` | **NEW** - outbound webhook dispatch (HMAC-SHA256 signed) |
+| `src/app/api/widget/leads/route.ts` | Widget lead capture POST - CORS open, no auth |
+| `src/app/api/account/webhook/route.ts` | **NEW** - GET/PATCH webhook config (auth-gated) |
 
 ## Outbound Webhooks (feat/outbound-webhooks)
 ### What was built
 - `Account` model got three new fields: `webhookUrl`, `webhookSecret`, `webhookEnabled`
-- `src/lib/webhook.ts` — fire-and-forget `dispatchWebhook()` with HMAC-SHA256 signing
-- `GET /api/account/webhook` — returns config (secret masked to last 4 chars)
-- `PATCH /api/account/webhook` — saves URL (https-only validated), secret, enabled flag
-- Widget `POST /api/widget/leads` fires `lead.captured` event via `after()` — non-fatal, never blocks response
+- `src/lib/webhook.ts` - fire-and-forget `dispatchWebhook()` with HMAC-SHA256 signing
+- `GET /api/account/webhook` - returns config (secret masked to last 4 chars)
+- `PATCH /api/account/webhook` - saves URL (https-only validated), secret, enabled flag
+- Widget `POST /api/widget/leads` fires `lead.captured` event via `after()` - non-fatal, never blocks response
 - Campaign `PATCH /api/campaigns/[id]` fires `variant.winner_declared` event via `after()` when `winningVariantId` is set
 - Integrations UI webhooks card now uses real API (load on mount + save/disconnect)
 
@@ -76,10 +76,10 @@ Every request includes:
 - `X-Asmos-Event: lead.captured | variant.winner_declared`
 
 ### Design decisions
-- **Fire-and-forget** via `after()` — slow/dead endpoints never block widget response
-- **HTTPS-only** — enforced at save time in `/api/account/webhook`
-- **No retries in v1** — log failures, retry queue is future work
-- **Single webhook URL per account** — covers Klaviyo/Mailchimp/HubSpot via Zapier relay
+- **Fire-and-forget** via `after()` - slow/dead endpoints never block widget response
+- **HTTPS-only** - enforced at save time in `/api/account/webhook`
+- **No retries in v1** - log failures, retry queue is future work
+- **Single webhook URL per account** - covers Klaviyo/Mailchimp/HubSpot via Zapier relay
 
 ## Build Commands
 ```bash
@@ -90,38 +90,38 @@ npx prisma studio # DB browser (when DB is available)
 ```
 
 ## Environment Variables
-- `DATABASE_URL` — PostgreSQL connection string
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` — Clerk pub key
-- `CLERK_SECRET_KEY` — Clerk secret
-- `MOCK_AUTH=true` — bypass Clerk in dev/testing
-- `RESEND_API_KEY` — reward email sending
-- `NEXT_PUBLIC_POSTHOG_KEY` — PostHog analytics (optional)
+- `DATABASE_URL` - PostgreSQL connection string
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk pub key
+- `CLERK_SECRET_KEY` - Clerk secret
+- `MOCK_AUTH=true` - bypass Clerk in dev/testing
+- `RESEND_API_KEY` - reward email sending
+- `NEXT_PUBLIC_POSTHOG_KEY` - PostHog analytics (optional)
 
 ## Dashboard Home Rebuild (2026-08)
 
 ### What changed
-- `src/lib/dashboardMetrics.ts` — **new**, single source for every dashboard
+- `src/lib/dashboardMetrics.ts` - **new**, single source for every dashboard
   home figure. Uses `groupBy` for event counts (the previous page loaded every
   `CampaignEvent` row for every variant into memory and called
   `.filter().length` on them); rows are only materialised where timestamps are
   needed (daily lead series, per-campaign sparklines).
-- `src/components/dashboard/*` — **new**, the eight cards plus shared
+- `src/components/dashboard/*` - **new**, the eight cards plus shared
   primitives and the 16px icon family. See DESIGN.md.
-- `src/app/(dashboard)/dashboard/page.tsx` — rewritten around the new grid.
+- `src/app/(dashboard)/dashboard/page.tsx` - rewritten around the new grid.
   `DashboardEmptyState` still handles the zero-campaigns case.
-- `src/app/(dashboard)/layout.tsx` — `h-20` top bar with avatar + greeting +
+- `src/app/(dashboard)/layout.tsx` - `h-20` top bar with avatar + greeting +
   "Create Pop-up"; the Clerk `UserButton` moved into the sidebar footer.
-- `src/components/ui/Sidebar.tsx` — `MAIN` section label, workspace control in
+- `src/components/ui/Sidebar.tsx` - `MAIN` section label, workspace control in
   the logo row, and the account row replacing the "AI is optimizing" callout.
-- `src/app/api/account/goal/route.ts` — **new**, `PATCH` for the conversion
+- `src/app/api/account/goal/route.ts` - **new**, `PATCH` for the conversion
   target. Send `{ targetCvr: null }` to clear it.
 - `src/app/(dashboard)/dashboard/RecentCampaignsBoard.tsx` is no longer
   imported anywhere; safe to delete once nothing else picks it up.
 
 ### Migration note
 `prisma/migrations/20260823000000_add_conversion_goal_target` adds
-`Account.targetCvr` (`DOUBLE PRECISION`, percentage points — 30 means 30%) and
-`Account.goalTargetAt`. Not applied here — no DB connection. Run:
+`Account.targetCvr` (`DOUBLE PRECISION`, percentage points - 30 means 30%) and
+`Account.goalTargetAt`. Not applied here - no DB connection. Run:
 ```
 cd apps/web && npx prisma migrate deploy    # or: npx prisma db push
 ```

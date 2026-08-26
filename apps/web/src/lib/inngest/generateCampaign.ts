@@ -27,11 +27,11 @@ import {
 
 // A popup must never go live promising a reward it can't deliver (see the
 // gate in api/widget/config/route.ts), and a merchant shouldn't have to
-// remember to go stock codes by hand every time they launch a campaign — so
+// remember to go stock codes by hand every time they launch a campaign - so
 // campaign creation guarantees a real, redeemable reward is attached
 // whenever the campaign's offer implies one. Runs once per campaign
 // (idempotent: a no-op if a reward already exists, e.g. a knockout round
-// re-invoking generation on the same campaign) rather than per-variant —
+// re-invoking generation on the same campaign) rather than per-variant -
 // rewards belong to the campaign and are shared across all its variants.
 async function attachDefaultReward(
   tx: Prisma.TransactionClient,
@@ -54,7 +54,7 @@ async function attachDefaultReward(
         label: "Free Shipping",
         type: "FREE_SHIPPING",
         // Merchant-set quantity if they gave one (e.g. "first 200 orders"),
-        // otherwise genuinely unlimited — free shipping isn't inherently a
+        // otherwise genuinely unlimited - free shipping isn't inherently a
         // scarce resource the way a gift or discount budget is.
         maxRedemptions: freeShippingLimit ?? null,
       },
@@ -75,7 +75,7 @@ async function attachDefaultReward(
     return;
   }
 
-  // "percentage" or "ai_choice" — a coupon-code discount. If the AI didn't
+  // "percentage" or "ai_choice" - a coupon-code discount. If the AI didn't
   // end up producing a coupon_code at all (it decided a discount wasn't the
   // right move), there's nothing to attach here; the campaign's goal-based
   // gating in the widget config route handles that case rather than forcing
@@ -88,7 +88,7 @@ async function attachDefaultReward(
 
   // Real one-time-use inventory instead of relying solely on the single
   // shared code above (which never runs out and can't be tracked
-  // per-redemption) — bounded by the same tiered per-request and
+  // per-redemption) - bounded by the same tiered per-request and
   // account-wide caps as manual generation on the Rewards page, so
   // attaching this can never itself blow through either budget.
   const generateCap = MAX_CODES_PER_GENERATE_REQUEST[planTier] ?? 25;
@@ -110,20 +110,20 @@ async function attachDefaultReward(
 
 // Marks progress within status=GENERATING so the UI can show something more
 // useful than a static "Generating…" (and, on failure, which stage it died
-// in). Left as-is when generation fails — that last-known stage is what the
+// in). Left as-is when generation fails - that last-known stage is what the
 // UI reads to say e.g. "Failed while: Structure is forming".
 async function setStage(campaignId: string, stage: CampaignGenerationStageCode) {
   await prisma.campaign.update({
     where: { id: campaignId },
     data: { generationStage: stage },
   }).catch((err) => {
-    // Non-fatal — a missed status update shouldn't abort generation itself.
+    // Non-fatal - a missed status update shouldn't abort generation itself.
     console.error(`[generateCampaign] failed to set stage=${stage} for campaign ${campaignId}:`, err);
   });
 }
 
 export const generateCampaign = inngest.createFunction(
-  // Terminal on failure by design — the campaign detail page shows lastError
+  // Terminal on failure by design - the campaign detail page shows lastError
   // with an explicit "Retry" button rather than silently auto-retrying,
   // which would flicker the UI between FAILED and ACTIVE unpredictably.
   { id: "generate-campaign", triggers: { event: "campaign.generate" }, retries: 0 },
@@ -135,7 +135,7 @@ export const generateCampaign = inngest.createFunction(
         where: { id: campaignId, status: "GENERATING" },
         include: {
           variants: true,
-          // The store profile persisted at analysis time — same source
+          // The store profile persisted at analysis time - same source
           // evaluateKnockout.ts prefers over generationContext, so the very
           // first generation is grounded in the same real palette/imagery
           // signal as every round after it, instead of whatever ad-hoc
@@ -190,16 +190,16 @@ async function runGeneration(
     // brandTokens/computedStyles made it into generationContext at creation
     // time. Previously this only ever used generationContext, so the very
     // first campaign a merchant generated could land on a different, less
-    // accurate palette than every subsequent knockout round — the two were
+    // accurate palette than every subsequent knockout round - the two were
     // reading from different sources of truth for the same store. Colour no
-    // longer falls back to the account's brandColor field at all — see
+    // longer falls back to the account's brandColor field at all - see
     // brandTokensFromAnalyzeResult.
     const contextTokens = context.brandTokens as BrandTokens | undefined;
     const contextStyles = context.computedStyles as ComputedStyles | undefined;
-    // The account's own industry (explicitly chosen in onboarding/Settings —
+    // The account's own industry (explicitly chosen in onboarding/Settings -
     // durable, correct) wins over context.industry, which is only whatever
     // NewCampaignForm.tsx's own fresh /api/analyze call at campaign-creation
-    // time happened to guess — and that call can fail outright (a Cloudflare-
+    // time happened to guess - and that call can fail outright (a Cloudflare-
     // protected store, for instance), landing on null and silently discarding
     // an industry the merchant deliberately picked. Same class of bug as the
     // brandColor fallback this account/context split fixed for colour.
@@ -230,7 +230,7 @@ async function runGeneration(
     await setStage(campaignId, "AI_THINKING");
 
     // Personalization inputs collected at campaign creation (see
-    // NewCampaignForm.tsx's "Personalize your popup" section) — optional,
+    // NewCampaignForm.tsx's "Personalize your popup" section) - optional,
     // default to "let the AI decide" / "show everywhere" so the fast-path
     // (just paste a URL) is unaffected for anyone who skips them.
     const pageTargeting =
@@ -270,7 +270,7 @@ async function runGeneration(
       });
 
       // What this merchant has already been shown. Steers both the brief
-      // sampler (structure) and the model (copy) away from repeating itself —
+      // sampler (structure) and the model (copy) away from repeating itself -
       // the thing that made every campaign look like the last one.
       const novelty = campaignRow
         ? await fetchNoveltyMemory(campaignRow.accountId)
@@ -334,7 +334,7 @@ async function runGeneration(
           popupSpec: output.baseline.spec as unknown as Prisma.InputJsonValue,
           // brandFonts/palette come from THIS spec's own design_tokens (forced
           // from a real scraped design inside generatePopupWithVariants), not
-          // the outer brandTokens variable computed before that call — that
+          // the outer brandTokens variable computed before that call - that
           // variable reflects the merchant's own site/the old fallback chain,
           // which generation no longer uses at all. Reading it here would
           // silently undo the whole scraped-only guarantee for every popup
@@ -412,7 +412,7 @@ async function runGeneration(
           });
         }
 
-        // Rewards belong to the campaign as a whole, not any one variant —
+        // Rewards belong to the campaign as a whole, not any one variant -
         // create/verify the campaign has one real, redeemable reward exactly
         // once per generation round (see attachDefaultReward's doc comment).
         await attachDefaultReward(

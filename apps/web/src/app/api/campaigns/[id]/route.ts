@@ -144,7 +144,7 @@ export async function PATCH(
   return Response.json({ campaign: updated });
 }
 
-// Deletes a campaign — a real row delete only when there's genuinely nothing
+// Deletes a campaign - a real row delete only when there's genuinely nothing
 // to lose (no leads captured, no events recorded on any of its variants);
 // otherwise archives it (status: ARCHIVED) so it disappears from the
 // campaigns list and is never served, without cascading away a merchant's

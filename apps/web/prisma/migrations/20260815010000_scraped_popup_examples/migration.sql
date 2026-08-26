@@ -1,6 +1,6 @@
 -- Real popups scraped from high-traffic live sites, kept as design grounding
 -- for generation (see popupGeneration.ts's getScrapedExamplesSection). No
--- review-gate enum/status here, unlike LearnedPattern — see model comment in
+-- review-gate enum/status here, unlike LearnedPattern - see model comment in
 -- schema.prisma for why.
 
 -- CreateTable

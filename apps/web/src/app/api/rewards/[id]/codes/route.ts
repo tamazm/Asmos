@@ -21,7 +21,7 @@ function randomCode(prefix: string): string {
 }
 
 // Lists codes for the "manage codes" table on the rewards page. Server-side
-// paginated + searched + filtered — this is a management UI for accounts
+// paginated + searched + filtered - this is a management UI for accounts
 // that may have thousands of codes, not the CSV export (which streams all
 // of them via codes/export/route.ts) so it must never load the whole set
 // into the browser at once.
@@ -78,7 +78,7 @@ export async function GET(
   });
 }
 
-// Batch removal — either specific code ids, or a bulk "clear all unused"
+// Batch removal - either specific code ids, or a bulk "clear all unused"
 // sweep. Deleting a used code is allowed too (it's just historical
 // bookkeeping at that point; the lead's claimed code text is preserved on
 // the Lead row regardless via rewardClaimedCode).
@@ -151,11 +151,11 @@ export async function POST(
     return Response.json({ error: "Reward not found" }, { status: 404 });
   }
 
-  // Per-tier request-size caps replace the old flat 1000/5000 limits — see
+  // Per-tier request-size caps replace the old flat 1000/5000 limits - see
   // lib/limits.ts for why a single flat cap wasn't enough (it bounded one
   // request, but nothing stopped unbounded repeated requests from piling up
   // an unlimited total). The frontend mirrors these for UX, but this check
-  // is the one that actually matters — the frontend's is just to avoid a
+  // is the one that actually matters - the frontend's is just to avoid a
   // wasted round trip for an obviously-oversized request.
   const generateCap = MAX_CODES_PER_GENERATE_REQUEST[account.planTier] ?? 25;
   const importCap = MAX_CODES_PER_IMPORT_REQUEST[account.planTier] ?? 100;

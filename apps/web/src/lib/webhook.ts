@@ -43,8 +43,8 @@ export type VariantWinnerPayload = {
  * Design decisions:
  * - HTTPS-only enforcement is handled at save time (/api/account/webhook).
  * - HMAC-SHA256 signature matches Stripe/GitHub convention: `sha256=<hex>`.
- * - 10 s timeout; failures are logged but never thrown — callers use after().
- * - No retries in v1 — keeps it simple; retry queue is a future feature.
+ * - 10 s timeout; failures are logged but never thrown - callers use after().
+ * - No retries in v1 - keeps it simple; retry queue is a future feature.
  */
 export async function dispatchWebhook(
   url: string,

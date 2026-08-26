@@ -1,6 +1,6 @@
 -- Consolidates ScrapedPopupExample's six scattered flat columns (headline,
 -- subhead, ctaText, templateGuess, layoutGuess, palette) into one connected
--- "design" JSONB object — see model comment in schema.prisma and
+-- "design" JSONB object - see model comment in schema.prisma and
 -- ScrapedPopupDesign in lib/popupScraping.ts. Any existing rows are
 -- backfilled from their old columns first so nothing already scraped is lost.
 

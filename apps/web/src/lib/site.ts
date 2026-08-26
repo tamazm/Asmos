@@ -1,4 +1,4 @@
-// Central site constants — nav, footer, contact info, external links.
+// Central site constants - nav, footer, contact info, external links.
 
 export const SITE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://asmos.io";
 export const SITE_NAME = "Asmos";

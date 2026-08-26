@@ -8,7 +8,7 @@ import { AI_GENERATION_LIMITS } from "@/lib/limits";
 import Link from "next/link";
 
 // Accounts closest to burning through their tier's lifetime AI-generation
-// budget (see lib/limits.ts) — surfaced here so an account hitting the wall
+// budget (see lib/limits.ts) - surfaced here so an account hitting the wall
 // shows up before they email support about generation suddenly refusing to
 // run, rather than only being discoverable one account-detail page at a time.
 const QUOTA_WATCH_THRESHOLD = 0.7;

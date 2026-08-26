@@ -8,11 +8,11 @@ import { prisma } from "@/lib/prisma";
 // topic subscription should point at. HMAC-verified via shopify.webhooks.validate.
 //
 // NOTE: customers/data_request and customers/redact currently only log and
-// acknowledge (200) — they do NOT yet locate/export/delete the merchant's
+// acknowledge (200) - they do NOT yet locate/export/delete the merchant's
 // Lead rows tied to the named Shopify customer, because there's no stored
 // mapping from a Shopify customer_id to a Lead today. That mapping and the
 // actual data actions must exist before this app can be submitted for
-// review — tracked as a Milestone B1 follow-up, not shipped here.
+// review - tracked as a Milestone B1 follow-up, not shipped here.
 export async function POST(request: Request): Promise<Response> {
   const rawBody = await request.text();
 

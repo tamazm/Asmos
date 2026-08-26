@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
         message: message.trim(),
       });
     } catch (err) {
-      // Don't fail the UX if email delivery has an issue — log for follow-up.
+      // Don't fail the UX if email delivery has an issue - log for follow-up.
       console.error("[api/contact] Failed to send notification email:", err);
     }
 

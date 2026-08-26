@@ -35,7 +35,7 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY ?? "";
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
 const AWS_REGION = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "eu-central-1";
 
-// Bedrock model — Claude Haiku 4.5 via cross-region inference profile
+// Bedrock model - Claude Haiku 4.5 via cross-region inference profile
 const BEDROCK_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
 
 const BROWSERLESS_URL = `https://production-sfo.browserless.io/screenshot?token=${BROWSERLESS_TOKEN}`;
@@ -83,7 +83,7 @@ interface CROResult {
 // ---------------------------------------------------------------------------
 // CRO analysis prompt (shared across all AI providers)
 // ---------------------------------------------------------------------------
-const SYSTEM_PROMPT = `You are a senior conversion rate optimization (CRO) expert and direct-response marketer with 15 years of experience auditing ecommerce websites. You look at websites like a hawk — you notice every popup, every sticky bar, every trust badge, every countdown timer.
+const SYSTEM_PROMPT = `You are a senior conversion rate optimization (CRO) expert and direct-response marketer with 15 years of experience auditing ecommerce websites. You look at websites like a hawk - you notice every popup, every sticky bar, every trust badge, every countdown timer.
 
 Analyze the provided website screenshot and return ONLY valid JSON (no markdown, no explanation, no code fences) with this exact shape:
 
@@ -98,7 +98,7 @@ Analyze the provided website screenshot and return ONLY valid JSON (no markdown,
   "overallScore": 55,
   "grade": "C",
   "gradeLabel": "Average",
-  "topIssue": "No email capture — visitors leave with no way to re-engage",
+  "topIssue": "No email capture - visitors leave with no way to re-engage",
   "verdict": "Decent social proof but hemorrhaging leads with no popup or email capture.",
   "storeName": "Brand Name",
   "industry": "Ecommerce / Retail"
@@ -159,9 +159,9 @@ async function takeScreenshot(url: string): Promise<string | null> {
 // DOM extraction via Browserless /function
 //
 // We were already paying for a headless browser and only asking it for a
-// photograph. Everything the vision pass below was guessing at — the display
+// photograph. Everything the vision pass below was guessing at - the display
 // and body typefaces, the brand colours, the button treatment, the real logo,
-// the store's own product photography, whether a popup already exists — is
+// the store's own product photography, whether a popup already exists - is
 // sitting in getComputedStyle, exactly, and this reads it.
 // ---------------------------------------------------------------------------
 const BROWSERLESS_FUNCTION_URL = `https://production-sfo.browserless.io/function?token=${BROWSERLESS_TOKEN}`;
@@ -189,7 +189,7 @@ async function extractDom(url: string): Promise<DomExtraction | null> {
 }
 
 // ---------------------------------------------------------------------------
-// AI analysis — Bedrock (primary)
+// AI analysis - Bedrock (primary)
 // ---------------------------------------------------------------------------
 async function analyzeWithBedrock(base64Jpeg: string): Promise<CROResult | null> {
   try {
@@ -240,7 +240,7 @@ async function analyzeWithBedrock(base64Jpeg: string): Promise<CROResult | null>
 }
 
 // ---------------------------------------------------------------------------
-// AI analysis — Anthropic API direct (fallback 1)
+// AI analysis - Anthropic API direct (fallback 1)
 // ---------------------------------------------------------------------------
 async function analyzeWithAnthropic(base64Jpeg: string): Promise<CROResult | null> {
   if (!ANTHROPIC_KEY) return null;
@@ -291,7 +291,7 @@ async function analyzeWithAnthropic(base64Jpeg: string): Promise<CROResult | nul
 }
 
 // ---------------------------------------------------------------------------
-// AI analysis — Gemini Flash (fallback 2)
+// AI analysis - Gemini Flash (fallback 2)
 // ---------------------------------------------------------------------------
 async function analyzeWithGemini(base64Jpeg: string): Promise<CROResult | null> {
   if (!GEMINI_KEY) return null;
@@ -394,7 +394,7 @@ async function heuristicAnalysis(url: string) {
     popup: POPUP_LIBRARY_SIGNALS.some(sig => lower.includes(sig)),
     // emailCapture: require specific subscription signals; avoid bare 'newsletter'
     // (appears in footer nav links), bare 'sign up' (nav menus), and generic
-    // 'form[action' (fires on every cart/search form — not an email signal).
+    // 'form[action' (fires on every cart/search form - not an email signal).
     emailCapture:
       lower.includes("subscribe to our") ||
       lower.includes("join our newsletter") ||
@@ -484,7 +484,7 @@ async function heuristicAnalysis(url: string) {
   else if (score >= 50) { grade = "D"; gradeLabel = "Poor"; }
 
   const missing = Object.entries(found).filter(([, v]) => !v).map(([k]) => k);
-  const topIssue = missing.length > 0 ? `No ${missing[0]} detected — this is the biggest gap.` : "Store looks reasonably well-optimized.";
+  const topIssue = missing.length > 0 ? `No ${missing[0]} detected - this is the biggest gap.` : "Store looks reasonably well-optimized.";
 
   return {
     storeName,
@@ -497,7 +497,7 @@ async function heuristicAnalysis(url: string) {
     grade,
     gradeLabel,
     topIssue,
-    verdict: `Score ${score}/100 — analyzed via HTML signals (visual scan unavailable).`,
+    verdict: `Score ${score}/100 - analyzed via HTML signals (visual scan unavailable).`,
     popup:        { found: found.popup,        description: found.popup        ? "Detected via script signals" : "None detected" },
     emailCapture: { found: found.emailCapture, description: found.emailCapture ? "Detected" : "None detected" },
     socialProof:  { found: found.socialProof,  description: found.socialProof  ? "Detected" : "None detected" },
@@ -580,7 +580,7 @@ async function extractBrandMeta(url: string): Promise<{
       const fontVarMatch = html.match(/--(?:font-heading|font-display|font-primary|font-family-heading)\s*:\s*["']?([^;"']+)["']?/i)?.[1];
       if (fontVarMatch) fontStack = [fontVarMatch.trim()];
     }
-    // No system-stack default here either — an empty array means "we did not
+    // No system-stack default here either - an empty array means "we did not
     // find their typeface", which is a different statement from "their typeface
     // is system-ui", and only the first one lets the DOM pass win the merge.
 
@@ -595,11 +595,11 @@ async function extractBrandMeta(url: string): Promise<{
 
 // ---------------------------------------------------------------------------
 // Second AI vision pass: brand tokens + existing popup detection
-// Runs after the CRO pass — uses the same screenshot, separate focused prompt.
+// Runs after the CRO pass - uses the same screenshot, separate focused prompt.
 // Returns null on any failure so the main flow degrades gracefully.
 // ---------------------------------------------------------------------------
 const BRAND_TOKENS_PROMPT = `You are a brand analyst. You are shown a screenshot of an e-commerce
-store's homepage, and — when the store exposes one — a digest of its actual product catalogue.
+store's homepage, and - when the store exposes one - a digest of its actual product catalogue.
 
 Your job is JUDGMENT, not measurement. The colours, typefaces, button treatment and logo have
 already been read directly out of the page's computed styles and are more accurate than anything
@@ -628,7 +628,7 @@ Field rules:
 - "category": what this shop actually SELLS, as a person would say it. "children's sleepwear",
   "single-origin coffee", "handmade ceramics", "climbing hardware". Never a platform bucket like
   "Ecommerce", "Retail", "Online Store" or "Shopify". If the catalogue digest is present, it is
-  the authority — read the product titles and types, not the hero photograph.
+  the authority - read the product titles and types, not the hero photograph.
 - "subcategories": 2-5 more specific lines the shop carries.
 - "audience": who buys this, in a phrase. "parents of under-fives", "people furnishing a first
   flat", "trail runners". Infer from the products and the price band, not from the models in the
@@ -639,7 +639,7 @@ Field rules:
 - "value_props": up to 4 claims THEY make on their own page (free returns, made in Britain,
   ships in 24h). Their words, not yours. Empty array if none are visible.
 - "signature_detail": one concrete visual or verbal thing that is distinctive to this brand and
-  could be echoed in a popup. Empty string if nothing stands out — an invented one is worse
+  could be echoed in a popup. Empty string if nothing stands out - an invented one is worse
   than none.
 - "existing_popup": if a popup is visible in the screenshot, capture it. If not, set captured
   to false and leave the copy/structure empty.
@@ -656,7 +656,7 @@ interface BrandTokensResult {
   value_props?: string[];
   signature_detail?: string;
   imagery_style?: string;
-  /** Legacy shape — kept so a cached/older response still parses. */
+  /** Legacy shape - kept so a cached/older response still parses. */
   brand_tokens?: {
     palette: string[];
     type_display: string;
@@ -682,7 +682,7 @@ async function extractBrandTokens(
   const userText =
     "Analyse this store and return only JSON.\n\n" + evidence;
 
-  // Reuse same provider cascade as the CRO pass — Bedrock first, then direct Anthropic, then Gemini
+  // Reuse same provider cascade as the CRO pass - Bedrock first, then direct Anthropic, then Gemini
   try {
     // Try Bedrock first
     const client = new BedrockRuntimeClient({ region: AWS_REGION });
@@ -806,12 +806,12 @@ async function handler(req: NextRequest) {
   const screenshotBase64 = await takeScreenshot(normalizedUrl);
 
   if (!screenshotBase64) {
-    // No screenshot — use heuristics
+    // No screenshot - use heuristics
     const result = await heuristicAnalysis(normalizedUrl);
     return NextResponse.json({ ...result, storeUrl: normalizedUrl });
   }
 
-  // 2. AI analysis — Bedrock → Anthropic → Gemini → heuristic (CRO pass)
+  // 2. AI analysis - Bedrock → Anthropic → Gemini → heuristic (CRO pass)
   let aiResult: CROResult | null = null;
   let analysisSource: "bedrock" | "anthropic" | "gemini" | "heuristic" = "bedrock";
 
@@ -828,7 +828,7 @@ async function handler(req: NextRequest) {
   }
 
   if (!aiResult) {
-    // All AI failed — return heuristics but include screenshot
+    // All AI failed - return heuristics but include screenshot
     const heuristic = await heuristicAnalysis(normalizedUrl);
     return NextResponse.json({ ...heuristic, screenshotBase64, storeUrl: normalizedUrl });
   }
@@ -868,7 +868,7 @@ async function handler(req: NextRequest) {
     note("palette", "html", 0.5);
   }
   const paletteHex = palette.map((p) => p.hex);
-  // Null, not "#165DFF" — see extractBrandMeta.
+  // Null, not "#165DFF" - see extractBrandMeta.
   const brandColor: string | null = paletteHex[0] ?? htmlBrandColor ?? null;
 
   // ── Type ──────────────────────────────────────────────────────────────────
@@ -876,7 +876,7 @@ async function handler(req: NextRequest) {
   // `fontStack.join(", ")` yields "" for an empty stack, and "" is a worse
   // answer than null: downstream, an empty string reads as "we measured their
   // body face and it is nothing". Parenthesised because mixing ?? with || is a
-  // syntax error in ECMAScript, not merely a style problem — the unparenthesised
+  // syntax error in ECMAScript, not merely a style problem - the unparenthesised
   // form is what broke the build.
   const joinedStack = fontStack.join(", ");
   const typeBody = dom?.bodyFont ?? (joinedStack || null);
@@ -885,7 +885,7 @@ async function handler(req: NextRequest) {
 
   // ── Logo ──────────────────────────────────────────────────────────────────
   // From the header <img>, not og:image. og:image is the social share card,
-  // which is a product or lifestyle shot on approximately every store — which
+  // which is a product or lifestyle shot on approximately every store - which
   // is exactly why it is a bad logo and a perfectly good *photograph*. It is
   // reused as a last-resort product image further down rather than thrown away.
   const logoUrl = dom?.logo ?? "";

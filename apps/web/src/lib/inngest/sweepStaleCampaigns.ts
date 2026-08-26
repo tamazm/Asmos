@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 // throwing inngest.send() and mark the campaign FAILED immediately. This
 // sweep catches the other failure mode: send() succeeds but the event is
 // dropped or the function never finishes (misconfigured Inngest keys, app
-// not synced, serverless function killed mid-run) — nothing updates the
+// not synced, serverless function killed mid-run) - nothing updates the
 // campaign and it sits in GENERATING forever with no visible error.
 //
 // Runs as an Inngest-scheduled cron rather than a Vercel Cron entry:
@@ -42,7 +42,7 @@ export const sweepStaleCampaigns = inngest.createFunction(
           data: {
             status: "FAILED",
             lastError:
-              "Generation timed out — the background job never completed. Please retry.",
+              "Generation timed out - the background job never completed. Please retry.",
           },
         });
         await prisma.systemLog
@@ -52,7 +52,7 @@ export const sweepStaleCampaigns = inngest.createFunction(
               accountId: campaign.accountId,
               message: `Campaign ${campaign.id} (${campaign.name}) stuck in GENERATING past ${
                 STALE_THRESHOLD_MS / 60000
-              } min — marked FAILED by sweep-stale-campaigns`,
+              } min - marked FAILED by sweep-stale-campaigns`,
             },
           })
           .catch(() => {});

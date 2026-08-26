@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 // AES-256-GCM at-rest encryption for secrets we must store (e.g. Shopify
-// offline access tokens) — never store those in plaintext. Key must be a
+// offline access tokens) - never store those in plaintext. Key must be a
 // 32-byte value, base64-encoded, in SHOPIFY_TOKEN_ENCRYPTION_KEY.
 // Generate with: openssl rand -base64 32
 

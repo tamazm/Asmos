@@ -6,7 +6,7 @@
 //   const startingStep = g === "DISCOUNT" ? 3 : hasTeaser ? 1 : g === "BOTH" ? 1 : 2;
 //
 // For a goal="BOTH" popup whose DNA said step_flow: "one_step", hasTeaser is
-// false, so no `data-step="1"` section is rendered at all — but startingStep
+// false, so no `data-step="1"` section is rendered at all - but startingStep
 // was still 1, so the capture and reveal sections both kept their `hidden`
 // attribute. `.popup-step[hidden] { display: none !important }` then did
 // exactly what it says. The result shipped to merchants as an empty card or an
@@ -17,9 +17,9 @@
 // resolveFlow only helps popups generated from now on. This script re-renders
 // generatedCode from each Variant's stored popupSpec using the fixed renderer,
 // which repairs already-live variants without regenerating them through the
-// model (same copy, same DNA, same template — only the markup is rebuilt).
+// model (same copy, same DNA, same template - only the markup is rebuilt).
 //
-// DRY RUN BY DEFAULT — prints what it would change and writes nothing.
+// DRY RUN BY DEFAULT - prints what it would change and writes nothing.
 //
 // Usage (from apps/web/):
 //   npx tsx scripts/repair-blank-popups.ts             # dry run
@@ -175,7 +175,7 @@ async function main() {
   if (APPLY) {
     console.log(`Applied. Errors:             ${errors}`);
   } else {
-    console.log(`\nThis was a DRY RUN — nothing was changed. Re-run with --apply to execute.`);
+    console.log(`\nThis was a DRY RUN - nothing was changed. Re-run with --apply to execute.`);
   }
 }
 

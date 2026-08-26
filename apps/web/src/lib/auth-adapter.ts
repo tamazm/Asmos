@@ -1,5 +1,5 @@
 /**
- * Auth adapter — proxies to real Clerk or mock depending on MOCK_AUTH env var.
+ * Auth adapter - proxies to real Clerk or mock depending on MOCK_AUTH env var.
  * Import from here instead of @clerk/nextjs/server in server components/routes.
  */
 

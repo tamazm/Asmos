@@ -6,7 +6,7 @@ import { getOrCreateAccountForShop } from "@/lib/shopify/tenant";
 // POST /api/shopify/session
 // Called by the embedded frontend on load with the App Bridge session token
 // (Authorization: Bearer <token>). Exchanges it for an offline access token
-// via token exchange — this is what lets a merchant land in a working,
+// via token exchange - this is what lets a merchant land in a working,
 // authenticated embedded admin without ever going through a separate
 // sign-up screen (already-installed shops just re-prove their session).
 export async function POST(request: Request): Promise<Response> {

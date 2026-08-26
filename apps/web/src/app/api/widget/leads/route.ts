@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     phone?: string;
     consentGiven?: boolean;
     // First-party per-visitor id + behavioral context, same shape as
-    // /api/widget/events — lets us see e.g. how much a visitor scrolled or
+    // /api/widget/events - lets us see e.g. how much a visitor scrolled or
     // how long they were on the page before converting, not just that they
     // converted.
     visitorId?: string;
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
       campaign: {
         include: {
           // Only unused pool codes count toward "does this reward have
-          // anything left to give out" — see lib/reward.ts's
+          // anything left to give out" - see lib/reward.ts's
           // isRewardAvailable, which treats couponCodes.length as the
           // available count.
           rewards: { include: { couponCodes: { where: { usedAt: null }, select: { id: true } } } },
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       where: { id: lead.id },
       data: { rewardClaimedCode: couponCode, rewardRuleId: reward.id },
     });
-    // Generic redemption counter — tracked for every reward type (not just
+    // Generic redemption counter - tracked for every reward type (not just
     // COUPON's own usedAt-based pool accounting) so maxRedemptions works
     // uniformly for FREE_SHIPPING/GIFT/etc. too. Best-effort: a failure here
     // shouldn't break lead capture, which has already succeeded above.
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
     });
   }
 
-  // A conversion is exactly the signal the bandit needs to react to — don't
+  // A conversion is exactly the signal the bandit needs to react to - don't
   // wait for the next impression to pick it up (see lib/bandit.ts).
   after(async () => {
     try {

@@ -1,7 +1,7 @@
 /**
  * lib/popupDna.ts
  *
- * The "design DNA" of a popup — the composable knobs that make two popups
+ * The "design DNA" of a popup - the composable knobs that make two popups
  * genuinely different from each other rather than the same skeleton with
  * different words in it.
  *
@@ -9,22 +9,22 @@
  * ---------------
  * Before this module, `PopupSpec` carried six meaningful fields (headline,
  * subhead, cta, template_id, layout_style, image_url). Everything else that a
- * visitor actually perceives — the countdown timer, the "LIMITED TIME OFFER"
+ * visitor actually perceives - the countdown timer, the "LIMITED TIME OFFER"
  * eyebrow, the step-2 copy, the button shape, the density, whether there's a
- * dismiss link — was a string literal hardcoded inside the template files.
+ * dismiss link - was a string literal hardcoded inside the template files.
  * That made "test different layouts and variants" structurally impossible:
  * the model had no vocabulary to express a different popup, so every campaign
  * and every variant rendered the same chrome.
  *
  * Every field below is (a) chosen by the model per popup, (b) rendered by all
- * three templates, and (c) safe to omit — `normalizeDna` fills any missing
+ * three templates, and (c) safe to omit - `normalizeDna` fills any missing
  * key, so a Variant row written before this module existed still renders.
  *
  * Rough combinatorial size (structure x visual x flow, ignoring free text):
  * 3 templates x 4 layout styles x 2 flows x 3 timers x 4 radii x 3 button
  * shapes x 3 fills x 4 accent placements x 3 densities x 3 type scales x
  * 4 overlay weights x 4 image treatments x 4 entrances x 3 themes x
- * 2 form layouts x 4 close affordances — on the order of 10^8 distinct
+ * 2 form layouts x 4 close affordances - on the order of 10^8 distinct
  * renderable popups before a single word of copy changes.
  */
 
@@ -54,13 +54,13 @@ export const CLOSE_AFFORDANCES = ["x_corner", "x_outside", "text_link", "both"] 
  * a "different" popup still meant "the same card with different words".
  *
  * Treated as a first-class test axis rather than a global setting: which school
- * converts is a property of the store's niche, not of good taste in general —
+ * converts is a property of the store's niche, not of good taste in general -
  * a supplements brand and a ceramics studio should not land in the same place.
  */
 /**
  * There is deliberately no "minimal" school.
  *
- * It existed as an honest control arm — no webfont, no surface, no depth — on
+ * It existed as an honest control arm - no webfont, no surface, no depth - on
  * the theory that if the richer schools couldn't beat plain, the richness
  * wasn't buying anything. In practice it did two bad things. It put a 1-in-4
  * chance of a deliberately plain popup into every draw, and because DEFAULT_DNA
@@ -68,7 +68,7 @@ export const CLOSE_AFFORDANCES = ["x_corner", "x_outside", "text_link", "both"] 
  * as the plainest thing the system could produce. The control arm became the
  * product's public face.
  *
- * The comparison it was there to make is still available — `type_pairing:
+ * The comparison it was there to make is still available - `type_pairing:
  * "system"` and `elevation: "flat"` are still real values, and a campaign can
  * still test a quiet design against a loud one. What's gone is the possibility
  * of drawing "no design at all" by accident.
@@ -83,7 +83,7 @@ export const SURFACE_TREATMENTS = ["plain", "paper", "glow", "block", "mesh"] as
  *
  * This exists because centring everything is the single loudest tell that a
  * layout was generated rather than designed. Centre alignment is what you get
- * when nothing decided where the text should go — it has no left edge for the
+ * when nothing decided where the text should go - it has no left edge for the
  * eye to return to, so a stack of centred elements reads as a list of unrelated
  * things rather than as a composition. Real layouts commit to an axis.
  */
@@ -95,8 +95,8 @@ export const TEXT_ALIGNS = ["left", "center"] as const;
  * "accent_only" is what every popup used to be: a white card, near-black text,
  * and the brand colour on the button and nowhere else. That is the literal
  * definition of "black on white with a coloured button", and no amount of
- * typography or spacing rescues it, because the largest area on screen — the
- * card itself — is carrying no brand information at all.
+ * typography or spacing rescues it, because the largest area on screen - the
+ * card itself - is carrying no brand information at all.
  *
  * `/api/analyze` extracts 3-6 brand colours per store into
  * `brandTokens.palette`. Every call site read `palette[0]` and discarded the
@@ -108,7 +108,7 @@ export const COLOR_USAGES = ["accent_only", "tinted_surface", "duo_accent", "sat
  * Whether the discount is a sentence or an object.
  *
  * A designed popup almost always has one heavy element holding 30-50% of the
- * area — a photo, a filled block, a number. Asmos popups were 100% text on a
+ * area - a photo, a filled block, a number. Asmos popups were 100% text on a
  * flat field at every size. `discount_percent` was already in the spec and no
  * template ever rendered it: "10%" set at 96px *is* a design, where "A 10%
  * welcome credit" at 36px is a line of copy.
@@ -155,7 +155,7 @@ export type PopupDna = {
   /**
    * "two_step" shows a teaser, then the email field after a click (the
    * commitment-and-consistency play). "one_step" puts the offer and the email
-   * field on one screen — fewer clicks, colder ask. This is a real, testable
+   * field on one screen - fewer clicks, colder ask. This is a real, testable
    * fork, not a cosmetic one, and it was previously hardwired to two_step for
    * every goal="BOTH" popup ever generated.
    */
@@ -187,7 +187,7 @@ export type PopupDna = {
   // ── Aesthetic ──
   /**
    * The school. Sets the taste-level defaults (typography, depth, surface) and
-   * biases the structural knobs below toward what that school actually does —
+   * biases the structural knobs below toward what that school actually does -
    * an editorial popup with pill buttons and a 28px radius isn't editorial.
    */
   art_direction: ArtDirection;
@@ -255,7 +255,7 @@ export const DEFAULT_DNA: PopupDna = {
   email_placeholder: "Your email address",
   show_field_label: false,
   field_label: "Email address",
-  // A pre-aesthetic row has no opinion about taste — but "no opinion" was being
+  // A pre-aesthetic row has no opinion about taste - but "no opinion" was being
   // rendered as "no design", which is not the same thing and is not a neutral
   // choice. Every legacy variant in the database has an empty dna column, so
   // this object is what the majority of live popups actually look like. It
@@ -319,7 +319,7 @@ const MAX_TIMER_SECONDS = 3600;
 
 /**
  * Coerces whatever the model produced (or whatever an old DB row holds) into a
- * complete, renderable DNA. Never throws — a bad value degrades to the default
+ * complete, renderable DNA. Never throws - a bad value degrades to the default
  * for that one knob rather than failing the whole popup.
  */
 export function normalizeDna(raw: unknown): PopupDna {
@@ -450,7 +450,7 @@ export const popupDnaJsonSchema = {
 // ─── Fingerprinting (used for novelty enforcement + variant divergence) ──────
 
 /**
- * A short, comparable signature of the *structural* choices in a popup — the
+ * A short, comparable signature of the *structural* choices in a popup - the
  * things a visitor would notice before reading a word. Two popups sharing a
  * fingerprint look like the same popup; that's exactly what we want to detect
  * and avoid, both across campaigns (novelty memory) and within a campaign's

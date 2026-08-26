@@ -1,4 +1,4 @@
-// No real cover photography exists yet — render a category-tinted abstract
+// No real cover photography exists yet - render a category-tinted abstract
 // gradient block instead of a fabricated/stock image.
 const CATEGORY_GRADIENTS: Record<string, string> = {
   "Conversion Optimization": "linear-gradient(135deg, oklch(48% 0.255 258 / 0.16), oklch(48% 0.255 258 / 0.04))",

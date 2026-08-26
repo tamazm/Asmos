@@ -47,7 +47,7 @@ export function OnboardingProgress() {
           return (
             <li key={step.label} className="flex flex-1 items-center">
               <div className="flex flex-col items-center gap-1.5">
-                {/* Double-Bezel step bubble — the outline is reserved for the
+                {/* Double-Bezel step bubble - the outline is reserved for the
                     active step; every state shares this same markup so the
                     color/background transition animates instead of the
                     element being swapped out. */}

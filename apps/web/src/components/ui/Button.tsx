@@ -58,7 +58,7 @@ export function Button({
 }
 
 /**
- * ButtonArrow — a primary button with a "button-in-button" arrow icon.
+ * ButtonArrow - a primary button with a "button-in-button" arrow icon.
  * The arrow is nested in its own circular pill, creating internal kinetic tension.
  */
 export function ButtonArrow({

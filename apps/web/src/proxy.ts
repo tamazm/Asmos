@@ -13,7 +13,7 @@ const isProtectedRoute = createRouteMatcher([
   "/settings(.*)",
 ]);
 
-// Routes that live on app.asmos.io — the actual platform, plus sign-in/up
+// Routes that live on app.asmos.io - the actual platform, plus sign-in/up
 // and invite-accept so Clerk's session cookie is always set and read on the
 // same origin, plus the free tools. Everything else (marketing pages,
 // /analyze, /blog) stays on the root domain.
@@ -40,11 +40,11 @@ const isAppRoute = createRouteMatcher([
 const APP_HOST = process.env.NEXT_PUBLIC_APP_HOST || "app.asmos.io";
 const MARKETING_HOST = process.env.NEXT_PUBLIC_MARKETING_HOST || "asmos.io";
 
-// Splits marketing (asmos.io) from the app (app.asmos.io) by Host header —
+// Splits marketing (asmos.io) from the app (app.asmos.io) by Host header -
 // same Vercel project and codebase serve both, so this is the only thing
 // that actually draws the line between them. Only acts on the exact
 // production hosts (or the app.localhost:3000 convention for local
-// testing) — any other host (bare localhost, Vercel preview URLs, custom
+// testing) - any other host (bare localhost, Vercel preview URLs, custom
 // domains) passes through completely untouched so local dev and previews
 // keep working exactly as before.
 // Built via the plain NextResponse constructor rather than
@@ -63,7 +63,7 @@ function splitByHost(req: NextRequest): NextResponse | null {
   const { pathname } = req.nextUrl;
 
   if (host === APP_HOST || host.startsWith("app.localhost")) {
-    // Straight to sign-in, not /dashboard — the marketing landing page must
+    // Straight to sign-in, not /dashboard - the marketing landing page must
     // never be what someone sees on app.*. /sign-in already redirects an
     // already-authenticated visitor on to /dashboard itself (see
     // app/sign-in/[[...sign-in]]/page.tsx), so this is safe for both cases.

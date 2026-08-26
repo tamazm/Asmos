@@ -7,7 +7,7 @@ import type { PopupTemplateProps } from "./types";
  * The shared markup + behaviour for every popup template.
  *
  * Previously each of the three templates carried its own near-identical copy
- * of the step machine, timer, form handler and tracking hooks — about 150
+ * of the step machine, timer, form handler and tracking hooks - about 150
  * duplicated lines apiece, which is why the hardcoded "10:00" countdown and
  * "Limited Time Offer" eyebrow survived three separate "make popups vary"
  * passes. Templates now own *structure* only; everything below is written once.
@@ -63,7 +63,7 @@ export function resolveFlow(goal: PopupTemplateProps["goal"], dna: PopupDna): Re
 
   // Derive the opening step from which steps actually exist, never from the
   // goal alone. The previous form (`g === "BOTH" ? 1 : 2`) opened a BOTH popup
-  // on step 1 even when step_flow was "one_step" — and in that flow no step 1
+  // on step 1 even when step_flow was "one_step" - and in that flow no step 1
   // is rendered at all. Every remaining section kept its `hidden` attribute,
   // `.popup-step[hidden] { display: none !important }` did its job, and the
   // popup shipped as an empty card with nothing but a close button in it.
@@ -76,7 +76,7 @@ export function resolveFlow(goal: PopupTemplateProps["goal"], dna: PopupDna): Re
 // ─── Fallback copy rotation ──────────────────────────────────────────────────
 
 /**
- * Copy shown when a spec carries no step copy of its own — i.e. a Variant row
+ * Copy shown when a spec carries no step copy of its own - i.e. a Variant row
  * written before the DNA existed, or a model response that came back empty.
  *
  * These rotate on a hash of the popup's own headline rather than being fixed
@@ -150,7 +150,7 @@ export function eyebrowMarkup(dna: PopupDna): string {
  * `discount_percent` has been in the spec since generation existed and no
  * template ever drew it, so every popup was 100% text on a flat field with no
  * element heavy enough to anchor the composition. At display size the number is
- * the design — and it's also the single piece of information a visitor needs,
+ * the design - and it's also the single piece of information a visitor needs,
  * which is a rare case of the most legible element also being the most useful.
  *
  * Renders nothing without a real percentage, so a popup with no numeric offer
@@ -226,7 +226,7 @@ export function stepsMarkup(props: PopupTemplateProps, dna: PopupDna, flow: Reso
     : "";
 
   // In the one-step flow (or an EMAIL-goal popup) this section carries the
-  // real offer copy, not the "Almost there" hand-off copy — the hand-off only
+  // real offer copy, not the "Almost there" hand-off copy - the hand-off only
   // makes sense when a teaser preceded it.
   const captureIsPrimary = !flow.hasTeaser;
   const captureHeadline = captureIsPrimary ? headline : copy.captureHeadline;
@@ -295,7 +295,7 @@ export type RuntimeOptions = {
  * Behaviour shared by all templates: step machine, timer, form submission,
  * dismissal, and the full behavioural-telemetry suite.
  *
- * The telemetry here is the thing that answers "why isn't this converting" —
+ * The telemetry here is the thing that answers "why isn't this converting" -
  * impressions and conversions alone can't distinguish "the offer is weak" from
  * "they can't find the email field". Each signal maps to a failure pattern in
  * lib/popupGeneration.ts's classifyFailurePatterns.
@@ -332,7 +332,7 @@ export function runtimeScript(opts: RuntimeOptions): string {
   var CFG = ${config};
   // Namespaced per campaign. A single global key meant two campaigns on the
   // same store suppressed each other, and inside a tournament a visitor who
-  // saw variant 1 could never be shown variant 2 — while variant 2 still
+  // saw variant 1 could never be shown variant 2 - while variant 2 still
   // recorded the impression.
   var CAMPAIGN_ID = window.__asmos_campaign_id || 'default';
   var STORAGE_KEY = 'asmos_popup_last_seen:' + CAMPAIGN_ID;
@@ -382,7 +382,7 @@ export function runtimeScript(opts: RuntimeOptions): string {
   // Failsafe: a popup that renders with every step hidden is indistinguishable
   // from a broken install to the visitor, and produces zero leads while still
   // counting impressions. If the markup and the flow ever disagree again, show
-  // the intended step — or, failing that, the first one — rather than nothing.
+  // the intended step - or, failing that, the first one - rather than nothing.
   function ensureVisibleStep() {
     var steps = root.querySelectorAll('.popup-step');
     if (!steps.length) return;
@@ -463,7 +463,7 @@ export function runtimeScript(opts: RuntimeOptions): string {
     if (CFG.lockScroll) document.body.style.overflow = 'hidden';
 
     // Auto-focus is desktop-only. On a phone, focusing the email field opens
-    // the keyboard immediately — covering half the popup, and often the offer
+    // the keyboard immediately - covering half the popup, and often the offer
     // itself, before the visitor has read a word of it.
     var coarsePointer = false;
     try { coarsePointer = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) {}
@@ -475,7 +475,7 @@ export function runtimeScript(opts: RuntimeOptions): string {
     startTimer();
 
     // THE impression. Fired here, when the popup is genuinely on screen, rather
-    // than by widget.js at injection time — which counted an impression for
+    // than by widget.js at injection time - which counted an impression for
     // every visitor shouldShow() then declined to show, deflating conversion
     // rate by an amount that varied per arm.
     track('IMPRESSION', { openDelayMs: CFG.openDelayMs });
@@ -515,7 +515,7 @@ export function runtimeScript(opts: RuntimeOptions): string {
 
   function activeElementIn(scopeNode) {
     // Inside a shadow root, document.activeElement is the HOST, not the focused
-    // control — the real one is scopeNode.activeElement.
+    // control - the real one is scopeNode.activeElement.
     return (scopeNode && scopeNode.activeElement) || document.activeElement;
   }
 
@@ -619,12 +619,12 @@ export function runtimeScript(opts: RuntimeOptions): string {
 
   // Dead clicks + rage clicks: clicking something that isn't interactive, or
   // hammering the same spot. Both mean the visitor believes an element should
-  // do something and it doesn't — the "silly things" class of problem.
+  // do something and it doesn't - the "silly things" class of problem.
   var recentClicks = [];
   root.addEventListener('click', function (e) {
     var t = e.target;
     var interactive = t.closest && t.closest('button, a, input, label, [data-next], [data-dismiss], form');
-    // A click on the backdrop is how the popup CLOSES — it is the most
+    // A click on the backdrop is how the popup CLOSES - it is the most
     // deliberate interaction there is, and it was being counted as a dead
     // click. That inflated dead_click_sessions, tripped the "cant_find_the_cta"
     // failure pattern, and told the generator to change button_fill and
@@ -697,7 +697,7 @@ export function runtimeScript(opts: RuntimeOptions): string {
           err.style.cssText = 'margin:10px 0 0;font-size:12px;color:#dc2626;';
           if (form.parentNode) form.parentNode.insertBefore(err, form.nextSibling);
         }
-        err.textContent = "That didn't go through — please try again.";
+        err.textContent = "That didn't go through - please try again.";
         track('INTERACTION', { step: 'lead_submit_failed', reason: reason });
       }
 
@@ -754,13 +754,13 @@ export function runtimeScript(opts: RuntimeOptions): string {
     });
   }
 
-  // Flush counters if the visitor navigates away without closing the popup —
+  // Flush counters if the visitor navigates away without closing the popup -
   // otherwise every abandoned session silently loses its diagnostic data.
   window.addEventListener('pagehide', function () { if (openedAt && !root.hidden) flushTelemetry(); }, { once: true });
 
   // Open once the webfont has actually arrived, so the popup enters already
   // wearing its typeface instead of painting in the fallback and visibly
-  // re-rendering — a reflow that re-runs text-wrap: balance, re-wraps the
+  // re-rendering - a reflow that re-runs text-wrap: balance, re-wraps the
   // headline and resizes the card, at the moment of maximum attention.
   // Capped: a slow or blocked font network must never stop the popup opening.
   function openWhenReady() {

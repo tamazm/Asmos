@@ -6,7 +6,7 @@ import type { PlanTier } from ".prisma/client";
 import { AI_GENERATION_LIMITS } from "@/lib/limits";
 
 // Header-level tier/gens-left editor for a single account, mirroring
-// AccountsTable's inline controls (see fixes there — actions are properly
+// AccountsTable's inline controls (see fixes there - actions are properly
 // awaited and their result checked instead of fired-and-forgotten inside
 // startTransition, which is what previously caused "changed but errored
 // out").

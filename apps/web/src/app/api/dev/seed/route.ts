@@ -4,7 +4,7 @@ import type { CampaignEventType } from ".prisma/client";
 
 // Dev-only convenience: populates the first account with realistic-looking
 // campaigns/variants/events/leads so every page has something to show.
-// Not linked from any UI — hit it directly, then delete this route.
+// Not linked from any UI - hit it directly, then delete this route.
 
 function randomDateWithinDays(days: number): Date {
   const now = Date.now();
@@ -45,7 +45,7 @@ export async function POST() {
 
   const account = await prisma.account.findFirst({ orderBy: { createdAt: "asc" } });
   if (!account) {
-    return Response.json({ error: "No account found — sign in once first." }, { status: 400 });
+    return Response.json({ error: "No account found - sign in once first." }, { status: 400 });
   }
 
   let website = await prisma.website.findFirst({ where: { accountId: account.id } });
@@ -55,7 +55,7 @@ export async function POST() {
     });
   }
 
-  // Campaign 1 — active A/B test with a declared winner.
+  // Campaign 1 - active A/B test with a declared winner.
   const campaign1 = await prisma.campaign.create({
     data: {
       accountId: account.id,
@@ -143,7 +143,7 @@ export async function POST() {
     });
   }
 
-  // Campaign 2 — active, single variant, no A/B test.
+  // Campaign 2 - active, single variant, no A/B test.
   const campaign2 = await prisma.campaign.create({
     data: {
       accountId: account.id,
@@ -197,7 +197,7 @@ export async function POST() {
     });
   }
 
-  // Campaign 3 — paused A/B test, no winner yet.
+  // Campaign 3 - paused A/B test, no winner yet.
   const campaign3 = await prisma.campaign.create({
     data: {
       accountId: account.id,

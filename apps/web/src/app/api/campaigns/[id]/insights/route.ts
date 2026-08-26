@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { generateCampaignInsight, buildInsightStats } from "@/lib/insights";
 
 // Guards against accidental cost runaway (retry loops, spam-clicking) on the
-// manual "Generate report now" button — the cron job is unaffected by this.
+// manual "Generate report now" button - the cron job is unaffected by this.
 const MANUAL_GENERATE_COOLDOWN_MS = 5 * 60 * 1000;
 
 export async function GET(
@@ -59,7 +59,7 @@ export async function POST(
   });
   if (mostRecent && Date.now() - mostRecent.createdAt.getTime() < MANUAL_GENERATE_COOLDOWN_MS) {
     return Response.json(
-      { error: "A report was just generated for this campaign — try again in a few minutes." },
+      { error: "A report was just generated for this campaign - try again in a few minutes." },
       { status: 429 },
     );
   }

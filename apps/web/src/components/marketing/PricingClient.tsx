@@ -23,7 +23,7 @@ export function PricingClient() {
 
   return (
     <div>
-      {/* Billing toggle — flex-wrap + shrink-0 on the switch so this never
+      {/* Billing toggle - flex-wrap + shrink-0 on the switch so this never
           clips on narrow screens; it drops to two lines instead of cutting
           off "Annual" mid-word. */}
       <div className="mb-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-4 text-center">
@@ -42,7 +42,7 @@ export function PricingClient() {
           />
         </button>
         <span className={`shrink-0 whitespace-nowrap text-sm font-medium ${annual ? "text-[color:var(--color-text-primary)]" : "text-[color:var(--color-text-secondary)]"}`}>
-          Annual <span className="text-[color:var(--color-primary)]">— Save 20%</span>
+          Annual <span className="text-[color:var(--color-primary)]">- Save 20%</span>
         </span>
       </div>
 

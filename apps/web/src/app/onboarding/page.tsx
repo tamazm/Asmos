@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 /**
- * /onboarding — immediately forwards to business-profile.
+ * /onboarding - immediately forwards to business-profile.
  * The separate welcome screen was removed from the lean onboarding flow.
  * A spinner keeps the frame stable during the client-side redirect.
  */

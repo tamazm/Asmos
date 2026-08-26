@@ -319,7 +319,7 @@ export function VariantManager({
 
               {isGenerating ? (
                 <p className="text-xs text-[color:var(--color-text-secondary)]">
-                  Asmos is generating this variant&apos;s design — it&apos;ll start serving traffic
+                  Asmos is generating this variant&apos;s design - it&apos;ll start serving traffic
                   automatically once ready.
                 </p>
               ) : isEliminated ? (

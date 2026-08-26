@@ -5,14 +5,14 @@ import { prisma } from "@/lib/prisma";
  * lib/bandit.ts
  *
  * Thompson Sampling for automatic per-variant traffic allocation. Runs after
- * every widget event (see /api/widget/events) — no human or AI involvement
+ * every widget event (see /api/widget/events) - no human or AI involvement
  * needed for this loop. The separate, slow AI review layer lives in
  * lib/insights.ts and reads the results this produces.
  *
  * WHAT CHANGED AND WHY
  * --------------------
  * 1. Arms are ACTIVE variants only. `campaign.variants` was passed unfiltered,
- *    so ELIMINATED arms were still allocated the exploration floor — the
+ *    so ELIMINATED arms were still allocated the exploration floor - the
  *    knockout layer set trafficPercent to 0 and the bandit handed 5% straight
  *    back on the next event. Elimination was not durable.
  *
@@ -32,7 +32,7 @@ import { prisma } from "@/lib/prisma";
  *    rate is multiplied by the arm's own margin before the argmax.
  *
  * 5. Percentages are distributed by largest remainder with the floor enforced,
- *    instead of giving the final arm `100 - assigned` as a residual — which
+ *    instead of giving the final arm `100 - assigned` as a residual - which
  *    could drop it below the floor it was supposed to be guaranteed.
  *
  * 6. The recompute throttle reads an explicit `allocationComputedAt` instead of
@@ -47,7 +47,7 @@ export type Arm = {
   submissions: number;
   /**
    * Percentage discount this arm gives away, if any. Used to convert a sampled
-   * conversion rate into a sampled *value* — see `armMargin`.
+   * conversion rate into a sampled *value* - see `armMargin`.
    */
   discountPercent?: number | null;
   /**
@@ -71,7 +71,7 @@ const MIN_FLOOR_PERCENT = 5;
 
 const MONTE_CARLO_SAMPLES = 4000;
 
-// Recomputing is a groupBy + a few row updates — cheap once, but a hot
+// Recomputing is a groupBy + a few row updates - cheap once, but a hot
 // campaign can generate thousands of impressions a minute in production.
 const RECOMPUTE_THROTTLE_MS = 30_000;
 
@@ -101,7 +101,7 @@ export function armMargin(arm: Arm, discountCostWeight = DEFAULT_DISCOUNT_COST_W
 
   // A popup that a third of visitors flick away inside two seconds is costing
   // session quality to buy its conversions. Capped so this can shade a decision
-  // but never dominate it — it is a softer signal than the discount, which is a
+  // but never dominate it - it is a softer signal than the discount, which is a
   // known cash cost.
   const fast = typeof arm.fastDismissRate === "number" && Number.isFinite(arm.fastDismissRate)
     ? Math.max(0, Math.min(1, arm.fastDismissRate))
@@ -242,7 +242,7 @@ function evenSplitAllocation(arms: Arm[]): Record<string, number> {
  *
  * The previous implementation gave the last arm whatever was left after
  * rounding the others. With three arms at win probabilities 0.90 / 0.10 / 0.00
- * that produced 82 / 14 / 4 — the final arm below the 5% floor it was supposed
+ * that produced 82 / 14 / 4 - the final arm below the 5% floor it was supposed
  * to be guaranteed, purely because of its position in the array.
  */
 function largestRemainder(
@@ -279,7 +279,7 @@ function largestRemainder(
     out[remainders[i].id] += 1;
   }
   // Any residue from pathological inputs goes to the first arm so the total is
-  // exactly 100 — the widget's weighted roll assumes it.
+  // exactly 100 - the widget's weighted roll assumes it.
   if (left > 0) out[items[0].id] += left;
 
   return out;
@@ -376,7 +376,7 @@ export async function fetchArms(campaignId: string): Promise<Arm[]> {
       impressions: stat.impressions,
       submissions: stat.submissions,
       discountPercent: typeof spec?.discount_percent === "number" ? spec.discount_percent : null,
-      // Share of *impressions* bounced instantly, not share of dismissals —
+      // Share of *impressions* bounced instantly, not share of dismissals -
       // an arm nobody dismisses quickly because nobody sees it is not better.
       fastDismissRate:
         fast && fast.seen > 0 && stat.impressions > 0

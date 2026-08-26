@@ -4,7 +4,7 @@ import { AnalyzeClient } from "./AnalyzeClient";
 import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Free Optimization Analysis — See What's Holding Back Your Conversions",
+  title: "Free Optimization Analysis | See What's Holding Back Your Conversions",
   description:
     "Enter your store URL and let Asmos analyze your popup, offer, design, and conversion experience. Get actionable recommendations in minutes. No account required.",
   path: "/analyze",

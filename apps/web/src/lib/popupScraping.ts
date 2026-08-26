@@ -5,9 +5,9 @@
  * industry gets normalized to, and the actual Browserless function that
  * captures a popup off a live site.
  *
- * Consumed from two places: popupGeneration.ts (read-time — matching a
+ * Consumed from two places: popupGeneration.ts (read-time - matching a
  * merchant's industry to stored rows) and the local, gitignored scraper
- * script under scripts/popup-scraper/ (write-time — normalizing the CSV's
+ * script under scripts/popup-scraper/ (write-time - normalizing the CSV's
  * segment column before insert). Neither ever imports the other, so the
  * bucket list and normalizer live here once, not duplicated.
  */
@@ -18,8 +18,8 @@
 // (fashion_apparel, beauty_skincare, food_beverage, home_lifestyle,
 // electronics_accessories, fitness_wellness) plus a few buckets this feature
 // needs that imageLibrary explicitly has no photos for (UNSERVED_STORE_TYPES:
-// jewelry, kids/baby) — a popup *example* is still useful there even though a
-// stock photo isn't — and a generic catch-all for everything else.
+// jewelry, kids/baby) - a popup *example* is still useful there even though a
+// stock photo isn't - and a generic catch-all for everything else.
 export const INDUSTRY_BUCKETS = [
   "Apparel & Fashion",
   "Beauty & Cosmetics",
@@ -50,9 +50,9 @@ const KEYWORD_BUCKETS: [RegExp, IndustryBucket][] = [
 ];
 
 /**
- * Maps free text — the CSV's `segment` column, or a merchant's own
+ * Maps free text - the CSV's `segment` column, or a merchant's own
  * Account.industry (which is genuinely free text, not a DB-level enum: it's
- * whatever the analyze pass or the merchant typed) — down to one of the
+ * whatever the analyze pass or the merchant typed) - down to one of the
  * buckets above, so a scraped row and a merchant's industry can actually
  * match on equality.
  */
@@ -66,7 +66,7 @@ export function normalizeIndustry(raw: string): IndustryBucket {
 }
 
 /**
- * Host + path, lowercased, protocol/www/query/hash/trailing-slash stripped —
+ * Host + path, lowercased, protocol/www/query/hash/trailing-slash stripped -
  * so https://Example.com/, http://www.example.com and example.com?ref=x all
  * collapse to the same dedupe key. Matches the SQL approximation the
  * scraped_popup_dedupe migration used to backfill existing rows.
@@ -88,7 +88,7 @@ export function normalizeUrl(raw: string): string {
 export type PaletteEntry = { hex: string; areaShare: number };
 
 /**
- * Everything about a scraped popup's design, as one connected object —
+ * Everything about a scraped popup's design, as one connected object -
  * matching the shape of lib/popupDna.ts's knobs (colour by role, typography,
  * shape, density, imagery) rather than a handful of disconnected facts. This
  * is what makes a scraped example actually comparable to a generated one:
@@ -104,7 +104,7 @@ export type ScrapedPopupDesign = {
   subhead: string | null;
   ctaText: string | null;
 
-  // Colour by role — not just a flat palette. backgroundColor/accentColor/
+  // Colour by role - not just a flat palette. backgroundColor/accentColor/
   // textColor answer "what IS the blue" (the card? the button? the text?),
   // which a flat list of hex codes can't.
   palette: PaletteEntry[];
@@ -138,7 +138,7 @@ export type PopupScrapeResult = {
   design: ScrapedPopupDesign;
   screenshot: string | null; // base64, no data: prefix
   // Page title + meta/OG description + the popup's own headline/subhead,
-  // concatenated — feed this into normalizeIndustry() to auto-assign an
+  // concatenated - feed this into normalizeIndustry() to auto-assign an
   // industry bucket instead of requiring one to be typed in per URL.
   industrySignal: string;
 };
@@ -216,7 +216,7 @@ function normalizeDesign(raw: unknown): ScrapedPopupDesign {
 
 /**
  * Normalises whatever the Browserless /function call returned into a typed
- * shape. Mirrors storeExtraction.ts's normalizeDomExtraction — defensive
+ * shape. Mirrors storeExtraction.ts's normalizeDomExtraction - defensive
  * about a raw, untyped JSON blob coming back over HTTP.
  */
 export function normalizePopupScrapeResult(raw: unknown): PopupScrapeResult {
@@ -262,7 +262,7 @@ export default async function ({ page, context }) {
   const { url } = context;
   await page.goto(url, { waitUntil: "networkidle2", timeout: 25000 });
 
-  // Title + meta/OG description — present at load, nothing to do with popup
+  // Title + meta/OG description - present at load, nothing to do with popup
   // timing, so grabbed before any of the waits/simulation below.
   const pageSignal = await page.evaluate(() => {
     const meta = (name) => {
@@ -277,7 +277,7 @@ export default async function ({ page, context }) {
   // Give delay-triggered popups a chance to appear on their own.
   await new Promise((r) => setTimeout(r, 2000));
 
-  // Best-effort exit-intent simulation — most popup SDKs listen for the
+  // Best-effort exit-intent simulation - most popup SDKs listen for the
   // cursor leaving the top of the viewport. Not guaranteed to fire every
   // vendor's trigger, but zero-cost to try before giving up.
   await page.evaluate(() => {
@@ -297,8 +297,8 @@ export default async function ({ page, context }) {
     // built as modals/dialogs too) and are usually the first thing to appear,
     // so without this they'd routinely win the "largest visible candidate"
     // sort ahead of the actual marketing popup. Filtered on two signals: the
-    // major consent platforms' own container names, and — since plenty of
-    // sites hand-roll their own banner with no telltale class — the
+    // major consent platforms' own container names, and - since plenty of
+    // sites hand-roll their own banner with no telltale class - the
     // boilerplate language every cookie notice uses regardless of markup.
     const isCookieNotice = (el) => {
       const identity = ((el.className || "") + " " + (el.id || "")).toLowerCase();
@@ -363,10 +363,10 @@ export default async function ({ page, context }) {
     const ctaEl = popupEl.querySelector("button[type='submit'], button, [class*='cta'], a[class*='btn']");
     const imgEl = popupEl.querySelector("img");
 
-    // getComputedStyle always returns colour in rgb()/rgba() form — even when
+    // getComputedStyle always returns colour in rgb()/rgba() form - even when
     // the source CSS uses a custom property (var(--brand)), the computed
     // value is the browser's fully resolved colour, never the literal
-    // "var(...)" string — but it's never "#rrggbb" either, so this has to be
+    // "var(...)" string - but it's never "#rrggbb" either, so this has to be
     // converted or every entry silently fails the "#rrggbb" check wherever
     // this palette gets consumed downstream (industryFallbackColor).
     const toHex = (rgbStr) => {
@@ -378,7 +378,7 @@ export default async function ({ page, context }) {
       return "#" + c(p[0]) + c(p[1]) + c(p[2]);
     };
 
-    // Colour by painted area, scoped to just the popup's own descendants —
+    // Colour by painted area, scoped to just the popup's own descendants -
     // same technique as storeExtraction.ts's DOM_EXTRACTION_FN.
     const paint = new Map();
     const nodes = popupEl.querySelectorAll("*");
@@ -402,7 +402,7 @@ export default async function ({ page, context }) {
       .map(([hex, area]) => ({ hex, areaShare: area / totalArea }));
 
     // Card-level: the popup's own background, corner radius, padding/density,
-    // and whether it has a visible shadow — read straight off popupEl itself,
+    // and whether it has a visible shadow - read straight off popupEl itself,
     // not inferred from the painted-area sweep above.
     const backgroundColor = toHex(style.backgroundColor);
     const cornerRadius = style.borderRadius || null;
@@ -416,7 +416,7 @@ export default async function ({ page, context }) {
     }
 
     // Button-level: the CTA's own fill colour, corner radius (→ shape), and
-    // whether it's filled or outline — read off ctaEl specifically, so
+    // whether it's filled or outline - read off ctaEl specifically, so
     // "accentColor" answers "what colour IS the button", not just "some
     // colour appeared somewhere in the popup".
     let accentColor = null, buttonRadius = null, buttonShape = null, buttonFill = null;
@@ -432,7 +432,7 @@ export default async function ({ page, context }) {
       buttonFill = hasBg ? "solid" : hasBorder ? "outline" : "solid";
     }
 
-    // Typography: headline's own font/size/weight/colour, body's own font —
+    // Typography: headline's own font/size/weight/colour, body's own font -
     // not the popup's aggregate style, the specific element's.
     let headlineFont = null, headlineFontSize = null, fontWeight = null, textColor = null;
     if (headlineEl) {
@@ -490,7 +490,7 @@ export default async function ({ page, context }) {
     };
   });
 
-  // Built out here, not inside page.evaluate() above — that callback runs in
+  // Built out here, not inside page.evaluate() above - that callback runs in
   // the browser context with no closure over pageSignal (a plain Node/outer
   // variable at this point).
   data.industrySignal = [pageSignal, data.design && data.design.headline, data.design && data.design.subhead].filter(Boolean).join(" . ");
@@ -500,7 +500,7 @@ export default async function ({ page, context }) {
   }
 
   // Screenshot the matched element specifically, cropped rather than a full
-  // viewport capture — this has to happen from the outer Puppeteer context,
+  // viewport capture - this has to happen from the outer Puppeteer context,
   // not inside page.evaluate(), since it needs an ElementHandle. Re-selects
   // via the data-asmos-scrape-target marker set above, so this is guaranteed
   // to be the exact same (non-cookie-notice) element, not a re-run of the

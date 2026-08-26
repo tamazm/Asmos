@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { generateCampaignInsight, buildInsightStats } from "@/lib/insights";
 
-// Automatic biweekly/monthly AI review — see vercel.json for the schedule.
+// Automatic biweekly/monthly AI review - see vercel.json for the schedule.
 // Vercel Cron sends this exact Authorization header; CRON_SECRET must be set
 // as an env var for this to run (see .env.local).
 export async function GET(request: Request) {

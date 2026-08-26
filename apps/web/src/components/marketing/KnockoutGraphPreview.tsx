@@ -152,7 +152,7 @@ export function KnockoutGraphPreview() {
         })}
       </div>
 
-      {/* Legend — same win/loss vocabulary as the hero bracket: struck-through
+      {/* Legend - same win/loss vocabulary as the hero bracket: struck-through
           + faded for eliminated, solid + tagged for the winner. */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {GRAPH_VARIANTS.map((v) => {

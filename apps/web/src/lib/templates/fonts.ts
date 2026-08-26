@@ -7,21 +7,21 @@
  * ---------------
  * Every template hardcoded `font-family: system-ui, -apple-system, "Segoe UI",
  * sans-serif`. One face, one voice, on every popup the product has ever
- * generated — which is most of the reason the output reads as "a div with text
+ * generated - which is most of the reason the output reads as "a div with text
  * in it" rather than as design. Typography is the single largest lever on
  * perceived quality and it was the one knob the DNA couldn't turn.
  *
  * Worse, the pipeline to do better already existed and was being thrown away:
  * `/api/analyze` extracts the store's real display and body fonts (from their
  * CSS and from a vision pass over a screenshot), carries them through
- * `popupGeneration.ts` as `design_tokens.type_display` / `type_body` — and then
+ * `popupGeneration.ts` as `design_tokens.type_display` / `type_body` - and then
  * no template ever reads them. `brand` pairing below is what finally uses that.
  *
  * DELIVERY
  * --------
  * A `@import` emitted as the *first* rule of the popup's own <style> block.
  * @import is only honoured when it precedes every other rule in its stylesheet,
- * so `fontImportCss()` must stay at the very top of each template's <style> —
+ * so `fontImportCss()` must stay at the very top of each template's <style> -
  * see the call sites in splitScreen/cornerToast/fullscreenTakeover.
  *
  * This runs on a merchant's production site, so two rules hold:
@@ -38,7 +38,7 @@ import type { PopupDna, TypePairing } from "@/lib/popupDna";
 type FontSpec = {
   /** Google Fonts family name, or null for "use what's already on the device". */
   family: string | null;
-  /** css2 `wght` axis values to request. Keep these tight — every weight is bytes. */
+  /** css2 `wght` axis values to request. Keep these tight - every weight is bytes. */
   weights: number[];
   /** Full CSS stack, including the Google family when there is one. */
   stack: string;
@@ -64,7 +64,7 @@ const SYSTEM_SERIF = `Georgia, "Times New Roman", Times, serif`;
 
 const PAIRINGS: Record<TypePairing, Pairing> = {
   /**
-   * Editorial — a high-contrast display serif over a neutral sans. The look
+   * Editorial - a high-contrast display serif over a neutral sans. The look
    * that reads as "considered" rather than "marketing", and the reason a
    * fashion or beauty store's popup can stop looking like an ad.
    */
@@ -81,7 +81,7 @@ const PAIRINGS: Record<TypePairing, Pairing> = {
   },
 
   /**
-   * Bold — a heavy grotesque with almost no counter space, sized to be the
+   * Bold - a heavy grotesque with almost no counter space, sized to be the
    * loudest object on the page. Pairs with `art_direction: bold`, where the
    * discount number is the hero rather than the sentence around it.
    */
@@ -98,7 +98,7 @@ const PAIRINGS: Record<TypePairing, Pairing> = {
   },
 
   /**
-   * Geometric — round, even, friendly. The safest choice for a store with no
+   * Geometric - round, even, friendly. The safest choice for a store with no
    * strong identity of its own, and the one least likely to clash with
    * whatever the merchant's own site is using.
    */
@@ -115,7 +115,7 @@ const PAIRINGS: Record<TypePairing, Pairing> = {
   },
 
   /**
-   * Grotesque — contemporary, slightly technical. Reads as software rather
+   * Grotesque - contemporary, slightly technical. Reads as software rather
    * than retail, which is exactly right for the soft/glass direction.
    */
   grotesque: {
@@ -135,7 +135,7 @@ const PAIRINGS: Record<TypePairing, Pairing> = {
   },
 
   /**
-   * Brand — the store's own typeface, when `/api/analyze` managed to identify
+   * Brand - the store's own typeface, when `/api/analyze` managed to identify
    * one that Google serves. Resolved at render time by `resolveBrandPairing`;
    * this entry is the fallback for when it didn't.
    */
@@ -152,7 +152,7 @@ const PAIRINGS: Record<TypePairing, Pairing> = {
   },
 
   /**
-   * System — no network request at all. Not a cop-out: it's the correct choice
+   * System - no network request at all. Not a cop-out: it's the correct choice
    * for a corner toast, for a merchant on a strict CSP, and as the control arm
    * when the campaign is testing whether typography moves conversion at all.
    */
@@ -167,7 +167,7 @@ const PAIRINGS: Record<TypePairing, Pairing> = {
 
 /**
  * Google-served families common enough on real ecommerce sites to be worth
- * matching a scraped font name against. Deliberately not exhaustive — a wrong
+ * matching a scraped font name against. Deliberately not exhaustive - a wrong
  * match is worse than no match, because it ships a font that isn't the
  * merchant's and claims it is.
  */
@@ -206,7 +206,7 @@ function firstFamily(stack: string | null | undefined): string | null {
   if (!stack) return null;
   const first = stack.split(",")[0]?.trim().replace(/^["']|["']$/g, "");
   if (!first) return null;
-  // Generic keywords carry no identity — treat them as "we found nothing".
+  // Generic keywords carry no identity - treat them as "we found nothing".
   if (/^(system-ui|-apple-system|sans-serif|serif|monospace|inherit|initial|ui-\w+)$/i.test(first)) {
     return null;
   }
@@ -262,7 +262,7 @@ export type BrandFontHints = {
 
 /**
  * Builds one css2 request covering every family the popup needs. One request,
- * not two — a second round trip to fonts.googleapis.com on a merchant's
+ * not two - a second round trip to fonts.googleapis.com on a merchant's
  * critical path for the sake of tidier code is not a trade worth making.
  */
 function buildImport(specs: FontSpec[]): string {
@@ -303,7 +303,7 @@ export function resolveFonts(dna: PopupDna, brand?: BrandFontHints | null): Reso
 }
 
 /**
- * MUST be emitted as the first thing inside a template's <style> block —
+ * MUST be emitted as the first thing inside a template's <style> block -
  * a stylesheet ignores any @import that follows another rule.
  */
 export function fontImportCss(fonts: ResolvedFonts): string {

@@ -9,7 +9,7 @@ import { CTA } from "@/lib/site";
 import { FAQS } from "@/lib/faq";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Pricing — Flexible Plans Built Around Your Traffic",
+  title: "Pricing | Flexible Plans Built Around Your Traffic",
   description:
     "Every Asmos plan includes the full platform. Pricing scales with your monthly traffic and level of support, not locked features.",
   path: "/pricing",
@@ -20,7 +20,7 @@ const COMPARISON_ROWS: { label: string; starter: string; growth: string; scale: 
   { label: "Monthly Visitors", starter: "Up to 20K", growth: "50K – 500K", scale: "750K – 1M" },
   { label: "A/B Test Capacity", starter: "4", growth: "30 – 50", scale: "100 – 150" },
   { label: "Live Chat Support", starter: "Included", growth: "Included", scale: "Included" },
-  { label: "Automatic Onboarding", starter: "Included", growth: "Included", scale: "—" },
+  { label: "Automatic Onboarding", starter: "Included", growth: "Included", scale: "-" },
   { label: "Managed Success", starter: "+$200/mo", growth: "+$200/mo", scale: "Included" },
   { label: "Dedicated CSM", starter: "With Managed Success", growth: "With Managed Success", scale: "Included" },
 ];
@@ -56,7 +56,7 @@ export default function PricingPage() {
         <div className="mx-auto max-w-xl text-center reveal">
           <h2 className="mb-2 text-xl font-bold tracking-tight text-[color:var(--color-text-primary)]">No feature gates.</h2>
           <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">
-            Starter, Growth, and Scale all include the full Asmos platform. Your price changes with the traffic you optimize and the support you need — not which product capabilities you unlock.
+            Starter, Growth, and Scale all include the full Asmos platform. Your price changes with the traffic you optimize and the support you need - not which product capabilities you unlock.
           </p>
         </div>
       </section>

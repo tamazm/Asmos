@@ -1,5 +1,5 @@
 // Minimal JSX typings for the Polaris web components (`s-*` custom elements,
-// loaded via CDN script in shopify-admin/layout.tsx — no npm component
+// loaded via CDN script in shopify-admin/layout.tsx - no npm component
 // package). Extend this file as more elements are used; see
 // https://shopify.dev/docs/api/app-home/polaris-web-components for the
 // full catalog, or install @shopify/polaris-types for generated types.
@@ -10,7 +10,7 @@ type PolarisElementProps = React.HTMLAttributes<HTMLElement> & {
 };
 
 // React 19 resolves JSX intrinsics via React's own namespace (not the bare
-// global `JSX` namespace) — augment that, per @types/react ^19.
+// global `JSX` namespace) - augment that, per @types/react ^19.
 declare module "react" {
   namespace JSX {
     interface IntrinsicElements {

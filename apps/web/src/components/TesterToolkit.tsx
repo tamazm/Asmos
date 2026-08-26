@@ -11,7 +11,7 @@ type CampaignOption = {
 
 // Superadmin-only floating dev panel for testing the bandit/knockout system
 // without waiting for real traffic. Only ever mounted when the server has
-// already confirmed the current user is a superadmin (see layout.tsx) —
+// already confirmed the current user is a superadmin (see layout.tsx) -
 // this component does no auth checking of its own, the API route does.
 export function TesterToolkit() {
   const router = useRouter();
@@ -25,7 +25,7 @@ export function TesterToolkit() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Load once the panel is first opened, not on mount — this floats on
+  // Load once the panel is first opened, not on mount - this floats on
   // every dashboard page, no reason to fetch campaigns before it's used.
   // Every setState call here lives inside the fetch's own callbacks rather
   // than synchronously in the effect body itself.
@@ -74,7 +74,7 @@ export function TesterToolkit() {
       setMessage(
         action === "inject"
           ? `Injected ${data.injectedImpressions} impressions / ${data.injectedSubmissions} conversions.`
-          : "Knockout evaluation triggered — check the Knockout Bracket tab in a few seconds.",
+          : "Knockout evaluation triggered - check the Knockout Bracket tab in a few seconds.",
       );
       router.refresh();
     } catch (e) {

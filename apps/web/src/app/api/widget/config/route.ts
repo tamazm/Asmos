@@ -6,7 +6,7 @@ import { campaignHasAvailableReward } from "@/lib/reward";
 
 // AI popup variation roadmap (Phase 1): lets widget.js decide whether to load
 // posthog-js (with session replay/rage-click/dead-click detection) on the
-// merchant's site. Off by default — this loads a third-party script and
+// merchant's site. Off by default - this loads a third-party script and
 // starts recording sessions, which has privacy/consent and CSP implications
 // beyond a simple feature flag, so it's an explicit opt-in server-side
 // rather than something that turns on the moment a key is present.
@@ -73,12 +73,12 @@ export async function GET(request: Request) {
     return corsJson({ error: "site is required" }, { status: 400 });
   }
 
-  // Website.url has no unique constraint (a pre-existing gap — fixing it
+  // Website.url has no unique constraint (a pre-existing gap - fixing it
   // outright would need a data audit first, since duplicate rows may
   // already exist from the old buggy campaign-creation flow). findMany
   // instead of findFirst so a duplicate match is something we can detect
   // and pick deterministically, rather than a silent, DB-order-dependent
-  // pick of whichever row the query planner returns first — which risked
+  // pick of whichever row the query planner returns first - which risked
   // serving one account's campaign to a visitor on another account's site.
   const matches = await prisma.website.findMany({
     where: {
@@ -104,7 +104,7 @@ export async function GET(request: Request) {
 
   let website = matches[0];
   if (matches.length > 1) {
-    // Ambiguous — prefer a website that's actually been verified installed
+    // Ambiguous - prefer a website that's actually been verified installed
     // on a real domain, then fall back to the most recently created. Either
     // way, log it: this should never happen once every Website.url is
     // genuinely unique, so seeing it means there's a real collision to go
@@ -154,8 +154,8 @@ export async function GET(request: Request) {
       //
       // This used to send every variant regardless of status, so a returning
       // visitor whose sticky assignment pointed at an ELIMINATED arm kept being
-      // served it, and GENERATING placeholders — which have no design and no
-      // rendered code — were handed to the widget, which fell through to its
+      // served it, and GENERATING placeholders - which have no design and no
+      // rendered code - were handed to the widget, which fell through to its
       // legacy DOM builder and showed a generic "Special Offer" card.
       // A real merchant preview still wants to see everything.
       variants: isPreview ? true : { where: { status: "ACTIVE" } },
@@ -167,17 +167,17 @@ export async function GET(request: Request) {
   }
 
   // A popup must never go live promising a reward it can't actually give
-  // out. Campaigns whose goal is pure email capture are exempt — they're
+  // out. Campaigns whose goal is pure email capture are exempt - they're
   // designed to have zero rewards, that's not a broken state for them.
   // Real merchant previews (isPreview) always bypass this, same as the
-  // page-targeting rule below — a merchant checking their own popup should
+  // page-targeting rule below - a merchant checking their own popup should
   // never see "nothing" just because they haven't stocked codes yet.
   const goal = (campaign.generationContext as { goal?: string } | null)?.goal ?? "BOTH";
   if (!isPreview && goal !== "EMAIL" && !campaignHasAvailableReward(campaign.rewards)) {
     return corsJson({ campaign: null, consent });
   }
 
-  // Public payload — just what the widget needs to render (label/type),
+  // Public payload - just what the widget needs to render (label/type),
   // not the internal availability bookkeeping (active/maxRedemptions/
   // couponCodes) used only for the server-side gate above.
   const publicRewards = campaign.rewards.map((r) => ({ id: r.id, label: r.label, type: r.type }));

@@ -1,7 +1,7 @@
 /* eslint-disable */
 (function () {
   // `document.currentScript` is null whenever the tag is injected
-  // asynchronously — which is exactly what Google Tag Manager, Shopify's
+  // asynchronously - which is exactly what Google Tag Manager, Shopify's
   // script-tag API and every "load third-party scripts late" theme setting do.
   // The widget used to return here and no-op, silently, on all of them.
   var scriptEl =
@@ -30,7 +30,7 @@
   var pageLoadTime = Date.now();
 
   // Persistent first-party per-visitor id (AI popup variation roadmap, Phase 0).
-  // Used as the PostHog distinct_id so funnels/cohorts/replay actually work —
+  // Used as the PostHog distinct_id so funnels/cohorts/replay actually work -
   // previously every visitor of a variant shared one synthetic id.
   var VISITOR_ID_KEY = "asmos_visitor_id";
   function getVisitorId() {
@@ -119,7 +119,7 @@
   }
 
   // ── Optional rich session capture (AI popup variation roadmap, Phase 1) ──────
-  // Loads posthog-js directly on the merchant's page — gives us autocapture,
+  // Loads posthog-js directly on the merchant's page - gives us autocapture,
   // rage-click/dead-click detection, and (if enabled server-side) session
   // replay, correlated to the same visitorId used for our own custom events.
   // Only ever called after consent is granted (see below). Best-effort: never
@@ -134,7 +134,7 @@
       window.posthog.init(tracking.posthogKey, {
         api_host: tracking.posthogHost,
         defaults: "2026-05-30",
-        // Server-side kill switch (see /api/widget/config) — recording real
+        // Server-side kill switch (see /api/widget/config) - recording real
         // visitor sessions on merchant sites is opt-in, not automatic just
         // because a PostHog key is configured.
         disable_session_recording: !tracking.sessionRecordingEnabled,
@@ -147,7 +147,7 @@
         },
       });
     } catch (e) {
-      // Tracking is best-effort — never let it break the popup itself.
+      // Tracking is best-effort - never let it break the popup itself.
     }
   }
 
@@ -163,7 +163,7 @@
   function trackEvent(variantId, type, extraContext) {
     // Preview surfaces (dashboard variant preview, /store-preview) render the
     // real widget against real variant ids. Writing events from them poisons
-    // the numbers the bandit and the campaign dashboard are computed from —
+    // the numbers the bandit and the campaign dashboard are computed from -
     // it is why a variant could show "1 impression, 2 submissions (200%)"
     // without a single real visitor having seen it.
     if (isPreview) return;
@@ -184,7 +184,7 @@
     // A variant with no rendered code is a GENERATING placeholder. Serving one
     // dropped the visitor through to the legacy DOM builder, which rendered a
     // generic white card reading "Special Offer / Sign up for updates and
-    // discounts" — un-branded, and counted as a real impression against a
+    // discounts" - un-branded, and counted as a real impression against a
     // variant that had no design at all.
     var eligible = campaign.variants.filter(function (v) {
       return v && (v.generatedCode || v.design);
@@ -234,7 +234,7 @@
   // Templates emit `@import url('https://fonts.googleapis.com/...')` at the top
   // of their inline <style>. That is the slowest delivery path available: the
   // browser must parse the popup's stylesheet, fetch the font CSS, parse that,
-  // then fetch the WOFF2 — two serial round trips that only START once the
+  // then fetch the WOFF2 - two serial round trips that only START once the
   // popup exists. With display=swap the popup then paints in the fallback face
   // and visibly re-renders, reflowing the headline at the exact moment of
   // maximum attention.
@@ -356,11 +356,11 @@
       window.__asmos_active_variant = variant;
       window.__asmos_api_base = apiBase;
 
-      // Templates own their own DOM (ids/classes vary by template — see
+      // Templates own their own DOM (ids/classes vary by template - see
       // lib/templates/*.ts), so guessing selectors here is fragile and was
       // silently broken for the current split-screen template (its close
       // button, form, and email input ids never matched what this file was
-      // looking for — DISMISSED never fired, and the submit handler below
+      // looking for - DISMISSED never fired, and the submit handler below
       // never ran). Instead, expose tracking as globals and let each
       // template's own inline script call them for its own DOM events.
       // IMPRESSION and SUBMISSION-via-lead-capture are unambiguous regardless
@@ -369,12 +369,12 @@
         trackEvent(variant.id, type, extraContext);
       };
       window.__asmos_behavioral_context = behavioralContext;
-      // Templates must check this before actually submitting a lead — preview
+      // Templates must check this before actually submitting a lead - preview
       // mode (dashboard variant preview) should simulate success, not create
       // real leads/events against real campaigns.
       window.__asmos_preview_mode = isPreview;
       // The runtime needs to know which campaign it belongs to so its
-      // suppression key can be namespaced — a single global key meant two
+      // suppression key can be namespaced - a single global key meant two
       // campaigns suppressed each other, and inside a tournament a visitor who
       // saw variant 1 could never see variant 2.
       window.__asmos_campaign_id = campaign.id;
@@ -385,7 +385,7 @@
       // theme stylesheet overwrote it. Measured against a stock Shopify-style
       // theme, this alone forced every headline and every CTA to uppercase and
       // silently turned `button_shape: "pill"` into a rectangle via
-      // `border-radius: 0 !important` — which also means the bandit was testing
+      // `border-radius: 0 !important` - which also means the bandit was testing
       // a button-shape difference that did not exist on screen.
       //
       // `all: initial` on the host stops inheritance reaching in; the shadow
@@ -433,8 +433,8 @@
       window.__asmos_shadow_root = root;
 
       // Execute embedded scripts (innerHTML does not run them automatically).
-      // They stay in the light DOM — a script element inside a shadow root does
-      // not execute — and reach their own markup through __asmos_shadow_root.
+      // They stay in the light DOM - a script element inside a shadow root does
+      // not execute - and reach their own markup through __asmos_shadow_root.
       var scripts = container.querySelectorAll("script");
       Array.prototype.forEach.call(scripts, function (s) {
         var newScript = document.createElement("script");
@@ -455,7 +455,7 @@
       // NO IMPRESSION HERE. The runtime fires it from inside openPopup(), once
       // the popup is actually on screen. Firing it at injection time counted an
       // impression for every visitor the runtime's own suppression window then
-      // silently declined to show — inflating the denominator by an amount
+      // silently declined to show - inflating the denominator by an amount
       // proportional to how long an arm had been winning, which is a negative
       // feedback loop bolted onto a system designed to have a positive one.
       return;
@@ -551,7 +551,7 @@
       msg.style.cssText = "margin:0;font-size:14px;color:#4b5563;";
       if (data && data.reward) {
         msg.textContent = data.reward.couponCode
-          ? data.reward.label + " — code: " + data.reward.couponCode
+          ? data.reward.label + ", code: " + data.reward.couponCode
           : data.reward.label;
       } else {
         msg.textContent = "We'll be in touch.";
@@ -606,7 +606,7 @@
           renderThanks(data);
         })
         .catch(function () {
-          errorMsg.textContent = "Something went wrong — please try again.";
+          errorMsg.textContent = "Something went wrong. Please try again.";
           errorMsg.style.display = "block";
           submit.disabled = false;
           submit.textContent = ctaText;
@@ -622,7 +622,7 @@
   }
 
   // Advanced targeting: show on every page (default), only on specific
-  // pages, or every page except specific ones — set at campaign creation
+  // pages, or every page except specific ones - set at campaign creation
   // (see NewCampaignForm.tsx's "Where should this show" question) and
   // carried through unchanged into variant.targeting.pages by
   // generateCampaign.ts / evaluateKnockout.ts. Supports exact path match
@@ -671,7 +671,7 @@
         // `mouseleave` never fires on a touch device, so an exit-intent arm was
         // effectively desktop-only while a time-delay arm served everyone. A
         // tournament comparing them was comparing desktop traffic against all
-        // traffic, not one trigger against another — and desktop converts
+        // traffic, not one trigger against another - and desktop converts
         // differently from mobile on essentially every store.
         //
         // The closest honest equivalents on touch: a fast upward scroll back

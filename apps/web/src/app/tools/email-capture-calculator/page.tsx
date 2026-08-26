@@ -8,7 +8,7 @@ import { buildMetadata, faqJsonLd } from "@/lib/seo";
 import { CTA } from "@/lib/site";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Email Capture Revenue Calculator — Free Ecommerce Tool",
+  title: "Email Capture Revenue Calculator | Free Ecommerce Tool",
   description:
     "Set a target email capture rate and estimate the additional revenue opportunity from your existing traffic.",
   path: "/tools/email-capture-calculator",
@@ -16,12 +16,12 @@ export const metadata: Metadata = buildMetadata({
 
 const SEO_FAQS = [
   { question: "What is email capture rate?", answer: "Email capture rate is the percentage of website visitors who submit their email address, typically through a popup or signup form, during a session." },
-  { question: "What is a good email popup conversion rate?", answer: "There is no single universal number — it depends on your offer, traffic source, device mix, and industry. Comparing your own rate over time and against a relevant benchmark is more useful than chasing a single target." },
+  { question: "What is a good email popup conversion rate?", answer: "There is no single universal number. It depends on your offer, traffic source, device mix, and industry. Comparing your own rate over time and against a relevant benchmark is more useful than chasing a single target." },
   { question: "How is email capture rate calculated?", answer: "Email capture rate = (number of visitors who submit an email) ÷ (total visitors who saw the capture form), expressed as a percentage." },
   { question: "How does email capture affect ecommerce revenue?", answer: "Every additional subscriber is a potential future customer. Small increases in capture rate compound through email flows, SMS campaigns, and repeat-purchase revenue over time." },
-  { question: "How can I improve my email capture rate?", answer: "Common levers include the offer, headline clarity, number of form fields, popup timing/trigger, and mobile-specific layout — all of which are worth testing rather than assuming." },
+  { question: "How can I improve my email capture rate?", answer: "Common levers include the offer, headline clarity, number of form fields, popup timing/trigger, and mobile-specific layout. All of these are worth testing rather than assuming." },
   { question: "Why do popup conversion rates vary by industry?", answer: "Purchase consideration, price point, and traffic intent differ by category, which shifts how visitors respond to a capture offer." },
-  { question: "Email capture rate vs ecommerce conversion rate", answer: "Email capture rate measures signups from visitors; ecommerce conversion rate measures purchases from visitors. They're related but distinct — a store can improve one without directly improving the other." },
+  { question: "Email capture rate vs ecommerce conversion rate", answer: "Email capture rate measures signups from visitors; ecommerce conversion rate measures purchases from visitors. They're related but distinct; a store can improve one without directly improving the other." },
 ];
 
 export default function EmailCaptureCalculatorPage() {

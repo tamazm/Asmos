@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth-adapter";
 
 // Powers NewCampaignForm.tsx's "Scrape my pages" button (page targeting
-// section) — lets a merchant pick real pages from their own site instead of
+// section) - lets a merchant pick real pages from their own site instead of
 // having to type paths like "/collections/summer" from memory. Dashboard-
 // authenticated (not the public /api/analyze flow), so no separate IP rate
-// limit — reuses the account's own session the same way other
+// limit - reuses the account's own session the same way other
 // /api/campaigns/* routes do.
 
 const MAX_PAGES = 40;
@@ -16,7 +16,7 @@ function isAssetOrNoisePath(pathname: string): boolean {
     return true;
   }
   // Cart/checkout/account/admin pages aren't meaningful popup-targeting
-  // choices — showing a "10% off your first order" popup on the checkout
+  // choices - showing a "10% off your first order" popup on the checkout
   // page a customer is actively paying on, for instance, is never what
   // someone wants when they pick "only show on these pages".
   if (/^\/(cart|checkout|account|admin|wp-admin|wp-json|api)(\/|$)/i.test(pathname)) return true;
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
 
   const pages = new Set<string>(["/"]);
 
-  // 1. sitemap.xml first — most complete/accurate source when a store has
+  // 1. sitemap.xml first - most complete/accurate source when a store has
   // one (virtually every Shopify/WooCommerce/etc. store auto-generates one).
   try {
     const sitemapRes = await fetch(`${origin}/sitemap.xml`, {
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
     if (sitemapRes.ok) {
       const xml = await sitemapRes.text();
       // Sitemap indexes point at other sitemaps (sitemap_products_1.xml
-      // etc.) rather than pages directly — not worth recursing into for a
+      // etc.) rather than pages directly - not worth recursing into for a
       // "pick a few pages to target" picker, so just take whatever <loc>
       // entries are directly in this document.
       const locs = [...xml.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/gi)].map((m) => m[1]);
@@ -74,16 +74,16 @@ export async function GET(req: NextRequest) {
           const u = new URL(loc);
           if (u.origin === origin) addPage(pages, u.pathname);
         } catch {
-          // malformed <loc> — skip it
+          // malformed <loc> - skip it
         }
         if (pages.size >= MAX_PAGES) break;
       }
     }
   } catch {
-    // No sitemap, or it timed out — fall through to homepage link scraping.
+    // No sitemap, or it timed out - fall through to homepage link scraping.
   }
 
-  // 2. Also scrape links off the homepage itself — catches nav links a
+  // 2. Also scrape links off the homepage itself - catches nav links a
   // sitemap might omit, and is the only source at all when there's no
   // sitemap.
   if (pages.size < MAX_PAGES) {
@@ -99,12 +99,12 @@ export async function GET(req: NextRequest) {
           const u = new URL(href, origin);
           if (u.origin === origin) addPage(pages, u.pathname);
         } catch {
-          // relative/malformed href — skip it
+          // relative/malformed href - skip it
         }
         if (pages.size >= MAX_PAGES) break;
       }
     } catch {
-      // Homepage fetch failed too — return whatever the sitemap gave us
+      // Homepage fetch failed too - return whatever the sitemap gave us
       // (possibly just "/"), rather than erroring the whole request.
     }
   }

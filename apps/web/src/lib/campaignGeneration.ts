@@ -83,7 +83,7 @@ export const campaignSchema = {
 } as const;
 
 const UPDATE_CAMPAIGN_DESCRIPTION =
-  "Set the complete current campaign draft. Call this whenever you have enough information to propose or revise the full draft. Always pass the COMPLETE campaign object — every field representing the draft's current state — carrying forward anything the merchant hasn't asked to change.";
+  "Set the complete current campaign draft. Call this whenever you have enough information to propose or revise the full draft. Always pass the COMPLETE campaign object - every field representing the draft's current state - carrying forward anything the merchant hasn't asked to change.";
 
 export const updateCampaignTool = {
   name: "update_campaign",
@@ -92,7 +92,7 @@ export const updateCampaignTool = {
   strict: true,
 };
 
-// Temporary alternate provider for local testing — see lib/gemini.ts.
+// Temporary alternate provider for local testing - see lib/gemini.ts.
 export const geminiUpdateCampaignDeclaration: FunctionDeclaration = {
   name: "update_campaign",
   description: UPDATE_CAMPAIGN_DESCRIPTION,
@@ -129,7 +129,7 @@ export const variantSuggestionSchema = {
 } as const;
 
 export const PROPOSE_VARIANT_DESCRIPTION =
-  "Propose a new variant to test, based on the performance data provided. Only call this if you have a concrete, specific idea worth testing — it's fine to skip it and just give a summary if the data doesn't suggest one yet.";
+  "Propose a new variant to test, based on the performance data provided. Only call this if you have a concrete, specific idea worth testing - it's fine to skip it and just give a summary if the data doesn't suggest one yet.";
 
 export const proposeVariantTool = {
   name: "propose_variant",
@@ -138,7 +138,7 @@ export const proposeVariantTool = {
   strict: true,
 };
 
-// Temporary alternate provider for local testing — see lib/gemini.ts.
+// Temporary alternate provider for local testing - see lib/gemini.ts.
 export const geminiProposeVariantDeclaration: FunctionDeclaration = {
   name: "propose_variant",
   description: PROPOSE_VARIANT_DESCRIPTION,

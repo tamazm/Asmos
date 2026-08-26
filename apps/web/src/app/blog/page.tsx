@@ -9,7 +9,7 @@ import { BLOG_POSTS } from "@/lib/blog/posts";
 import { CTA } from "@/lib/site";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Blog — Insights for Better Ecommerce Conversion",
+  title: "Blog | Insights for Better Ecommerce Conversion",
   description: "Practical guides, experiments, benchmarks, and conversion insights from Asmos.",
   path: "/blog",
 });

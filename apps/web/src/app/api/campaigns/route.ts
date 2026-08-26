@@ -28,12 +28,12 @@ export async function POST(request: Request) {
 
   const account = await getOrCreateAccount();
 
-  // Find-or-create the Website for THIS campaign's own store URL — every
+  // Find-or-create the Website for THIS campaign's own store URL - every
   // campaign creation call (AI wizard via generationContext.storeUrl, manual
   // wizard via body.domain) carries the URL the merchant just typed, and it
   // must be looked up/created fresh every time. The previous version of this
   // handler only ever did this once per account (grabbing whatever website
-  // was created first, forever after) — so every later campaign for a
+  // was created first, forever after) - so every later campaign for a
   // "different" store silently landed on the account's original website,
   // and only the newest campaign was ever reachable from any of them (see
   // the "same campaign everywhere" bug). This mirrors the same
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   const rawUrl =
     (typeof storeUrlFromContext === "string" && storeUrlFromContext.trim()) ||
     (typeof domainFromBody === "string" && domainFromBody.trim()) ||
-    // No URL provided at all — fall back to a synthetic, per-account
+    // No URL provided at all - fall back to a synthetic, per-account
     // placeholder rather than a shared literal string, so it can never
     // collide with another account's placeholder or a real domain.
     `pending-setup-${account.id}.invalid`;
@@ -128,7 +128,7 @@ export async function POST(request: Request) {
       type: "FORM", // schema-driven generation always produces FORM popups
       status: body.status === "GENERATING" ? "GENERATING" : "ACTIVE",
       generationStage: body.status === "GENERATING" ? "QUEUED" : undefined,
-      // account.brandColor is never stamped in here — generateCampaign.ts
+      // account.brandColor is never stamped in here - generateCampaign.ts
       // doesn't read context.brandColor for anything anymore (colour comes
       // from measured brandTokens, or a scraped-industry colour as fallback;
       // see popupGeneration.ts's brandTokensFromAnalyzeResult), so folding
@@ -170,7 +170,7 @@ export async function POST(request: Request) {
     // Send background task to Inngest instead of waiting for a cron.
     // If this fails (no local Inngest Dev Server, or missing
     // INNGEST_EVENT_KEY/SIGNING_KEY in production), the campaign row
-    // already exists in the DB — mark it FAILED instead of leaving it
+    // already exists in the DB - mark it FAILED instead of leaving it
     // stuck in GENERATING forever, and don't 500 the whole request.
     try {
       await inngest.send({

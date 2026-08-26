@@ -3,7 +3,7 @@ CREATE TYPE "LearnedPatternStatus" AS ENUM ('DRAFT', 'APPROVED', 'REJECTED');
 
 -- CreateTable
 -- AI popup variation roadmap, Phase 4: candidate patterns mined across all
--- accounts. Human-gated — see model comment in schema.prisma.
+-- accounts. Human-gated - see model comment in schema.prisma.
 CREATE TABLE "LearnedPattern" (
     "id" TEXT NOT NULL,
     "testAxis" TEXT NOT NULL,

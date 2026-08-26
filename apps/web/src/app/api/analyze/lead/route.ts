@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing storeUrl" }, { status: 400 });
     }
 
-    // Upsert — don't create duplicates for same email + store
+    // Upsert - don't create duplicates for same email + store
     const lead = await prisma.analyzeLead.upsert({
       where: {
         // no unique constraint on combo, so use create/findFirst pattern
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
         grade: grade ?? null,
       },
     }).catch(async () => {
-      // Fallback: just create (upsert by id won't work — use findFirst + create)
+      // Fallback: just create (upsert by id won't work - use findFirst + create)
       const existing = await prisma.analyzeLead.findFirst({
         where: { email: email.toLowerCase().trim(), storeUrl },
       });
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
 
     // Send the report email asynchronously. score/grade are persisted on
     // the lead record above, but gradeLabel/topIssue/topFindings are only
-    // needed for this one-time email — passed straight through from the
+    // needed for this one-time email - passed straight through from the
     // request instead of adding columns for data nothing else reads.
     after(async () => {
       try {
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, id: lead.id });
   } catch (e) {
     console.error("[analyze/lead] Failed to save lead:", e);
-    // Don't fail the UX — return ok so the frontend flow continues
+    // Don't fail the UX - return ok so the frontend flow continues
     return NextResponse.json({ ok: true, saved: false });
   }
 }

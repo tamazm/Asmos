@@ -1,4 +1,4 @@
-// Hand-built line-art icon set for the homepage — kept as plain inline SVG
+// Hand-built line-art icon set for the homepage - kept as plain inline SVG
 // (currentColor strokes) rather than pulling in an icon library, matching
 // the existing Check/Arrow icons already hand-rolled on the homepage.
 // Every icon shares a 1.6px rounded stroke so they read as one family.
@@ -101,7 +101,7 @@ export function IconIntegrations({ className }: IconProps) {
   );
 }
 
-// Soft decorative blob used behind the hero — pure CSS-friendly SVG shape,
+// Soft decorative blob used behind the hero - pure CSS-friendly SVG shape,
 // tinted with currentColor + low opacity so it inherits whatever section
 // it's dropped into instead of hardcoding a color here.
 export function DecorativeBlob({ className }: IconProps) {

@@ -17,7 +17,7 @@ export async function POST(
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // Optional — lets an accepted AI insight suggestion (see InsightsPanel)
+  // Optional - lets an accepted AI insight suggestion (see InsightsPanel)
   // seed the new variant's copy instead of just cloning the control.
   const body = (await request.json().catch(() => ({}))) as {
     name?: string;
@@ -48,7 +48,7 @@ export async function POST(
   const nextName = body.name?.trim() || VARIANT_NAMES[campaign.variants.length];
   const evenSplit = Math.floor(100 / (campaign.variants.length + 1));
 
-  // Rewards live on the campaign now, not the variant — every variant under this
+  // Rewards live on the campaign now, not the variant - every variant under this
   // campaign already shares the same reward pool, so there's nothing to clone here.
   // We only create new RewardRules when an AI insight suggests one alongside this variant.
   const results = await prisma.$transaction([

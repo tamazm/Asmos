@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { inngest } from "@/lib/inngest/client";
 import { recomputeCampaignAllocation } from "@/lib/bandit";
 
-// Superadmin-only test harness for the knockout/bandit system — lets you
+// Superadmin-only test harness for the knockout/bandit system - lets you
 // skip the real-world wait for impressions to accumulate. See
 // components/TesterToolkit.tsx for the UI.
 async function requireSuperadmin() {

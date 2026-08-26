@@ -4,10 +4,10 @@ import { shopifyApi, ApiVersion, LogSeverity, type Shopify } from "@shopify/shop
 // Framework-agnostic Shopify API client (OAuth, token exchange, webhook
 // verification, Admin GraphQL). The web-api adapter registers Web-standard
 // Request/Response handling globally, which is what Next.js Route Handlers
-// use — do not also import the node adapter, the two conflict.
+// use - do not also import the node adapter, the two conflict.
 //
 // SHOPIFY_APP_URL is the app's public origin (e.g. "https://app.asmos.io",
-// or an ngrok/tunnel URL for local dev) — hostName below is that origin
+// or an ngrok/tunnel URL for local dev) - hostName below is that origin
 // with the protocol stripped, per @shopify/shopify-api's expected format.
 //
 // Instantiation is deferred behind a Proxy rather than done at module scope:

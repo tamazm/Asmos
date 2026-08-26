@@ -51,7 +51,7 @@ export async function sendContactNotification(params: {
     from: "Asmos Contact Form <hello@asmos.io>",
     to: "saba@asmos.io",
     replyTo: email,
-    subject: `[Contact] ${inquiryType} — ${company || name}`,
+    subject: `[Contact] ${inquiryType} - ${company || name}`,
     html: `
       <p><strong>Name:</strong> ${escapeHtml(name)}</p>
       <p><strong>Email:</strong> ${escapeHtml(email)}</p>
@@ -111,7 +111,7 @@ export async function sendReportEmail(params: {
   to: string;
   storeName: string | null;
   storeUrl: string;
-  // Optional — when present, the email cites this store's actual findings
+  // Optional - when present, the email cites this store's actual findings
   // instead of being a generic "your report is ready" notice. Ephemeral:
   // passed straight through from the results page's submit call
   // (api/analyze/lead/route.ts), not persisted on AnalyzeLead.
@@ -157,14 +157,14 @@ export async function sendReportEmail(params: {
       : "";
 
   const intro = hasScore
-    ? `<p>We just finished analyzing <strong>${displayStoreName}</strong> — here's what stood out.</p>`
+    ? `<p>We just finished analyzing <strong>${displayStoreName}</strong> - here's what stood out.</p>`
     : `<p>We have finished analyzing <strong>${displayStoreName}</strong>.</p>`;
 
   await resend.emails.send({
     from: "Asmos <hello@asmos.io>",
     to,
     subject: hasScore
-      ? `${displayStoreName} scored ${score}/100 — here's why`
+      ? `${displayStoreName} scored ${score}/100 - here's why`
       : `Your CRO report for ${displayStoreName} is ready`,
     html: `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:520px;">
       <p>Hi there,</p>

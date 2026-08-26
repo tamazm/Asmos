@@ -2,7 +2,7 @@
 -- 1. RewardType gains GIFT (fixed/physical prize with no code).
 -- 2. RewardRule gains a generic redemption cap (maxRedemptions/redemptionsCount)
 --    so non-coupon reward types (FREE_SHIPPING, GIFT, ...) can also be
---    "a fixed amount, not unlimited" — previously only CouponCode pools had
+--    "a fixed amount, not unlimited" - previously only CouponCode pools had
 --    any notion of a finite supply.
 -- 3. RewardRule gains `active` so a reward can be paused (excluded from
 --    selection/eligibility) without losing its history, and so it can be

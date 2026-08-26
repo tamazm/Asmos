@@ -3,7 +3,7 @@ import { dnaTokens, sharedComponentCss, dnaFontImport } from "./dnaCss";
 import { closeMarkup, resolveFlow, runtimeScript, stepsMarkup } from "./runtime";
 
 /**
- * CORNER TOAST — a small, non-blocking card anchored to a screen edge.
+ * CORNER TOAST - a small, non-blocking card anchored to a screen edge.
  *
  * No backdrop, no page-scroll lock, no focus trap: this template's whole point
  * is being ignorable, which makes it the natural low-intrusion arm of a
@@ -14,7 +14,7 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
   const goal = props.goal ?? "BOTH";
   const flow = resolveFlow(goal, dna);
 
-  // Neutral, not Asmos's own brand blue — generation now guarantees a real
+  // Neutral, not Asmos's own brand blue - generation now guarantees a real
   // colour on every spec, so this only fires on a malformed/legacy spec.
   const accent = primaryColor || "#111827";
 
@@ -34,7 +34,7 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
   // imagery that reads at this size is a thumbnail strip along the top.
   const showsImage = dna.image_treatment === "top_band" && Boolean(imageUrl);
 
-  // Entrance direction should follow the anchor — a toast docked bottom-right
+  // Entrance direction should follow the anchor - a toast docked bottom-right
   // sliding in from the left would look like a rendering bug.
   const slideFrom =
     dna.entrance === "slide_side"
@@ -95,9 +95,9 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
 
     ${sharedComponentCss(dna)}
 
-    /* A toast is a fraction of the width of a modal — clamp the DNA's type
+    /* A toast is a fraction of the width of a modal - clamp the DNA's type
        scale rather than letting "large" overflow a 340px card. */
-    /* The toast is a different medium, not a small modal — but a headline
+    /* The toast is a different medium, not a small modal - but a headline
        pinned at 19px regardless of "type_scale" meant a third of all generated
        popups rendered at exactly one size, and the type-scale axis carried no
        information on them at all. A narrow band that still tracks the scale
@@ -114,7 +114,7 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
     #asmosPopupOverlay .asmos-email-input { min-height: 42px; padding: 10px 12px; font-size: 13.5px; }
     #asmosPopupOverlay .asmos-code { padding: 10px 13px; font-size: 13px; }
     /* A 100px numeral would be most of a 348px toast. Keep the offer as a
-       figure — it still anchors the card — at a size the format can hold. */
+       figure - it still anchors the card - at a size the format can hold. */
     #asmosPopupOverlay .asmos-offer-value { font-size: 42px; }
     #asmosPopupOverlay .asmos-offer-unit { font-size: 20px; }
     #asmosPopupOverlay .asmos-offer-label { font-size: 10px; margin-left: 7px; }

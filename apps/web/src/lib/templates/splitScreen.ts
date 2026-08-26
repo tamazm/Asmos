@@ -4,7 +4,7 @@ import { dnaTokens, sharedComponentCss, overlayColor, dnaFontImport } from "./dn
 import { closeMarkup, resolveFlow, runtimeScript, stepsMarkup } from "./runtime";
 
 /**
- * SPLIT SCREEN — a centered modal card, optionally paired with an image.
+ * SPLIT SCREEN - a centered modal card, optionally paired with an image.
  *
  * This file used to hardcode a 10-minute countdown, a "Limited Time Offer"
  * eyebrow and the step-2 copy, which is why every popup Asmos ever generated
@@ -16,7 +16,7 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
   const goal = props.goal ?? "BOTH";
   const flow = resolveFlow(goal, dna);
 
-  // Neutral, not Asmos's own brand blue — generation now guarantees a real
+  // Neutral, not Asmos's own brand blue - generation now guarantees a real
   // colour on every spec, so this only fires on a malformed/legacy spec.
   const accent = primaryColor || "#111827";
   const img = imageUrl || DEFAULT_FALLBACK_IMAGE;
@@ -26,7 +26,7 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
   //
   // A missing image_url now means *no image*, not "substitute the default".
   // The old `imageUrl || DEFAULT_FALLBACK_IMAGE` meant a store with nothing
-  // suitable to show got a stock photo of a living room next to its offer —
+  // suitable to show got a stock photo of a living room next to its offer -
   // and, when the model reached for the library's discount photo, a picture of
   // "50%" next to a 10% offer. Irrelevant imagery is worse than none.
   const wantsImage =
@@ -91,7 +91,7 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
 
     #asmosPopupOverlay .asmos-content {
       /* Image on the right for split-right, via explicit order rather than
-         "direction: rtl" on the grid — rtl also flips scrollbar placement and
+         "direction: rtl" on the grid - rtl also flips scrollbar placement and
          reorders punctuation in any text that escapes the ltr reset. */
       ${isSideImage && layoutStyle === "split-right" ? "order: 1;" : ""}
       padding: var(--asmos-pad);
@@ -100,7 +100,7 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
       /* The composition axis comes from the DNA now, not from which side the
          image happens to sit on. Deriving text alignment from layout_style
          meant three of the four layouts were centred by accident rather than
-         by decision — see popupDna's TEXT_ALIGNS. */
+         by decision - see popupDna's TEXT_ALIGNS. */
       align-items: var(--asmos-align-items);
       justify-content: center;
       text-align: var(--asmos-align);
@@ -121,7 +121,7 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
       #asmosPopupOverlay .asmos-media { max-height: 22vh; }
       /* The composition axis survives the breakpoint.
          This block used to force "align-items: center; text-align: center" on
-         every popup under 720px — which is most of the traffic — so the
+         every popup under 720px - which is most of the traffic - so the
          "text_align" knob was inert exactly where it mattered most, and
          popupDna's own argument that centring is the loudest generated-design
          tell was being overridden by a media query. A left axis reads better in

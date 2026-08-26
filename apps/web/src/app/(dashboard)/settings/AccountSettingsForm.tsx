@@ -18,12 +18,12 @@ export function AccountSettingsForm({
   initialBannerText: string | null;
 }) {
   const [name, setName] = useState(initialName);
-  // Normalized through the same bucketer scraped data is matched against —
+  // Normalized through the same bucketer scraped data is matched against -
   // an existing account may still hold an older free-text value (this used
   // to be a different, unrelated 6-item list) or nothing at all, and this
   // maps either onto one of the exact buckets generation actually fetches by.
   const [industry, setIndustry] = useState<string>(normalizeIndustry(initialIndustry ?? ""));
-  // Brand colour is no longer a merchant-set field here at all — see
+  // Brand colour is no longer a merchant-set field here at all - see
   // popupGeneration.ts's brandTokensFromAnalyzeResult. Colour comes from what's
   // measured on the store's own site, or a real scraped colour from the same
   // industry as a fallback, never from something typed into a settings form.

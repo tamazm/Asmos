@@ -55,7 +55,7 @@ export function RewardsBoard({
   codeLimits: CodeLimits;
   campaigns: CampaignOption[];
   // Set only when a superadmin is editing another account's rewards from
-  // /admin/accounts/[id] — see lib/account.ts's resolveAccountForRequest.
+  // /admin/accounts/[id] - see lib/account.ts's resolveAccountForRequest.
   // Every write below threads this through so the API routes operate on the
   // account being viewed instead of the superadmin's own account.
   overrideAccountId?: string;
@@ -79,12 +79,12 @@ export function RewardsBoard({
   return (
     <div className="flex flex-col gap-6">
       {/* A popup never shows without a redeemable reward attached (see
-          generateCampaign.ts / api/widget/config/route.ts) — new campaigns
+          generateCampaign.ts / api/widget/config/route.ts) - new campaigns
           get one automatically, but this is where to add more, change
           quantities, or hand a reward off to a different campaign. */}
       <div className="rounded-xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 py-3 text-sm text-[color:var(--color-text-secondary)]">
         A popup won&apos;t show if its campaign has no active, unclaimed reward. Every new campaign is
-        stocked automatically — use this page to top up codes, pause/resize a reward, or move one to a
+        stocked automatically - use this page to top up codes, pause/resize a reward, or move one to a
         different campaign.
       </div>
 
@@ -176,7 +176,7 @@ function NewRewardForm({ campaigns, onDone, overrideAccountId }: { campaigns: Ca
   if (campaigns.length === 0) {
     return (
       <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 text-sm text-[color:var(--color-text-secondary)]">
-        Create a campaign first — rewards need a campaign to belong to.
+        Create a campaign first - rewards need a campaign to belong to.
       </div>
     );
   }
@@ -237,7 +237,7 @@ function NewRewardForm({ campaigns, onDone, overrideAccountId }: { campaigns: Ca
           <input
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="Shown internally only — not to visitors"
+            placeholder="Shown internally only - not to visitors"
             className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
           />
         </div>
@@ -251,7 +251,7 @@ function NewRewardForm({ campaigns, onDone, overrideAccountId }: { campaigns: Ca
       </div>
       {type === "COUPON" && (
         <p className="text-xs text-[color:var(--color-text-secondary)]">
-          After creating, use &quot;Generate promo codes&quot; on the new card to stock it — a COUPON
+          After creating, use &quot;Generate promo codes&quot; on the new card to stock it - a COUPON
           reward with no codes and no shared code won&apos;t be handed out.
         </p>
       )}
@@ -281,7 +281,7 @@ function RewardCard({
   const [prefix, setPrefix] = useState("");
 
   // Real per-tier caps from the backend (lib/limits.ts), not a hardcoded
-  // "max 1000" — the account-wide remaining budget is often the tighter of
+  // "max 1000" - the account-wide remaining budget is often the tighter of
   // the two limits once an account has existing codes, so the generate
   // panel's actual ceiling is whichever is smaller.
   const remainingBudget = Math.max(0, codeLimits.totalCap - codeLimits.totalExisting);
@@ -854,7 +854,7 @@ function ManageCodesModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={`Manage codes — ${rewardLabel}`}
+      title={`Manage codes - ${rewardLabel}`}
       subtitle={`${totalUnfiltered.toLocaleString()} total code${totalUnfiltered === 1 ? "" : "s"}`}
       size="xl"
     >
