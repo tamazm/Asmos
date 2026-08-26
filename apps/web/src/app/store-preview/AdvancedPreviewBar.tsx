@@ -66,13 +66,15 @@ function AdvancedPreviewBarInner({ campaigns }: { campaigns: PreviewCampaign[] }
   }
 
   return (
-    <div className="bg-[#1a1a1a] border-b border-gray-800 text-white p-4 shadow-xl z-[2147483647] relative flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
-      <div className="flex flex-col md:flex-row gap-6">
+    <div className="relative z-[2147483647] flex w-full max-w-full flex-col items-stretch justify-between gap-4 overflow-x-hidden border-b border-gray-800 bg-[#1a1a1a] p-3 text-white shadow-xl sm:p-4 md:flex-row md:items-center md:gap-6">
+      <div className="flex min-w-0 flex-1 flex-col gap-4 md:flex-row md:gap-6">
         {/* Campaign Selection */}
-        <div className="flex flex-col gap-2">
-          <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Campaign</span>
+        <div className="flex min-w-0 flex-col gap-2 md:max-w-72">
+          <label htmlFor="preview-campaign" className="text-xs font-semibold uppercase tracking-wider text-gray-400">Campaign</label>
           <select 
-            className="bg-gray-800 border border-gray-700 rounded-md px-3 py-1.5 text-sm outline-none focus:border-indigo-500"
+            id="preview-campaign"
+            name="previewCampaign"
+            className="w-full min-w-0 max-w-full rounded-md border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-white outline-none focus:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-400"
             value={selectedCampaignId}
             onChange={(e) => handleCampaignSelect(e.target.value)}
           >
@@ -83,20 +85,20 @@ function AdvancedPreviewBarInner({ campaigns }: { campaigns: PreviewCampaign[] }
         </div>
 
         {/* Variant Selection */}
-        <div className="flex flex-col gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
           <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Variant Preview</span>
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex min-w-0 flex-wrap gap-2">
             {variants.map(v => (
               <button
                 key={v.id}
                 onClick={() => updateUrlVariant(v.id)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-md border transition-colors flex items-center gap-2 ${
+                className={`flex min-h-10 max-w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${
                   initialVariantId === v.id 
                     ? "bg-indigo-600 border-indigo-500 text-white" 
                     : "bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white"
                 }`}
               >
-                {v.name}
+                <span className="min-w-0 break-words">{v.name}</span>
                 {v.isControl && <span className="bg-gray-600 text-white px-1.5 rounded-sm text-[10px]">Control</span>}
               </button>
             ))}
@@ -105,7 +107,7 @@ function AdvancedPreviewBarInner({ campaigns }: { campaigns: PreviewCampaign[] }
         </div>
       </div>
       
-      <div className="flex items-center gap-4">
+      <div className="flex min-w-0 items-center gap-4">
         <Link href="/campaigns" className="text-sm text-gray-400 hover:text-white underline underline-offset-4">Back to Dashboard</Link>
       </div>
     </div>

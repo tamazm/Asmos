@@ -58,7 +58,7 @@ export function WebsiteManagement({ websites }: { websites: WebsiteRow[] }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+    <div className="flex min-w-0 flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 sm:p-6">
       <h2 className="text-sm font-medium text-[color:var(--color-text-primary)]">
         Website management
       </h2>
@@ -72,13 +72,13 @@ export function WebsiteManagement({ websites }: { websites: WebsiteRow[] }) {
         {websites.map((site) => (
           <div
             key={site.id}
-            className="flex flex-col gap-3 rounded-lg border border-[color:var(--color-border)] px-4 py-3"
+            className="flex min-w-0 flex-col gap-3 rounded-lg border border-[color:var(--color-border)] px-3 py-3 sm:px-4"
           >
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-[color:var(--color-text-primary)]">
+            <div className="flex min-w-0 flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
+              <span className="min-w-0 break-all text-sm text-[color:var(--color-text-primary)]">
                 {site.url}
               </span>
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end sm:gap-3">
                 <Badge variant={site.installVerified ? "success" : "neutral"}>
                   {site.installVerified ? "Installed" : "Not detected"}
                 </Badge>
@@ -92,7 +92,7 @@ export function WebsiteManagement({ websites }: { websites: WebsiteRow[] }) {
                 </Button>
                 <Button
                   variant="secondary"
-                  onClick={() => window.open(`/store-preview?site=${encodeURIComponent(site.url)}`, '_blank')}
+                  onClick={() => window.open(`/preview?site=${encodeURIComponent(site.url)}`, "_blank")}
                 >
                   Preview how it looks
                 </Button>
@@ -106,7 +106,7 @@ export function WebsiteManagement({ websites }: { websites: WebsiteRow[] }) {
               </div>
             </div>
             {snippetForId === site.id && (
-              <pre className="overflow-x-auto rounded-lg bg-[color:var(--color-surface-sunken)] p-3 text-xs text-[color:var(--color-text-primary)]">
+              <pre className="max-w-full whitespace-pre-wrap break-all rounded-lg bg-[color:var(--color-surface-sunken)] p-3 text-xs text-[color:var(--color-text-primary)]">
                 {snippetFor(site.url)}
               </pre>
             )}
@@ -114,8 +114,8 @@ export function WebsiteManagement({ websites }: { websites: WebsiteRow[] }) {
         ))}
       </div>
 
-      <div className="flex items-end gap-2">
-        <div className="flex-1">
+      <div className="flex min-w-0 flex-col items-stretch gap-2 sm:flex-row sm:items-end">
+        <div className="min-w-0 flex-1">
           <label className="mb-1 block text-sm font-medium text-[color:var(--color-text-primary)]">
             Add another website
           </label>
@@ -127,7 +127,7 @@ export function WebsiteManagement({ websites }: { websites: WebsiteRow[] }) {
             className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
           />
         </div>
-        <Button onClick={handleAdd} className={adding ? "opacity-60" : ""}>
+        <Button onClick={handleAdd} className={adding ? "w-full opacity-60 sm:w-auto" : "w-full sm:w-auto"}>
           {adding ? "Adding…" : "Add site"}
         </Button>
       </div>

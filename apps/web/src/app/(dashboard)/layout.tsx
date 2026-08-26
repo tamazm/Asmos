@@ -35,7 +35,7 @@ export default async function DashboardLayout({
     // content height collapses to ~0 and can never independently scroll.
     <div className="fixed inset-0 flex overflow-hidden bg-[color:var(--color-surface-sunken)]">
       <Sidebar businessName={account.name} isSuperadmin={isSuperadmin} />
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Top bar */}
         <header className="flex h-14 shrink-0 items-center justify-end border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6">
           <div className="flex items-center gap-3">
@@ -44,7 +44,9 @@ export default async function DashboardLayout({
           </div>
         </header>
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto px-6 py-6">{children}</main>
+        <main className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-6 sm:py-6">
+          {children}
+        </main>
       </div>
       {isSuperadmin && <TesterToolkit />}
     </div>

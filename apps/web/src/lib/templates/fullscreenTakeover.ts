@@ -186,7 +186,15 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
     }
 
     @media (max-width: 720px) {
-      #asmosPopupOverlay .asmos-content { padding: 24px; align-items: center; text-align: center; }
+      #asmosPopupOverlay .asmos-content {
+        padding: max(72px, calc(24px + env(safe-area-inset-top))) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+        align-items: center;
+        text-align: center;
+      }
+      #asmosPopupOverlay .asmos-close {
+        top: max(12px, env(safe-area-inset-top));
+        right: max(12px, env(safe-area-inset-right));
+      }
       #asmosPopupOverlay .popup-step { align-items: center; }
       #asmosPopupOverlay .asmos-form { display: block; width: 100%; }
       #asmosPopupOverlay .asmos-form .asmos-cta { width: 100%; }

@@ -65,7 +65,7 @@ export function AccountSettingsForm({
   }
 
   return (
-    <div className="flex flex-col gap-5 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-6">
+    <div className="flex min-w-0 flex-col gap-5 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 sm:p-6">
       <h2 className="text-sm font-medium text-[color:var(--color-text-primary)]">
         Business profile
       </h2>
@@ -123,21 +123,21 @@ export function AccountSettingsForm({
       </h2>
 
       <div className="flex flex-col gap-3">
-        <label className="flex items-center gap-2 text-sm text-[color:var(--color-text-primary)]">
+        <label className="flex min-w-0 items-start gap-2 text-sm text-[color:var(--color-text-primary)]">
           <input
             type="checkbox"
             checked={gdpr}
             onChange={(e) => setGdpr(e.target.checked)}
-            className="h-4 w-4 rounded border-[color:var(--color-border)] accent-[color:var(--color-primary)]"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-[color:var(--color-border)] accent-[color:var(--color-primary)]"
           />
           Enable GDPR consent requirements (EU visitors)
         </label>
-        <label className="flex items-center gap-2 text-sm text-[color:var(--color-text-primary)]">
+        <label className="flex min-w-0 items-start gap-2 text-sm text-[color:var(--color-text-primary)]">
           <input
             type="checkbox"
             checked={ccpa}
             onChange={(e) => setCcpa(e.target.checked)}
-            className="h-4 w-4 rounded border-[color:var(--color-border)] accent-[color:var(--color-primary)]"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-[color:var(--color-border)] accent-[color:var(--color-primary)]"
           />
           Enable CCPA consent requirements (California visitors)
         </label>
@@ -155,7 +155,7 @@ export function AccountSettingsForm({
         />
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Button onClick={handleSave} className={saving ? "opacity-60" : ""}>
           {saving ? "Saving…" : "Save changes"}
         </Button>

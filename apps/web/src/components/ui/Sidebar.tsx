@@ -107,21 +107,21 @@ export function Sidebar({
   const pathname = usePathname();
 
   return (
-    <aside className="flex h-full w-56 flex-shrink-0 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)]">
+    <aside className="flex h-full w-14 flex-shrink-0 flex-col border-r border-[color:var(--color-border)] bg-[color:var(--color-surface)] md:w-56">
       {/* Logo area */}
-      <div className="flex h-14 items-center border-b border-[color:var(--color-border)] px-4">
+      <div className="flex h-14 items-center justify-center border-b border-[color:var(--color-border)] px-2 md:justify-start md:px-4">
         <Image
           src="/assets/asmos-logo-primary-lightbg.webp"
           alt="Asmos"
           width={100}
           height={25}
           priority
-          className="h-6 w-auto"
+          className="h-auto w-10 md:h-6 md:w-auto"
         />
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-1 flex-col gap-0.5 px-3 py-3">
+      <nav className="flex flex-1 flex-col gap-0.5 px-2 py-3 md:px-3">
         {NAV_ITEMS.map((item) => {
           const active =
             pathname === item.href || pathname?.startsWith(`${item.href}/`);
@@ -144,8 +144,10 @@ export function Sidebar({
             <Link
               key={item.href}
               href={item.href}
+              aria-label={item.label}
+              title={item.label}
               className={cn(
-                "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200",
+                "flex min-h-10 items-center justify-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium transition-[background-color,color] duration-200 md:justify-start md:px-3",
                 active
                   ? "bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
                   : "text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]",
@@ -153,10 +155,10 @@ export function Sidebar({
               aria-current={active ? "page" : undefined}
             >
               {item.icon}
-              <span className="truncate">{displayLabel}</span>
+              <span className="hidden truncate md:block">{displayLabel}</span>
               {active && (
                 <span
-                  className="ml-auto h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)] flex-shrink-0"
+                  className="ml-auto hidden h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[color:var(--color-primary)] md:block"
                   aria-hidden="true"
                 />
               )}
@@ -166,8 +168,10 @@ export function Sidebar({
         {isSuperadmin && (
           <Link
             href="/admin"
+            aria-label="Superadmin"
+            title="Superadmin"
             className={cn(
-              "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color] duration-200 mt-4",
+              "mt-4 flex min-h-10 items-center justify-center gap-2.5 rounded-lg px-2 py-2 text-sm font-medium transition-[background-color,color] duration-200 md:justify-start md:px-3",
               pathname === "/admin"
                 ? "bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
                 : "text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]",
@@ -179,13 +183,13 @@ export function Sidebar({
               <path d="M14 5L8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M2 5L8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
-            Superadmin
+            <span className="hidden md:block">Superadmin</span>
           </Link>
         )}
       </nav>
 
       {/* Footer hint — Double-Bezel callout */}
-      <div className="px-3 py-3 border-t border-[color:var(--color-border)] flex flex-col gap-2.5">
+      <div className="hidden flex-col gap-2.5 border-t border-[color:var(--color-border)] px-3 py-3 md:flex">
         {/* Workspace section */}
         {businessName && (
           <div className="flex items-center gap-2 px-1 py-1">

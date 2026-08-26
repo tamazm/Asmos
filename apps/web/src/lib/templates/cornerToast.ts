@@ -64,7 +64,10 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
       border-radius: var(--asmos-radius);
       border: 1px solid var(--asmos-border);
       box-shadow: var(--asmos-shadow);
-      overflow: hidden;
+      max-height: calc(100dvh - 40px);
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       transform: ${slideFrom};
       opacity: 0;
       transition: transform 340ms cubic-bezier(0.16,1,0.3,1), opacity 260ms ease-out;
@@ -115,8 +118,17 @@ export function renderCornerToastTemplate(props: ResolvedTemplateProps): string 
       /* Full-width bottom sheet on phones regardless of anchor. Resets the
          translateX the "centered" anchor sets, which would otherwise fight
          this override. */
-      #asmosPopupOverlay.asmos-toast-wrap { top: auto; left: 12px; right: 12px; bottom: 12px; transform: none; }
-      #asmosPopupOverlay .asmos-modal { width: 100%; }
+      #asmosPopupOverlay.asmos-toast-wrap {
+        top: auto;
+        left: max(12px, env(safe-area-inset-left));
+        right: max(12px, env(safe-area-inset-right));
+        bottom: max(12px, env(safe-area-inset-bottom));
+        transform: none;
+      }
+      #asmosPopupOverlay .asmos-modal {
+        width: 100%;
+        max-height: calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+      }
     }
   </style>
 

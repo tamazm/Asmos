@@ -119,6 +119,7 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
       #asmosPopupOverlay .asmos-form { display: block; }
       #asmosPopupOverlay .asmos-form .asmos-cta { width: 100%; }
       #asmosPopupOverlay .asmos-email-input { margin-bottom: 10px; }
+      #asmosPopupOverlay .asmos-close { top: 6px; right: 6px; left: auto; }
     }
   </style>
 
