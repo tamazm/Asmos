@@ -126,7 +126,6 @@ model Account {
   campaigns                 Campaign[]
   invites                   Invite[]
   notifications             Notification[]
-  shopifyIntegrationRequests ShopifyIntegrationRequest[]
 }
 
 model User {
@@ -449,22 +448,6 @@ model CampaignInsight {
   createdAt DateTime @default(now())
 
   @@index([campaignId, createdAt])
-}
-
-// A merchant clicking "Request Shopify integration" on the Integrations tab —
-// the Shopify OAuth flow isn't built yet, so this just logs interest with
-// contact info for the superadmin to follow up manually. One row per account
-// (see the @@unique) so re-clicking after the fact doesn't spam duplicates.
-model ShopifyIntegrationRequest {
-  id        String   @id @default(cuid())
-  accountId String
-  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  email     String
-  name      String?
-  storeUrl  String?
-  createdAt DateTime @default(now())
-
-  @@unique([accountId])
 }
 
 // In-app notification bell items
