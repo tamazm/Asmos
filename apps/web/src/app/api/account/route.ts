@@ -21,7 +21,6 @@ export async function GET() {
     id: account.id,
     name: account.name,
     industry: account.industry,
-    brandColor: account.brandColor,
     websites,
   });
 }
@@ -35,7 +34,6 @@ export async function PATCH(request: Request) {
   const body = (await request.json()) as {
     name?: string;
     industry?: string;
-    brandColor?: string;
     consentGdprEnabled?: boolean;
     consentCcpaEnabled?: boolean;
     consentBannerText?: string;
@@ -51,7 +49,6 @@ export async function PATCH(request: Request) {
     data: {
       name: body.name.trim(),
       industry: body.industry?.trim() || null,
-      brandColor: body.brandColor?.trim() || null,
       consentGdprEnabled: Boolean(body.consentGdprEnabled),
       consentCcpaEnabled: Boolean(body.consentCcpaEnabled),
       consentBannerText: body.consentBannerText?.trim() || null,
@@ -62,7 +59,6 @@ export async function PATCH(request: Request) {
     account: {
       name: updated.name,
       industry: updated.industry,
-      brandColor: updated.brandColor,
       consentGdprEnabled: updated.consentGdprEnabled,
       consentCcpaEnabled: updated.consentCcpaEnabled,
       consentBannerText: updated.consentBannerText,

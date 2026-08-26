@@ -1,6 +1,27 @@
 import { currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 import { inngest } from "@/lib/inngest/client";
+import { isSuperadminEmail } from "@/lib/superadmin";
+
+// Lets a verified superadmin act on a specific account (e.g. editing that
+// account's rewards from /admin/accounts/[id]) by passing an explicit
+// accountId, while leaving ordinary account-holder requests completely
+// unchanged: explicitAccountId is only ever honored after confirming the
+// caller's own email is in the superadmin allowlist, so a non-superadmin
+// passing an arbitrary accountId has zero effect — they still just get
+// their own account via getOrCreateAccount(), exactly as before this
+// function existed. Returns null only for "explicit id given, caller is a
+// superadmin, but that account doesn't exist" — callers should 404 on that.
+export async function resolveAccountForRequest(explicitAccountId?: string | null) {
+  if (explicitAccountId) {
+    const user = await currentUser();
+    const email = user?.primaryEmailAddress?.emailAddress;
+    if (isSuperadminEmail(email)) {
+      return prisma.account.findUnique({ where: { id: explicitAccountId } });
+    }
+  }
+  return getOrCreateAccount();
+}
 
 export async function getOrCreateAccount() {
   const user = await currentUser();

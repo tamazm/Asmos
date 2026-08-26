@@ -6,6 +6,8 @@ import { pickWeightedReward, generateCouponCode } from "@/lib/reward";
 import { sendRewardEmail } from "@/lib/email";
 import { recomputeCampaignAllocation } from "@/lib/bandit";
 import { dispatchWebhook } from "@/lib/webhook";
+import { capturePostHogEvents, isPostHogCaptureConfigured } from "@/lib/posthog-server";
+import { classifyUserIntent } from "@/lib/userIntent";
 
 export async function OPTIONS() {
   return corsPreflight();
@@ -25,6 +27,14 @@ export async function POST(request: Request) {
     visitorId?: string;
     scrollDepthPct?: number;
     timeOnPageSeconds?: number;
+    device?: string;
+    pageUrl?: string;
+    referrer?: string;
+    utmSource?: string;
+    utmMedium?: string;
+    utmCampaign?: string;
+    timeToFirstKeystrokeMs?: number | null;
+    fieldFocusCount?: number;
   };
 
   if (!body.variantId) {
@@ -102,7 +112,28 @@ export async function POST(request: Request) {
       .catch((err) => console.error("[reward] redemptionsCount increment failed", err));
   }
 
+  const userIntent = classifyUserIntent({
+    eventType: "SUBMISSION",
+    scrollDepthPct: body.scrollDepthPct,
+    timeOnPageSeconds: body.timeOnPageSeconds,
+    timeToFirstKeystrokeMs: body.timeToFirstKeystrokeMs,
+    fieldFocusCount: body.fieldFocusCount,
+    converted: true,
+  });
+
   const conversionDetails = {
+    device: body.device,
+    pageUrl: body.pageUrl,
+    referrer: body.referrer,
+    utmSource: body.utmSource,
+    utmMedium: body.utmMedium,
+    utmCampaign: body.utmCampaign,
+    timeToFirstKeystrokeMs: body.timeToFirstKeystrokeMs ?? undefined,
+    fieldFocusCount: body.fieldFocusCount,
+    userIntentLevel: userIntent.level,
+    userIntentScore: userIntent.score,
+    userIntentSignals: userIntent.signals,
+    userIntentVersion: userIntent.version,
     scrollDepthPct: body.scrollDepthPct,
     timeOnPageSeconds: body.timeOnPageSeconds,
   };
@@ -167,29 +198,46 @@ export async function POST(request: Request) {
     }
   });
 
-  // Forward email_captured event to PostHog for behavioral observability.
-  const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  if (posthogKey) {
+  // Forward the conversion plus its intent cohort to PostHog.
+  if (isPostHogCaptureConfigured()) {
     after(async () => {
       try {
-        await fetch("https://eu.i.posthog.com/capture/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            api_key: posthogKey,
-            event: "email_captured",
-            distinct_id: body.visitorId || `widget_visitor_${variant.id}`,
-            properties: {
-              campaign_id: variant.campaignId,
-              variant_id: variant.id,
-              variant_name: variant.name,
-              has_reward: Boolean(reward),
-              reward_type: reward?.type ?? null,
-            },
-          }),
-        });
+        const distinctId = body.visitorId || `widget_visitor_${variant.id}`;
+        const sharedProperties = {
+          store_id: `campaign_${variant.campaignId}`,
+          campaign_id: variant.campaignId,
+          popup_id: variant.campaignId,
+          variant_id: variant.id,
+          variant_name: variant.name,
+          test_axis: variant.testAxis,
+          hypothesis: variant.hypothesis,
+          motivating_metric: variant.motivatingMetric,
+          has_reward: Boolean(reward),
+          reward_type: reward?.type ?? null,
+          device: body.device,
+          page_url: body.pageUrl,
+          referrer: body.referrer,
+          utm_source: body.utmSource,
+          utm_medium: body.utmMedium,
+          utm_campaign: body.utmCampaign,
+          scroll_depth_pct: body.scrollDepthPct,
+          time_on_page_s: body.timeOnPageSeconds,
+          time_to_first_keystroke_ms: body.timeToFirstKeystrokeMs,
+          field_focus_count: body.fieldFocusCount,
+          user_intent_level: userIntent.level,
+          user_intent_score: userIntent.score,
+          user_intent_signals: userIntent.signals,
+          user_intent_version: userIntent.version,
+          $current_url: body.pageUrl,
+        };
+
+        await capturePostHogEvents([
+          { event: "email_captured", distinctId, properties: sharedProperties },
+          { event: "asmos_popup_converted", distinctId, properties: sharedProperties },
+          { event: "asmos_user_intent_scored", distinctId, properties: sharedProperties },
+        ]);
       } catch (err) {
-        console.error("[posthog] email_captured forwarding failed", err);
+        console.error("[posthog] conversion forwarding failed", err);
       }
     });
   }

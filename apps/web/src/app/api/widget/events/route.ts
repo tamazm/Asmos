@@ -2,6 +2,11 @@ import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { corsJson, corsPreflight } from "@/lib/cors";
 import { recomputeCampaignAllocation } from "@/lib/bandit";
+import { capturePostHogEvents, isPostHogCaptureConfigured } from "@/lib/posthog-server";
+import { classifyUserIntent } from "@/lib/userIntent";
+
+/** At most one knockout evaluation per campaign per window. */
+const EVALUATION_INTERVAL_MS = 30 * 60 * 1000;
 
 const VALID_TYPES = ["IMPRESSION", "INTERACTION", "SUBMISSION", "GIFT_CLAIMED", "DISMISSED"] as const;
 type EventType = (typeof VALID_TYPES)[number];
@@ -18,6 +23,7 @@ export async function POST(request: Request) {
     // correlate events from the same visitor and gives PostHog a real
     // distinct_id instead of one shared synthetic id per variant.
     visitorId?: string;
+    device?: string;
     // Behavioral context (optional)
     pageUrl?: string;
     referrer?: string;
@@ -58,8 +64,26 @@ export async function POST(request: Request) {
   }
 
   const eventType = type as EventType;
+  const userIntent = classifyUserIntent({
+    eventType,
+    step: body.step,
+    scrollDepthPct: body.scrollDepthPct,
+    timeOnPageSeconds: body.timeOnPageSeconds,
+    dismissAfterMs: body.dismissAfterMs,
+    deadClicks: body.deadClicks,
+    rageClicks: body.rageClicks,
+    fieldFocusCount: body.fieldFocusCount,
+    timeToFirstKeystrokeMs: body.timeToFirstKeystrokeMs,
+    typedChars: body.typedChars,
+    abandonedField: body.abandonedField,
+    ctaHoverNoClickMs: body.ctaHoverNoClickMs,
+    scrolledInside: body.scrolledInside,
+    reachedStep: body.reachedStep,
+    converted: body.converted,
+  });
 
   const details = {
+    device: body.device,
     pageUrl: body.pageUrl,
     referrer: body.referrer,
     utmSource: body.utmSource,
@@ -81,6 +105,10 @@ export async function POST(request: Request) {
     converted: body.converted,
     msSinceOpen: body.msSinceOpen,
     targetTag: body.targetTag,
+    userIntentLevel: userIntent.level,
+    userIntentScore: userIntent.score,
+    userIntentSignals: userIntent.signals,
+    userIntentVersion: userIntent.version,
   };
   const hasDetails = Object.values(details).some((v) => v !== undefined);
 
@@ -102,15 +130,36 @@ export async function POST(request: Request) {
       try {
         await recomputeCampaignAllocation(variantId);
         
-        // Evaluate knockout bracket every 1000 impressions
+        // Evaluate the knockout bracket periodically.
+        //
+        // This used to run `count(*)` over every impression the campaign had
+        // ever recorded, on every single impression, and fire when the total
+        // was exactly divisible by 1000. Two concurrent requests could both
+        // miss the boundary (never firing) or both hit it (firing twice), and
+        // the full-table count was pure overhead on the hot path.
+        //
+        // Time-based instead: at most one evaluation per campaign per window,
+        // decided by a single indexed read.
         if (eventType === "IMPRESSION") {
-          const variant = await prisma.variant.findUnique({ where: { id: variantId } });
-          if (variant) {
-            const impressions = await prisma.campaignEvent.count({
-              where: { variant: { campaignId: variant.campaignId }, type: "IMPRESSION" }
+          const variant = await prisma.variant.findUnique({
+            where: { id: variantId },
+            select: { campaignId: true, campaign: { select: { lastEvaluatedAt: true } } },
+          });
+          const lastEvaluated = variant?.campaign?.lastEvaluatedAt?.getTime() ?? 0;
+          if (variant && Date.now() - lastEvaluated > EVALUATION_INTERVAL_MS) {
+            // Claim the window before dispatching, so a burst of concurrent
+            // events produces one evaluation rather than one each.
+            const claimed = await prisma.campaign.updateMany({
+              where: {
+                id: variant.campaignId,
+                OR: [
+                  { lastEvaluatedAt: null },
+                  { lastEvaluatedAt: { lt: new Date(Date.now() - EVALUATION_INTERVAL_MS) } },
+                ],
+              },
+              data: { lastEvaluatedAt: new Date() },
             });
-            
-            if (impressions > 0 && impressions % 1000 === 0) {
+            if (claimed.count > 0) {
               const { inngest } = await import("@/lib/inngest/client");
               await inngest.send({ name: "campaign.evaluate", data: { campaignId: variant.campaignId } });
             }
@@ -125,9 +174,9 @@ export async function POST(request: Request) {
   // Forward behavioral context to PostHog as a fire-and-forget background task.
   // PostHog is the observability/explainability layer — not the bandit data source.
   // Skip silently if NEXT_PUBLIC_POSTHOG_KEY is not configured.
-  const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  if (posthogKey) {
+  if (isPostHogCaptureConfigured()) {
     const {
+      device,
       pageUrl,
       referrer,
       utmSource,
@@ -177,6 +226,7 @@ export async function POST(request: Request) {
           hypothesis: variant?.hypothesis,
           motivating_metric: variant?.motivatingMetric,
           // Behavioral context
+          device,
           page_url: pageUrl,
           referrer: referrer,
           utm_source: utmSource,
@@ -195,35 +245,29 @@ export async function POST(request: Request) {
           abandoned_field: body.abandonedField,
           cta_hover_no_click_ms: body.ctaHoverNoClickMs,
           reached_step: body.reachedStep,
+          user_intent_level: userIntent.level,
+          user_intent_score: userIntent.score,
+          user_intent_signals: userIntent.signals,
+          user_intent_version: userIntent.version,
           $current_url: pageUrl,
         };
 
-        // Fire both: legacy widget_* name AND schema-required asmos_popup_* name
+        // Fire both the legacy widget_* name and schema-required aliases.
         const events = [
           {
             event: `widget_${eventType.toLowerCase()}`,
-            distinct_id: distinctId,
+            distinctId,
             properties: sharedProperties,
           },
-          // Only fire the asmos_* alias for the three canonical event types
           ...(asmosEventName
-            ? [{
-                event: asmosEventName,
-                distinct_id: distinctId,
-                properties: sharedProperties,
-              }]
+            ? [{ event: asmosEventName, distinctId, properties: sharedProperties }]
+            : []),
+          ...(eventType === "INTERACTION" && step === "session_summary"
+            ? [{ event: "asmos_user_intent_scored", distinctId, properties: sharedProperties }]
             : []),
         ];
 
-        // Batch-send using PostHog's /batch/ endpoint to minimise round trips
-        await fetch("https://eu.i.posthog.com/batch/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            api_key: posthogKey,
-            batch: events,
-          }),
-        });
+        await capturePostHogEvents(events);
       } catch (err) {
         console.error("[posthog] widget event forwarding failed", err);
       }

@@ -84,12 +84,12 @@ export default function SignInPage() {
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-2">
           <Image
-            src="/assets/asmos-logo-stacked-lightbg.webp"
+            src="/assets/logo.webp"
             alt="Asmos"
-            width={80}
-            height={80}
+            width={152}
+            height={32}
             priority
-            className="h-16 w-auto"
+            className="h-8 w-auto"
           />
         </div>
 

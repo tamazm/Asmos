@@ -42,6 +42,12 @@ enum CampaignStatus {
   ACTIVE
   PAUSED
   FAILED
+  // Soft-delete: used instead of an actual row delete once a campaign has
+  // real history (leads captured, events recorded) worth keeping — see
+  // DELETE handler in app/api/campaigns/[id]/route.ts. Hidden from the
+  // campaigns list and never served by the widget, same as any non-ACTIVE
+  // status, but the data survives.
+  ARCHIVED
 }
 
 enum VariantStatus {
@@ -81,6 +87,15 @@ model Account {
   // Onboarding profile fields (collected during lean onboarding step 1)
   ownerRole      String? // founder | marketer | developer | agency | other
   conversionGoal String? // email_capture | discount | contest | lead_gen
+
+  // Conversion-goal target, set inline from the dashboard's Conversion Goal
+  // card. targetCvr is stored in percentage points (30 = 30%), matching how
+  // conversion rate is displayed everywhere else in the app rather than a
+  // 0-1 fraction that every read site would have to remember to multiply.
+  // Both stay null until the user sets a target; the card renders its setup
+  // state in that case instead of inventing a goal.
+  targetCvr      Float?
+  goalTargetAt   DateTime?
   monthlyTraffic String? // lt_1k | 1k_10k | 10k_100k | gt_100k
   emailPlatform  String? // klaviyo | mailchimp | omnisend | none | other
 
@@ -106,11 +121,12 @@ model Account {
   subscriptionStatus SubscriptionStatus @default(TRIALING)
   stripeCustomerId   String?            @unique
 
-  users         User[]
-  websites      Website[]
-  campaigns     Campaign[]
-  invites       Invite[]
-  notifications Notification[]
+  users                     User[]
+  websites                  Website[]
+  campaigns                 Campaign[]
+  invites                   Invite[]
+  notifications             Notification[]
+  shopifyShop               ShopifyShop?
 }
 
 model User {
@@ -157,9 +173,63 @@ model Website {
   installVerifiedAt DateTime?
   createdAt         DateTime  @default(now())
 
-  campaigns Campaign[]
+  campaigns    Campaign[]
+  storeProfile StoreProfile?
 
   @@index([accountId])
+}
+
+/// What we actually understand about a merchant's store.
+///
+/// Before this existed, the entire output of /api/analyze — palette, typefaces,
+/// imagery style, signature element, detected popup — lived in sessionStorage
+/// through onboarding and was then dropped: the only brand columns anywhere
+/// were Account.industry and Account.brandColor, two strings. It survived into
+/// a campaign only because NewCampaignForm happened to spread the raw analyze
+/// blob into generationContext, and evaluateKnockout explicitly discarded it
+/// from round two onward. That is why generated popups got the store's name
+/// right and nothing else.
+///
+/// Every field records where it came from and how confident we are, in
+/// `sources`, so the generator can weight a measured palette differently from
+/// an inferred brand voice — and so a field that failed extraction reads as
+/// null rather than as a plausible-looking default.
+model StoreProfile {
+  id        String  @id @default(cuid())
+  websiteId String  @unique
+  website   Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
+
+  // ── What they sell (from the catalogue: products.json / Store API / JSON-LD)
+  category      String? // "children's sleepwear", never "Ecommerce / Retail"
+  subcategories String[] @default([])
+  audience      String? // "parents of under-fives"
+  priceBandMin  Int? // minor units (pence/cents)
+  priceBandMax  Int?
+  priceBandMedian Int?
+  currency      String?
+  productCount  Int?
+
+  // ── How it looks (from the DOM, measured, not guessed)
+  palette       Json? // [{ hex, areaShare, role }]
+  typeDisplay   String?
+  typeBody      String?
+  buttonStyle   Json? // { radius, textTransform, letterSpacing, fontWeight, bg, fg }
+  borderRadius  String?
+  logoUrl       String?
+  productImages String[] @default([]) // the store's own photography, ranked
+
+  // ── How it sounds (the one place a model is the right tool)
+  brandVoice      String?
+  valueProps      String[] @default([])
+  signatureDetail String?
+
+  // ── Bookkeeping
+  platform        String? // shopify | woocommerce | custom
+  detectedPopup   Json?
+  sources         Json? // per-field provenance + confidence
+  confirmedByUser Boolean  @default(false)
+  analyzedAt      DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model Campaign {
@@ -192,6 +262,16 @@ model Campaign {
   insights CampaignInsight[]
   rewards  RewardRule[]
 
+  // Explicit stamp for the bandit's recompute throttle. It used to infer this
+  // from max(variants.updatedAt), so once the allocation stabilised no row was
+  // written, the clock stopped advancing, and every subsequent widget event ran
+  // a full 4,000-sample Monte Carlo over every arm.
+  allocationComputedAt DateTime?
+  // When the knockout bracket was last evaluated. Replaces an
+  // `impressions % 1000 === 0` check that ran a full-table count on every
+  // impression and was racy at the boundary in both directions.
+  lastEvaluatedAt      DateTime?
+
   @@index([accountId])
   @@index([websiteId])
 }
@@ -210,6 +290,11 @@ model Variant {
   isControl       Boolean       @default(false)
   status          VariantStatus @default(ACTIVE)
   tournamentRound Int           @default(1)
+  // Consecutive knockout evaluations in which this arm's posterior probability
+  // of being best sat below the elimination threshold. Requiring two in a row
+  // means one unlucky window cannot end a variant on its own. Reset whenever
+  // the arm climbs back above the threshold.
+  eliminationStrikes Int        @default(0)
 
   // Popup builder output: design, form fields, targeting/trigger rules.
   // Kept as JSON rather than normalized tables — no querying needs beyond
@@ -366,6 +451,23 @@ model CampaignInsight {
   @@index([campaignId, createdAt])
 }
 
+// A Shopify shop that has installed the app. accountId is unique — one
+// Account per shop; the tenant is auto-provisioned on first install, no
+// Clerk sign-up involved (this is what "well integrated app" requires).
+// accessToken is encrypted at rest — see src/lib/crypto.ts.
+model ShopifyShop {
+  id            String    @id @default(cuid())
+  accountId     String    @unique
+  account       Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  shopDomain    String    @unique // e.g. "example.myshopify.com"
+  accessToken   String
+  scope         String
+  installedAt   DateTime  @default(now())
+  uninstalledAt DateTime?
+
+  @@index([shopDomain])
+}
+
 // In-app notification bell items
 model Notification {
   id        String    @id @default(cuid())
@@ -447,4 +549,43 @@ model LearnedPattern {
   reviewedBy     String?
 
   @@index([status])
+}
+
+// A real popup, scraped from a high-traffic live site, kept as design
+// grounding for generation (see popupGeneration.ts's getScrapedExamplesSection).
+//
+// Unlike LearnedPattern above, there's no human-approval gate here: the sites
+// fed into the scraper (lib/popupScraping.ts's POPUP_SCRAPE_FN, run by a
+// local-only, gitignored script — never a deployed job) are hand-picked by a
+// human to be popular, high-traffic stores, so a captured row is trusted the
+// moment it exists. The only filter generation applies is `present` — a
+// scrape that found no popup on the page has nothing useful to offer.
+model ScrapedPopupExample {
+  id            String   @id @default(cuid())
+  sourceUrl     String
+  // Host + path, lowercased, protocol/www/query/hash/trailing-slash stripped
+  // (lib/popupScraping.ts's normalizeUrl) — the dedupe key, so scraping
+  // https://Example.com/ twice (or with/without www, http vs https) doesn't
+  // produce two rows or spend a second Browserless call on the same site.
+  normalizedUrl String   @unique
+  segment       String // raw label as scraped, e.g. "Retail"
+  industry      String // normalized bucket (lib/popupScraping.ts's normalizeIndustry) — what generation matches on
+
+  present       Boolean  @default(false)
+  html          String?  @db.Text
+  // Everything about the design itself, as one connected object — copy,
+  // colour (by role: card background, CTA accent, headline text — not just a
+  // flat palette), typography, shape, density, imagery — matching the shape
+  // of lib/popupDna.ts's knobs so a scraped example is actually comparable to
+  // a generated one. See ScrapedPopupDesign in lib/popupScraping.ts. Used to
+  // be six separate flat columns (headline/subhead/ctaText/templateGuess/
+  // layoutGuess/palette) with no connection between them — you could see a
+  // popup had a blue palette and separately that it had a pill button, but
+  // nothing said the button *was* the blue thing.
+  design        Json?
+  screenshot    String?  @db.Text // base64 data: URL, cropped to just the popup element
+
+  scrapedAt     DateTime @default(now())
+
+  @@index([industry, present])
 }

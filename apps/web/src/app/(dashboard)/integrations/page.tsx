@@ -9,94 +9,90 @@ interface Integration {
   id: string;
   name: string;
   description: string;
-  category: "email" | "ecommerce" | "automation";
+  category: "email" | "automation";
   docsUrl?: string;
   icon: React.ReactNode;
 }
 
-const INTEGRATIONS: Integration[] = [
-  {
-    id: "klaviyo",
-    name: "Klaviyo",
-    description: "Sync captured leads directly into Klaviyo lists and trigger email flows.",
-    category: "email",
-    docsUrl: "https://www.klaviyo.com/",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#1A1A1A" />
-        <text x="8" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">K</text>
-      </svg>
-    ),
-  },
-  {
-    id: "mailchimp",
-    name: "Mailchimp",
-    description: "Add email submissions to Mailchimp audiences automatically.",
-    category: "email",
-    docsUrl: "https://mailchimp.com/",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#FFE01B" />
-        <text x="9" y="27" fontSize="18" fontWeight="bold" fill="#1A1A1A" fontFamily="serif">M</text>
-      </svg>
-    ),
-  },
-  {
-    id: "shopify",
-    name: "Shopify",
-    description: "Pull product catalog data and sync discount codes with Shopify.",
-    category: "ecommerce",
-    docsUrl: "https://shopify.com/",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#96BF48" />
-        <text x="12" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">S</text>
-      </svg>
-    ),
-  },
-  {
-    id: "zapier",
-    name: "Zapier",
-    description: "Connect Asmos to 5000+ apps. Trigger zaps on lead capture events.",
-    category: "automation",
-    docsUrl: "https://zapier.com/",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#FF4A00" />
-        <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">Z</text>
-      </svg>
-    ),
-  },
-  {
-    id: "hubspot",
-    name: "HubSpot",
-    description: "Send leads to HubSpot CRM contacts and lists.",
-    category: "email",
-    docsUrl: "https://hubspot.com/",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#FF7A59" />
-        <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">H</text>
-      </svg>
-    ),
-  },
-  {
-    id: "webhooks",
-    name: "Webhooks",
-    description: "Receive real-time POST notifications on lead captured and variant winner events.",
-    category: "automation",
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#6366F1" />
-        <path d="M12 28l4-8 4 4 4-6 4 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
-  },
-];
+// ── Disabled facade integrations ────────────────────────────────────────────
+// Klaviyo, Mailchimp, HubSpot, Zapier: the "Connect" flow genuinely saved an
+// API key, but no background job ever read it back out to forward leads —
+// so from a merchant's perspective, clicking Connect did nothing. Commented
+// out (not deleted) until the sync job exists. See IntegrationCard below,
+// still used if any of these come back.
+//
+// const DISABLED_INTEGRATIONS: Integration[] = [
+//   {
+//     id: "klaviyo",
+//     name: "Klaviyo",
+//     description: "Sync captured leads directly into Klaviyo lists and trigger email flows.",
+//     category: "email",
+//     docsUrl: "https://www.klaviyo.com/",
+//     icon: (
+//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+//         <rect width="40" height="40" rx="8" fill="#1A1A1A" />
+//         <text x="8" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">K</text>
+//       </svg>
+//     ),
+//   },
+//   {
+//     id: "mailchimp",
+//     name: "Mailchimp",
+//     description: "Add email submissions to Mailchimp audiences automatically.",
+//     category: "email",
+//     docsUrl: "https://mailchimp.com/",
+//     icon: (
+//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+//         <rect width="40" height="40" rx="8" fill="#FFE01B" />
+//         <text x="9" y="27" fontSize="18" fontWeight="bold" fill="#1A1A1A" fontFamily="serif">M</text>
+//       </svg>
+//     ),
+//   },
+//   {
+//     id: "zapier",
+//     name: "Zapier",
+//     description: "Connect Asmos to 5000+ apps. Trigger zaps on lead capture events.",
+//     category: "automation",
+//     docsUrl: "https://zapier.com/",
+//     icon: (
+//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+//         <rect width="40" height="40" rx="8" fill="#FF4A00" />
+//         <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">Z</text>
+//       </svg>
+//     ),
+//   },
+//   {
+//     id: "hubspot",
+//     name: "HubSpot",
+//     description: "Send leads to HubSpot CRM contacts and lists.",
+//     category: "email",
+//     docsUrl: "https://hubspot.com/",
+//     icon: (
+//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+//         <rect width="40" height="40" rx="8" fill="#FF7A59" />
+//         <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">H</text>
+//       </svg>
+//     ),
+//   },
+// ];
+
+const WEBHOOKS_INTEGRATION: Integration = {
+  id: "webhooks",
+  name: "Webhooks",
+  description: "Receive real-time POST notifications on lead captured and variant winner events.",
+  category: "automation",
+  icon: (
+    <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+      <rect width="40" height="40" rx="8" fill="#6366F1" />
+      <path d="M12 28l4-8 4 4 4-6 4 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+};
+
+const INTEGRATIONS: Integration[] = [WEBHOOKS_INTEGRATION];
 
 const CATEGORY_LABELS = {
   email: "Email marketing",
-  ecommerce: "Ecommerce",
   automation: "Automation",
 } as const;
 
@@ -515,13 +511,12 @@ export default function IntegrationsPage() {
             {CATEGORY_LABELS[cat]}
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {INTEGRATIONS.filter((i) => i.category === cat).map((integration) =>
-              integration.id === "webhooks" ? (
-                <WebhookCard key={integration.id} integration={integration} />
-              ) : (
-                <IntegrationCard key={integration.id} integration={integration} />
-              ),
-            )}
+            {INTEGRATIONS.filter((i) => i.category === cat).map((integration) => {
+              if (integration.id === "webhooks") {
+                return <WebhookCard key={integration.id} integration={integration} />;
+              }
+              return <IntegrationCard key={integration.id} integration={integration} />;
+            })}
           </div>
         </section>
       ))}

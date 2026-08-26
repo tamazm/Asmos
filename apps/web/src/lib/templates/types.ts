@@ -44,6 +44,13 @@ export interface PopupTemplateProps {
    * spec as `discount_percent` and never rendered until now.
    */
   discountPercent?: number | null;
+  /**
+   * Which template is rendering. Set by `renderPopupTemplate`; templates
+   * themselves don't read it. The contrast audit does: the fullscreen takeover
+   * paints its own scrim and overrides every ink token, so measuring it against
+   * the card surface would report failures that aren't on screen.
+   */
+  templateId?: string | null;
 }
 
 /** Props after normalization — what each template actually receives. */

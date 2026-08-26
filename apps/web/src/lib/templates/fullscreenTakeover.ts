@@ -16,7 +16,9 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
   const goal = props.goal ?? "BOTH";
   const flow = resolveFlow(goal, dna);
 
-  const accent = primaryColor || "#165DFF";
+  // Neutral, not Asmos's own brand blue — generation now guarantees a real
+  // colour on every spec, so this only fires on a malformed/legacy spec.
+  const accent = primaryColor || "#111827";
   const bgImg = imageUrl || DEFAULT_FALLBACK_IMAGE;
   // No image_url means the accent gradient below, not a stock photo standing in
   // for one — see splitScreen.ts for the reasoning.
@@ -90,7 +92,7 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
       height: 100%;
       display: flex;
       flex-direction: column;
-      /* justify-content: center on a fixed-height flex column silently clips
+      /* "justify-content: center" on a fixed-height flex column silently clips
          overflow at BOTH ends, and unlike scroll-overflow there is no scrollbar
          to hint that anything is missing. With a display-size offer figure
          stacked above a 76px headline the content routinely exceeds a laptop
@@ -172,9 +174,15 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
     #asmosPopupOverlay .asmos-code { max-width: 460px; }
     #asmosPopupOverlay .asmos-dismiss { color: rgba(255,255,255,0.72); }
     ${
-      dna.button_fill === "solid"
-        ? ""
-        : `#asmosPopupOverlay .asmos-cta { --asmos-btn-fg: #ffffff; --asmos-btn-border: rgba(255,255,255,0.8); }`
+      // An OUTLINE button on this template is text directly on the dark scrim,
+      // so it wants white ink and a white hairline. A DARK-fill button already
+      // resolves to a light panel with dark ink (see buttonColors) and must be
+      // left alone: forcing white here put a white label on a #f5f5f7 button —
+      // a measured 1.09:1, i.e. an invisible primary call-to-action, on roughly
+      // 3% of every popup this system generated.
+      dna.button_fill === "outline"
+        ? `#asmosPopupOverlay .asmos-cta { --asmos-btn-fg: #ffffff; --asmos-btn-border: rgba(255,255,255,0.8); }`
+        : ""
     }
 
     @media (max-height: 700px) {
@@ -186,16 +194,24 @@ export function renderFullscreenTakeoverTemplate(props: ResolvedTemplateProps): 
     }
 
     @media (max-width: 720px) {
+      /* The composition axis survives the breakpoint. This block used to force
+         "align-items: center; text-align: center", so layout_style — and with
+         it the whole left/centre decision — was inert on most of the traffic.
+         The headline keeps its own vw-based clamp above; it already scales.
+
+         Anchoring the stack to the lower half also gives the takeover a real
+         mobile composition instead of the desktop one scaled down: on a phone
+         the old centred layout left roughly 60% of the screen as empty scrim
+         with the content floating in the middle of it. */
       #asmosPopupOverlay .asmos-content {
-        padding: max(72px, calc(24px + env(safe-area-inset-top))) max(20px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
-        align-items: center;
-        text-align: center;
+        padding: max(72px, calc(24px + env(safe-area-inset-top))) max(20px, env(safe-area-inset-right)) max(24px, calc(env(safe-area-inset-bottom, 0px) + 10vh)) max(20px, env(safe-area-inset-left));
+        justify-content: safe flex-end;
       }
+      #asmosPopupOverlay .asmos-headline { max-width: 100%; }
       #asmosPopupOverlay .asmos-close {
         top: max(12px, env(safe-area-inset-top));
         right: max(12px, env(safe-area-inset-right));
       }
-      #asmosPopupOverlay .popup-step { align-items: center; }
       #asmosPopupOverlay .asmos-form { display: block; width: 100%; }
       #asmosPopupOverlay .asmos-form .asmos-cta { width: 100%; }
       #asmosPopupOverlay .asmos-email-input { margin-bottom: 10px; }

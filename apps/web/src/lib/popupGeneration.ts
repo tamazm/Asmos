@@ -16,12 +16,16 @@ import { anthropic } from "@/lib/anthropic";
 import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 import { confidenceVsControl } from "@/lib/stats";
 import { prisma } from "@/lib/prisma";
+import { hogqlString, isPostHogQueryConfigured, queryPostHog } from "@/lib/posthog-server";
+import { classifyUserIntent, userIntentLevelFromScore } from "@/lib/userIntent";
 import { formatImageLibraryForPrompt, isLibraryImage, UNSERVED_STORE_TYPES } from "@/lib/imageLibrary";
+import { normalizeIndustry, type ScrapedPopupDesign } from "@/lib/popupScraping";
 import {
   dnaFingerprint,
   normalizeDna,
   popupDnaJsonSchema,
   type PopupDna,
+  type CornerRadius,
 } from "@/lib/popupDna";
 import {
   briefToPromptSection,
@@ -36,9 +40,6 @@ import {
 
 
 // ─── Environment ─────────────────────────────────────────────────────────────
-const POSTHOG_PERSONAL_API_KEY = process.env.POSTHOG_PERSONAL_API_KEY ?? "";
-const POSTHOG_PROJECT_ID = process.env.POSTHOG_PROJECT_ID ?? "";
-const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://eu.i.posthog.com";
 const HAS_ANTHROPIC_KEY = Boolean(process.env.ANTHROPIC_API_KEY);
 const HAS_AWS_KEY = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
 const AWS_REGION = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "eu-north-1";
@@ -48,6 +49,24 @@ const BEDROCK_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
 
 export type SignificanceFlag = "conclusive" | "inconclusive" | "insufficient_data";
 export type TestAxis = "trigger" | "friction" | "copy" | "layout" | "visual";
+
+export type UserIntentAnalytics = {
+  total_visitors: number;
+  low_intent_visitors: number;
+  medium_intent_visitors: number;
+  high_intent_visitors: number;
+  high_intent_rate: number;
+  average_intent_score: number | null;
+};
+
+const EMPTY_USER_INTENT: UserIntentAnalytics = {
+  total_visitors: 0,
+  low_intent_visitors: 0,
+  medium_intent_visitors: 0,
+  high_intent_visitors: 0,
+  high_intent_rate: 0,
+  average_intent_score: null,
+};
 
 export type BrandTokens = {
   palette: string[];           // hex colors, 4-6 entries
@@ -98,6 +117,9 @@ export type AnalyticsVariant = {
   // Pre-classified from the fields above (see classifyFailurePatterns) so the
   // model doesn't have to re-derive the same heuristic on every call.
   failure_patterns: FailurePattern[];
+  // Highest demonstrated intent per visitor, aggregated for campaign
+  // improvement only. This does not affect bandit traffic allocation.
+  intent: UserIntentAnalytics;
 };
 
 export type UxSignals = {
@@ -344,6 +366,12 @@ VARIANT GENERATION (always runs, after IMPROVE_EXISTING or CREATE_NEW)
     - "insufficient_data" -> fall back to the cold-start ranked order below; don't over-fit to noise.
     - Prefer citing a failure_pattern + its concrete evidence in motivating_metric over a bare
       percentage — that's the difference between "this is what's happening" and "this is why."
+  - USER INTENT (analytics.variants[].intent) is aggregate diagnostic evidence for creating the next
+    variants only. Never use it to target an individual visitor or to change traffic allocation.
+    - high_intent_rate is the share of tracked visitors whose strongest demonstrated score reached 60+.
+    - High intent with low conversion points to popup friction, clarity, or trust: preserve the audience
+      and fix the experience. Mostly low intent points first to trigger timing or offer relevance.
+    - Cite an intent cohort in motivating_metric when it materially changes the diagnosis.
 - If analytics.variants is empty (cold start):
   - Use the ranked default order: trigger/timing -> friction -> copy/offer framing -> layout -> visual/micro-details.
   - Generate exactly constraints.variant_count variants (0 = no variants, only baseline).
@@ -688,7 +716,7 @@ export function computeSignificanceFlag(
 
 export async function fetchVariantAnalytics(campaignId: string): Promise<AnalyticsVariant[]> {
   // Prefer PostHog query API if configured
-  if (POSTHOG_PERSONAL_API_KEY && POSTHOG_PROJECT_ID) {
+  if (isPostHogQueryConfigured()) {
     try {
       return await fetchFromPostHog(campaignId);
     } catch (err) {
@@ -699,27 +727,12 @@ export async function fetchVariantAnalytics(campaignId: string): Promise<Analyti
   return fetchFromPostgres(campaignId);
 }
 
-async function postHogQuery<T = unknown>(hogql: string): Promise<T[]> {
-  const res = await fetch(`${POSTHOG_HOST}/api/projects/${POSTHOG_PROJECT_ID}/query/`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${POSTHOG_PERSONAL_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ query: { kind: "HogQLQuery", query: hogql } }),
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!res.ok) throw new Error(`PostHog query failed: ${res.status}`);
-  const data = await res.json();
-  return (data.results ?? []) as T[];
-}
-
 async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]> {
   // Use PostHog Events API to aggregate asmos_popup_* events per variant.
   // avg_dismiss_ms added for the AI popup variation roadmap (Phase 0) —
   // dismiss_after_ms is only present on asmos_popup_dismissed events, so
   // avgIf naturally ignores rows where it's null.
-  const rows = await postHogQuery<[string, number, number, number, number | null]>(`
+  const rows = await queryPostHog<[string, number, number, number, number | null]>(`
     SELECT
       properties.variant_id AS variant_id,
       countIf(event = 'asmos_popup_shown') AS impressions,
@@ -728,7 +741,7 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
       avgIf(toFloat(properties.dismiss_after_ms), event = 'asmos_popup_dismissed') AS avg_dismiss_ms
     FROM events
     WHERE
-      properties.campaign_id = '${campaignId}'
+      properties.campaign_id = ${hogqlString(campaignId)}
       AND event IN ('asmos_popup_shown', 'asmos_popup_converted', 'asmos_popup_dismissed')
       AND timestamp > now() - interval 90 day
     GROUP BY variant_id
@@ -736,20 +749,51 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
 
   if (rows.length === 0) return [];
 
+  // One intent cohort per visitor and variant. A visitor can progress from
+  // low to high across a session, so use their highest demonstrated score
+  // instead of counting every intermediate event as a separate person.
+  let intentRows: Array<[string, number, number, number, number, number | null]> = [];
+  try {
+    intentRows = await queryPostHog<[string, number, number, number, number, number | null]>(`
+      SELECT
+        variant_id,
+        countIf(visitor_intent_score < 30) AS low_intent_visitors,
+        countIf(visitor_intent_score >= 30 AND visitor_intent_score < 60) AS medium_intent_visitors,
+        countIf(visitor_intent_score >= 60) AS high_intent_visitors,
+        count() AS total_visitors,
+        round(avg(visitor_intent_score), 1) AS average_intent_score
+      FROM (
+        SELECT
+          toString(properties.variant_id) AS variant_id,
+          distinct_id,
+          max(toFloat(properties.user_intent_score)) AS visitor_intent_score
+        FROM events
+        WHERE
+          properties.campaign_id = ${hogqlString(campaignId)}
+          AND properties.user_intent_score IS NOT NULL
+          AND timestamp > now() - interval 90 day
+        GROUP BY variant_id, distinct_id
+      )
+      GROUP BY variant_id
+    `);
+  } catch (err) {
+    console.warn("[popupGeneration] PostHog intent query failed, continuing without it:", err);
+  }
+
   // Funnel-step breakdown: widget_interaction is fired (see
   // /api/widget/events) whenever a template reports a step transition or
   // field-level engagement (funnel_step property). Separate query since it's
   // a different event name/shape than the asmos_popup_* aggregate above.
   let funnelRows: Array<[string, string, number]> = [];
   try {
-    funnelRows = await postHogQuery<[string, string, number]>(`
+    funnelRows = await queryPostHog<[string, string, number]>(`
       SELECT
         properties.variant_id AS variant_id,
         properties.funnel_step AS step,
         count() AS n
       FROM events
       WHERE
-        properties.campaign_id = '${campaignId}'
+        properties.campaign_id = ${hogqlString(campaignId)}
         AND event = 'widget_interaction'
         AND properties.funnel_step IS NOT NULL
         AND timestamp > now() - interval 90 day
@@ -769,6 +813,31 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
   // writes every event to CampaignEvent first, and the per-session summary is
   // a nested JSON blob that's far cheaper to aggregate here than in HogQL.
   const uxByVariant = await fetchUxSignalsFromPostgres(campaignId);
+
+  // PostHog returns plain counts as JSON numbers but Decimals (anything from
+  // round(avg(...))) as strings, so coerce instead of trusting the tuple type.
+  const toNumber = (value: unknown): number => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+  const intentByVariant = new Map<string, UserIntentAnalytics>(
+    intentRows.map(([variantId, low, medium, high, total, average]) => {
+      const totalVisitors = toNumber(total);
+      const highVisitors = toNumber(high);
+      const averageScore = Number(average);
+      return [
+        variantId,
+        {
+          total_visitors: totalVisitors,
+          low_intent_visitors: toNumber(low),
+          medium_intent_visitors: toNumber(medium),
+          high_intent_visitors: highVisitors,
+          high_intent_rate: totalVisitors > 0 ? highVisitors / totalVisitors : 0,
+          average_intent_score: Number.isFinite(averageScore) ? averageScore : null,
+        },
+      ];
+    }),
+  );
 
   // Find control variant stats for significance computation
   const controlVariant = await prisma.variant.findFirst({
@@ -806,6 +875,7 @@ async function fetchFromPostHog(campaignId: string): Promise<AnalyticsVariant[]>
       avg_dismiss_after_ms: typeof avg_dismiss_ms === "number" ? Math.round(avg_dismiss_ms) : null,
       funnel: funnelByVariant.get(variant_id) ?? [],
       ux: uxByVariant.get(variant_id) ?? EMPTY_UX,
+      intent: intentByVariant.get(variant_id) ?? EMPTY_USER_INTENT,
     };
     return { ...base, failure_patterns: classifyFailurePatterns(base) };
   });
@@ -852,6 +922,52 @@ async function fetchUxSignalsFromPostgres(campaignId: string): Promise<Map<strin
   return out;
 }
 
+function summarizeUserIntent(events: Array<{
+  id: string;
+  type: string;
+  visitorId: string | null;
+  details: unknown;
+}>): UserIntentAnalytics {
+  const highestScoreByVisitor = new Map<string, number>();
+  for (const event of events) {
+    const details = (event.details ?? {}) as Record<string, unknown>;
+    const storedScore = details.userIntentScore;
+    const computed = classifyUserIntent({
+      eventType: event.type,
+      step: details.step as number | string | undefined,
+      scrollDepthPct: details.scrollDepthPct as number | undefined,
+      timeOnPageSeconds: details.timeOnPageSeconds as number | undefined,
+      dismissAfterMs: details.dismissAfterMs as number | undefined,
+      deadClicks: details.deadClicks as number | undefined,
+      rageClicks: details.rageClicks as number | undefined,
+      fieldFocusCount: details.fieldFocusCount as number | undefined,
+      timeToFirstKeystrokeMs: details.timeToFirstKeystrokeMs as number | null | undefined,
+      typedChars: details.typedChars as number | undefined,
+      abandonedField: details.abandonedField as boolean | undefined,
+      ctaHoverNoClickMs: details.ctaHoverNoClickMs as number | undefined,
+      scrolledInside: details.scrolledInside as boolean | undefined,
+      reachedStep: details.reachedStep as number | undefined,
+      converted: details.converted as boolean | undefined,
+    });
+    const score = typeof storedScore === "number" ? storedScore : computed.score;
+    const visitorKey = event.visitorId ?? `event:${event.id}`;
+    highestScoreByVisitor.set(visitorKey, Math.max(highestScoreByVisitor.get(visitorKey) ?? 0, score));
+  }
+
+  const scores = [...highestScoreByVisitor.values()];
+  if (scores.length === 0) return EMPTY_USER_INTENT;
+  const counts = { low: 0, medium: 0, high: 0 };
+  for (const score of scores) counts[userIntentLevelFromScore(score)] += 1;
+  return {
+    total_visitors: scores.length,
+    low_intent_visitors: counts.low,
+    medium_intent_visitors: counts.medium,
+    high_intent_visitors: counts.high,
+    high_intent_rate: counts.high / scores.length,
+    average_intent_score: Math.round((scores.reduce((sum, score) => sum + score, 0) / scores.length) * 10) / 10,
+  };
+}
+
 async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]> {
   const variants = await prisma.variant.findMany({
     where: { campaignId, status: { not: "ELIMINATED" } },
@@ -860,7 +976,7 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
       testAxis: true,
       design: true,
       isControl: true,
-      events: { select: { type: true, details: true } },
+      events: { select: { id: true, type: true, visitorId: true, details: true } },
     },
   });
 
@@ -918,6 +1034,7 @@ async function fetchFromPostgres(campaignId: string): Promise<AnalyticsVariant[]
       avg_dismiss_after_ms,
       funnel,
       ux: aggregateUxSignals(sessionSummaries),
+      intent: summarizeUserIntent(v.events),
     };
     return { ...base, failure_patterns: classifyFailurePatterns(base) };
   });
@@ -1209,6 +1326,52 @@ async function getLearnedPatternsSection(): Promise<string> {
   }
 }
 
+// Real popups scraped from high-traffic live sites (see lib/popupScraping.ts
+// and scripts/popup-scraper/), industry-matched — the model's only source of
+// actual visual/structural grounding, instead of picking template_id and
+// layout_style as blind enum names. No review gate, unlike learned patterns
+// above: the source sites are hand-picked to already be high quality, so a
+// captured row is trusted the moment it exists (see model comment on
+// ScrapedPopupExample). Best-effort, same as getLearnedPatternsSection.
+async function getScrapedExamplesSection(rawIndustry: string | null | undefined): Promise<string> {
+  if (!rawIndustry) return "";
+  try {
+    const industry = normalizeIndustry(rawIndustry);
+    const examples = await prisma.scrapedPopupExample.findMany({
+      where: { industry, present: true },
+      orderBy: { scrapedAt: "desc" },
+      take: 5,
+      select: { design: true },
+    });
+    if (examples.length === 0) return ""; // no off-industry examples — same "when in doubt, null" rule as imagery
+    // Deliberately NOT including these examples' own colours: brand_tokens.palette
+    // (the merchant's own analyzed site) is the one and only colour source and is
+    // explicitly locked/never-invented elsewhere in this prompt. Showing a
+    // second, concrete set of hex codes here — even captioned "don't copy
+    // this" — is a strictly weaker instruction than a lock, and risks exactly
+    // the failure this section should never cause: the model reaching for
+    // some other store's colour instead of this merchant's own.
+    const lines = examples
+      .map((e) => e.design as Partial<ScrapedPopupDesign> | null)
+      .filter((d): d is Partial<ScrapedPopupDesign> => d !== null)
+      .map((d) => {
+        const shape = [d.buttonShape, d.buttonFill].filter(Boolean).join("/");
+        const extras = [d.density, shape].filter(Boolean).join(", ");
+        return `- ${d.template ?? "unknown"}/${d.layout ?? "unknown"}${extras ? ` (${extras})` : ""}: "${d.headline}" / "${d.subhead}" / CTA "${d.ctaText}"`;
+      });
+    if (lines.length === 0) return "";
+    return (
+      "\n\nREAL EXAMPLES FROM THIS INDUSTRY (scraped from high-traffic live sites — for structural and\n" +
+      "tonal grounding only; never take colour from these, only from brand_tokens.palette above; do not\n" +
+      "copy any of these verbatim):\n" +
+      lines.join("\n")
+    );
+  } catch (err) {
+    console.warn("[popupGeneration] failed to fetch scraped examples, continuing without them:", err);
+    return "";
+  }
+}
+
 // ─── Content & Compliance Guardrails (server-side safety net) ────────────────
 //
 // The prompt instructs the model not to suggest illegal/regulated/absurd
@@ -1395,7 +1558,42 @@ export async function generatePopupWithVariants(
   input: PopupGenerationInput,
   briefs?: GenerationBriefs,
 ): Promise<PopupGenerationOutput> {
-  const systemPrompt = POPUP_GENERATION_SYSTEM_PROMPT + (await getLearnedPatternsSection());
+  // The merchant's own real measured colour, if the caller found one (via
+  // brandTokensFromAnalyzeResult/StoreProfile) — captured before it gets
+  // overridden below. Used only to judge which scraped examples are actually
+  // relevant to THIS merchant; never applied as an output colour itself.
+  const queryColor = input.brand_tokens?.palette?.[0] ?? null;
+
+  // Generation is scraped-data-only now: no merchant site extraction, no
+  // generic default. Resolved before any provider call, both to fail fast
+  // and so a missing-coverage failure never costs an AI call.
+  const scrapedDesigns = await pickScrapedDesigns(input.store.category, input.constraints.variant_count + 1, queryColor);
+  if (scrapedDesigns.length === 0) {
+    throw new Error(
+      `No scraped popup examples available for industry "${normalizeIndustry(input.store.category)}" — cannot generate without scraped design data. Scrape some sites in this industry first.`,
+    );
+  }
+
+  // Colour/font ground truth now comes from the scraped design, not the
+  // merchant's own analyzed site — overrides whatever the caller computed
+  // via brandTokensFromAnalyzeResult before calling here. The existing
+  // prompt language ("brand_tokens.palette are LOCKED... use as ground
+  // truth") is unchanged; what it describes now is just different.
+  const primary = scrapedDesigns[0];
+  input.brand_tokens = {
+    palette: [primary.accentColor, primary.backgroundColor, primary.textColor].filter(
+      (c): c is string => Boolean(c),
+    ),
+    type_display: primary.headlineFont ?? "system-ui, -apple-system, sans-serif",
+    type_body: primary.bodyFont ?? "system-ui, -apple-system, sans-serif",
+    imagery_style: primary.hasImage ? "product-forward" : "minimal",
+    signature_element_suggestion: "match the reference popup's own visual treatment",
+  };
+
+  const systemPrompt =
+    POPUP_GENERATION_SYSTEM_PROMPT +
+    (await getLearnedPatternsSection()) +
+    (await getScrapedExamplesSection(input.store?.category));
   const userMessage = buildUserMessage(input, briefs);
   // Whatever the merchant configured (or DEFAULT_MAX_DISCOUNT_PERCENT if
   // they didn't) — already sanity-bounded in buildPopupInput, not re-capped
@@ -1404,7 +1602,24 @@ export async function generatePopupWithVariants(
 
   const finish = (result: PopupGenerationOutput): PopupGenerationOutput => {
     const briefed = briefs ? applyBriefs(result, briefs) : result;
-    return applyContentGuardrails(normalizeOutputDna(briefed), maxDiscountPercent);
+    // Structure/shape/density/imagery forced from real scraped designs —
+    // cycling through the pool so baseline and each variant can still read
+    // as visually distinct from each other, even though every value traces
+    // back to a real scraped popup rather than the model's own invention.
+    // Copy is untouched. Applied before normalizeOutputDna so its safety net
+    // still coerces anything this step left alone.
+    const designed: PopupGenerationOutput = {
+      ...briefed,
+      baseline: {
+        ...briefed.baseline,
+        spec: applyScrapedDesign(briefed.baseline.spec, scrapedDesigns[0]),
+      },
+      variants: briefed.variants.map((v, i) => ({
+        ...v,
+        spec: applyScrapedDesign(v.spec, scrapedDesigns[(i + 1) % scrapedDesigns.length]),
+      })),
+    };
+    return applyContentGuardrails(normalizeOutputDna(designed), maxDiscountPercent);
   };
 
   // Provider priority: Bedrock (AWS) → Anthropic direct → Gemini
@@ -1445,23 +1660,193 @@ export async function generatePopupWithVariants(
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Derive sensible brand tokens from the data /api/analyze already returns. */
-export function brandTokensFromAnalyzeResult(result: {
-  brandColor?: string;
+/**
+ * The true last-resort colour: nothing was measured on the store's own site
+ * and no brandColor was ever chosen. Used to default every such store to
+ * Asmos's own brand blue, which meant any store whose extraction genuinely
+ * failed rendered a popup that visibly matched *our* brand, not theirs, by
+ * sheer coincidence of failure. Reaches into the same scraped-popup-by-
+ * industry data getScrapedExamplesSection uses, and takes a real dominant
+ * colour from a real popup in that industry instead — still not this
+ * specific merchant's own colour (nothing can substitute for that), but a
+ * plausible one for their kind of store rather than a generic default that's
+ * secretly Asmos's. Falls back to Asmos's blue only when there's no scraped
+ * data for that industry either — the one case nothing real is available.
+ */
+const HEX_RE = /^#[0-9a-f]{6}$/i;
+
+export async function industryFallbackColor(industry: string | undefined): Promise<string> {
+  // Neutral, not Asmos's own brand blue — this whole function is now a
+  // dead-for-purpose safety net anyway: generatePopupWithVariants throws
+  // before generation can ever reach a point where this return value would
+  // actually be used (see the top of that function).
+  const NEUTRAL_FALLBACK = "#111827";
+  if (!industry) return NEUTRAL_FALLBACK;
+  try {
+    const bucket = normalizeIndustry(industry);
+    const examples = await prisma.scrapedPopupExample.findMany({
+      where: { industry: bucket, present: true },
+      orderBy: { scrapedAt: "desc" },
+      take: 10,
+      select: { design: true },
+    });
+    for (const e of examples) {
+      const design = e.design as Partial<ScrapedPopupDesign> | null;
+      if (!design) continue;
+      // The CTA button's own colour is the most deliberately "brand" choice
+      // in a popup — merchants pick that colour on purpose, whereas the
+      // overall painted-area palette below is just as likely to be a large
+      // neutral background or body-text colour with nothing brand-like
+      // about it. Prefer it; fall back to the palette only if no button was
+      // captured on that particular popup.
+      if (typeof design.accentColor === "string" && HEX_RE.test(design.accentColor)) {
+        return design.accentColor;
+      }
+      const palette = design.palette;
+      if (!Array.isArray(palette) || palette.length === 0) continue;
+      const sorted = [...palette].sort((a, b) => {
+        const aShare = (a as { areaShare?: number })?.areaShare ?? 0;
+        const bShare = (b as { areaShare?: number })?.areaShare ?? 0;
+        return bShare - aShare;
+      });
+      const hex = (sorted[0] as { hex?: unknown })?.hex;
+      if (typeof hex === "string" && HEX_RE.test(hex)) return hex;
+    }
+  } catch (err) {
+    console.warn("[popupGeneration] failed to fetch industry fallback colour, using default:", err);
+  }
+  return NEUTRAL_FALLBACK;
+}
+
+/**
+ * Real scraped popup designs for a merchant's industry — up to `count`
+ * distinct ones, most recent first. Generation is now scraped-data-only: no
+ * merchant's own site extraction, no generic default. Callers are expected
+ * to throw when this comes back empty (see generatePopupWithVariants) rather
+ * than degrading to anything else.
+ */
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = hex.match(/^#([0-9a-f]{6})$/i);
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+/** Straight RGB Euclidean distance — cheap, good enough for "same ballpark". */
+function colorDistance(a: string, b: string): number {
+  const ca = hexToRgb(a);
+  const cb = hexToRgb(b);
+  if (!ca || !cb) return Infinity;
+  return Math.sqrt((ca[0] - cb[0]) ** 2 + (ca[1] - cb[1]) ** 2 + (ca[2] - cb[2]) ** 2);
+}
+
+function designColor(d: ScrapedPopupDesign): string {
+  return d.accentColor ?? d.backgroundColor ?? d.palette[0]?.hex ?? "";
+}
+
+/**
+ * Scraped designs for a merchant's industry, ranked by relevance rather than
+ * pure recency or pure chance. With hundreds of rows in one industry, always
+ * taking "most recent" leaves most of them permanently unused, and picking
+ * randomly turns design quality into a coin flip. Instead: when the
+ * merchant's own real colour is known (queryColor — measured off their site,
+ * never used as the output colour itself, only to judge relevance), rank the
+ * whole pool by colour closeness and take the closest matches. Falls back to
+ * recency when there's no colour to match against at all (a brand-new store,
+ * or one whose extraction genuinely found nothing).
+ */
+async function pickScrapedDesigns(
+  industry: string | null | undefined,
+  count: number,
+  queryColor: string | null,
+): Promise<ScrapedPopupDesign[]> {
+  const bucket = normalizeIndustry(industry ?? "");
+  const rows = await prisma.scrapedPopupExample.findMany({
+    where: { industry: bucket, present: true },
+    orderBy: { scrapedAt: "desc" },
+    take: 200, // a wide pool to rank within — the poolSize below is the actual selection count
+    select: { design: true },
+  });
+  const designs = rows.map((r) => r.design as ScrapedPopupDesign).filter((d): d is ScrapedPopupDesign => Boolean(d));
+  const poolSize = Math.max(count, 5);
+
+  if (!queryColor) return designs.slice(0, poolSize);
+
+  return [...designs]
+    .sort((a, b) => colorDistance(queryColor, designColor(a)) - colorDistance(queryColor, designColor(b)))
+    .slice(0, poolSize);
+}
+
+/**
+ * Forces a spec's structure/shape/density/imagery to match a real scraped
+ * design — the same "code-level enforcement, not just a prompt instruction"
+ * lesson the colour lock already applies, extended to everything visual.
+ * Copy (headline/subhead/cta/etc.) is untouched: that stays the model's own
+ * work, informed but not dictated by scraped examples.
+ */
+function applyScrapedDesign(spec: PopupSpec, d: ScrapedPopupDesign): PopupSpec {
+  const cornerBucket = (px: string | null): CornerRadius => {
+    const n = px ? parseFloat(px) : 0;
+    if (!Number.isFinite(n) || n <= 0) return "sharp";
+    return n < 14 ? "soft" : n < 28 ? "rounded" : "pill";
+  };
+  const layout = d.layout;
+  const validLayout = layout === "split-left" || layout === "split-right" || layout === "centered" || layout === "minimal";
+  const palette = [d.accentColor, d.backgroundColor, d.textColor].filter((c): c is string => Boolean(c));
+
+  return {
+    ...spec,
+    template_id: d.template ?? spec.template_id,
+    layout_style: validLayout ? (layout as PopupSpec["layout_style"]) : spec.layout_style,
+    design_tokens: {
+      palette: palette.length > 0 ? palette : spec.design_tokens.palette,
+      type_display: d.headlineFont ?? spec.design_tokens.type_display,
+      type_body: d.bodyFont ?? spec.design_tokens.type_body,
+    },
+    dna: {
+      ...spec.dna,
+      corner_radius: cornerBucket(d.cornerRadius),
+      button_shape: d.buttonShape ?? spec.dna.button_shape,
+      button_fill: d.buttonFill === "solid" || d.buttonFill === "outline" ? d.buttonFill : spec.dna.button_fill,
+      density: d.density ?? spec.dna.density,
+      image_treatment: !d.hasImage
+        ? "none"
+        : d.imagePosition === "top"
+          ? "top_band"
+          : d.imagePosition === "background"
+            ? "background"
+            : "side",
+      elevation: d.hasShadow ? "raised" : "flat",
+    },
+  };
+}
+
+export async function brandTokensFromAnalyzeResult(result: {
   brandTokens?: BrandTokens;
   computedStyles?: ComputedStyles;
   storeName?: string;
   industry?: string;
-}): BrandTokens {
-  // A brandTokens object with an empty palette is worse than none: it wins the
-  // check below and then renders every popup in the #165DFF default, silently
-  // discarding a brandColor that was successfully scraped.
+}): Promise<BrandTokens> {
+  // brandColor (an account-level field a merchant can manually set, or that
+  // analysis may have written there) is deliberately NOT a colour source
+  // here anymore — only a genuinely measured palette counts. It used to be:
+  // any account whose colour got stuck on a stale or placeholder value (see
+  // the onboarding/settings fixes earlier this session) would keep feeding
+  // that value into every future generation regardless of what the store's
+  // own site actually measures to. Colour now comes exclusively from what
+  // was actually measured, or — failing that — a real colour from a scraped
+  // popup in the same industry, never from this account-level field.
   if (result.brandTokens?.palette?.length) return result.brandTokens;
-  if (result.brandTokens && result.brandColor) {
-    return { ...result.brandTokens, palette: [result.brandColor] };
-  }
-  if (result.brandTokens) return result.brandTokens;
 
-  const primaryColor = result.brandColor ?? "#165DFF";
+  // No measured palette. brandTokensFromStoreProfile can still return a real
+  // (non-null) object here whenever type_display was measured even if the
+  // colour-by-painted-area pass came up empty (a plausible split — reading a
+  // font off getComputedStyle is far more reliable than measuring dominant
+  // colour) — preserve whatever WAS measured, just fill in the colour.
+  const primaryColor = await industryFallbackColor(result.industry);
+  if (result.brandTokens) {
+    return { ...result.brandTokens, palette: [primaryColor] };
+  }
   return {
     palette: [primaryColor],
     type_display: "system-ui, -apple-system, sans-serif",
@@ -1471,13 +1856,13 @@ export function brandTokensFromAnalyzeResult(result: {
   };
 }
 
-export function computedStylesFromAnalyzeResult(result: {
+export async function computedStylesFromAnalyzeResult(result: {
   computedStyles?: ComputedStyles;
-  brandColor?: string;
-}): ComputedStyles {
+  industry?: string;
+}): Promise<ComputedStyles> {
   if (result.computedStyles) return result.computedStyles;
   return {
-    colors_in_use: result.brandColor ? [result.brandColor] : ["#165DFF"],
+    colors_in_use: [await industryFallbackColor(result.industry)],
     font_stack: ["system-ui", "-apple-system", "sans-serif"],
     common_border_radius: "8px",
   };

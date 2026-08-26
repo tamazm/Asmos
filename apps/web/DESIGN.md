@@ -250,3 +250,66 @@ Conveys done/active/pending state while maintaining the depth hierarchy.
 ### PageHeader
 
 Removed the bottom border. Title is `font-bold` (was `font-semibold`). Back chevron now uses an SVG arrow instead of a raw `←` character.
+
+---
+
+## Dashboard Home Cards (Added 2026-08)
+
+The dashboard home grid uses a **flat card**, not the Double-Bezel shell that
+`StatCard` and `DataTable` use:
+
+```tsx
+<section className="flex flex-col rounded-[14px] border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-[0_1px_2px_rgba(13,13,16,0.04)]">
+  <header className="flex items-center justify-between gap-3 px-5 pb-3 pt-4">…</header>
+  <div className="flex flex-1 flex-col px-5 pb-5">…</div>
+</section>
+```
+
+Reason: eight cards sit adjacent in a dense grid. The Double-Bezel reads as
+depth on one or two isolated elements; repeated eight times across two rows it
+turns into visual noise and steals 3px of inner width per side. Double-Bezel
+stays the treatment for standalone stat tiles and tables elsewhere in the app.
+
+Shared pieces live in `src/components/dashboard/primitives.tsx`:
+
+| Piece | Rule |
+|---|---|
+| `DashboardCard` | Card shell. Header = 16px stroke icon + 15px semibold title + optional action slot (`SeeAllLink` or an inline button) |
+| `TrendPill` | Filled triangle + one decimal + optional suffix. **Renders nothing when the prior window is empty** — "no basis for comparison" must not look like "flat" |
+| `CardEmpty` | Plain centred 12px text. Empty states are quiet, never a styled upsell panel |
+| `RowIcon` | 28px rounded tile for list rows |
+| `formatCompact` | Exact below 100K, `295K` to 1M, `1.2M` above |
+
+Card icons live in `src/components/dashboard/icons.tsx` — one 16px stroke
+family, so every card header reads as the same set.
+
+### Gauge (Pop-up Performance)
+
+270-degree arc, open at the bottom, drawn as two `<circle>` elements inside
+`<g transform="rotate(135 …)">` with `stroke-dasharray`. The scale is a plain
+0-100% conversion rate; it is never rebased to the user's target, which would
+make an unchanged rate render differently week to week. The value and caption
+centre inside the ring, and the trend line is pulled up into the ring's open
+bottom, where it may run wider than the ring's inner diameter. At 0% the value
+arc is not rendered at all, because a round line cap on a zero-length dash
+draws a dot that reads as "a little".
+
+### Honest-zero rule
+
+Every dashboard number is counted from the database. Where a comparison is
+impossible — no prior window, no target set, a campaign with one variant —
+`src/lib/dashboardMetrics.ts` returns `null` and the card renders its empty
+state. No placeholder figures, no sample data, per PRODUCT.md.
+
+### Top-level chrome
+
+- Top bar is `h-20`: account avatar + name + context line on the left,
+  notification bell + primary "Create Pop-up" on the right. The sidebar's logo
+  row matches at `h-20` so the two align across the seam.
+- The context line reads "Welcome back to Asmos" on `/dashboard` and the
+  section name elsewhere (`TopBarGreeting`).
+- Sidebar footer is the account row: Clerk `UserButton` (own click target, so
+  sign-out survives) + name + email + chevron to `/settings`. The check beside
+  the name means one concrete thing — at least one website has
+  `installVerified` — and is hidden otherwise.
+- Page titles are `sr-only` on the dashboard; the top bar carries identity.

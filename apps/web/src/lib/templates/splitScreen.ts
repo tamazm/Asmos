@@ -16,7 +16,9 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
   const goal = props.goal ?? "BOTH";
   const flow = resolveFlow(goal, dna);
 
-  const accent = primaryColor || "#165DFF";
+  // Neutral, not Asmos's own brand blue — generation now guarantees a real
+  // colour on every spec, so this only fires on a malformed/legacy spec.
+  const accent = primaryColor || "#111827";
   const img = imageUrl || DEFAULT_FALLBACK_IMAGE;
 
   // image_treatment is the DNA's say on imagery; layout_style is the AI's say
@@ -72,7 +74,6 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
       box-shadow: var(--asmos-shadow);
       display: ${isSideImage ? "grid" : "block"};
       ${isSideImage ? "grid-template-columns: 1fr 1fr;" : ""}
-      ${isSideImage && layoutStyle === "split-right" ? "direction: rtl;" : ""}
       transform: var(--asmos-enter-from);
       opacity: 0;
       transition: transform 420ms cubic-bezier(0.16,1,0.3,1), opacity 320ms ease-out;
@@ -84,11 +85,15 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
       overflow: hidden;
       background: color-mix(in srgb, var(--asmos-accent) 8%, #f3f4f6);
       ${isTopBand ? "height: 180px;" : ""}
+      ${isSideImage && layoutStyle === "split-right" ? "order: 2;" : ""}
     }
     #asmosPopupOverlay .asmos-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
     #asmosPopupOverlay .asmos-content {
-      direction: ltr;
+      /* Image on the right for split-right, via explicit order rather than
+         "direction: rtl" on the grid — rtl also flips scrollbar placement and
+         reorders punctuation in any text that escapes the ltr reset. */
+      ${isSideImage && layoutStyle === "split-right" ? "order: 1;" : ""}
       padding: var(--asmos-pad);
       display: flex;
       flex-direction: column;
@@ -112,10 +117,23 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
     ${sharedComponentCss(dna)}
 
     @media (max-width: 720px) {
-      #asmosPopupOverlay .asmos-modal { grid-template-columns: 1fr; direction: ltr; max-height: 88vh; }
+      #asmosPopupOverlay .asmos-modal { grid-template-columns: 1fr; max-height: 88vh; }
       #asmosPopupOverlay .asmos-media { max-height: 22vh; }
-      #asmosPopupOverlay .asmos-content { padding: 28px 22px; align-items: center; text-align: center; }
-      #asmosPopupOverlay .asmos-headline { font-size: min(var(--asmos-headline-size), 26px); }
+      /* The composition axis survives the breakpoint.
+         This block used to force "align-items: center; text-align: center" on
+         every popup under 720px — which is most of the traffic — so the
+         "text_align" knob was inert exactly where it mattered most, and
+         popupDna's own argument that centring is the loudest generated-design
+         tell was being overridden by a media query. A left axis reads better in
+         a narrow column, not worse: it gives the eye an edge to return to. */
+      #asmosPopupOverlay .asmos-content { padding: 30px 22px; }
+      /* Fluid, so "large" stays meaningfully larger than "medium" at every
+         width. The old hard cap at 26px collapsed all three type scales into
+         one on mobile, which made a whole test axis unmeasurable. */
+      #asmosPopupOverlay .asmos-headline {
+        font-size: clamp(23px, calc(var(--asmos-headline-size) * 0.62), var(--asmos-headline-size));
+        max-width: 100%;
+      }
       #asmosPopupOverlay .asmos-form { display: block; }
       #asmosPopupOverlay .asmos-form .asmos-cta { width: 100%; }
       #asmosPopupOverlay .asmos-email-input { margin-bottom: 10px; }
@@ -127,7 +145,7 @@ export function renderSplitScreenTemplate(props: ResolvedTemplateProps): string 
     ${closeMarkup(dna)}
     <div class="asmos-media" aria-hidden="true">
       <img src="${img}" alt="" loading="lazy"
-           onerror="this.onerror=null;this.src='${DEFAULT_FALLBACK_IMAGE}';" />
+           onerror="if(this.dataset.retried){var m=this.closest('.asmos-media'); if(m) m.style.display='none';}else{this.dataset.retried='1';this.src='${DEFAULT_FALLBACK_IMAGE}';}" />
     </div>
     <div class="asmos-content">
       ${stepsMarkup(props, dna, flow)}

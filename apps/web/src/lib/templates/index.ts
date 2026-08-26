@@ -1,7 +1,8 @@
 import { renderSplitScreenTemplate } from "./splitScreen";
 import { renderCornerToastTemplate } from "./cornerToast";
 import { renderFullscreenTakeoverTemplate } from "./fullscreenTakeover";
-import { normalizeDna } from "@/lib/popupDna";
+import { normalizeDna } from "../popupDna";
+import { auditPopupContrast, type ContrastViolation } from "./contrastAudit";
 import type { PopupTemplateProps, ResolvedTemplateProps } from "./types";
 
 export type { PopupTemplateProps, ResolvedTemplateProps } from "./types";
@@ -27,5 +28,45 @@ export function renderPopupTemplate(
   // Normalizing here (rather than in each template) means every call site —
   // generation, the dashboard preview, /store-preview — gets the same
   // back-compat behaviour for Variant rows written before the DNA existed.
-  return render({ ...props, dna: normalizeDna(props.dna) });
+  const resolved: ResolvedTemplateProps = {
+    ...props,
+    dna: normalizeDna(props.dna),
+    templateId: templateId ?? "split-screen",
+  };
+
+  // A popup whose CTA cannot be read is not a variant, it is a defect, and it
+  // must never reach an arm of the tournament. Contrast is a deterministic
+  // property of the resolved tokens: checking it here costs nothing, where
+  // letting the bandit discover it costs thousands of live impressions.
+  const violations = auditPopupContrast(resolved);
+  if (violations.length > 0) {
+    console.error(
+      `[templates] contrast violations on ${templateId ?? "split-screen"}:`,
+      violations.map((v) => `${v.role} ${v.ratio}:1 (needs ${v.target}:1)`).join(", "),
+    );
+  }
+
+  return render(resolved);
 }
+
+/**
+ * Same render, but reports what would ship unreadable instead of only logging.
+ *
+ * Generation uses this to reject a candidate spec and resample rather than
+ * persisting a Variant nobody can use — see `popupGeneration.ts`.
+ */
+export function renderPopupTemplateChecked(
+  templateId: string | null | undefined,
+  props: PopupTemplateProps,
+): { html: string; violations: ContrastViolation[] } {
+  const render = (templateId && TEMPLATES[templateId as TemplateId]) || TEMPLATES["split-screen"];
+  const resolved: ResolvedTemplateProps = {
+    ...props,
+    dna: normalizeDna(props.dna),
+    templateId: templateId ?? "split-screen",
+  };
+  return { html: render(resolved), violations: auditPopupContrast(resolved) };
+}
+
+export { auditPopupContrast } from "./contrastAudit";
+export type { ContrastViolation } from "./contrastAudit";

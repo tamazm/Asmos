@@ -37,7 +37,7 @@ export function OnboardingProgress() {
   );
 
   return (
-    <div className="w-full max-w-lg">
+    <div className="w-full max-w-xl">
       {/* Step indicators */}
       <ol className="flex items-center">
         {STEPS.map((step, index) => {
@@ -47,42 +47,47 @@ export function OnboardingProgress() {
           return (
             <li key={step.label} className="flex flex-1 items-center">
               <div className="flex flex-col items-center gap-1.5">
-                {/* Double-Bezel step bubble */}
-                {(done || active) ? (
+                {/* Double-Bezel step bubble — the outline is reserved for the
+                    active step; every state shares this same markup so the
+                    color/background transition animates instead of the
+                    element being swapped out. */}
+                <div
+                  className={cn(
+                    "rounded-[0.625rem] p-0.5 transition-colors duration-200",
+                    active ? "bg-[color:var(--color-primary)]/15" : "bg-transparent",
+                  )}
+                  aria-current={active ? "step" : undefined}
+                  aria-hidden={pending ? "true" : undefined}
+                >
                   <div
-                    className="rounded-[0.625rem] p-0.5 bg-[color:var(--color-primary)]/15 transition-[background-color] duration-200"
-                    aria-current={active ? "step" : undefined}
+                    className={cn(
+                      "flex h-7 w-7 items-center justify-center rounded-[0.5rem] text-xs font-semibold transition-colors duration-200",
+                      done || active
+                        ? "bg-[color:var(--color-primary)] text-white"
+                        : "bg-[color:var(--color-neutral-badge)] text-[color:var(--color-text-secondary)]",
+                    )}
                   >
-                    <div className="flex h-7 w-7 items-center justify-center rounded-[0.5rem] bg-[color:var(--color-primary)] text-white text-xs font-semibold">
-                      {done ? (
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 16 16"
-                          fill="none"
-                          aria-hidden="true"
-                        >
-                          <path
-                            d="M3.5 8L6.5 11L12.5 5"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      ) : (
-                        index + 1
-                      )}
-                    </div>
+                    {done ? (
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 16 16"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M3.5 8L6.5 11L12.5 5"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    ) : (
+                      index + 1
+                    )}
                   </div>
-                ) : (
-                  <div
-                    className="flex h-8 w-8 items-center justify-center rounded-[0.625rem] bg-[color:var(--color-neutral-badge)] text-[color:var(--color-text-secondary)] text-xs font-semibold transition-[background-color] duration-200"
-                    aria-hidden={pending ? "true" : undefined}
-                  >
-                    {index + 1}
-                  </div>
-                )}
+                </div>
                 <span
                   className={cn(
                     "hidden text-xs font-medium sm:block",

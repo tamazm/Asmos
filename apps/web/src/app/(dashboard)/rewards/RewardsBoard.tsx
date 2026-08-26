@@ -49,10 +49,16 @@ export function RewardsBoard({
   rows,
   codeLimits,
   campaigns,
+  overrideAccountId,
 }: {
   rows: RewardRow[];
   codeLimits: CodeLimits;
   campaigns: CampaignOption[];
+  // Set only when a superadmin is editing another account's rewards from
+  // /admin/accounts/[id] — see lib/account.ts's resolveAccountForRequest.
+  // Every write below threads this through so the API routes operate on the
+  // account being viewed instead of the superadmin's own account.
+  overrideAccountId?: string;
 }) {
   const [showNew, setShowNew] = useState(false);
 
@@ -85,7 +91,7 @@ export function RewardsBoard({
       <div>
         <Button onClick={() => setShowNew((v) => !v)}>{showNew ? "Cancel" : "+ New reward"}</Button>
       </div>
-      {showNew && <NewRewardForm campaigns={campaigns} onDone={() => setShowNew(false)} />}
+      {showNew && <NewRewardForm campaigns={campaigns} onDone={() => setShowNew(false)} overrideAccountId={overrideAccountId} />}
 
       {rows.length === 0 ? (
         <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] py-20 text-center">
@@ -109,7 +115,7 @@ export function RewardsBoard({
               </h2>
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 {categoryRows.map((row) => (
-                  <RewardCard key={row.id} row={row} codeLimits={codeLimits} campaigns={campaigns} />
+                  <RewardCard key={row.id} row={row} codeLimits={codeLimits} campaigns={campaigns} overrideAccountId={overrideAccountId} />
                 ))}
               </div>
             </div>
@@ -120,7 +126,7 @@ export function RewardsBoard({
   );
 }
 
-function NewRewardForm({ campaigns, onDone }: { campaigns: CampaignOption[]; onDone: () => void }) {
+function NewRewardForm({ campaigns, onDone, overrideAccountId }: { campaigns: CampaignOption[]; onDone: () => void; overrideAccountId?: string }) {
   const router = useRouter();
   const [campaignId, setCampaignId] = useState(campaigns[0]?.id ?? "");
   const [type, setType] = useState<(typeof REWARD_TYPES)[number]>("FREE_SHIPPING");
@@ -151,6 +157,7 @@ function NewRewardForm({ campaigns, onDone }: { campaigns: CampaignOption[]; onD
           label: label.trim(),
           description: description.trim() || undefined,
           maxRedemptions: maxRedemptions.trim() ? Number(maxRedemptions) : undefined,
+          accountId: overrideAccountId,
         }),
       });
       if (!res.ok) {
@@ -256,10 +263,12 @@ function RewardCard({
   row,
   codeLimits,
   campaigns,
+  overrideAccountId,
 }: {
   row: RewardRow;
   codeLimits: CodeLimits;
   campaigns: CampaignOption[];
+  overrideAccountId?: string;
 }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -316,7 +325,7 @@ function RewardCard({
       const res = await fetch(`/api/rewards/${row.id}/codes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "import", codes }),
+        body: JSON.stringify({ mode: "import", codes, accountId: overrideAccountId }),
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
@@ -340,7 +349,7 @@ function RewardCard({
       const res = await fetch(`/api/rewards/${row.id}/codes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "generate", prefix, count }),
+        body: JSON.stringify({ mode: "generate", prefix, count, accountId: overrideAccountId }),
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
@@ -362,7 +371,11 @@ function RewardCard({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/rewards/${row.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/rewards/${row.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId: overrideAccountId }),
+      });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
         throw new Error(b.error ?? "Delete failed");
@@ -403,6 +416,7 @@ function RewardCard({
           campaigns={campaigns}
           busy={busy}
           setBusy={setBusy}
+          overrideAccountId={overrideAccountId}
           onDeleted={handleDeleteReward}
           onError={setError}
           onFeedback={setFeedback}
@@ -503,7 +517,7 @@ function RewardCard({
               Generate promo codes
             </Button>
             <a
-              href={`/api/rewards/${row.id}/codes/export?status=all`}
+              href={`/api/rewards/${row.id}/codes/export?status=all${overrideAccountId ? `&accountId=${overrideAccountId}` : ""}`}
               className="inline-flex items-center justify-center rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] transition-colors"
             >
               Export (CSV)
@@ -521,6 +535,7 @@ function RewardCard({
           onClose={() => setShowCodes(false)}
           rewardId={row.id}
           rewardLabel={row.label}
+          overrideAccountId={overrideAccountId}
           onChanged={() => router.refresh()}
         />
       )}
@@ -533,6 +548,7 @@ function EditRewardPanel({
   campaigns,
   busy,
   setBusy,
+  overrideAccountId,
   onDeleted,
   onError,
   onFeedback,
@@ -541,6 +557,7 @@ function EditRewardPanel({
   campaigns: CampaignOption[];
   busy: boolean;
   setBusy: (b: boolean) => void;
+  overrideAccountId?: string;
   onDeleted: () => void;
   onError: (e: string | null) => void;
   onFeedback: (f: string | null) => void;
@@ -570,6 +587,7 @@ function EditRewardPanel({
           maxRedemptions: maxRedemptions.trim() ? Number(maxRedemptions) : null,
           active,
           campaignId,
+          accountId: overrideAccountId,
         }),
       });
       if (!res.ok) {
@@ -678,12 +696,14 @@ function ManageCodesModal({
   onClose,
   rewardId,
   rewardLabel,
+  overrideAccountId,
   onChanged,
 }: {
   open: boolean;
   onClose: () => void;
   rewardId: string;
   rewardLabel: string;
+  overrideAccountId?: string;
   onChanged: () => void;
 }) {
   const [codes, setCodes] = useState<CodeRow[] | null>(null);
@@ -722,6 +742,7 @@ function ManageCodesModal({
           page: String(page),
           pageSize: String(pageSize),
           ...(search ? { search } : {}),
+          ...(overrideAccountId ? { accountId: overrideAccountId } : {}),
         });
         const res = await fetch(`/api/rewards/${rewardId}/codes?${params.toString()}`);
         if (!res.ok) throw new Error("Could not load codes");
@@ -741,7 +762,7 @@ function ManageCodesModal({
     return () => {
       cancelled = true;
     };
-  }, [open, rewardId, status, search, page, pageSize, reloadToken]);
+  }, [open, rewardId, status, search, page, pageSize, reloadToken, overrideAccountId]);
 
   // Reset transient state each time the modal is reopened.
   useEffect(() => {
@@ -784,7 +805,7 @@ function ManageCodesModal({
       const res = await fetch(`/api/rewards/${rewardId}/codes`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ codeIds: Array.from(selected) }),
+        body: JSON.stringify({ codeIds: Array.from(selected), accountId: overrideAccountId }),
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));
@@ -808,7 +829,7 @@ function ManageCodesModal({
       const res = await fetch(`/api/rewards/${rewardId}/codes`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "unused" }),
+        body: JSON.stringify({ mode: "unused", accountId: overrideAccountId }),
       });
       if (!res.ok) {
         const b = await res.json().catch(() => ({}));

@@ -33,6 +33,8 @@ const isAppRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/invite(.*)",
   "/tools(.*)",
+  "/store-preview(.*)",
+  "/shopify-admin(.*)",
 ]);
 
 const APP_HOST = process.env.NEXT_PUBLIC_APP_HOST || "app.asmos.io";

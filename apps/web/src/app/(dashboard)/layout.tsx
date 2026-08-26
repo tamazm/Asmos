@@ -1,9 +1,8 @@
-import { UserButton } from "@/components/ui/MockUserButton";
 import { redirect } from "next/navigation";
-import { Sidebar } from "@/components/ui/Sidebar";
-import { NotificationBell } from "@/components/ui/NotificationBell";
+import { DashboardShell } from "@/components/ui/DashboardShell";
 import { getOrCreateAccount } from "@/lib/account";
 import { authProtect, currentUser } from "@/lib/auth-adapter";
+import { prisma } from "@/lib/prisma";
 import { isSuperadminEmail } from "@/lib/superadmin";
 import { TesterToolkit } from "@/components/TesterToolkit";
 
@@ -22,33 +21,41 @@ export default async function DashboardLayout({
   const user = await currentUser();
   const userEmail = user?.primaryEmailAddress?.emailAddress;
   const isSuperadmin = isSuperadminEmail(userEmail);
+  const displayName =
+    [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+    userEmail?.split("@")[0] ||
+    account.name;
+  // Clerk exposes imageUrl; the mock auth user does not.
+  const imageUrl = (user as { imageUrl?: string } | null)?.imageUrl ?? null;
+  // The check beside the profile name means something concrete: this account
+  // has at least one site with a verified widget install.
+  const verifiedSites = await prisma.website.count({
+    where: { accountId: account.id, installVerified: true },
+  });
 
+  // `fixed inset-0` (not h-[100dvh]) is deliberate: it pins the shell to
+  // the viewport regardless of <body>'s own box height (body is
+  // `min-h-full flex flex-col` in the root layout, which can end up
+  // slightly taller than the viewport). Sizing this shell to just
+  // "h-[100dvh]" let body grow past the viewport in that case, giving a
+  // second, outer scrollbar on top of this shell's intentional inner
+  // overflow-y-auto on <main> — the "double scroll" bug. Fixed
+  // positioning removes this div from document flow entirely, so body's
+  // content height collapses to ~0 and can never independently scroll.
+  // (DashboardShell owns that fixed-inset-0 wrapper; see that file for the
+  // mobile collapsible-sidebar behavior itself.)
   return (
-    // `fixed inset-0` (not h-[100dvh]) is deliberate: it pins the shell to
-    // the viewport regardless of <body>'s own box height (body is
-    // `min-h-full flex flex-col` in the root layout, which can end up
-    // slightly taller than the viewport). Sizing this shell to just
-    // "h-[100dvh]" let body grow past the viewport in that case, giving a
-    // second, outer scrollbar on top of this shell's intentional inner
-    // overflow-y-auto on <main> — the "double scroll" bug. Fixed
-    // positioning removes this div from document flow entirely, so body's
-    // content height collapses to ~0 and can never independently scroll.
-    <div className="fixed inset-0 flex overflow-hidden bg-[color:var(--color-surface-sunken)]">
-      <Sidebar businessName={account.name} isSuperadmin={isSuperadmin} />
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {/* Top bar */}
-        <header className="flex h-14 shrink-0 items-center justify-end border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-6">
-          <div className="flex items-center gap-3">
-            <NotificationBell />
-            <UserButton />
-          </div>
-        </header>
-        {/* Page content */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-6 sm:py-6">
-          {children}
-        </main>
-      </div>
-      {isSuperadmin && <TesterToolkit />}
-    </div>
+    <DashboardShell
+      businessName={account.name}
+      isSuperadmin={isSuperadmin}
+      userName={displayName}
+      userEmail={userEmail}
+      userVerified={verifiedSites > 0}
+      displayName={displayName}
+      imageUrl={imageUrl}
+      testerToolkit={isSuperadmin ? <TesterToolkit /> : null}
+    >
+      {children}
+    </DashboardShell>
   );
 }

@@ -8,9 +8,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { industry, brandColor, name, role, conversionGoal, monthlyTraffic, emailPlatform } = (await request.json()) as {
+  const { industry, name, role, conversionGoal, monthlyTraffic, emailPlatform } = (await request.json()) as {
     industry?: string;
-    brandColor?: string;
     name?: string;
     role?: string;
     conversionGoal?: string;
@@ -24,7 +23,6 @@ export async function POST(request: Request) {
     data: {
       ...(name?.trim() ? { name: name.trim() } : {}),
       industry: industry?.trim() || null,
-      brandColor: brandColor?.trim() || null,
       ...(role?.trim() ? { ownerRole: role.trim() } : {}),
       ...(conversionGoal?.trim() ? { conversionGoal: conversionGoal.trim() } : {}),
       ...(monthlyTraffic?.trim() ? { monthlyTraffic: monthlyTraffic.trim() } : {}),
@@ -33,6 +31,6 @@ export async function POST(request: Request) {
   });
 
   return Response.json({
-    account: { industry: updated.industry, brandColor: updated.brandColor },
+    account: { industry: updated.industry },
   });
 }

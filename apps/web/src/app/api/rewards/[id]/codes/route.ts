@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth-adapter";
-import { getOrCreateAccount } from "@/lib/account";
+import { resolveAccountForRequest } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import {
   MAX_CODES_PER_GENERATE_REQUEST,
@@ -35,13 +35,16 @@ export async function GET(
   }
 
   const { id } = await ctx.params;
-  const account = await getOrCreateAccount();
+  const url = new URL(request.url);
+  const account = await resolveAccountForRequest(url.searchParams.get("accountId"));
+  if (!account) {
+    return Response.json({ error: "Account not found" }, { status: 404 });
+  }
   const reward = await findOwnedReward(id, account.id);
   if (!reward) {
     return Response.json({ error: "Reward not found" }, { status: 404 });
   }
 
-  const url = new URL(request.url);
   const status = url.searchParams.get("status") ?? "all";
   const search = (url.searchParams.get("search") ?? "").trim();
   const page = Math.max(1, Math.floor(Number(url.searchParams.get("page")) || 1));
@@ -89,16 +92,20 @@ export async function DELETE(
   }
 
   const { id } = await ctx.params;
-  const account = await getOrCreateAccount();
+  const body = (await request.json().catch(() => ({}))) as {
+    codeIds?: string[];
+    mode?: "unused";
+    accountId?: string;
+  };
+
+  const account = await resolveAccountForRequest(body.accountId);
+  if (!account) {
+    return Response.json({ error: "Account not found" }, { status: 404 });
+  }
   const reward = await findOwnedReward(id, account.id);
   if (!reward) {
     return Response.json({ error: "Reward not found" }, { status: 404 });
   }
-
-  const body = (await request.json().catch(() => ({}))) as {
-    codeIds?: string[];
-    mode?: "unused";
-  };
 
   if (body.mode === "unused") {
     const result = await prisma.couponCode.deleteMany({
@@ -127,18 +134,22 @@ export async function POST(
   }
 
   const { id } = await ctx.params;
-  const account = await getOrCreateAccount();
-  const reward = await findOwnedReward(id, account.id);
-  if (!reward) {
-    return Response.json({ error: "Reward not found" }, { status: 404 });
-  }
-
   const body = (await request.json().catch(() => ({}))) as {
     mode?: "import" | "generate";
     codes?: string[];
     prefix?: string;
     count?: number;
+    accountId?: string;
   };
+
+  const account = await resolveAccountForRequest(body.accountId);
+  if (!account) {
+    return Response.json({ error: "Account not found" }, { status: 404 });
+  }
+  const reward = await findOwnedReward(id, account.id);
+  if (!reward) {
+    return Response.json({ error: "Reward not found" }, { status: 404 });
+  }
 
   // Per-tier request-size caps replace the old flat 1000/5000 limits — see
   // lib/limits.ts for why a single flat cap wasn't enough (it bounded one

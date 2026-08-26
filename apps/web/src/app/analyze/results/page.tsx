@@ -286,7 +286,7 @@ export default function AnalyzeResultsPage() {
   const passedChecks = checks.filter(c => c.found);
   const color = gradeColor(result.grade);
   const isAI = result.analysisSource && result.analysisSource !== "heuristic";
-  const brandColor = result.brandColor && result.brandColor !== "#165DFF" ? result.brandColor : "#165DFF";
+  const brandColor = result.brandColor && result.brandColor !== "#111827" ? result.brandColor : "#111827";
 
   return (
     <div className="min-h-[100dvh] bg-white">
@@ -306,7 +306,7 @@ export default function AnalyzeResultsPage() {
       {/* Nav */}
       <header className="sticky top-0 z-20 border-b border-gray-100 bg-white/90 backdrop-blur-sm">
         <div className="mx-auto flex max-w-lg items-center justify-between px-5 py-3.5">
-          <Image src="/assets/asmos-logo-primary-lightbg.webp" alt="Asmos" width={88} height={22} priority className="h-5 w-auto" />
+          <Image src="/assets/logo.webp" alt="Asmos" width={104} height={22} priority className="h-5 w-auto" />
           <Link href="/sign-in" className="text-xs font-medium text-gray-400 hover:text-gray-700 transition-colors">
             Sign in
           </Link>
@@ -361,7 +361,7 @@ export default function AnalyzeResultsPage() {
                 <p className="text-sm mt-0.5 font-medium" style={{ color }}>
                   {result.grade} &middot; {result.gradeLabel}
                 </p>
-                {result.brandColor && result.brandColor !== "#165DFF" && (
+                {result.brandColor && result.brandColor !== "#111827" && (
                   <div className="mt-2 flex items-center gap-1.5">
                     <div className="h-3.5 w-3.5 rounded-full border border-black/10" style={{ backgroundColor: result.brandColor }} />
                     <span className="text-[10px] font-mono text-gray-400">{result.brandColor}</span>

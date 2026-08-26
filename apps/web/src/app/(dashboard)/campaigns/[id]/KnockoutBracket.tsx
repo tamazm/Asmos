@@ -46,8 +46,8 @@ function seededTrend(seed: string): number[] {
 }
 
 function resolveColor(color: string, index: number): string {
-  if (color && !color.startsWith("#165DFF")) return color;
-  return index === 0 ? "#165DFF" : colorForIndex(index);
+  if (color && !color.startsWith("#111827")) return color;
+  return index === 0 ? "#111827" : colorForIndex(index);
 }
 
 // ─── Variant pill ─────────────────────────────────────────────────────────────

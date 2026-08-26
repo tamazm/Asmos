@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     ? {
         headline: spec.headline,
         body: spec.subhead,
-        primaryColor: spec.design_tokens.palette[0] ?? body.design?.primaryColor ?? "#165DFF",
+        primaryColor: spec.design_tokens.palette[0] ?? body.design?.primaryColor ?? "#111827",
         ctaText: spec.cta,
       }
     : body.design;
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
           headline: spec.headline,
           subhead: spec.subhead,
           cta: spec.cta,
-          primaryColor: spec.design_tokens.palette[0] ?? body.design?.primaryColor ?? "#165DFF",
+          primaryColor: spec.design_tokens.palette[0] ?? body.design?.primaryColor ?? "#111827",
           couponCode: spec.coupon_code,
           imageUrl: spec.image_url,
           goal: "BOTH",
@@ -128,22 +128,14 @@ export async function POST(request: Request) {
       type: "FORM", // schema-driven generation always produces FORM popups
       status: body.status === "GENERATING" ? "GENERATING" : "ACTIVE",
       generationStage: body.status === "GENERATING" ? "QUEUED" : undefined,
-      // The freshly-analyzed store wins over the account's stored colour.
-      //
-      // This used to read `account.brandColor ?? body.generationContext.brandColor`,
-      // which is backwards: the account colour is whatever the *first* store
-      // this account ever analyzed happened to use, and it was stamped over
-      // every subsequent campaign. Analyze a second store, get a campaign in
-      // the first store's brand colour — and since `??` only falls through on
-      // null/undefined, a set account colour meant the fresh analysis could
-      // never win. The account colour is now only the fallback for a campaign
-      // created without an analysis pass at all.
-      generationContext: body.generationContext
-        ? {
-            ...body.generationContext,
-            brandColor: body.generationContext.brandColor ?? account.brandColor,
-          } as Prisma.InputJsonValue
-        : undefined,
+      // account.brandColor is never stamped in here — generateCampaign.ts
+      // doesn't read context.brandColor for anything anymore (colour comes
+      // from measured brandTokens, or a scraped-industry colour as fallback;
+      // see popupGeneration.ts's brandTokensFromAnalyzeResult), so folding
+      // the account's stored colour into this blob was only ever dead
+      // write-only data at best, and at worst a stale account colour
+      // silently overriding a fresh analysis for whoever did still read it.
+      generationContext: body.generationContext as Prisma.InputJsonValue,
       variants: body.status === "GENERATING" ? undefined : {
         create: {
           name: "Control",

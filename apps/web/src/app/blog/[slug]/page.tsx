@@ -79,7 +79,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<{ sl
           title: post.title,
           description: post.metaDescription,
           slug: post.slug,
-          image: post.coverImage || "/assets/asmos-logo-primary-lightbg.webp",
+          image: post.coverImage || "/assets/logo.webp",
           authorName: post.author.name,
           publishDate: post.publishDate,
           updatedDate: post.updatedDate,

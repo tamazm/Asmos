@@ -1,7 +1,22 @@
 /* eslint-disable */
 (function () {
-  var scriptEl = document.currentScript;
+  // `document.currentScript` is null whenever the tag is injected
+  // asynchronously — which is exactly what Google Tag Manager, Shopify's
+  // script-tag API and every "load third-party scripts late" theme setting do.
+  // The widget used to return here and no-op, silently, on all of them.
+  var scriptEl =
+    document.currentScript ||
+    document.querySelector('script[data-asmos]') ||
+    document.querySelector('script[src*="widget.js"]');
   if (!scriptEl) return;
+
+  // Storage throws (not returns null) in Safari private mode and in any
+  // third-party-blocked context. Every call site below goes through these, so a
+  // blocked store gets a popup with no frequency capping rather than no popup.
+  function lsGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
+  function lsSet(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
+  function ssGet(key) { try { return sessionStorage.getItem(key); } catch (e) { return null; } }
+  function ssSet(key, value) { try { sessionStorage.setItem(key, value); } catch (e) {} }
 
   var site = scriptEl.getAttribute("data-site") || window.location.hostname;
   var previewVariantId = scriptEl.getAttribute("data-preview-variant-id");
@@ -19,20 +34,37 @@
   // previously every visitor of a variant shared one synthetic id.
   var VISITOR_ID_KEY = "asmos_visitor_id";
   function getVisitorId() {
-    try {
-      var existing = localStorage.getItem(VISITOR_ID_KEY);
-      if (existing) return existing;
-      var id = (window.crypto && window.crypto.randomUUID)
-        ? window.crypto.randomUUID()
-        : "v_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
-      localStorage.setItem(VISITOR_ID_KEY, id);
-      return id;
-    } catch (e) {
-      // Storage unavailable (privacy mode, etc.) — fall back to a per-load id.
-      return "v_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
-    }
+    var existing = lsGet(VISITOR_ID_KEY);
+    if (existing) return existing;
+    var id = (window.crypto && window.crypto.randomUUID)
+      ? window.crypto.randomUUID()
+      : "v_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2);
+    lsSet(VISITOR_ID_KEY, id);
+    return id;
   }
   var visitorId = getVisitorId();
+
+  // Device class, sent on every event.
+  //
+  // Two things depend on it. Exit-intent is a desktop-only gesture (mouseleave
+  // never fires on touch), so a trigger test that does not know the device is
+  // comparing desktop traffic against all traffic rather than one trigger
+  // against another. And phone and desktop popups genuinely want different
+  // designs, so a bandit that pools them averages that difference away.
+  function deviceClass() {
+    try {
+      var coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
+      var w = window.innerWidth || document.documentElement.clientWidth || 0;
+      if (coarse && w < 768) return "mobile";
+      if (coarse) return "tablet";
+      return "desktop";
+    } catch (e) { return "desktop"; }
+  }
+  var device = deviceClass();
+  var supportsHover = (function () {
+    try { return !!(window.matchMedia && window.matchMedia("(hover: hover)").matches); }
+    catch (e) { return true; }
+  })();
 
   // Parse UTM params from the current URL query string
   var utmParams = (function () {
@@ -67,6 +99,7 @@
   function behavioralContext(extraProps) {
     var ctx = {
       visitorId: visitorId,
+      device: device,
       pageUrl: pageUrl,
       referrer: referrer || undefined,
       utmSource: utmParams.utmSource,
@@ -148,35 +181,106 @@
       }
     }
 
+    // A variant with no rendered code is a GENERATING placeholder. Serving one
+    // dropped the visitor through to the legacy DOM builder, which rendered a
+    // generic white card reading "Special Offer / Sign up for updates and
+    // discounts" — un-branded, and counted as a real impression against a
+    // variant that had no design at all.
+    var eligible = campaign.variants.filter(function (v) {
+      return v && (v.generatedCode || v.design);
+    });
+    if (eligible.length === 0) return null;
+
+    // Sticky assignment, but re-randomised periodically.
+    //
+    // Holding an assignment forever while the bandit reallocates means arms
+    // favoured early accumulate a returning-visitor cohort and arms promoted
+    // later see mostly first-timers. Those populations convert differently, so
+    // the arms are no longer being compared on the same traffic. Re-drawing on
+    // a fixed cadence bounds how far the cohorts can drift apart.
+    var ASSIGNMENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
     var storageKey = "asmos_variant_" + campaign.id;
-    var storedId = localStorage.getItem(storageKey);
-    if (storedId) {
-      for (var s = 0; s < campaign.variants.length; s++) {
-        if (campaign.variants[s].id === storedId) return campaign.variants[s];
+    var stored = lsGet(storageKey);
+    if (stored) {
+      var parts = stored.split("|");
+      var storedId = parts[0];
+      var assignedAt = Number(parts[1] || 0);
+      if (Date.now() - assignedAt < ASSIGNMENT_TTL_MS) {
+        for (var s = 0; s < eligible.length; s++) {
+          if (eligible[s].id === storedId) return eligible[s];
+        }
       }
     }
 
-    var total = campaign.variants.reduce(function (sum, v) {
+    var total = eligible.reduce(function (sum, v) {
       return sum + Math.max(v.trafficPercent, 0);
     }, 0);
-    var roll = Math.random() * (total || campaign.variants.length);
-    var chosen = campaign.variants[0];
-    for (var i = 0; i < campaign.variants.length; i++) {
-      var weight = total > 0 ? Math.max(campaign.variants[i].trafficPercent, 0) : 1;
+    var roll = Math.random() * (total || eligible.length);
+    var chosen = eligible[0];
+    for (var i = 0; i < eligible.length; i++) {
+      var weight = total > 0 ? Math.max(eligible[i].trafficPercent, 0) : 1;
       roll -= weight;
       if (roll <= 0) {
-        chosen = campaign.variants[i];
+        chosen = eligible[i];
         break;
       }
     }
 
-    localStorage.setItem(storageKey, chosen.id);
+    lsSet(storageKey, chosen.id + "|" + Date.now());
     return chosen;
   }
 
+  // ── Webfonts ────────────────────────────────────────────────────────────────
+  // Templates emit `@import url('https://fonts.googleapis.com/...')` at the top
+  // of their inline <style>. That is the slowest delivery path available: the
+  // browser must parse the popup's stylesheet, fetch the font CSS, parse that,
+  // then fetch the WOFF2 — two serial round trips that only START once the
+  // popup exists. With display=swap the popup then paints in the fallback face
+  // and visibly re-renders, reflowing the headline at the exact moment of
+  // maximum attention.
+  //
+  // Hoisting the import to a <link> in the document head moves both round trips
+  // to config-resolution time, seconds before the popup opens. It also matters
+  // for the shadow root below: @font-face inside a shadow root is not reliably
+  // registered for the document's font set, whereas a head stylesheet always is.
+  var IMPORT_RE = /@import\s+url\((['"]?)([^'")]+)\1\)\s*;?/g;
+
+  function hoistFontImports(code) {
+    var hrefs = [];
+    var stripped = code.replace(IMPORT_RE, function (_m, _q, href) {
+      hrefs.push(href);
+      return "";
+    });
+    return { code: stripped, hrefs: hrefs };
+  }
+
+  var injectedFonts = {};
+  function injectFontLinks(hrefs) {
+    if (!hrefs.length) return;
+    if (!injectedFonts.__preconnect) {
+      injectedFonts.__preconnect = true;
+      ["https://fonts.googleapis.com", "https://fonts.gstatic.com"].forEach(function (origin) {
+        var pre = document.createElement("link");
+        pre.rel = "preconnect";
+        pre.href = origin;
+        pre.crossOrigin = "anonymous";
+        document.head.appendChild(pre);
+      });
+    }
+    hrefs.forEach(function (href) {
+      if (injectedFonts[href]) return;
+      injectedFonts[href] = true;
+      var link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = href;
+      document.head.appendChild(link);
+    });
+  }
+
   function showConsentBanner(consent, onAccept) {
-    if (localStorage.getItem(CONSENT_KEY)) {
-      if (localStorage.getItem(CONSENT_KEY) === "accepted") onAccept();
+    var stored = lsGet(CONSENT_KEY);
+    if (stored) {
+      if (stored === "accepted") onAccept();
       return;
     }
 
@@ -205,7 +309,7 @@
     decline.style.cssText =
       "background:transparent;border:1px solid #4b5563;color:#fff;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;";
     decline.onclick = function () {
-      localStorage.setItem(CONSENT_KEY, "declined");
+      lsSet(CONSENT_KEY, "declined");
       banner.remove();
     };
 
@@ -214,7 +318,7 @@
     accept.style.cssText =
       "background:#6366f1;border:none;color:#fff;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px;font-weight:600;";
     accept.onclick = function () {
-      localStorage.setItem(CONSENT_KEY, "accepted");
+      lsSet(CONSENT_KEY, "accepted");
       banner.remove();
       onAccept();
     };
@@ -240,8 +344,8 @@
   function showPopup(campaign, variant) {
     var sessionKey = "asmos_shown_" + campaign.id;
     if (!isPreview) {
-      if (sessionStorage.getItem(sessionKey)) return;
-      sessionStorage.setItem(sessionKey, "1");
+      if (ssGet(sessionKey)) return;
+      ssSet(sessionKey, "1");
     }
 
     // Record the exact moment the popup appeared for dismiss timing
@@ -269,15 +373,70 @@
       // mode (dashboard variant preview) should simulate success, not create
       // real leads/events against real campaigns.
       window.__asmos_preview_mode = isPreview;
+      // The runtime needs to know which campaign it belongs to so its
+      // suppression key can be namespaced — a single global key meant two
+      // campaigns suppressed each other, and inside a tournament a visitor who
+      // saw variant 1 could never see variant 2.
+      window.__asmos_campaign_id = campaign.id;
+
+      // ─── Shadow-root isolation ──────────────────────────────────────────────
+      // Previously: container.innerHTML = code; document.body.appendChild(...).
+      // That put the popup in the merchant's cascade, where an entirely ordinary
+      // theme stylesheet overwrote it. Measured against a stock Shopify-style
+      // theme, this alone forced every headline and every CTA to uppercase and
+      // silently turned `button_shape: "pill"` into a rectangle via
+      // `border-radius: 0 !important` — which also means the bandit was testing
+      // a button-shape difference that did not exist on screen.
+      //
+      // `all: initial` on the host stops inheritance reaching in; the shadow
+      // boundary stops the merchant's selectors (and their !important) from
+      // matching anything inside.
+      var hoisted = hoistFontImports(variant.generatedCode);
+      injectFontLinks(hoisted.hrefs);
+
+      var host = document.createElement("div");
+      host.id = "asmos-popup-host";
+      host.setAttribute("data-asmos-popup", "true");
+      host.style.cssText = "all: initial; position: fixed; inset: 0 auto auto 0; z-index: 2147483000;";
+
+      var root;
+      if (host.attachShadow) {
+        root = host.attachShadow({ mode: "open" });
+      } else {
+        // No shadow DOM (very old browser): fall back to the light DOM rather
+        // than showing nothing. The popup will inherit merchant styles, which
+        // is the pre-fix behaviour and still better than no popup.
+        root = host;
+      }
+
+      // The host is a fixed 0x0 anchor; the overlay inside positions itself.
+      // A reset inside the boundary so nothing depends on UA defaults either.
+      var reset = document.createElement("style");
+      reset.textContent =
+        ":host{all:initial;position:fixed;z-index:2147483000;}" +
+        "*,*::before,*::after{box-sizing:border-box;}" +
+        "button,input,select,textarea{font:inherit;color:inherit;margin:0;}" +
+        "h1,h2,h3,p{margin:0;font:inherit;text-transform:none;letter-spacing:normal;}" +
+        ".visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;" +
+        "clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;}";
+      root.appendChild(reset);
 
       var container = document.createElement("div");
-      container.id = "asmos-popup-container";
-      container.innerHTML = variant.generatedCode;
-      document.body.appendChild(container);
+      container.innerHTML = hoisted.code;
+      root.appendChild(container);
 
-      // Execute embedded scripts (innerHTML does not run them automatically)
+      document.body.appendChild(host);
+
+      // Hand the runtime its own root. It used to call
+      // document.getElementById('asmosPopupOverlay'), which cannot see across
+      // the shadow boundary.
+      window.__asmos_shadow_root = root;
+
+      // Execute embedded scripts (innerHTML does not run them automatically).
+      // They stay in the light DOM — a script element inside a shadow root does
+      // not execute — and reach their own markup through __asmos_shadow_root.
       var scripts = container.querySelectorAll("script");
-      scripts.forEach(function(s) {
+      Array.prototype.forEach.call(scripts, function (s) {
         var newScript = document.createElement("script");
         if (s.src) {
           newScript.src = s.src;
@@ -286,8 +445,6 @@
           // Force the popup to open if we are in preview mode, bypassing local storage limits
           if (isPreview) {
             code = code.replace(/if\s*\(\s*shouldShow\(\)\s*\)\s*openPopup\(\);/g, "openPopup();");
-            // Also wipe the storage key just in case
-            localStorage.removeItem("asmos_popup_last_seen");
           }
           newScript.textContent = code;
         }
@@ -295,7 +452,12 @@
         s.remove();
       });
 
-      trackEvent(variant.id, "IMPRESSION");
+      // NO IMPRESSION HERE. The runtime fires it from inside openPopup(), once
+      // the popup is actually on screen. Firing it at injection time counted an
+      // impression for every visitor the runtime's own suppression window then
+      // silently declined to show — inflating the denominator by an amount
+      // proportional to how long an arm had been winning, which is a negative
+      // feedback loop bolted onto a system designed to have a positive one.
       return;
     }
 
@@ -488,28 +650,77 @@
     var targeting = variant.targeting || {};
     if (!matchesPageTargeting(targeting.pages)) return;
     var trigger = targeting.trigger || "time_delay";
+    var fired = false;
+    function fire() {
+      if (fired) return;
+      fired = true;
+      showPopup(campaign, variant);
+    }
 
     if (trigger === "exit_intent") {
-      document.addEventListener("mouseleave", function handler(e) {
-        if (e.clientY <= 0) {
-          document.removeEventListener("mouseleave", handler);
-          showPopup(campaign, variant);
-        }
-      });
+      if (supportsHover) {
+        document.addEventListener("mouseleave", function handler(e) {
+          if (e.clientY <= 0) {
+            document.removeEventListener("mouseleave", handler);
+            fire();
+          }
+        });
+      } else {
+        // Mobile exit-intent.
+        //
+        // `mouseleave` never fires on a touch device, so an exit-intent arm was
+        // effectively desktop-only while a time-delay arm served everyone. A
+        // tournament comparing them was comparing desktop traffic against all
+        // traffic, not one trigger against another — and desktop converts
+        // differently from mobile on essentially every store.
+        //
+        // The closest honest equivalents on touch: a fast upward scroll back
+        // toward the chrome (reaching for the address bar / back gesture), and
+        // the page being hidden as the visitor leaves. Both are read-only
+        // listeners; neither traps the visitor or blocks navigation.
+        var lastY = window.scrollY;
+        var lastT = Date.now();
+        var settled = false;
+        setTimeout(function () { settled = true; }, 3000); // ignore load-time scroll jitter
+
+        window.addEventListener("scroll", function handler() {
+          if (!settled) { lastY = window.scrollY; lastT = Date.now(); return; }
+          var now = Date.now();
+          var dy = window.scrollY - lastY;
+          var dt = Math.max(1, now - lastT);
+          var velocity = dy / dt; // px per ms; negative is upward
+          lastY = window.scrollY;
+          lastT = now;
+          // Sharp upward flick while meaningfully down the page.
+          if (velocity < -1.1 && window.scrollY > window.innerHeight * 0.5) {
+            window.removeEventListener("scroll", handler);
+            fire();
+          }
+        }, { passive: true });
+
+        document.addEventListener("visibilitychange", function () {
+          if (document.visibilityState === "hidden" && settled) fire();
+        });
+      }
     } else if (trigger === "scroll_depth") {
+      var threshold = typeof targeting.scrollDepthPercent === "number"
+        ? Math.min(Math.max(targeting.scrollDepthPercent, 5), 95) / 100
+        : 0.5;
       window.addEventListener("scroll", function handler() {
         var scrolled = window.scrollY + window.innerHeight;
         var full = document.documentElement.scrollHeight;
-        if (full > 0 && scrolled / full >= 0.5) {
+        if (full > 0 && scrolled / full >= threshold) {
           window.removeEventListener("scroll", handler);
-          showPopup(campaign, variant);
+          fire();
         }
-      });
+      }, { passive: true });
     } else {
-      var delay = (targeting.delaySeconds || 5) * 1000;
-      setTimeout(function () {
-        showPopup(campaign, variant);
-      }, delay);
+      // `|| 5` treated a deliberate delay_seconds of 0 as "no value" and
+      // silently waited five seconds instead of firing immediately.
+      var seconds = typeof targeting.delaySeconds === "number" && targeting.delaySeconds >= 0
+        ? targeting.delaySeconds
+        : 5;
+      setTimeout(fire, seconds * 1000);
     }
   }
 
@@ -528,7 +739,12 @@
     .then(function (data) {
       showConsentBanner(data.consent, function () {
         if (data.tracking) loadPostHog(data.tracking);
-        if (data.campaign) scheduleTrigger(data.campaign, pickVariant(data.campaign));
+        if (!data.campaign) return;
+        var variant = pickVariant(data.campaign);
+        // pickVariant returns null when every variant is a GENERATING
+        // placeholder with nothing to render. Showing nothing is correct;
+        // showing the legacy "Special Offer" card was not.
+        if (variant) scheduleTrigger(data.campaign, variant);
       });
     })
     .catch(function () {});

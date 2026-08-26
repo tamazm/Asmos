@@ -30,7 +30,7 @@ type CampaignRow = {
 export default async function CampaignsListPage() {
   const account = await getOrCreateAccount();
   const campaigns = await prisma.campaign.findMany({
-    where: { accountId: account.id },
+    where: { accountId: account.id, status: { not: "ARCHIVED" } },
     orderBy: { createdAt: "desc" },
     include: { variants: { include: { events: true } } },
   });

@@ -96,3 +96,34 @@ npx prisma studio # DB browser (when DB is available)
 - `MOCK_AUTH=true` — bypass Clerk in dev/testing
 - `RESEND_API_KEY` — reward email sending
 - `NEXT_PUBLIC_POSTHOG_KEY` — PostHog analytics (optional)
+
+## Dashboard Home Rebuild (2026-08)
+
+### What changed
+- `src/lib/dashboardMetrics.ts` — **new**, single source for every dashboard
+  home figure. Uses `groupBy` for event counts (the previous page loaded every
+  `CampaignEvent` row for every variant into memory and called
+  `.filter().length` on them); rows are only materialised where timestamps are
+  needed (daily lead series, per-campaign sparklines).
+- `src/components/dashboard/*` — **new**, the eight cards plus shared
+  primitives and the 16px icon family. See DESIGN.md.
+- `src/app/(dashboard)/dashboard/page.tsx` — rewritten around the new grid.
+  `DashboardEmptyState` still handles the zero-campaigns case.
+- `src/app/(dashboard)/layout.tsx` — `h-20` top bar with avatar + greeting +
+  "Create Pop-up"; the Clerk `UserButton` moved into the sidebar footer.
+- `src/components/ui/Sidebar.tsx` — `MAIN` section label, workspace control in
+  the logo row, and the account row replacing the "AI is optimizing" callout.
+- `src/app/api/account/goal/route.ts` — **new**, `PATCH` for the conversion
+  target. Send `{ targetCvr: null }` to clear it.
+- `src/app/(dashboard)/dashboard/RecentCampaignsBoard.tsx` is no longer
+  imported anywhere; safe to delete once nothing else picks it up.
+
+### Migration note
+`prisma/migrations/20260823000000_add_conversion_goal_target` adds
+`Account.targetCvr` (`DOUBLE PRECISION`, percentage points — 30 means 30%) and
+`Account.goalTargetAt`. Not applied here — no DB connection. Run:
+```
+cd apps/web && npx prisma migrate deploy    # or: npx prisma db push
+```
+Until it is applied, the Conversion Goal card query will fail on the two new
+columns.

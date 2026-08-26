@@ -4,6 +4,7 @@ import type { Content } from "@google/genai";
 import { anthropic } from "@/lib/anthropic";
 import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 import { getOrCreateAccount } from "@/lib/account";
+import { industryFallbackColor } from "@/lib/popupGeneration";
 import {
   updateCampaignTool,
   geminiUpdateCampaignDeclaration,
@@ -20,12 +21,17 @@ const MOCK_MODE = !HAS_ANTHROPIC_KEY && !HAS_GEMINI_KEY && process.env.NODE_ENV 
 const SYSTEM_PROMPT_BASE =
   "You help merchants design on-site popup marketing campaigns (spin-the-wheel, scratch card, or plain form) through a short conversation. Ask a quick clarifying question if the goal is unclear; otherwise propose a complete draft right away and refine it as the merchant reacts. Keep replies short and conversational — a sentence or two, not a report. Whenever you have enough information to propose or update the full draft, call update_campaign with the complete campaign object. Keep copy short and punchy, pick a campaign type that fits the goal, and make reward weights sum to a reasonable distribution for wheel/scratch types (a single reward with weight 1 is fine for plain forms).";
 
-function buildSystemPrompt(account: { industry: string | null; brandColor: string | null }) {
+// account.brandColor is deliberately not used here — same reasoning as
+// popupGeneration.ts's brandTokensFromAnalyzeResult: a merchant-set/stored
+// account field, not something measured, and it was letting the same stale-
+// value problem back in through this separate (wheel/scratch-card) chat
+// generation path even after brandColor was removed from the main pipeline.
+// Colour instead comes from a real scraped popup in the same industry.
+async function buildSystemPrompt(account: { industry: string | null }) {
+  const fallbackColor = await industryFallbackColor(account.industry ?? undefined);
   const contextLines = [
     account.industry ? `Merchant industry: ${account.industry}.` : null,
-    account.brandColor
-      ? `Use the merchant's brand color ${account.brandColor} as the design's primaryColor unless they ask for something else.`
-      : null,
+    `Use ${fallbackColor} as the design's primaryColor unless the merchant specifies a different color or asks for something else.`,
   ].filter(Boolean);
   return SYSTEM_PROMPT_BASE + (contextLines.length ? ` ${contextLines.join(" ")}` : "");
 }
@@ -36,7 +42,7 @@ const MOCK_DRAFT: GeneratedCampaign = {
   design: {
     headline: "Spin to Win a Discount!",
     body: "Give the wheel a spin for an exclusive offer just for you.",
-    primaryColor: "#165DFF",
+    primaryColor: "#111827",
     ctaText: "Spin Now",
   },
   formFields: ["email"],
@@ -167,7 +173,7 @@ export async function POST(request: Request) {
   }
 
   const account = await getOrCreateAccount();
-  const system = buildSystemPrompt(account);
+  const system = await buildSystemPrompt(account);
 
   if (HAS_ANTHROPIC_KEY) {
     const result = await claudeTurn(

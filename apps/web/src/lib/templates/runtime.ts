@@ -330,13 +330,29 @@ export function runtimeScript(opts: RuntimeOptions): string {
 <script>
 (function () {
   var CFG = ${config};
-  var STORAGE_KEY = 'asmos_popup_last_seen';
+  // Namespaced per campaign. A single global key meant two campaigns on the
+  // same store suppressed each other, and inside a tournament a visitor who
+  // saw variant 1 could never be shown variant 2 — while variant 2 still
+  // recorded the impression.
+  var CAMPAIGN_ID = window.__asmos_campaign_id || 'default';
+  var STORAGE_KEY = 'asmos_popup_last_seen:' + CAMPAIGN_ID;
+  var LEGACY_STORAGE_KEY = 'asmos_popup_last_seen';
   var SUPPRESS_DAYS = 14;
   var RAGE_CLICK_COUNT = 3;
   var RAGE_CLICK_WINDOW_MS = 1200;
   var HOVER_INTENT_MS = 900;
+  var FONT_WAIT_MS = 700;
 
-  var root = document.getElementById('asmosPopupOverlay');
+  // The popup lives in a shadow root (see widget.js) so the merchant's theme
+  // cannot restyle it. Scripts do not execute inside a shadow root, so this
+  // one runs in the light DOM and reaches its own markup through the handle
+  // widget.js published. Falls back to the document for standalone renders
+  // (dashboard preview, /store-preview, the variety check harness).
+  var scope = window.__asmos_shadow_root || document;
+  var root = scope.getElementById
+    ? scope.getElementById('asmosPopupOverlay')
+    : scope.querySelector('#asmosPopupOverlay');
+  if (!root) root = document.getElementById('asmosPopupOverlay');
   if (!root) return;
 
   var closeBtn = root.querySelector('#asmosPopupClose');
@@ -394,7 +410,7 @@ export function runtimeScript(opts: RuntimeOptions): string {
   function shouldShow() {
     if (isPreviewContext()) return true;
     try {
-      var last = localStorage.getItem(STORAGE_KEY);
+      var last = localStorage.getItem(STORAGE_KEY) || localStorage.getItem(LEGACY_STORAGE_KEY);
       if (!last) return true;
       return (Date.now() - Number(last)) / 86400000 > SUPPRESS_DAYS;
     } catch (e) { return true; }
@@ -437,15 +453,32 @@ export function runtimeScript(opts: RuntimeOptions): string {
     lastFocused = document.activeElement;
     ensureVisibleStep();
     root.hidden = false;
-    requestAnimationFrame(function () { root.classList.add(CFG.openClass); });
+    // Two frames, not one. Removing [hidden] and adding the open class in the
+    // same paint means the element has no "before" state to transition from, so
+    // the entrance was intermittently skipped entirely. The second rAF
+    // guarantees the initial style has been committed.
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { root.classList.add(CFG.openClass); });
+    });
     if (CFG.lockScroll) document.body.style.overflow = 'hidden';
 
-    var focusTarget = root.querySelector('input, button:not(.asmos-close)');
-    if (focusTarget && !isPreviewContext()) {
-      try { focusTarget.focus({ preventScroll: true }); } catch (e) {}
+    // Auto-focus is desktop-only. On a phone, focusing the email field opens
+    // the keyboard immediately — covering half the popup, and often the offer
+    // itself, before the visitor has read a word of it.
+    var coarsePointer = false;
+    try { coarsePointer = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches); } catch (e) {}
+    if (!coarsePointer && !isPreviewContext()) {
+      var focusTarget = root.querySelector('input, button:not(.asmos-close)');
+      if (focusTarget) { try { focusTarget.focus({ preventScroll: true }); } catch (e) {} }
     }
     document.addEventListener('keydown', onKeydown);
     startTimer();
+
+    // THE impression. Fired here, when the popup is genuinely on screen, rather
+    // than by widget.js at injection time — which counted an impression for
+    // every visitor shouldShow() then declined to show, deflating conversion
+    // rate by an amount that varied per arm.
+    track('IMPRESSION', { openDelayMs: CFG.openDelayMs });
   }
 
   function flushTelemetry() {
@@ -480,15 +513,28 @@ export function runtimeScript(opts: RuntimeOptions): string {
     markSeen();
   }
 
+  function activeElementIn(scopeNode) {
+    // Inside a shadow root, document.activeElement is the HOST, not the focused
+    // control — the real one is scopeNode.activeElement.
+    return (scopeNode && scopeNode.activeElement) || document.activeElement;
+  }
+
   function onKeydown(e) {
     if (e.key === 'Escape') { closePopup(); return; }
     if (!CFG.trapFocus || e.key !== 'Tab') return;
-    var focusable = root.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    var all = root.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    // Steps that are not on screen are still in the DOM. Without this filter,
+    // Tab walked focus into hidden steps and the visitor lost the caret.
+    var focusable = [];
+    for (var f = 0; f < all.length; f++) {
+      if (all[f].offsetParent !== null && !all[f].disabled) focusable.push(all[f]);
+    }
     if (!focusable.length) return;
     var first = focusable[0];
     var last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    var active = activeElementIn(scope);
+    if (e.shiftKey && active === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
   }
 
   // ── Step machine ─────────────────────────────────────────────────────────
@@ -578,7 +624,13 @@ export function runtimeScript(opts: RuntimeOptions): string {
   root.addEventListener('click', function (e) {
     var t = e.target;
     var interactive = t.closest && t.closest('button, a, input, label, [data-next], [data-dismiss], form');
-    if (!interactive) {
+    // A click on the backdrop is how the popup CLOSES — it is the most
+    // deliberate interaction there is, and it was being counted as a dead
+    // click. That inflated dead_click_sessions, tripped the "cant_find_the_cta"
+    // failure pattern, and told the generator to change button_fill and
+    // button_shape in response to visitors successfully dismissing the popup.
+    var isBackdrop = t === root;
+    if (!interactive && !isBackdrop) {
       telemetry.deadClicks += 1;
       track('INTERACTION', { step: 'dead_click', targetTag: (t.tagName || '').toLowerCase() });
     }
@@ -706,7 +758,24 @@ export function runtimeScript(opts: RuntimeOptions): string {
   // otherwise every abandoned session silently loses its diagnostic data.
   window.addEventListener('pagehide', function () { if (openedAt && !root.hidden) flushTelemetry(); }, { once: true });
 
-  setTimeout(function () { if (shouldShow()) openPopup(); }, CFG.openDelayMs);
+  // Open once the webfont has actually arrived, so the popup enters already
+  // wearing its typeface instead of painting in the fallback and visibly
+  // re-rendering — a reflow that re-runs text-wrap: balance, re-wraps the
+  // headline and resizes the card, at the moment of maximum attention.
+  // Capped: a slow or blocked font network must never stop the popup opening.
+  function openWhenReady() {
+    if (!shouldShow()) return;
+    var opened = false;
+    function go() { if (!opened) { opened = true; openPopup(); } }
+    setTimeout(go, FONT_WAIT_MS);
+    if (document.fonts && document.fonts.ready && typeof document.fonts.ready.then === 'function') {
+      document.fonts.ready.then(go).catch(go);
+    } else {
+      go();
+    }
+  }
+
+  setTimeout(openWhenReady, CFG.openDelayMs);
 })();
 </script>`;
 }

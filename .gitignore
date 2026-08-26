@@ -1,0 +1,4 @@
+# Git worktrees created by Claude Code's EnterWorktree tool — local checkouts,
+# not something the parent repo should track (a gitlink accidentally slipped
+# into main once already; this prevents a repeat).
+.claude/worktrees/

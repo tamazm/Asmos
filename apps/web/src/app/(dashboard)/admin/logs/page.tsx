@@ -3,11 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { isSuperadminEmail } from "@/lib/superadmin";
 
 async function verifySuperadmin() {
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress;
-  if (email !== "zaridzezurabi@gmail.com") {
+  if (!isSuperadminEmail(email)) {
     redirect("/campaigns");
   }
 }

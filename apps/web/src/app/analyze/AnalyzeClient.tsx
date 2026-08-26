@@ -98,9 +98,9 @@ export function AnalyzeClient() {
         {/* Logo */}
         <div className="mb-12 flex justify-center">
           <Image
-            src="/assets/asmos-logo-primary-lightbg.webp"
+            src="/assets/logo.webp"
             alt="Asmos"
-            width={96}
+            width={114}
             height={24}
             priority
             className="h-6 w-auto"

@@ -154,7 +154,7 @@ export default function GeneratePopupPage() {
   const [stepIndex, setStepIndex] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
   const [storeName, setStoreName] = useState("your store");
-  const [primaryColor, setPrimaryColor] = useState("#165DFF");
+  const [primaryColor, setPrimaryColor] = useState("#111827");
   const [preview, setPreview] = useState<{ headline: string; subhead: string; cta: string; code: string } | null>(null);
 
   useEffect(() => {
@@ -198,7 +198,7 @@ export default function GeneratePopupPage() {
       } catch { /* ignore */ }
 
       const name = analyzeData.storeName ?? "My Store";
-      const color = analyzeData.brandColor ?? "#165DFF";
+      const color = analyzeData.brandColor ?? "#111827";
       setStoreName(name);
       setPrimaryColor(color);
 
@@ -230,8 +230,14 @@ export default function GeneratePopupPage() {
       // ── Step 2: Copy ──
       setStepIndex(2);
 
-      // Set preview (AI or sensible default)
+      // Set preview (AI or sensible default). Colour prefers the real
+      // generated design_tokens.palette over `color` (the pre-signup guess,
+      // possibly just the "#165DFF" placeholder) — this used to show, and
+      // then permanently save, the guess even when the AI call succeeded
+      // and returned a real palette.
       const spec = popup?.baseline?.spec;
+      const generatedColor = spec?.design_tokens.palette[0] ?? color;
+      setPrimaryColor(generatedColor);
       setPreview({
         headline: spec?.headline ?? `Get ${offerValue || "10"}% off your first order`,
         subhead: spec?.subhead ?? `Join ${name} and get ${offerType === "free_shipping" ? "free shipping" : `${offerValue || "10"}% off`} on your first order.`,
@@ -263,7 +269,7 @@ export default function GeneratePopupPage() {
         design: {
           headline: specToUse?.headline ?? `Get ${offerValue || "10"}% off your first order`,
           body: specToUse?.subhead ?? `Subscribe to ${name} and get your welcome offer.`,
-          primaryColor: color,
+          primaryColor: generatedColor,
           ctaText: specToUse?.cta ?? "Claim my discount",
         },
         formFields: specToUse?.fields ?? ["email"],

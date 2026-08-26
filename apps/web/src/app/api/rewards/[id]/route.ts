@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth-adapter";
-import { getOrCreateAccount } from "@/lib/account";
+import { resolveAccountForRequest } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import type { RewardType } from ".prisma/client";
 
@@ -25,12 +25,6 @@ export async function PATCH(
   }
 
   const { id } = await ctx.params;
-  const account = await getOrCreateAccount();
-  const reward = await findOwnedReward(id, account.id);
-  if (!reward) {
-    return Response.json({ error: "Reward not found" }, { status: 404 });
-  }
-
   const body = (await request.json().catch(() => ({}))) as {
     label?: string;
     description?: string | null;
@@ -41,7 +35,17 @@ export async function PATCH(
     maxRedemptions?: number | null;
     active?: boolean;
     campaignId?: string;
+    accountId?: string;
   };
+
+  const account = await resolveAccountForRequest(body.accountId);
+  if (!account) {
+    return Response.json({ error: "Account not found" }, { status: 404 });
+  }
+  const reward = await findOwnedReward(id, account.id);
+  if (!reward) {
+    return Response.json({ error: "Reward not found" }, { status: 404 });
+  }
 
   const data: Record<string, unknown> = {};
 
@@ -110,7 +114,7 @@ export async function PATCH(
 // SetNull) — their claimed code text stays visible via
 // Lead.rewardClaimedCode either way.
 export async function DELETE(
-  _request: Request,
+  request: Request,
   ctx: RouteContext<"/api/rewards/[id]">,
 ) {
   const { userId } = await auth();
@@ -119,7 +123,11 @@ export async function DELETE(
   }
 
   const { id } = await ctx.params;
-  const account = await getOrCreateAccount();
+  const body = (await request.json().catch(() => ({}))) as { accountId?: string };
+  const account = await resolveAccountForRequest(body.accountId);
+  if (!account) {
+    return Response.json({ error: "Account not found" }, { status: 404 });
+  }
   const reward = await findOwnedReward(id, account.id);
   if (!reward) {
     return Response.json({ error: "Reward not found" }, { status: 404 });

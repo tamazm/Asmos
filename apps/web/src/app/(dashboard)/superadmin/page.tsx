@@ -3,8 +3,14 @@ import { currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 import { isSuperadminEmail } from "@/lib/superadmin";
 import { SuperadminActions, TriggerCronButton } from "./ClientActions";
+import { AnalyticsExplorer } from "./AnalyticsExplorer";
+import { getSuperadminAnalytics, parseSuperadminAnalyticsSelection } from "@/lib/superadmin-analytics";
 
-export default async function SuperadminPage() {
+export default async function SuperadminPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress;
   if (!isSuperadminEmail(email)) {
@@ -15,17 +21,21 @@ export default async function SuperadminPage() {
     );
   }
 
-  const campaigns = await prisma.campaign.findMany({
-    include: {
-      account: {
-        include: {
-          users: true,
+  const selection = parseSuperadminAnalyticsSelection(await searchParams);
+  const [campaigns, analytics] = await Promise.all([
+    prisma.campaign.findMany({
+      include: {
+        account: {
+          include: {
+            users: true,
+          },
         },
+        website: true,
       },
-      website: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+      orderBy: { createdAt: "desc" },
+    }),
+    getSuperadminAnalytics(selection),
+  ]);
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -36,6 +46,8 @@ export default async function SuperadminPage() {
         </div>
         <TriggerCronButton />
       </div>
+
+      <AnalyticsExplorer data={analytics} />
 
       <div className="overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm">
         <div className="overflow-x-auto">

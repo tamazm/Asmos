@@ -5,11 +5,11 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { onboardingStepCompleted } from "@/lib/analytics";
 import { cn } from "@/lib/cn";
+import { INDUSTRY_BUCKETS, normalizeIndustry } from "@/lib/popupScraping";
 
 interface AnalyzeResult {
   storeName?: string;
   industry?: string;
-  brandColor?: string;
   storeUrl?: string;
 }
 
@@ -132,14 +132,19 @@ export default function BusinessProfilePage() {
   const router = useRouter();
   const [analyzeData, setAnalyzeData] = useState<AnalyzeResult | null>(null);
 
-  // Detected (prefilled) state
-  const [industry, setIndustry] = useState("Ecommerce / Retail");
-  const [brandColor, setBrandColor] = useState("#165DFF");
+  // Detected (prefilled) state — null means "nothing detected". Brand colour
+  // used to live here too (a picker feeding Account.brandColor), but colour
+  // is no longer a product-level, merchant-set concept at all: generation
+  // sources colour exclusively from what's measured on the store's own site
+  // or, failing that, a real scraped colour from the same industry (see
+  // popupGeneration.ts's brandTokensFromAnalyzeResult) — never a manually
+  // chosen/stored value, which was letting a stale or placeholder colour
+  // silently govern every popup an account ever generated.
+  const [industry, setIndustry] = useState<string | null>(null);
   const [businessName, setBusinessName] = useState("");
 
-  // Edit overrides
+  // Edit override
   const [editingIndustry, setEditingIndustry] = useState(false);
-  const [editingColor, setEditingColor] = useState(false);
 
   // Questions Asmos cannot infer
   const [role, setRole] = useState<string>("");
@@ -158,8 +163,7 @@ export default function BusinessProfilePage() {
         const data: AnalyzeResult = JSON.parse(raw);
         startTransition(() => {
           setAnalyzeData(data);
-          if (data.industry) setIndustry(data.industry);
-          if (data.brandColor) setBrandColor(data.brandColor);
+          if (data.industry) setIndustry(normalizeIndustry(data.industry));
           if (data.storeName) setBusinessName(data.storeName);
         });
       }
@@ -169,8 +173,13 @@ export default function BusinessProfilePage() {
   }, []);
 
   const hasAnalyzeData = analyzeData !== null;
+  // Only show the confident "Detected: ..." framing when a value was
+  // genuinely detected for THAT field — hasAnalyzeData alone just means the
+  // analyze step ran, not that every field it looked for was found.
+  const hasDetectedIndustry = industry !== null;
 
   async function handleContinue() {
+    if (!industry) { setError("Please select your industry."); return; }
     if (!role) { setError("Please select your role."); return; }
     if (!goal) { setError("Please select a primary goal."); return; }
     setSaving(true);
@@ -181,7 +190,6 @@ export default function BusinessProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           industry,
-          brandColor,
           name: businessName || undefined,
           role,
           conversionGoal: goal,
@@ -216,7 +224,7 @@ export default function BusinessProfilePage() {
       </div>
 
       {/* ── Detected: industry ── */}
-      {hasAnalyzeData && !editingIndustry ? (
+      {hasDetectedIndustry && !editingIndustry ? (
         <DetectedField
           label="Industry"
           value={`Detected: ${industry}`}
@@ -227,65 +235,26 @@ export default function BusinessProfilePage() {
           <label htmlFor="industry-input" className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
             Industry
           </label>
-          <input
+          {/* A fixed list, not free text — this is what generation matches
+              scraped industry examples against (see lib/popupScraping.ts's
+              normalizeIndustry), so picking one of the exact buckets here
+              guarantees an exact match instead of hoping keyword-matching
+              on arbitrary free text lands somewhere sensible. */}
+          <select
             id="industry-input"
-            type="text"
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
-            placeholder="e.g. Ecommerce / Retail"
-            className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
-          />
-          {hasAnalyzeData && (
+            value={industry ?? ""}
+            onChange={(e) => setIndustry(e.target.value || null)}
+            className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 bg-[color:var(--color-surface)]"
+          >
+            <option value="" disabled>Select an industry…</option>
+            {INDUSTRY_BUCKETS.map((bucket) => (
+              <option key={bucket} value={bucket}>{bucket}</option>
+            ))}
+          </select>
+          {hasDetectedIndustry && (
             <button
               type="button"
               onClick={() => setEditingIndustry(false)}
-              className="mt-1 text-[11px] text-[color:var(--color-primary)] hover:underline"
-            >
-              Revert to detected value
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* ── Detected: brand color ── */}
-      {hasAnalyzeData && !editingColor ? (
-        <DetectedField
-          label="Brand color"
-          value={
-            <span className="flex items-center gap-2">
-              <span
-                className="inline-block h-4 w-4 rounded-full border border-black/10 flex-shrink-0"
-                style={{ backgroundColor: brandColor }}
-              />
-              <span className="font-mono">{brandColor}</span>
-            </span>
-          }
-          onEdit={() => setEditingColor(true)}
-        />
-      ) : (
-        <div>
-          <p className="mb-2 text-sm font-medium text-[color:var(--color-text-primary)]">Brand color</p>
-          <div className="flex items-center gap-3 mb-3">
-            <div
-              className="h-10 w-10 rounded-lg border border-black/10 flex-shrink-0"
-              style={{ backgroundColor: brandColor }}
-            />
-            <span className="font-mono text-sm text-[color:var(--color-text-secondary)] tabular-nums">{brandColor}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={brandColor}
-              onChange={(e) => setBrandColor(e.target.value)}
-              className="h-9 w-9 cursor-pointer rounded-lg border border-[color:var(--color-border)] p-0.5"
-              aria-label="Pick brand color"
-            />
-            <span className="text-xs text-[color:var(--color-text-secondary)]">Choose a color</span>
-          </div>
-          {hasAnalyzeData && (
-            <button
-              type="button"
-              onClick={() => setEditingColor(false)}
               className="mt-1 text-[11px] text-[color:var(--color-primary)] hover:underline"
             >
               Revert to detected value
