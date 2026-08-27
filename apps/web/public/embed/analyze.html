@@ -202,7 +202,7 @@
     </form>
   </div>
 
-  <section style="width:100%;  padding:0px 20px 0px; box-sizing:border-box;">
+  <section id="asmosShowcaseSection" style="width:100%;  padding:0px 20px 0px; box-sizing:border-box;">
     <div id="asmosShowcase" style="display:flex; gap:28px; max-width:1080px; margin:0 auto; align-items:stretch;">
 
       <!-- Left: annotated store screenshot -->
@@ -304,7 +304,30 @@
     </div>
   </section>
 
-
+  <!-- Real scan results — hidden until a fetch to /api/analyze resolves, then
+       swapped in for the hero + showcase demo above (see showResult() below). -->
+  <div id="asmosResultPanel" style="display:none; width:100%; max-width:560px; margin:0 auto; padding:48px 20px; box-sizing:border-box; font-family:'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif;">
+    <div style="background:#fff; border-radius:20px; padding:28px; box-shadow:0 12px 40px rgba(15,23,42,0.10); text-align:left; box-sizing:border-box;">
+      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:6px;">
+        <div style="min-width:0;">
+          <div id="asmosResultStoreName" style="font-size:18px; font-weight:600; color:#0f172a; overflow-wrap:anywhere;"></div>
+          <div id="asmosResultIndustry" style="font-size:12px; color:#64748b; margin-top:2px;"></div>
+        </div>
+        <div style="text-align:right; flex-shrink:0;">
+          <div id="asmosResultGrade" style="font-size:30px; font-weight:700; line-height:1;"></div>
+          <div id="asmosResultScore" style="font-size:11px; color:#64748b; margin-top:2px; white-space:nowrap;"></div>
+        </div>
+      </div>
+      <div id="asmosResultVerdict" style="font-size:13px; color:#334155; line-height:1.55; margin:14px 0 0;"></div>
+      <div id="asmosResultTopIssue" style="display:none; font-size:12px; color:#165DFF; background:#eef4ff; border-radius:10px; padding:10px 12px; margin:12px 0 18px;"></div>
+      <div id="asmosResultChecklist" style="margin-top:14px;"></div>
+    </div>
+    <div style="text-align:center; margin-top:16px;">
+      <button id="asmosTryAnotherBtn" type="button"
+        style="border:1px solid #e6e9f2; background:#fff; color:#0f172a; font-size:13px; font-weight:500; padding:8px 18px; border-radius:999px; cursor:pointer; font-family:inherit;">Analyze
+        another store</button>
+    </div>
+  </div>
 
   <script>
     (function () {
@@ -370,16 +393,130 @@
         btn.style.cursor = "not-allowed";
         btnLabel.innerHTML = '<span style="display:inline-block; width:14px; height:14px; border-radius:50%; border:2px solid rgba(255,255,255,0.4); border-top-color:#fff; animation:asmosSpin 0.7s linear infinite;"></span> Analyzing...';
 
-        // Handoff to the real, live Asmos analysis flow. Hardcoded to production
-        // (not a relative path) so this works no matter where this embed file
-        // itself is hosted — it does the actual scraping + AI scoring
-        // server-side and can't be reproduced in static JS. Navigating in-place
-        // keeps the whole scan + results experience inside this iframe.
-        //
-        // app.asmos.io, not asmos.io: the bare domain is currently hosted on
-        // Framer (not this app), so /analyze only resolves on the app host —
-        // see proxy.ts's isAppRoute.
-        window.location.href = "https://app.asmos.io/analyze?url=" + encodeURIComponent(normalized);
+        // Calls the real, live Asmos analysis endpoint directly and renders the
+        // result in place (see showResult() below) — no page navigation.
+        // Hardcoded to app.asmos.io (not a relative path) so this works no
+        // matter where this embed file itself is hosted: the bare asmos.io
+        // domain is currently served by Framer, not this app, so only
+        // app.asmos.io actually has this API (see proxy.ts's isAppRoute), and
+        // the API sends Access-Control-Allow-Origin: * specifically so this
+        // cross-origin fetch is allowed to read the response.
+        fetch("https://app.asmos.io/api/analyze?url=" + encodeURIComponent(normalized))
+          .then(function (res) {
+            if (!res.ok) throw new Error("Analysis failed. Please try again.");
+            return res.json();
+          })
+          .then(function (data) {
+            if (data && data.error) throw new Error(data.error);
+            showResult(data);
+          })
+          .catch(function (err) {
+            resetFormState();
+            setError((err && err.message) || "Something went wrong. Please try again.");
+          });
+      });
+
+      function resetFormState() {
+        loading = false;
+        input.disabled = false;
+        btn.disabled = false;
+        btn.style.opacity = "";
+        btn.style.cursor = "pointer";
+        btnLabel.innerHTML = 'Analyze<span id="asmosBtnLabelExtra"> For Free</span>';
+      }
+
+      // ── Rendering the real result ───────────────────────────────────────────
+      var showcaseSection = document.getElementById("asmosShowcaseSection");
+      var hero = document.getElementById("asmosHero");
+      var resultPanel = document.getElementById("asmosResultPanel");
+      var tryAnotherBtn = document.getElementById("asmosTryAnotherBtn");
+
+      var CHECKS = [
+        ["popup", "Popup"],
+        ["emailCapture", "Email Capture"],
+        ["socialProof", "Social Proof"],
+        ["urgency", "Urgency"],
+        ["exitIntent", "Exit Intent"],
+        ["stickyBar", "Sticky Bar"],
+        ["liveChat", "Live Chat"],
+      ];
+
+      // Escapes untrusted text (store name / AI-generated copy) before it is
+      // interpolated into an innerHTML template below.
+      function esc(s) {
+        var d = document.createElement("div");
+        d.textContent = s == null ? "" : String(s);
+        return d.innerHTML;
+      }
+
+      function gradeColor(grade) {
+        var letter = (grade || "").charAt(0);
+        if (letter === "A") return "#16a34a";
+        if (letter === "B") return BLUE;
+        if (letter === "C") return "#d97706";
+        if (letter === "D" || letter === "F") return ERROR_COLOR;
+        return BLUE;
+      }
+
+      function showResult(data) {
+        data = data || {};
+        hero.style.display = "none";
+        showcaseSection.style.display = "none";
+
+        var score = typeof data.overallScore === "number" ? data.overallScore : data.score;
+        var grade = data.grade || "—";
+
+        document.getElementById("asmosResultStoreName").textContent = data.storeName || "Your store";
+        document.getElementById("asmosResultIndustry").textContent = data.industry || "";
+
+        var gradeEl = document.getElementById("asmosResultGrade");
+        gradeEl.textContent = grade;
+        gradeEl.style.color = gradeColor(grade);
+        document.getElementById("asmosResultScore").textContent = typeof score === "number" ? score + "/100" : "";
+        document.getElementById("asmosResultVerdict").textContent = data.verdict || "";
+
+        var topIssueEl = document.getElementById("asmosResultTopIssue");
+        if (data.topIssue) {
+          topIssueEl.textContent = data.topIssue;
+          topIssueEl.style.display = "block";
+        } else {
+          topIssueEl.style.display = "none";
+        }
+
+        var checklist = document.getElementById("asmosResultChecklist");
+        checklist.innerHTML = "";
+        CHECKS.forEach(function (entry) {
+          var key = entry[0];
+          var label = entry[1];
+          var item = data[key] || {};
+          var found = !!item.found;
+          var row = document.createElement("div");
+          row.style.cssText = "display:flex; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #f1f5f9;";
+          row.innerHTML =
+            '<div style="width:28px; height:28px; border-radius:8px; background:' + (found ? "#eef4ff" : "#f1f5f9") + '; display:flex; align-items:center; justify-content:center; flex-shrink:0;">' +
+            (found
+              ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="' + BLUE + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>'
+              : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>') +
+            "</div>" +
+            '<div style="flex:1; min-width:0;">' +
+            '<div style="font-size:13px; font-weight:600; color:#0f172a;">' + label + "</div>" +
+            '<div style="font-size:12px; color:#64748b;">' + esc(item.description || "") + "</div>" +
+            "</div>" +
+            '<span style="flex-shrink:0; font-size:11px; font-weight:600; color:' + (found ? BLUE : "#94a3b8") + "; background:" + (found ? "#dbe7ff" : "#f1f5f9") + '; padding:3px 8px; border-radius:999px;">' + (found ? "Found" : "Missing") + "</span>";
+          checklist.appendChild(row);
+        });
+
+        resultPanel.style.display = "block";
+      }
+
+      tryAnotherBtn.addEventListener("click", function () {
+        resultPanel.style.display = "none";
+        hero.style.display = "";
+        showcaseSection.style.display = "";
+        input.value = "";
+        resetFormState();
+        clearError();
+        input.focus();
       });
 
       // ── Intro animation: field grows in, then "yourstore.com" slot-machine

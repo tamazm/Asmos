@@ -35,6 +35,14 @@ const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY ?? "";
 const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
 const AWS_REGION = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "eu-central-1";
 
+// This endpoint backs the embeddable widget (public/embed/analyze.html),
+// which is loaded on arbitrary third-party origins - so responses need to be
+// readable cross-origin. No cookies/auth are involved, so a wildcard is fine.
+function cors<T extends NextResponse>(res: T): T {
+  res.headers.set("Access-Control-Allow-Origin", "*");
+  return res;
+}
+
 // Bedrock model - Claude Haiku 4.5 via cross-region inference profile
 const BEDROCK_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
 
@@ -762,6 +770,7 @@ function parseBrandTokensJSON(text: string): BrandTokensResult | null {
 // ---------------------------------------------------------------------------
 export async function GET(req: NextRequest) { return handler(req); }
 export async function POST(req: NextRequest) { return handler(req); }
+export async function OPTIONS() { return cors(new NextResponse(null, { status: 204 })); }
 
 async function handler(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
@@ -778,7 +787,7 @@ async function handler(req: NextRequest) {
         data: { count: 1, resetAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }
       });
     } else if (rateLimit.count >= 50) {
-      return NextResponse.json({ error: "Rate limit exceeded. Please try again tomorrow." }, { status: 429 });
+      return cors(NextResponse.json({ error: "Rate limit exceeded. Please try again tomorrow." }, { status: 429 }));
     } else {
       await prisma.rateLimit.update({
         where: { id: rateLimit.id },
@@ -793,7 +802,7 @@ async function handler(req: NextRequest) {
   }
 
   if (!url || typeof url !== "string") {
-    return NextResponse.json({ error: "Missing url param" }, { status: 400 });
+    return cors(NextResponse.json({ error: "Missing url param" }, { status: 400 }));
   }
 
   // Normalize URL
@@ -808,7 +817,7 @@ async function handler(req: NextRequest) {
   if (!screenshotBase64) {
     // No screenshot - use heuristics
     const result = await heuristicAnalysis(normalizedUrl);
-    return NextResponse.json({ ...result, storeUrl: normalizedUrl });
+    return cors(NextResponse.json({ ...result, storeUrl: normalizedUrl }));
   }
 
   // 2. AI analysis - Bedrock → Anthropic → Gemini → heuristic (CRO pass)
@@ -830,7 +839,7 @@ async function handler(req: NextRequest) {
   if (!aiResult) {
     // All AI failed - return heuristics but include screenshot
     const heuristic = await heuristicAnalysis(normalizedUrl);
-    return NextResponse.json({ ...heuristic, screenshotBase64, storeUrl: normalizedUrl });
+    return cors(NextResponse.json({ ...heuristic, screenshotBase64, storeUrl: normalizedUrl }));
   }
 
   // ── 3. MEASURE, then judge ────────────────────────────────────────────────
@@ -997,7 +1006,7 @@ async function handler(req: NextRequest) {
     console.warn("[analyze] store profile persist failed:", e);
   }
 
-  return NextResponse.json({
+  return cors(NextResponse.json({
     ...aiResult,
     storeName: decodeEntities(aiResult.storeName ?? ""),
     // The generic bucket no longer masquerades as a finding. Downstream reads
@@ -1018,6 +1027,6 @@ async function handler(req: NextRequest) {
     storeProfile,
     offerRecommendation,
     extractionSources: sources,
-  });
+  }));
 }
 
