@@ -266,7 +266,7 @@ export function AnalyticsTab({
           ))}
         </div>
         <p className="mt-2 text-xs text-[color:var(--color-text-secondary)]">
-          Traffic is automatically reallocated by the bandit algorithm as results accumulate.
+          AI optimization reallocates traffic automatically as results accumulate.
         </p>
       </div>
 

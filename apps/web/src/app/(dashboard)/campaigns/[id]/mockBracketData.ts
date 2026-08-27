@@ -75,7 +75,7 @@ export const testSummary = {
   avgConversionRate:
     round1.reduce((sum, v) => sum + v.conversionRate, 0) / round1.length,
   testDurationDays: 14,
-  allocationMethod: "Bandit",
+  allocationMethod: "AI optimization",
 };
 
 export const trafficAllocation = [

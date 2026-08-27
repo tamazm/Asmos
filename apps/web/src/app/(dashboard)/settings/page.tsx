@@ -142,7 +142,7 @@ export default async function SettingsPage() {
       <p className="mb-5 text-sm text-[color:var(--color-text-secondary)]">Choose which in-app and email alerts you receive.</p>
       <div className="flex flex-col gap-4">
         {[
-          { id: "winner", label: "Variant winner declared", description: "When the bandit algorithm identifies a clear winner.", defaultOn: true },
+          { id: "winner", label: "Variant winner declared", description: "When AI optimization identifies a clear winner.", defaultOn: true },
           { id: "install", label: "Install not detected", description: "If your widget snippet is not found during verification.", defaultOn: true },
           { id: "campaign_live", label: "Campaign went live", description: "When a campaign is first published or reactivated.", defaultOn: false },
           { id: "weekly_digest", label: "Weekly performance digest", description: "A weekly summary of impressions and conversions.", defaultOn: true },

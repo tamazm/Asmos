@@ -505,7 +505,7 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                   "Detects any existing popups and improves them - or creates from scratch",
                   "Writes personalized headline, subhead and CTA for your store category",
                   "Generates a self-contained popup - live in one click",
-                  "Auto-tests variants via the bandit - no manual A/B setup needed",
+                  "Auto-tests variants continuously - no manual A/B setup needed",
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2">
                     <svg className="mt-0.5 shrink-0 text-emerald-500" width="12" height="12" viewBox="0 0 16 16" fill="none">

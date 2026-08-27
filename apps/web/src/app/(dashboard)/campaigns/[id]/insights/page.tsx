@@ -76,7 +76,7 @@ export default async function CampaignInsightsPage(props: {
         </h2>
         <p className="text-sm text-[color:var(--color-text-secondary)]">
           Plain-English explanations of why variants are winning or losing, plus occasional
-          suggestions for new variants to test. The bandit already reallocates traffic live.
+          suggestions for new variants to test. AI optimization already reallocates traffic live.
           These reports explain the pattern.
         </p>
       </div>

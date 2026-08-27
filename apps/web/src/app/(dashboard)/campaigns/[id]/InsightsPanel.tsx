@@ -93,7 +93,7 @@ export function InsightsPanel({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-[color:var(--color-text-secondary)]">
-          Generated automatically every two weeks. The bandit already reallocates traffic live.
+          Generated automatically every two weeks. AI optimization already reallocates traffic live.
           These reports explain why, and occasionally propose a new variant to test.
         </p>
         <Button

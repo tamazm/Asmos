@@ -31,7 +31,7 @@ export type CampaignStatsForInsight = {
 };
 
 const SYSTEM_PROMPT =
-  "You review popup marketing campaign performance data for a merchant and write a short, plain-English summary (2-4 sentences) of what's working and what isn't - the bandit already handles live traffic reallocation, so focus on explaining the pattern, not restating raw numbers. If the data clearly suggests a specific new variant worth testing (different copy, offer, or trigger), call propose_variant with a concrete, complete proposal. Don't propose a variant just to have one - skip it if there's too little data yet, or the current leader is already working well.";
+  "You review popup marketing campaign performance data for a merchant and write a short, plain-English summary (2-4 sentences) of what's working and what isn't - Asmos already handles live traffic reallocation, so focus on explaining the pattern, not restating raw numbers. If the data clearly suggests a specific new variant worth testing (different copy, offer, or trigger), call propose_variant with a concrete, complete proposal. Don't propose a variant just to have one - skip it if there's too little data yet, or the current leader is already working well.";
 
 function buildUserMessage(stats: CampaignStatsForInsight): string {
   return `Campaign: ${stats.campaignName} (${stats.campaignType})\n\nVariant performance:\n${JSON.stringify(stats.variants, null, 2)}`;

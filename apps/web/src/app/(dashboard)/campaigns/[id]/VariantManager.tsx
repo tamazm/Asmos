@@ -208,7 +208,7 @@ export function VariantManager({
             <path d="M12 8v4m0 4h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>
           <p className="text-sm text-[color:var(--color-text-secondary)]">
-            Traffic is auto-managed by the bandit algorithm. Percentages adjust automatically after each impression based on variant performance.
+            Traffic is auto-managed by AI optimization. Percentages adjust automatically after each impression based on variant performance.
           </p>
         </div>
       )}

@@ -1,4 +1,42 @@
-# Gates: Remove em dashes from maintained Asmos text
+# Gates: Remove algorithm-naming copy from user-facing text (KLI-FE5734A3)
+
+Scope: Replace every user-facing string that names the optimization algorithm with neutral product language, without touching internal identifiers, comments, docs, or behavior.
+
+- [x] G1: No rendered user-facing string in apps/web names the algorithm.
+  CHECK: bash -lc 'if git grep -nIiE "bandit|bayes|thompson|multi-?armed|epsilon-greedy" -- apps/web/src apps/web/public | grep -vE "^[^:]+:[0-9]+: *(//|\*|/\*)" | grep -vE "lib/bandit|\{/\* |import |console\.error|banditActive"; then exit 1; else echo NO_USER_FACING_ALGORITHM_NAMES; fi'
+  EXPECT: NO_USER_FACING_ALGORITHM_NAMES
+  EVIDENCE: Final scoped `git grep` over apps/web/src + apps/web/public returned only `evaluateKnockout.ts:25 } from "@/lib/bandit";` (an import continuation). All 15 rendered strings replaced.
+
+- [x] G2: /settings notification item keeps id "winner" and defaultOn true with neutral description.
+  CHECK: rg -n 'id: "winner"' "apps/web/src/app/(dashboard)/settings/page.tsx"
+  EXPECT: id: "winner", label: "Variant winner declared", description: "When AI optimization identifies a clear winner.", defaultOn: true
+  EVIDENCE: `apps/web/src/app/(dashboard)/settings/page.tsx:145` reads `{ id: "winner", label: "Variant winner declared", description: "When AI optimization identifies a clear winner.", defaultOn: true }`. Rendered /settings HTML contains the new copy and zero algorithm terms.
+
+- [x] G3: /campaigns/new benefit bullet communicates auto-testing without naming the algorithm.
+  CHECK: rg -n 'Auto-tests variants' "apps/web/src/app/(dashboard)/campaigns/new/NewCampaignForm.tsx"
+  EXPECT: Auto-tests variants continuously - no manual A/B setup needed
+  EVIDENCE: `apps/web/src/app/(dashboard)/campaigns/new/NewCampaignForm.tsx:508` reads `"Auto-tests variants continuously - no manual A/B setup needed"`. Confirmed in rendered /campaigns/new HTML.
+
+- [x] G4: Internal artifacts unchanged: lib/bandit.ts, prisma schema, migrations.
+  CHECK: bash -lc 'if git diff --name-only | grep -E "lib/bandit.ts|prisma/"; then exit 1; else echo INTERNALS_UNCHANGED; fi'
+  EXPECT: INTERNALS_UNCHANGED
+  EVIDENCE: `git diff --name-only` returned INTERNALS_UNCHANGED: no match for lib/bandit.ts or prisma/. Local identifier `banditActive`, JSX comment `{/* Bandit status note */}`, imports, and console.error strings deliberately left untouched.
+
+- [x] G5: Lint and type-check pass for changed files with no new errors.
+  EVIDENCE: ESLint 9.39.5 (project-local) over all 12 changed files: 0 errors, 2 pre-existing "unused eslint-disable directive" warnings on line 1 of two files. `tsc --noEmit --incremental false`: 37 baseline errors repo-wide (missing Next-generated RouteContext/PageProps globals), 0 in any changed file.
+
+- [x] G6: No em dash introduced by the new copy.
+  CHECK: bash -lc 'mark=$(printf "\342\200\224"); if git diff -U0 | grep "^+" | grep "$mark"; then exit 1; else echo NO_EM_DASH_ADDED; fi'
+  EXPECT: NO_EM_DASH_ADDED
+  EVIDENCE: `git diff -U0 | grep "^+"` for U+2014 returned NO_EM_DASH_ADDED.
+
+- [x] G7: Focused responsive check of the changed surfaces at mobile and desktop widths shows no truncation or layout break.
+  EVIDENCE: Playwright at 390x844 and 1440x900 on /settings and /campaigns/new: no algorithm term in rendered innerText, replacement strings present and unclipped, no page horizontal overflow (RESPONSIVE_CHECK_PASS). Static evidence for the remaining surfaces: every changed string sits in a plain wrapping <p> with no truncate/whitespace-nowrap/ellipsis class, and 13 of 14 rendered replacements are within -16/+5 characters of the original.
+
+- [x] G8: Final stop-slop pass on the new copy.
+  EVIDENCE: stop-slop pass rewrote the AddVariantPanel bullet from passive ("traffic is routed automatically") to active ("Asmos routes traffic automatically"). No em dashes, no filler openers, no binary contrasts, no three-item lists introduced. Re-linted: 0 errors.
+
+## Preserved prior task ledger: KLI-1F2A (em dash removal)
 
 Scope: Replace every Unicode em dash in maintained first-party copy and documentation with context-appropriate punctuation, without changing runtime behavior.
 
@@ -44,3 +82,5 @@ Scope: Replace every Unicode em dash in maintained first-party copy and document
   EVIDENCE: Final scan found no conflict markers, `transition-all`, or task UI loading copy with three periods. Guideline review confirmed affected controls retain labels and focus affordances.
 
 ABANDON: Prior G5 Current browser rendering is blocked by a missing latest-main dependency in the immutable preconfigured dependency mount; prior task browser evidence and current source-level checks are recorded above.
+
+ABANDON: G7-interactive The /settings Notifications tab panel and the campaign-detail surfaces (KnockoutBracket, VariantManager, ScheduledVariants, AnalyticsTab, AddVariantPanel, variant detail) could not be rendered interactively in this sandbox: client hydration never completes because the dev proxy rejects the Turbopack HMR websocket handshake, so the tab never switches, and the dev database contains no campaigns while the dev seed route wedged the server on first compile. Static layout evidence recorded under G7 instead.

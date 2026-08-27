@@ -462,7 +462,7 @@ export function AddVariantPanel({
             Add variant
           </button>
           <p className="text-xs text-[color:var(--color-text-secondary)]">
-            Add challengers to the bracket - the bandit auto-routes traffic.
+            Add challengers to the bracket - Asmos routes traffic automatically.
           </p>
         </div>
       )}

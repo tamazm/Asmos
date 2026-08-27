@@ -110,7 +110,7 @@ function VariantRow({ variant }: { variant: ScheduledVariant }) {
         </div>
         {isLive && (
           <p className="text-xs text-[color:var(--color-text-secondary)]">
-            Receiving traffic from bandit
+            Receiving auto-allocated traffic
           </p>
         )}
         {variant.status === "queued" && (
@@ -186,7 +186,7 @@ export function ScheduledVariants({
             Scheduled variants
           </h3>
           <p className="mt-0.5 text-xs text-[color:var(--color-text-secondary)]">
-            Challengers accumulate over time. The bandit routes traffic to top performers automatically.
+            Challengers accumulate over time. Asmos routes traffic to top performers automatically.
           </p>
         </div>
 
@@ -222,7 +222,7 @@ export function ScheduledVariants({
           <path d="M12 8v4m0 4h.01" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
         </svg>
         <p className="text-xs text-[color:var(--color-text-secondary)]">
-          New variants enter at minimal traffic. The bandit increases their share as they prove performance.
+          New variants enter at minimal traffic. Asmos increases their share as they prove performance.
         </p>
       </div>
     </div>

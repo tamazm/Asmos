@@ -431,7 +431,7 @@ export function KnockoutBracket({ variants }: { variants: VariantStat[] }) {
             Knockout Bracket
           </h2>
           <p className="mt-0.5 text-sm text-[color:var(--color-text-secondary)]">
-            Multi-armed bandit with Bayesian optimization. Traffic routes to the best variant automatically.
+            AI optimization runs the test. Traffic routes to the best variant automatically.
           </p>
         </div>
         <div className="flex items-center gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1.5">
@@ -492,7 +492,7 @@ export function KnockoutBracket({ variants }: { variants: VariantStat[] }) {
                 ["Total visitors", totalVisitors.toLocaleString()],
                 ["Total conversions", totalConversions.toLocaleString()],
                 ["Avg. conversion", `${avgRate.toFixed(2)}%`],
-                ["Allocation", "Bandit (Thompson)"],
+                ["Allocation", "AI optimization"],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between">
                   <dt className="text-xs text-[color:var(--color-text-secondary)]">{label}</dt>

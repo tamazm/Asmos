@@ -254,7 +254,7 @@ export default async function VariantDetailPage(props: {
           </svg>
           <div>
             <p className="text-sm font-medium text-[color:var(--color-text-primary)]">
-              Managed by bandit algorithm
+              Managed by AI optimization
             </p>
             <p className="mt-0.5 text-sm text-[color:var(--color-text-secondary)]">
               Asmos automatically adjusts traffic allocation after every impression based on
