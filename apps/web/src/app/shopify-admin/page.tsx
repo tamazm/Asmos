@@ -14,6 +14,14 @@ const TRACKED = [
   { scope: "read_products", label: "Products", desc: "Let Asmos tailor popups to your catalog." },
 ] as const;
 
+// Theme app extension handle (matches extensions/asmos-popup, blocks/asmos-popup.liquid).
+const EMBED_HANDLE = "asmos-popup";
+// Set NEXT_PUBLIC_SHOPIFY_THEME_EXTENSION_UUID after `shopify app deploy` (the
+// extension's registered UUID) to deep-link straight to the Asmos embed toggle,
+// pre-activated. Without it, the button still opens the theme editor's App
+// embeds panel — graceful fallback, never worse than before.
+const EMBED_UUID = process.env.NEXT_PUBLIC_SHOPIFY_THEME_EXTENSION_UUID;
+
 type Trigger = "time_delay" | "exit_intent" | "scroll_depth";
 type PageMode = "all" | "include" | "exclude";
 
@@ -74,6 +82,15 @@ const STATUS_TONE: Record<Campaign["status"], "success" | "info" | "warning" | "
   ARCHIVED: "neutral",
 };
 
+function openThemeEditor(shop: string) {
+  // Break out of the iframe into the theme editor's App embeds panel. With the
+  // extension UUID we deep-link straight to the Asmos embed, pre-activated
+  // (embeds can't be turned on programmatically — this is the one-click path).
+  const base = `https://${shop}/admin/themes/current/editor?context=apps`;
+  const url = EMBED_UUID ? `${base}&activateAppId=${EMBED_UUID}/${EMBED_HANDLE}` : base;
+  window.open(url, "_top");
+}
+
 export default function ShopifyAdminHome() {
   const [status, setStatus] = useState<Status>("loading");
   const [shop, setShop] = useState<string | null>(null);
@@ -85,6 +102,7 @@ export default function ShopifyAdminHome() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [billingPlan, setBillingPlan] = useState<string | null>(null);
+  const [showPlans, setShowPlans] = useState(false);
   const [leads, setLeads] = useState<Lead[] | null>(null);
   const [exporting, setExporting] = useState(false);
 
@@ -94,21 +112,6 @@ export default function ShopifyAdminHome() {
       if (state) setGranted(state.granted);
     } catch {
       /* Scopes API unavailable (older App Bridge) — leave toggles at "not granted". */
-    }
-  }, []);
-
-  const loadBilling = useCallback(async () => {
-    try {
-      const token = await window.shopify!.idToken();
-      const res = await fetch("/api/shopify/admin/billing", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setSubscription(data.subscription ?? null);
-      setPlans(data.plans ?? []);
-    } catch {
-      /* Non-fatal: billing section just won't render its plans. */
     }
   }, []);
 
@@ -137,6 +140,21 @@ export default function ShopifyAdminHome() {
       setCampaigns(data.campaigns ?? []);
     } catch {
       /* Non-fatal: manager still renders, list just stays as-is. */
+    }
+  }, []);
+
+  const loadBilling = useCallback(async () => {
+    try {
+      const token = await window.shopify!.idToken();
+      const res = await fetch("/api/shopify/admin/billing", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSubscription(data.subscription ?? null);
+      setPlans(data.plans ?? []);
+    } catch {
+      /* Non-fatal: billing section just won't render its plans. */
     }
   }, []);
 
@@ -184,6 +202,71 @@ export default function ShopifyAdminHome() {
       cancelled = true;
     };
   }, [refreshScopes, loadCampaigns, loadBilling, loadLeads]);
+
+  // Poll while anything is still generating so the list flips to a live-able
+  // state on its own without the merchant reloading the iframe.
+  useEffect(() => {
+    if (!campaigns?.some((c) => c.status === "GENERATING")) return;
+    const t = setInterval(loadCampaigns, 4000);
+    return () => clearInterval(t);
+  }, [campaigns, loadCampaigns]);
+
+  async function toggleScope(scope: string, isGranted: boolean) {
+    setBusyScope(scope);
+    try {
+      const state = isGranted
+        ? await window.shopify!.scopes.revoke([scope])
+        : await window.shopify!.scopes.request([scope]);
+      if (state) setGranted(state.granted);
+      else await refreshScopes();
+    } catch (err) {
+      window.shopify?.toast?.show((err as Error).message || "Could not update permission", { isError: true });
+    } finally {
+      setBusyScope(null);
+    }
+  }
+
+  async function createStarterPopup() {
+    setCreating(true);
+    try {
+      const token = await window.shopify!.idToken();
+      const res = await fetch("/api/shopify/admin/campaigns", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ goal: "BOTH" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        window.shopify?.toast?.show(data.error ?? "Could not create popup", { isError: true });
+        return;
+      }
+      window.shopify?.toast?.show("Popup is generating — activate it once it's ready.");
+      await loadCampaigns();
+    } catch (err) {
+      window.shopify?.toast?.show((err as Error).message, { isError: true });
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  const patchCampaign = useCallback(
+    async (id: string, body: Record<string, unknown>): Promise<boolean> => {
+      const token = await window.shopify!.idToken();
+      const res = await fetch(`/api/shopify/admin/campaigns/${id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        window.shopify?.toast?.show(data.error ?? "Update failed", { isError: true });
+        return false;
+      }
+      await loadCampaigns();
+      return true;
+    },
+    [loadCampaigns],
+  );
 
   async function exportLeads() {
     setExporting(true);
@@ -238,80 +321,6 @@ export default function ShopifyAdminHome() {
     }
   }
 
-  // Poll while anything is still generating so the list flips to a live-able
-  // state (ACTIVE-able) on its own without the merchant reloading the iframe.
-  useEffect(() => {
-    if (!campaigns?.some((c) => c.status === "GENERATING")) return;
-    const t = setInterval(loadCampaigns, 4000);
-    return () => clearInterval(t);
-  }, [campaigns, loadCampaigns]);
-
-  async function toggleScope(scope: string, isGranted: boolean) {
-    setBusyScope(scope);
-    try {
-      const state = isGranted
-        ? await window.shopify!.scopes.revoke([scope])
-        : await window.shopify!.scopes.request([scope]);
-      if (state) setGranted(state.granted);
-      else await refreshScopes();
-    } catch (err) {
-      window.shopify?.toast?.show((err as Error).message || "Could not update permission", { isError: true });
-    } finally {
-      setBusyScope(null);
-    }
-  }
-
-  function openThemeEditor() {
-    if (!shop) return;
-    // Opens the theme editor's App embeds panel (breaks out of the iframe) so
-    // the merchant can turn on the Asmos popup embed. App embeds can't be
-    // activated programmatically — this deep link is the one-click path.
-    window.open(`https://${shop}/admin/themes/current/editor?context=apps`, "_top");
-  }
-
-  async function createStarterPopup() {
-    setCreating(true);
-    try {
-      const token = await window.shopify!.idToken();
-      const res = await fetch("/api/shopify/admin/campaigns", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ goal: "BOTH" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        window.shopify?.toast?.show(data.error ?? "Could not create popup", { isError: true });
-        return;
-      }
-      window.shopify?.toast?.show("Popup is generating — activate it once it's ready.");
-      await loadCampaigns();
-    } catch (err) {
-      window.shopify?.toast?.show((err as Error).message, { isError: true });
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  // Shared helper: authed PATCH to a campaign, then refresh the list.
-  const patchCampaign = useCallback(
-    async (id: string, body: Record<string, unknown>): Promise<boolean> => {
-      const token = await window.shopify!.idToken();
-      const res = await fetch(`/api/shopify/admin/campaigns/${id}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        window.shopify?.toast?.show(data.error ?? "Update failed", { isError: true });
-        return false;
-      }
-      await loadCampaigns();
-      return true;
-    },
-    [loadCampaigns],
-  );
-
   if (status === "loading") {
     return (
       <s-page heading="Asmos">
@@ -333,31 +342,91 @@ export default function ShopifyAdminHome() {
     );
   }
 
-  const hasCampaigns = (campaigns?.length ?? 0) > 0;
+  const list = campaigns ?? [];
+  const activeCampaign = list.find((c) => c.status === "ACTIVE") ?? null;
+  const hasCampaigns = list.length > 0;
 
   return (
     <s-page heading="Asmos">
       <s-stack direction="block" gap="large">
-        <s-banner tone="success">
-          <s-text>Connected to {shop}. Manage your storefront popups below.</s-text>
-        </s-banner>
+        {/* Smart status — reflects where the merchant actually is, and surfaces
+            the "turn on the embed" action exactly when a popup is live. */}
+        {!hasCampaigns ? (
+          <s-banner tone="info">
+            <s-text>Generate your first popup below — it takes about a minute.</s-text>
+          </s-banner>
+        ) : activeCampaign ? (
+          <s-banner tone="success" heading={`“${activeCampaign.name}” is live`}>
+            <s-stack direction="block" gap="base">
+              <s-text>
+                Shoppers only see it once the Asmos embed is switched on in your theme. If you
+                haven’t yet, turn it on now.
+              </s-text>
+              <s-box>
+                <s-button onClick={() => shop && openThemeEditor(shop)}>Turn on in theme</s-button>
+              </s-box>
+            </s-stack>
+          </s-banner>
+        ) : (
+          <s-banner tone="warning">
+            <s-text>You have popups, but none are live. Activate one below to start showing it.</s-text>
+          </s-banner>
+        )}
 
-        {/* Step 1 — storefront delivery */}
-        <s-section heading="1. Show popups on your store">
+        {/* ── Popups: the core surface ─────────────────────────────────────── */}
+        <s-section heading="Popups">
           <s-stack direction="block" gap="base">
-            <s-paragraph>
-              Turn on the Asmos app embed in your theme so popups can appear on your storefront.
-            </s-paragraph>
-            <s-box>
-              <s-button variant="primary" onClick={openThemeEditor}>
-                Open theme editor
+            <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
+              <s-text tone="subdued">
+                {hasCampaigns
+                  ? "Activate one popup at a time, and control when and where it appears."
+                  : "Asmos generates a lead-capture popup tailored to your store. Customize it any time."}
+              </s-text>
+              <s-button
+                variant={hasCampaigns ? undefined : "primary"}
+                loading={creating}
+                disabled={creating}
+                onClick={createStarterPopup}
+              >
+                {hasCampaigns ? "Generate another" : "Generate popup"}
               </s-button>
-            </s-box>
+            </s-stack>
+
+            {list.map((c) => (
+              <CampaignRow
+                key={c.id}
+                campaign={c}
+                isLive={c.id === activeCampaign?.id}
+                onPatch={patchCampaign}
+                onOpenEmbed={() => shop && openThemeEditor(shop)}
+              />
+            ))}
           </s-stack>
         </s-section>
 
-        {/* Step 2 — the "what you'll allow" consent toggles */}
-        <s-section heading="2. Choose what Asmos can track">
+        {/* ── Leads ────────────────────────────────────────────────────────── */}
+        <s-section heading="Captured leads">
+          <s-stack direction="block" gap="base">
+            <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
+              <s-text tone="subdued">
+                {leads == null
+                  ? "Loading…"
+                  : leads.length === 0
+                    ? "No leads yet — they’ll appear here as your popup converts shoppers."
+                    : `${leads.length} captured.`}
+              </s-text>
+              {leads && leads.length > 0 && (
+                <s-button loading={exporting} disabled={exporting} onClick={exportLeads}>
+                  Export CSV
+                </s-button>
+              )}
+            </s-stack>
+            {leads && leads.length > 0 && <LeadsTable leads={leads} />}
+          </s-stack>
+        </s-section>
+
+        {/* ── Permissions (secondary) ──────────────────────────────────────── */}
+        <s-section heading="What Asmos can track">
           <s-stack direction="block" gap="base">
             {TRACKED.map(({ scope, label, desc }) => {
               const isGranted = granted.includes(scope);
@@ -367,9 +436,7 @@ export default function ShopifyAdminHome() {
                     <s-stack direction="block" gap="none">
                       <s-stack direction="inline" gap="tight" alignItems="center">
                         <s-text type="strong">{label}</s-text>
-                        <s-badge tone={isGranted ? "success" : "neutral"}>
-                          {isGranted ? "On" : "Off"}
-                        </s-badge>
+                        <s-badge tone={isGranted ? "success" : "neutral"}>{isGranted ? "On" : "Off"}</s-badge>
                       </s-stack>
                       <s-text tone="subdued">{desc}</s-text>
                     </s-stack>
@@ -387,88 +454,11 @@ export default function ShopifyAdminHome() {
           </s-stack>
         </s-section>
 
-        {/* Step 3 — the popup manager: which popup shows, and where */}
-        <s-section heading="3. Your popups">
-          <s-stack direction="block" gap="base">
-            {!hasCampaigns && (
-              <s-paragraph>
-                No popups yet. Generate one tailored to your store — you can customize when and where it
-                shows, then activate it.
-              </s-paragraph>
-            )}
-
-            {campaigns?.map((c) => (
-              <CampaignRow key={c.id} campaign={c} onPatch={patchCampaign} />
-            ))}
-
-            <s-box>
-              <s-button
-                variant={hasCampaigns ? undefined : "primary"}
-                loading={creating}
-                disabled={creating}
-                onClick={createStarterPopup}
-              >
-                {hasCampaigns ? "Generate another popup" : "Generate popup"}
-              </s-button>
-            </s-box>
-          </s-stack>
-        </s-section>
-
-        {/* Step 4 — leads (App Store 5.1.5: collected data must be merchant-accessible) */}
-        <s-section heading="4. Captured leads">
-          <s-stack direction="block" gap="base">
-            <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
-              <s-text tone="subdued">
-                {leads == null
-                  ? "Loading…"
-                  : leads.length === 0
-                    ? "No leads captured yet — they'll appear here once your popup starts converting."
-                    : `${leads.length} lead${leads.length > 1 ? "s" : ""} captured.`}
-              </s-text>
-              {leads && leads.length > 0 && (
-                <s-button loading={exporting} disabled={exporting} onClick={exportLeads}>
-                  Export CSV
-                </s-button>
-              )}
-            </s-stack>
-
-            {leads && leads.length > 0 && (
-              <s-box border="base" borderRadius="base" padding="base">
-                <s-stack direction="block" gap="tight">
-                  {leads.slice(0, 25).map((l) => (
-                    <s-stack
-                      key={l.id}
-                      direction="inline"
-                      gap="base"
-                      alignItems="center"
-                      justifyContent="space-between"
-                    >
-                      <s-stack direction="block" gap="none">
-                        <s-stack direction="inline" gap="tight" alignItems="center">
-                          <s-text type="strong">{l.email || l.phone || l.name || "—"}</s-text>
-                          {l.isCustomer && <s-badge tone="success">customer</s-badge>}
-                        </s-stack>
-                        <s-text tone="subdued">
-                          {l.campaignName} · {new Date(l.createdAt).toLocaleDateString()}
-                        </s-text>
-                      </s-stack>
-                    </s-stack>
-                  ))}
-                </s-stack>
-              </s-box>
-            )}
-            {leads && leads.length > 25 && (
-              <s-text tone="subdued">Showing the 25 most recent. Export CSV for the full list.</s-text>
-            )}
-          </s-stack>
-        </s-section>
-
-        {/* Step 5 — billing (Shopify-managed, required for App Store apps) */}
-        <s-section heading="5. Your plan">
+        {/* ── Plan (de-emphasized: no paywall today) ───────────────────────── */}
+        <s-section heading="Plan">
           <s-stack direction="block" gap="base">
             {subscription ? (
               <s-stack direction="inline" gap="tight" alignItems="center">
-                <s-text>Current plan:</s-text>
                 <s-text type="strong">{subscription.name}</s-text>
                 <s-badge tone={subscription.status === "ACTIVE" ? "success" : "warning"}>
                   {subscription.status.toLowerCase()}
@@ -481,42 +471,48 @@ export default function ShopifyAdminHome() {
                 )}
               </s-stack>
             ) : (
-              <s-paragraph>Choose a plan to unlock the full Asmos experience.</s-paragraph>
+              <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
+                <s-text tone="subdued">You’re on the free plan.</s-text>
+                {plans.length > 0 && (
+                  <s-button onClick={() => setShowPlans((v) => !v)}>
+                    {showPlans ? "Hide plans" : "View plans"}
+                  </s-button>
+                )}
+              </s-stack>
             )}
 
-            {/* Every plan is always listed so merchants can upgrade/downgrade
-                in-app without contacting support (App Store rule 1.2.3). */}
-            {plans.map((p) => {
-              const isCurrent = subscription?.name === p.name;
-              return (
-                <s-box key={p.key} border="base" borderRadius="base" padding="base">
-                  <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
-                    <s-stack direction="block" gap="none">
-                      <s-stack direction="inline" gap="tight" alignItems="center">
-                        <s-text type="strong">{p.name}</s-text>
-                        {isCurrent && <s-badge tone="success">current</s-badge>}
+            {(subscription || showPlans) &&
+              plans.map((p) => {
+                const isCurrent = subscription?.name === p.name;
+                return (
+                  <s-box key={p.key} border="base" borderRadius="base" padding="base">
+                    <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
+                      <s-stack direction="block" gap="none">
+                        <s-stack direction="inline" gap="tight" alignItems="center">
+                          <s-text type="strong">{p.name}</s-text>
+                          {isCurrent && <s-badge tone="success">current</s-badge>}
+                        </s-stack>
+                        <s-text tone="subdued">
+                          {p.currencyCode} {p.amount}/{p.interval === "ANNUAL" ? "yr" : "mo"}
+                          {p.trialDays ? ` · ${p.trialDays}-day free trial` : ""}
+                        </s-text>
                       </s-stack>
-                      <s-text tone="subdued">
-                        {p.currencyCode} {p.amount}/{p.interval === "ANNUAL" ? "yr" : "mo"}
-                        {p.trialDays ? ` · ${p.trialDays}-day free trial` : ""}
-                      </s-text>
+                      {isCurrent ? (
+                        <s-badge tone="neutral">active</s-badge>
+                      ) : (
+                        <s-button
+                          variant={subscription ? undefined : "primary"}
+                          loading={billingPlan === p.key}
+                          disabled={billingPlan !== null}
+                          onClick={() => subscribe(p.key)}
+                        >
+                          {subscription ? `Switch to ${p.name}` : `Choose ${p.name}`}
+                        </s-button>
+                      )}
                     </s-stack>
-                    {isCurrent ? (
-                      <s-badge tone="neutral">active</s-badge>
-                    ) : (
-                      <s-button
-                        variant={subscription ? undefined : "primary"}
-                        loading={billingPlan === p.key}
-                        disabled={billingPlan !== null}
-                        onClick={() => subscribe(p.key)}
-                      >
-                        {subscription ? `Switch to ${p.name}` : `Choose ${p.name}`}
-                      </s-button>
-                    )}
-                  </s-stack>
-                </s-box>
-              );
-            })}
+                  </s-box>
+                );
+              })}
           </s-stack>
         </s-section>
       </s-stack>
@@ -524,13 +520,17 @@ export default function ShopifyAdminHome() {
   );
 }
 
-// ── One campaign: status, activate/pause, and an expandable placement editor ──
+// ── One campaign: status, activate/pause, expandable placement editor ─────────
 function CampaignRow({
   campaign,
+  isLive,
   onPatch,
+  onOpenEmbed,
 }: {
   campaign: Campaign;
+  isLive: boolean;
   onPatch: (id: string, body: Record<string, unknown>) => Promise<boolean>;
+  onOpenEmbed: () => void;
 }) {
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -549,19 +549,21 @@ function CampaignRow({
   }
 
   return (
-    <s-box border="base" borderRadius="base" padding="base">
+    <s-box border="base" borderRadius="base" padding="base" background={isLive ? "subdued" : undefined}>
       <s-stack direction="block" gap="base">
         <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
           <s-stack direction="block" gap="none">
             <s-stack direction="inline" gap="tight" alignItems="center">
               <s-text type="strong">{campaign.name}</s-text>
-              <s-badge tone={STATUS_TONE[campaign.status]}>{campaign.status.toLowerCase()}</s-badge>
+              <s-badge tone={STATUS_TONE[campaign.status]}>
+                {isActive ? "live" : campaign.status.toLowerCase()}
+              </s-badge>
             </s-stack>
             <s-text tone="subdued">{placementSummary(campaign.placement)}</s-text>
           </s-stack>
           <s-stack direction="inline" gap="tight" alignItems="center">
             <s-button disabled={busy || isGenerating} onClick={() => setEditing((v) => !v)}>
-              {editing ? "Close" : "Placement"}
+              {editing ? "Close" : "Edit placement"}
             </s-button>
             {canActivate || isActive ? (
               <s-button
@@ -579,6 +581,13 @@ function CampaignRow({
           </s-stack>
         </s-stack>
 
+        {isLive && (
+          <s-text tone="subdued">
+            Not showing up on your store?{" "}
+            <s-link onClick={onOpenEmbed}>Turn on the Asmos embed in your theme.</s-link>
+          </s-text>
+        )}
+
         {editing && (
           <PlacementEditor
             campaign={campaign}
@@ -593,9 +602,68 @@ function CampaignRow({
   );
 }
 
-// ── Placement editor ─────────────────────────────────────────────────────────
-// Native <select>/<input> (not Polaris web components) so React owns the value
-// binding predictably; wrapped in Polaris layout so it still reads as one card.
+// ── Leads table ───────────────────────────────────────────────────────────────
+// Native <table> (not a Polaris component) so rendering is predictable; styled
+// to sit cleanly inside the Polaris card. Scrolls horizontally on narrow admin.
+function LeadsTable({ leads }: { leads: Lead[] }) {
+  const rows = leads.slice(0, 25);
+  const th: React.CSSProperties = {
+    textAlign: "left",
+    fontSize: 12,
+    fontWeight: 600,
+    color: "#6d7175",
+    padding: "8px 12px",
+    borderBottom: "1px solid #e3e3e3",
+    whiteSpace: "nowrap",
+  };
+  const td: React.CSSProperties = {
+    fontSize: 13,
+    padding: "10px 12px",
+    borderBottom: "1px solid #f1f1f1",
+    whiteSpace: "nowrap",
+  };
+
+  return (
+    <s-box border="base" borderRadius="base">
+      <div style={{ overflowX: "auto", width: "100%" }}>
+        <table style={{ borderCollapse: "collapse", width: "100%", minWidth: 520 }}>
+          <thead>
+            <tr>
+              <th style={th}>Contact</th>
+              <th style={th}>Campaign</th>
+              <th style={th}>Captured</th>
+              <th style={th}>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((l) => (
+              <tr key={l.id}>
+                <td style={td}>
+                  <div style={{ fontWeight: 600 }}>{l.email || l.phone || l.name || "—"}</div>
+                  {l.name && (l.email || l.phone) && (
+                    <div style={{ color: "#6d7175", fontSize: 12 }}>{l.name}</div>
+                  )}
+                </td>
+                <td style={{ ...td, color: "#6d7175" }}>{l.campaignName}</td>
+                <td style={{ ...td, color: "#6d7175" }}>{new Date(l.createdAt).toLocaleDateString()}</td>
+                <td style={td}>{l.isCustomer ? "Customer" : "Lead"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {leads.length > 25 && (
+        <s-box padding="base">
+          <s-text tone="subdued">Showing the 25 most recent. Export CSV for the full list.</s-text>
+        </s-box>
+      )}
+    </s-box>
+  );
+}
+
+// ── Placement editor ──────────────────────────────────────────────────────────
+// Native <select>/<input> so React owns the value binding predictably; wrapped
+// in Polaris layout so it still reads as one card.
 function PlacementEditor({
   campaign,
   onSave,
@@ -617,10 +685,7 @@ function PlacementEditor({
         delaySeconds: Math.max(0, Math.min(120, Number(delaySeconds) || 0)),
         pages: {
           mode,
-          patterns:
-            mode === "all"
-              ? []
-              : patterns.split(",").map((p) => p.trim()).filter(Boolean),
+          patterns: mode === "all" ? [] : patterns.split(",").map((p) => p.trim()).filter(Boolean),
         },
       });
     } finally {
