@@ -311,6 +311,7 @@
       <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:6px;">
         <div style="min-width:0;">
           <div id="asmosResultStoreName" style="font-size:18px; font-weight:600; color:#0f172a; overflow-wrap:anywhere;"></div>
+          <div id="asmosResultUrl" style="font-size:12px; color:#165DFF; margin-top:2px; overflow-wrap:anywhere;"></div>
           <div id="asmosResultIndustry" style="font-size:12px; color:#64748b; margin-top:2px;"></div>
         </div>
         <div style="text-align:right; flex-shrink:0;">
@@ -467,6 +468,7 @@
         var grade = data.grade || "—";
 
         document.getElementById("asmosResultStoreName").textContent = data.storeName || "Your store";
+        document.getElementById("asmosResultUrl").textContent = data.storeUrl || "";
         document.getElementById("asmosResultIndustry").textContent = data.industry || "";
 
         var gradeEl = document.getElementById("asmosResultGrade");
