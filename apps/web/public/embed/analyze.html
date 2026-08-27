@@ -375,7 +375,11 @@
         // itself is hosted — it does the actual scraping + AI scoring
         // server-side and can't be reproduced in static JS. Navigating in-place
         // keeps the whole scan + results experience inside this iframe.
-        window.location.href = "https://asmos.io/analyze?url=" + encodeURIComponent(normalized);
+        //
+        // app.asmos.io, not asmos.io: the bare domain is currently hosted on
+        // Framer (not this app), so /analyze only resolves on the app host —
+        // see proxy.ts's isAppRoute.
+        window.location.href = "https://app.asmos.io/analyze?url=" + encodeURIComponent(normalized);
       });
 
       // ── Intro animation: field grows in, then "yourstore.com" slot-machine

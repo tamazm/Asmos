@@ -15,8 +15,13 @@ const isProtectedRoute = createRouteMatcher([
 
 // Routes that live on app.asmos.io - the actual platform, plus sign-in/up
 // and invite-accept so Clerk's session cookie is always set and read on the
-// same origin, plus the free tools. Everything else (marketing pages,
-// /analyze, /blog) stays on the root domain.
+// same origin, plus the free tools. Everything else (marketing pages, /blog)
+// stays on the root domain.
+//
+// /analyze lives here too, not on the root domain, even though it's a free
+// marketing tool: the root asmos.io domain is currently hosted on Framer
+// (not this Vercel project), so anything that needs this codebase has to
+// stay on app.asmos.io until asmos.io itself is cut over to Vercel.
 const isAppRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/campaigns(.*)",
@@ -35,6 +40,7 @@ const isAppRoute = createRouteMatcher([
   "/tools(.*)",
   "/store-preview(.*)",
   "/shopify-admin(.*)",
+  "/analyze(.*)",
 ]);
 
 const APP_HOST = process.env.NEXT_PUBLIC_APP_HOST || "app.asmos.io";
