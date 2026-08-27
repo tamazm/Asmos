@@ -47,11 +47,18 @@ export default function ShopifyAdminHome() {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
         });
-        const data = await res.json();
+        // The route can 500 with an empty/HTML body (e.g. missing server env,
+        // token-exchange failure) — reading it as text first avoids a cryptic
+        // "Unexpected end of JSON input" and surfaces something actionable.
+        const raw = await res.text();
+        const data = raw ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : null;
         if (cancelled) return;
-        if (!res.ok) {
+        if (!res.ok || !data) {
           setStatus("error");
-          setError(data.error ?? "Session exchange failed.");
+          setError(
+            data?.error ??
+              `Session exchange failed (HTTP ${res.status}). This usually means the app's Shopify server credentials aren't configured on the deployment.`,
+          );
           return;
         }
         setShop(data.shop);
