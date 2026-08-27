@@ -4,14 +4,17 @@ import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 
 // ── Facade-integration API-key storage ──────────────────────────────────────
-// Klaviyo, Mailchimp, HubSpot, Shopify, Zapier. Webhooks has its own route
+// Klaviyo, Mailchimp, HubSpot, Zapier. Webhooks has its own route
 // (/api/account/webhook) since it predates this and has extra fields
 // (signing secret, enabled flag) that don't apply here.
+//
+// Shopify is intentionally NOT in this list: it's a first-class embedded OAuth
+// app now (ShopifyShop + src/lib/shopify/*), not an API-key facade.
 //
 // This only stores and returns the key — nothing reads it yet to actually
 // forward leads to these providers. That sync job doesn't exist yet.
 
-const KNOWN_INTEGRATION_IDS = ["klaviyo", "mailchimp", "hubspot", "shopify", "zapier"] as const;
+const KNOWN_INTEGRATION_IDS = ["klaviyo", "mailchimp", "hubspot", "zapier"] as const;
 type IntegrationId = (typeof KNOWN_INTEGRATION_IDS)[number];
 
 function isKnownIntegrationId(id: unknown): id is IntegrationId {
