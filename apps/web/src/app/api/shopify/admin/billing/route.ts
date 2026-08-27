@@ -19,7 +19,17 @@ export async function GET(request: Request): Promise<Response> {
   if (!shop) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const subscription = await getActiveSubscription(shop.shopDomain);
-  return Response.json({ subscription });
+  // Ship the plan catalog alongside status so the embedded UI renders the same
+  // tiers the POST handler accepts — no second source of truth on the client.
+  const plans = Object.values(PLANS).map((p) => ({
+    key: p.key,
+    name: p.name,
+    amount: p.amount,
+    currencyCode: p.currencyCode,
+    interval: p.interval,
+    trialDays: p.trialDays ?? null,
+  }));
+  return Response.json({ subscription, plans });
 }
 
 // POST { plan: "growth" | "scale" } — start a subscription; returns the

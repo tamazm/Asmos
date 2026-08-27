@@ -12,11 +12,45 @@ export async function GET(request: Request): Promise<Response> {
   if (!account) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const campaigns = await prisma.campaign.findMany({
-    where: { accountId: account.id },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, type: true, status: true, createdAt: true },
+    where: { accountId: account.id, status: { not: "ARCHIVED" } },
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      status: true,
+      createdAt: true,
+      // The placement (trigger/delay/page-targeting) the widget reads lives on
+      // each variant's `targeting` JSON, set identically across a campaign's
+      // variants — so the first variant is a faithful representative for the UI.
+      variants: {
+        orderBy: { createdAt: "asc" },
+        take: 1,
+        select: { targeting: true },
+      },
+    },
   });
-  return Response.json({ campaigns });
+
+  // Flatten the representative variant's targeting into a `placement` field so
+  // the embedded UI never has to know popups are stored per-variant.
+  const shaped = campaigns.map((c: { variants: { targeting: unknown }[] } & Record<string, unknown>) => {
+    const { variants, ...rest } = c;
+    const t = (variants[0]?.targeting ?? {}) as Record<string, unknown>;
+    const pages = (t.pages ?? {}) as Record<string, unknown>;
+    return {
+      ...rest,
+      placement: {
+        trigger: (t.trigger as string) ?? "time_delay",
+        delaySeconds: typeof t.delaySeconds === "number" ? t.delaySeconds : 5,
+        pages: {
+          mode: (pages.mode as string) ?? "all",
+          patterns: Array.isArray(pages.patterns) ? pages.patterns.map(String) : [],
+        },
+      },
+    };
+  });
+
+  return Response.json({ campaigns: shaped });
 }
 
 export async function POST(request: Request): Promise<Response> {
