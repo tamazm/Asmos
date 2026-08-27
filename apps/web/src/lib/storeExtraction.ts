@@ -49,6 +49,12 @@ export type Provenance = Record<string, { source: FieldSource; confidence: numbe
 
 export type PaletteEntry = { hex: string; areaShare: number; role?: string };
 
+// The 7 CRO checks the analysis reports on. Kept here (not just in the API
+// route) because DOM_EXTRACTION_FN below is the thing that actually measures
+// most of them now.
+export type SignalKey =
+  | "popup" | "emailCapture" | "socialProof" | "urgency" | "exitIntent" | "stickyBar" | "liveChat";
+
 export type DomExtraction = {
   displayFont: string | null;
   bodyFont: string | null;
@@ -67,6 +73,10 @@ export type DomExtraction = {
   h1: string | null;
   heroText: string | null;
   detectedPopup: { present: boolean; selector: string | null } | null;
+  // Measured live in the rendered page (real DOM queries, real global
+  // objects, and - for exitIntent - an actually-simulated exit gesture).
+  // See DOM_EXTRACTION_FN's CRO signal pass below.
+  signals: Record<SignalKey, boolean> | null;
   platform: "shopify" | "woocommerce" | "custom" | null;
   currency: string | null;
 };
@@ -331,7 +341,10 @@ export default async function ({ page, context }) {
   // store's own popup to take over the viewport.
   await new Promise((r) => setTimeout(r, 1200));
 
-  const data = await page.evaluate(() => {
+  const POPUP_SELECTOR =
+    "[class*='modal'][class*='open'], [class*='popup']:not([hidden]), [role='dialog'], [class*='newsletter'][class*='modal']";
+
+  const data = await page.evaluate((POPUP_SELECTOR) => {
     const cs = (el) => (el ? getComputedStyle(el) : null);
     const txt = (el) => (el && el.textContent ? el.textContent.trim().slice(0, 300) : null);
 
@@ -371,9 +384,7 @@ export default async function ({ page, context }) {
       document.querySelector("header [class*='logo'] img, [class*='logo'] img, header a[href='/'] img, header img") ||
       null;
 
-    const popupEl = document.querySelector(
-      "[class*='modal'][class*='open'], [class*='popup']:not([hidden]), [role='dialog'], [class*='newsletter'][class*='modal']"
-    );
+    const popupEl = document.querySelector(POPUP_SELECTOR);
 
     const currencyMeta =
       document.querySelector("meta[property='product:price:currency'], meta[itemprop='priceCurrency']");
@@ -394,17 +405,101 @@ export default async function ({ page, context }) {
       productImages,
       h1: txt(h1),
       heroText: txt(document.querySelector("main p, header + section p, h1 + p")),
-      detectedPopup: { present: !!popupEl, selector: popupEl ? (popupEl.className || popupEl.tagName) : null },
+      popupPresent: !!popupEl,
+      popupSelector: popupEl ? (popupEl.className || popupEl.tagName) : null,
       platform: window.Shopify ? "shopify"
         : document.querySelector("[class*='woocommerce'], body.woocommerce") ? "woocommerce"
         : "custom",
       currency: currencyMeta ? currencyMeta.getAttribute("content") : null,
     };
-  });
+  }, POPUP_SELECTOR);
 
-  return { data, type: "application/json" };
+  // ── CRO signal pass ──────────────────────────────────────────────────────
+  // Real proof, not a guess: query the live rendered DOM and window globals
+  // for each signal (this catches a JS-injected widget a plain HTML fetch
+  // would never see), give delayed popups/bars/chat launchers a real chance
+  // to mount, then simulate the exact browser event exit-intent libraries
+  // listen for and check whether a popup demonstrably appeared *because of
+  // it* - the one signal a screenshot or a static fetch can never answer.
+  const popupAtLoad = data.popupPresent;
+  await new Promise((r) => setTimeout(r, 3500));
+
+  const preTrigger = await page.evaluate((POPUP_SELECTOR) => {
+    const visible = (el) => {
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && el.offsetParent !== null;
+    };
+    const anyVisible = (sel) => [...document.querySelectorAll(sel)].some(visible);
+    const bodyText = (document.body.innerText || "").toLowerCase();
+
+    return {
+      popupPresent: !!document.querySelector(POPUP_SELECTOR),
+      emailCapture:
+        anyVisible("input[type=email]") ||
+        anyVisible("[class*='klaviyo-form'], [class*='privy'], [id*='mc_embed_signup'], [class*='omnisend']"),
+      socialProof: anyVisible(
+        "[class*='yotpo'], [class*='trustpilot'], [class*='stamped'], [id*='judgeme'], [class*='loox'], [class*='star-rating'], [class*='review-star']"
+      ),
+      stickyBar: anyVisible(
+        "[class*='announcement-bar' i], [class*='sticky-bar' i], [class*='promo-bar' i], [class*='top-bar' i]"
+      ),
+      liveChat:
+        anyVisible(
+          "#gorgias-chat-container, .intercom-launcher, #chat-widget-container, [class*='chat-widget'], [class*='chat-launcher'], [id*='tawkchat']"
+        ) ||
+        !!(window.Intercom || window.zE || window.Tawk_API || window.$crisp || window.Gorgias || window.fcWidget),
+      urgencyText:
+        bodyText.includes("limited time") || bodyText.includes("countdown") || bodyText.includes("ends soon") ||
+        (bodyText.includes("only") && bodyText.includes("left")) || bodyText.includes("hours left") ||
+        bodyText.includes("today only") || bodyText.includes("low stock") ||
+        anyVisible("[class*='countdown' i]"),
+    };
+  }, POPUP_SELECTOR);
+
+  // The exact DOM event Privy/OptinMonster/Wisepops/etc. bind to: the cursor
+  // crossing the top edge of the viewport toward the browser chrome.
+  await page.evaluate(() => {
+    document.dispatchEvent(new MouseEvent("mouseout", { clientY: -10, relatedTarget: null, bubbles: true }));
+  });
+  await new Promise((r) => setTimeout(r, 700));
+
+  const popupAfterTrigger = await page.evaluate((POPUP_SELECTOR) => !!document.querySelector(POPUP_SELECTOR), POPUP_SELECTOR);
+
+  const signals = {
+    popup: popupAtLoad || preTrigger.popupPresent || popupAfterTrigger,
+    emailCapture: preTrigger.emailCapture,
+    socialProof: preTrigger.socialProof,
+    urgency: preTrigger.urgencyText,
+    // Only true if no popup was already up and one demonstrably appeared
+    // right after the simulated exit gesture - otherwise a load-triggered
+    // or timed popup would get misattributed to exit-intent.
+    exitIntent: !preTrigger.popupPresent && popupAfterTrigger,
+    stickyBar: preTrigger.stickyBar,
+    liveChat: preTrigger.liveChat,
+  };
+
+  return {
+    data: {
+      ...data,
+      detectedPopup: { present: signals.popup, selector: data.popupSelector },
+      signals,
+    },
+    type: "application/json",
+  };
 }
 `.trim();
+
+const SIGNAL_KEYS: SignalKey[] = [
+  "popup", "emailCapture", "socialProof", "urgency", "exitIntent", "stickyBar", "liveChat",
+];
+
+function normalizeSignals(raw: unknown): Record<SignalKey, boolean> | null {
+  if (!raw || typeof raw !== "object") return null;
+  const d = raw as Record<string, unknown>;
+  if (!SIGNAL_KEYS.every((k) => typeof d[k] === "boolean")) return null;
+  return Object.fromEntries(SIGNAL_KEYS.map((k) => [k, d[k] as boolean])) as Record<SignalKey, boolean>;
+}
 
 /** Normalises whatever the /function call returned into a typed shape. */
 export function normalizeDomExtraction(raw: unknown): DomExtraction | null {
@@ -429,6 +524,7 @@ export function normalizeDomExtraction(raw: unknown): DomExtraction | null {
     h1: str(d.h1),
     heroText: str(d.heroText),
     detectedPopup: (d.detectedPopup as DomExtraction["detectedPopup"]) ?? null,
+    signals: normalizeSignals(d.signals),
     platform: (str(d.platform) as DomExtraction["platform"]) ?? null,
     currency: str(d.currency),
   };

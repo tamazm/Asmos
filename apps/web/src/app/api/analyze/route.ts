@@ -27,6 +27,7 @@ import {
   type CatalogueSummary,
   type DomExtraction,
   type Provenance,
+  type SignalKey,
 } from "@/lib/storeExtraction";
 import { upsertStoreProfile } from "@/lib/storeProfile";
 
@@ -181,7 +182,11 @@ async function extractDom(url: string): Promise<DomExtraction | null> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code: DOM_EXTRACTION_FN, context: { url } }),
-      signal: AbortSignal.timeout(30000),
+      // 25s navigation budget inside DOM_EXTRACTION_FN plus ~4.2s of
+      // deliberate waiting for the CRO signal pass (letting delayed
+      // popups/bars/chat mount, then the exit-intent trigger) - give it
+      // real headroom rather than aborting our own request out from under it.
+      signal: AbortSignal.timeout(45000),
     });
     if (!res.ok) {
       console.warn("[analyze] Browserless /function failed:", res.status, (await res.text()).slice(0, 200));
@@ -378,16 +383,59 @@ function parseJSON(text: string): CROResult | null {
 // ---------------------------------------------------------------------------
 // Heuristic fallback (no screenshot / AI)
 // ---------------------------------------------------------------------------
-async function heuristicAnalysis(url: string) {
-  let html = "";
-  try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": "AsmosBot/1.0" },
-      signal: AbortSignal.timeout(8000),
-    });
-    html = await res.text();
-  } catch { /* ignore */ }
+// ---------------------------------------------------------------------------
+// Deterministic signal detection - grep the page's own HTML/scripts for known
+// library and copy signatures, rather than asking a vision model to guess
+// from one static screenshot. This is the only source of truth for these 7
+// checks: a vision model cannot see a JS-triggered exit-intent popup, a
+// sticky bar that only appears on scroll, or a chat widget that loads late,
+// so letting it answer "found" for those is a guess dressed up as an
+// observation. A text/script match is a fact we can actually verify from
+// what the store served us; the AI's screenshot narrative (SYSTEM_PROMPT
+// below) is used only for descriptive colour, never for the found/missing
+// verdict itself - see the merge in handler(). This is the fallback for
+// when Browserless is unavailable; DOM_EXTRACTION_FN's live CRO signal pass
+// (storeExtraction.ts) is preferred whenever we have it - see handler().
+const SIGNAL_LABELS: Record<SignalKey, string> = {
+  popup: "popup",
+  emailCapture: "email capture",
+  socialProof: "social proof",
+  urgency: "urgency messaging",
+  exitIntent: "exit-intent offer",
+  stickyBar: "sticky bar",
+  liveChat: "live chat",
+};
 
+const SCORE_MAP: Record<SignalKey, number> = {
+  popup: 20, emailCapture: 15, socialProof: 20,
+  urgency: 15, exitIntent: 10, stickyBar: 10, liveChat: 10,
+};
+
+const SIGNAL_FOUND_DESCRIPTIONS: Record<SignalKey, string> = {
+  popup: "Popup detected on the page",
+  emailCapture: "Email capture form or signup copy detected",
+  socialProof: "Reviews or social proof detected",
+  urgency: "Urgency or scarcity messaging detected",
+  exitIntent: "Exit-intent trigger detected",
+  stickyBar: "Sticky announcement bar detected",
+  liveChat: "Live chat widget detected",
+};
+
+function gradeFromScore(score: number): { grade: string; gradeLabel: string } {
+  if (score >= 90) return { grade: "A+", gradeLabel: "Outstanding" };
+  if (score >= 85) return { grade: "A", gradeLabel: "Excellent" };
+  if (score >= 80) return { grade: "A-", gradeLabel: "Very strong" };
+  if (score >= 77) return { grade: "B+", gradeLabel: "Above average" };
+  if (score >= 73) return { grade: "B", gradeLabel: "Good" };
+  if (score >= 70) return { grade: "B-", gradeLabel: "Decent" };
+  if (score >= 67) return { grade: "C+", gradeLabel: "Room to improve" };
+  if (score >= 63) return { grade: "C", gradeLabel: "Average" };
+  if (score >= 60) return { grade: "C-", gradeLabel: "Below average" };
+  if (score >= 50) return { grade: "D", gradeLabel: "Poor" };
+  return { grade: "F", gradeLabel: "Missing key tools" };
+}
+
+function detectSignalsFromHtml(html: string): Record<SignalKey, boolean> {
   const lower = html.toLowerCase();
 
   // Popup: only flag when a known popup library script/class is present.
@@ -398,7 +446,7 @@ async function heuristicAnalysis(url: string) {
     "sleeknote", "popup-trigger", "pop-up-trigger", "privy-widget",
     "klaviyo-popup",
   ];
-  const found = {
+  return {
     popup: POPUP_LIBRARY_SIGNALS.some(sig => lower.includes(sig)),
     // emailCapture: require specific subscription signals; avoid bare 'newsletter'
     // (appears in footer nav links), bare 'sign up' (nav menus), and generic
@@ -450,15 +498,23 @@ async function heuristicAnalysis(url: string) {
       lower.includes("re:amaze") ||
       lower.includes("reamaze"),
   };
+}
 
-  const scoreMap: Record<keyof typeof found, number> = {
-    popup: 20, emailCapture: 15, socialProof: 20,
-    urgency: 15, exitIntent: 10, stickyBar: 10, liveChat: 10,
-  };
+async function heuristicAnalysis(url: string) {
+  let html = "";
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "AsmosBot/1.0" },
+      signal: AbortSignal.timeout(8000),
+    });
+    html = await res.text();
+  } catch { /* ignore */ }
+
+  const found = detectSignalsFromHtml(html);
 
   let score = 0;
-  for (const [k, pts] of Object.entries(scoreMap)) {
-    if (found[k as keyof typeof found]) score += pts;
+  for (const [k, pts] of Object.entries(SCORE_MAP)) {
+    if (found[k as SignalKey]) score += pts;
   }
 
   const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
@@ -479,20 +535,10 @@ async function heuristicAnalysis(url: string) {
         catch { return "Your Store"; }
       })();
 
-  let grade = "F"; let gradeLabel = "Missing key tools";
-  if (score >= 90) { grade = "A+"; gradeLabel = "Outstanding"; }
-  else if (score >= 85) { grade = "A"; gradeLabel = "Excellent"; }
-  else if (score >= 80) { grade = "A-"; gradeLabel = "Very strong"; }
-  else if (score >= 77) { grade = "B+"; gradeLabel = "Above average"; }
-  else if (score >= 73) { grade = "B"; gradeLabel = "Good"; }
-  else if (score >= 70) { grade = "B-"; gradeLabel = "Decent"; }
-  else if (score >= 67) { grade = "C+"; gradeLabel = "Room to improve"; }
-  else if (score >= 63) { grade = "C"; gradeLabel = "Average"; }
-  else if (score >= 60) { grade = "C-"; gradeLabel = "Below average"; }
-  else if (score >= 50) { grade = "D"; gradeLabel = "Poor"; }
+  const { grade, gradeLabel } = gradeFromScore(score);
 
-  const missing = Object.entries(found).filter(([, v]) => !v).map(([k]) => k);
-  const topIssue = missing.length > 0 ? `No ${missing[0]} detected - this is the biggest gap.` : "Store looks reasonably well-optimized.";
+  const missing = (Object.keys(found) as SignalKey[]).filter((k) => !found[k]);
+  const topIssue = missing.length > 0 ? `No ${SIGNAL_LABELS[missing[0]]} detected - this is the biggest gap.` : "Store looks reasonably well-optimized.";
 
   return {
     storeName,
@@ -857,6 +903,46 @@ async function handler(req: NextRequest) {
 
   const { brandColor: htmlBrandColor, logoUrl: ogImage, description, fontStack, commonBorderRadius, rawHtml } =
     brandMeta;
+
+  // ── Ground the found/missing checklist in what we can actually verify ─────
+  // The AI's screenshot narrative above is not trustworthy for this: asked
+  // whether an exit-intent popup exists, a vision model has nothing to look
+  // at (it's a JS mouse-leave listener, invisible in a still frame), so it
+  // answers with a plausible-sounding guess instead of an observation. These
+  // 7 checks are overwritten with what was actually measured, and the
+  // score/grade/top issue are recomputed to match so nothing downstream
+  // contradicts a fact we now know for certain.
+  //
+  // Two ways we can know it, in confidence order: dom.signals is a live
+  // Browserless pass that queried the actually-rendered DOM/window globals
+  // and, for exitIntent, dispatched the real exit-gesture event and checked
+  // whether a popup demonstrably appeared because of it (DOM_EXTRACTION_FN
+  // in storeExtraction.ts). detectSignalsFromHtml is the fallback when
+  // Browserless wasn't available for this request - a static fetch of the
+  // page's own HTML, so it can still see script tags and copy, just nothing
+  // that only exists after JS runs.
+  const signals: Record<SignalKey, boolean> = dom?.signals ?? detectSignalsFromHtml(rawHtml);
+  (Object.keys(signals) as SignalKey[]).forEach((key) => {
+    const found = signals[key];
+    const keepAiDescription = found && aiResult[key]?.found && aiResult[key]?.description;
+    aiResult[key] = {
+      found,
+      description: keepAiDescription ? aiResult[key].description : (found ? SIGNAL_FOUND_DESCRIPTIONS[key] : "None detected"),
+    };
+  });
+
+  let overallScore = 0;
+  for (const key of Object.keys(SCORE_MAP) as SignalKey[]) {
+    if (signals[key]) overallScore += SCORE_MAP[key];
+  }
+  const { grade, gradeLabel } = gradeFromScore(overallScore);
+  const missingSignal = (Object.keys(signals) as SignalKey[]).find((k) => !signals[k]);
+  aiResult.overallScore = overallScore;
+  aiResult.grade = grade;
+  aiResult.gradeLabel = gradeLabel;
+  aiResult.topIssue = missingSignal
+    ? `No ${SIGNAL_LABELS[missingSignal]} detected - this is the biggest gap.`
+    : "Store looks reasonably well-optimized.";
 
   const catalogue: CatalogueSummary | null = await fetchCatalogue(normalizedUrl, rawHtml);
 
