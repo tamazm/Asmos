@@ -2,6 +2,7 @@ import { RequestedTokenType } from "@shopify/shopify-api";
 import { shopify } from "@/lib/shopify/client";
 import { verifySessionToken, InvalidSessionTokenError } from "@/lib/shopify/session";
 import { getOrCreateAccountForShop } from "@/lib/shopify/tenant";
+import { setShopSessionCookie } from "@/lib/shopify/session-cookie";
 
 // POST /api/shopify/session
 // Called by the embedded frontend on load with the App Bridge session token
@@ -33,7 +34,11 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Token exchange did not return an access token" }, { status: 502 });
   }
 
-  await getOrCreateAccountForShop(session.shop, session.accessToken, session.scope ?? "");
+  const account = await getOrCreateAccountForShop(session.shop, session.accessToken, session.scope ?? "");
+
+  // Establish the first-party embedded session so the reused dashboard UI and
+  // API routes under /shopify-admin resolve this shop's Account without Clerk.
+  await setShopSessionCookie({ shopDomain: session.shop, accountId: account.id });
 
   return Response.json({ ok: true, shop: session.shop });
 }

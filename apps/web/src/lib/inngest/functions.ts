@@ -3,6 +3,7 @@ import { evaluateKnockout } from "./evaluateKnockout";
 import { sweepStaleCampaigns } from "./sweepStaleCampaigns";
 import { mineCrossAccountPatterns } from "./mineCrossAccountPatterns";
 import { scrapePopupBatch } from "./scrapePopupBatch";
+import { shopifyOrderPaid, shopifyCustomerCreated } from "./shopifyWebhooks";
 
 export const functions = [
   generateCampaign,
@@ -10,4 +11,6 @@ export const functions = [
   sweepStaleCampaigns,
   mineCrossAccountPatterns,
   scrapePopupBatch,
+  shopifyOrderPaid,
+  shopifyCustomerCreated,
 ];

@@ -14,25 +14,48 @@ type PolarisElementProps = React.HTMLAttributes<HTMLElement> & {
 declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
-      "s-page": PolarisElementProps;
-      "s-banner": PolarisElementProps & { tone?: "info" | "success" | "warning" | "critical" };
+      "s-page": PolarisElementProps & { heading?: string };
+      "s-section": PolarisElementProps & { heading?: string };
+      "s-box": PolarisElementProps;
+      "s-banner": PolarisElementProps & { tone?: "info" | "success" | "warning" | "critical"; heading?: string };
       "s-button": PolarisElementProps & {
         onClick?: () => void;
         variant?: string;
+        tone?: string;
         disabled?: boolean;
+        loading?: boolean;
       };
-      "s-stack": PolarisElementProps & { direction?: "inline" | "block"; gap?: string };
-      "s-text": PolarisElementProps & { type?: string };
+      "s-stack": PolarisElementProps & { direction?: "inline" | "block"; gap?: string; alignItems?: string; justifyContent?: string };
+      "s-text": PolarisElementProps & { type?: string; tone?: string };
+      "s-paragraph": PolarisElementProps;
       "s-heading": PolarisElementProps;
-      "s-spinner": PolarisElementProps;
+      "s-link": PolarisElementProps & { href?: string; target?: string };
+      "s-badge": PolarisElementProps & { tone?: "info" | "success" | "warning" | "critical" | "neutral" };
+      "s-divider": PolarisElementProps;
+      "s-spinner": PolarisElementProps & { accessibilityLabel?: string };
     }
   }
 }
+
+// App Bridge Scopes API — https://shopify.dev/docs/api/app-home/apis/authentication-and-data/scopes-api
+type ShopifyScopesState = {
+  granted: string[];
+  required: string[];
+  optional: string[];
+};
 
 declare global {
   interface Window {
     shopify?: {
       idToken: () => Promise<string>;
+      config?: { shop?: string; host?: string; apiKey?: string };
+      environment?: { embedded?: boolean; mobile?: boolean };
+      scopes: {
+        query: () => Promise<ShopifyScopesState>;
+        request: (scopes: string[]) => Promise<ShopifyScopesState>;
+        revoke: (scopes: string[]) => Promise<ShopifyScopesState>;
+      };
+      toast?: { show: (message: string, options?: { isError?: boolean; duration?: number }) => void };
     };
   }
 }

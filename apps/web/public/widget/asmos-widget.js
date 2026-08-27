@@ -13,13 +13,17 @@
 
   // ─── Config ───────────────────────────────────────────────────────────────
   var script = document.currentScript ||
-    document.querySelector("script[data-asmos-key]");
+    document.querySelector("script[data-asmos-key], script[data-asmos-shop]");
   var SITE_KEY = script && script.getAttribute("data-asmos-key");
+  // Shopify storefronts identify the account by shop domain (injected by the
+  // theme app extension) rather than a site key. When present it's sent as
+  // ?shop= and takes precedence over the hostname-based lookup.
+  var SHOP_DOMAIN = script && script.getAttribute("data-asmos-shop");
   var API_BASE = (script && script.getAttribute("data-asmos-host")) ||
     "https://app.asmos.io";
 
-  if (!SITE_KEY) {
-    console.warn("[Asmos] data-asmos-key is required.");
+  if (!SITE_KEY && !SHOP_DOMAIN) {
+    console.warn("[Asmos] data-asmos-key or data-asmos-shop is required.");
     return;
   }
 
@@ -97,7 +101,10 @@
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
   function fetchConfig() {
-    var url = API_BASE + "/api/widget/config?site=" + encodeURIComponent(window.location.hostname);
+    var query = SHOP_DOMAIN
+      ? "shop=" + encodeURIComponent(SHOP_DOMAIN)
+      : "site=" + encodeURIComponent(window.location.hostname);
+    var url = API_BASE + "/api/widget/config?" + query;
     return fetch(url, { credentials: "omit" })
       .then(function (r) { return r.json(); })
       .catch(function () { return null; });

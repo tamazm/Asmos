@@ -69,42 +69,87 @@ export async function GET(request: Request) {
     }
   }
 
-  if (!site) {
-    return corsJson({ error: "site is required" }, { status: 400 });
-  }
+  // Shopify storefronts key config by shop domain instead of hostname: the
+  // theme app extension passes data-asmos-shop={{ shop.permanent_domain }},
+  // which the widget sends as ?shop=. Resolve the Website linked to that shop
+  // (see ShopifyShop.websiteId, set on install in lib/shopify/tenant.ts).
+  const shopParam = url.searchParams.get("shop");
 
-  // Website.url has no unique constraint (a pre-existing gap - fixing it
-  // outright would need a data audit first, since duplicate rows may
-  // already exist from the old buggy campaign-creation flow). findMany
-  // instead of findFirst so a duplicate match is something we can detect
-  // and pick deterministically, rather than a silent, DB-order-dependent
-  // pick of whichever row the query planner returns first - which risked
-  // serving one account's campaign to a visitor on another account's site.
-  const matches = await prisma.website.findMany({
-    where: {
-      OR: [
-        { url: normalizeHost(site) },
-        { url: site }
-      ]
-    },
-    include: {
-      account: {
-        select: {
-          consentGdprEnabled: true,
-          consentCcpaEnabled: true,
-          consentBannerText: true,
+  type ResolvedWebsite = {
+    id: string;
+    installVerified: boolean;
+    createdAt: Date;
+    account: {
+      consentGdprEnabled: boolean;
+      consentCcpaEnabled: boolean;
+      consentBannerText: string | null;
+    };
+  };
+
+  let website: ResolvedWebsite;
+
+  if (shopParam) {
+    const shop = await prisma.shopifyShop.findUnique({
+      where: { shopDomain: shopParam },
+      select: {
+        uninstalledAt: true,
+        website: {
+          select: {
+            id: true,
+            installVerified: true,
+            createdAt: true,
+            account: {
+              select: {
+                consentGdprEnabled: true,
+                consentCcpaEnabled: true,
+                consentBannerText: true,
+              },
+            },
+          },
         },
       },
-    },
-  });
+    });
+    if (!shop || shop.uninstalledAt || !shop.website) {
+      return corsJson({ campaign: null, consent: null });
+    }
+    website = shop.website;
+  } else {
+    if (!site) {
+      return corsJson({ error: "site or shop is required" }, { status: 400 });
+    }
 
-  if (matches.length === 0) {
-    return corsJson({ campaign: null, consent: null });
-  }
+    // Website.url has no unique constraint (a pre-existing gap — fixing it
+    // outright would need a data audit first, since duplicate rows may
+    // already exist from the old buggy campaign-creation flow). findMany
+    // instead of findFirst so a duplicate match is something we can detect
+    // and pick deterministically, rather than a silent, DB-order-dependent
+    // pick of whichever row the query planner returns first — which risked
+    // serving one account's campaign to a visitor on another account's site.
+    const matches = await prisma.website.findMany({
+      where: {
+        OR: [
+          { url: normalizeHost(site) },
+          { url: site }
+        ]
+      },
+      include: {
+        account: {
+          select: {
+            consentGdprEnabled: true,
+            consentCcpaEnabled: true,
+            consentBannerText: true,
+          },
+        },
+      },
+    });
 
-  let website = matches[0];
-  if (matches.length > 1) {
-    // Ambiguous - prefer a website that's actually been verified installed
+    if (matches.length === 0) {
+      return corsJson({ campaign: null, consent: null });
+    }
+
+    website = matches[0];
+    if (matches.length > 1) {
+    // Ambiguous — prefer a website that's actually been verified installed
     // on a real domain, then fall back to the most recently created. Either
     // way, log it: this should never happen once every Website.url is
     // genuinely unique, so seeing it means there's a real collision to go
@@ -122,6 +167,7 @@ export async function GET(request: Request) {
         details: `${matches.length} Website rows matched: ${matches.map((m) => `${m.id} (account ${m.accountId})`).join(", ")}. Served ${website.id}.`,
       },
     }).catch(() => {});
+    }
   }
 
   const consent = {

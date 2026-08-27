@@ -1,0 +1,40 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "e5b2175bf18f463fec0d6062e12e4c3c"
+name = "asmos"
+application_url = "https://app.asmos.io/shopify-admin"
+embedded = true
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+# Required scopes are granted at install with no chance for the merchant to
+# decline, so keep this minimal. All data-tracking scopes are OPTIONAL: the
+# merchant grants each one from the in-app "what you'll allow" toggles via the
+# App Bridge Scopes API (shopify.scopes.request / query / revoke). Each optional
+# scope gates its matching webhook (read_orders -> orders/*, read_customers ->
+# customers/*). If the CLI rejects an empty required-scopes string on deploy,
+# fall back to a single low-sensitivity required scope.
+scopes = ""
+optional_scopes = [ "read_customers", "read_orders", "read_products" ]
+use_legacy_install_flow = false
+
+[auth]
+redirect_urls = [ "https://app.asmos.io/api/shopify/callback" ]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+uri = "https://app.asmos.io/api/shopify/webhooks"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "https://app.asmos.io/api/shopify/webhooks"
+
+# Data-tracking webhooks. These deliver only when the merchant has granted the
+# matching optional scope (orders/paid -> read_orders, customers/create ->
+# read_customers), which they do via the in-app "what you'll allow" toggles.
+[[webhooks.subscriptions]]
+topics = ["orders/paid", "customers/create"]
+uri = "https://app.asmos.io/api/shopify/webhooks"

@@ -1,5 +1,7 @@
 import { shopify } from "@/lib/shopify/client";
 import { prisma } from "@/lib/prisma";
+import { inngest } from "@/lib/inngest/client";
+import { redactCustomer, collectCustomerData, redactShop } from "@/lib/shopify/compliance";
 
 // POST /api/shopify/webhooks
 // Handles the four mandatory compliance topics every listed Shopify app
@@ -7,12 +9,10 @@ import { prisma } from "@/lib/prisma";
 // customers/redact, shop/redact) plus is the single endpoint any future
 // topic subscription should point at. HMAC-verified via shopify.webhooks.validate.
 //
-// NOTE: customers/data_request and customers/redact currently only log and
-// acknowledge (200) - they do NOT yet locate/export/delete the merchant's
-// Lead rows tied to the named Shopify customer, because there's no stored
-// mapping from a Shopify customer_id to a Lead today. That mapping and the
-// actual data actions must exist before this app can be submitted for
-// review - tracked as a Milestone B1 follow-up, not shipped here.
+// The three GDPR topics are actioned via lib/shopify/compliance.ts: leads are
+// located by the stored Shopify customer_id (Lead.shopifyCustomerId, set by the
+// customers/create webhook) or email, then anonymized (customers/redact) or
+// collected (customers/data_request); shop/redact erases the shop's data.
 export async function POST(request: Request): Promise<Response> {
   const rawBody = await request.text();
 
@@ -37,21 +37,30 @@ export async function POST(request: Request): Promise<Response> {
       break;
     }
     case "customers/data_request": {
-      console.warn("[shopify/webhooks] customers/data_request received, not yet actioned", {
+      const data = await collectCustomerData(shopDomain, payload?.customer?.id, payload?.customer?.email);
+      console.log("[shopify/webhooks] customers/data_request collected", {
         shopDomain,
-        customerId: payload?.customer?.id,
+        leads: data.leads.length,
       });
       break;
     }
     case "customers/redact": {
-      console.warn("[shopify/webhooks] customers/redact received, not yet actioned", {
-        shopDomain,
-        customerId: payload?.customer?.id,
-      });
+      const res = await redactCustomer(shopDomain, payload?.customer?.id, payload?.customer?.email);
+      console.log("[shopify/webhooks] customers/redact done", { shopDomain, redacted: res.redacted });
       break;
     }
     case "shop/redact": {
-      console.warn("[shopify/webhooks] shop/redact received, not yet actioned", { shopDomain });
+      const res = await redactShop(shopDomain);
+      console.log("[shopify/webhooks] shop/redact done", { shopDomain, ...res });
+      break;
+    }
+    case "orders/paid": {
+      // Handle async so the endpoint returns 200 fast and gets Inngest retries.
+      await inngest.send({ name: "shopify/order.paid", data: { shopDomain, order: payload } });
+      break;
+    }
+    case "customers/create": {
+      await inngest.send({ name: "shopify/customer.created", data: { shopDomain, customer: payload } });
       break;
     }
     default: {

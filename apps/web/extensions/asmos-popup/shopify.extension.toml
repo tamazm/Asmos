@@ -1,0 +1,11 @@
+# Theme app extension: injects the Asmos popup widget into the merchant's
+# storefront. This is the App-Store-compliant replacement for the deprecated
+# ScriptTag API (no new script tags after 2026-10-01). It's an *app embed*
+# block (target: body) — off until the merchant enables it in the theme editor;
+# the app can deep-link them there to activate it.
+api_version = "2026-07"
+
+[[extensions]]
+type = "theme"
+name = "Asmos Popups"
+handle = "asmos-popup"
