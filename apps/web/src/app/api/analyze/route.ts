@@ -297,7 +297,7 @@ async function analyzeWithGemini(base64Jpeg: string): Promise<CROResult | null> 
   if (!GEMINI_KEY) return null;
 
   // Try models in order until one works
-  const models = ["gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"];
+  const models = ["gemini-3.6-flash", "gemini-3.5-flash-lite"];
 
   for (const model of models) {
     try {
