@@ -2,6 +2,7 @@ import { currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 import { inngest } from "@/lib/inngest/client";
 import { isSuperadminEmail } from "@/lib/superadmin";
+import { readShopSessionFromCookies } from "@/lib/shopify/session-cookie";
 
 // Lets a verified superadmin act on a specific account (e.g. editing that
 // account's rewards from /admin/accounts/[id]) by passing an explicit
@@ -25,7 +26,21 @@ export async function resolveAccountForRequest(explicitAccountId?: string | null
 
 export async function getOrCreateAccount() {
   const user = await currentUser();
-  if (!user) throw new Error("Not authenticated");
+  if (!user) {
+    // Embedded Shopify context — no Clerk user. Resolve the shop's Account
+    // from the signed session cookie set during token exchange
+    // (/api/shopify/session). This is what lets the reused dashboard UI render
+    // inside the Shopify admin iframe without a Clerk sign-in.
+    const shopSession = await readShopSessionFromCookies();
+    if (shopSession) {
+      const account = await prisma.account.findUnique({
+        where: { id: shopSession.accountId },
+        include: { websites: true },
+      });
+      if (account) return account;
+    }
+    throw new Error("Not authenticated");
+  }
 
   const existing = await prisma.user.findUnique({
     where: { clerkUserId: user.id },

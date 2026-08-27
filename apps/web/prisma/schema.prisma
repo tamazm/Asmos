@@ -175,6 +175,7 @@ model Website {
 
   campaigns    Campaign[]
   storeProfile StoreProfile?
+  shopifyShop  ShopifyShop?
 
   @@index([accountId])
 }
@@ -401,12 +402,24 @@ model Lead {
   rewardRuleId String?
   rewardRule   RewardRule? @relation(fields: [rewardRuleId], references: [id], onDelete: SetNull)
 
+  // Shopify attribution (set by the orders/paid + customers/create webhooks —
+  // see lib/inngest/shopifyWebhooks.ts). shopifyCustomerId is also the mapping
+  // GDPR customers/redact uses to find this lead.
+  shopifyCustomerId  String?
+  becameCustomerAt   DateTime?
+  firstOrderId       String?
+  firstOrderAmount   Decimal?  @db.Decimal(12, 2)
+  firstOrderCurrency String?
+  firstOrderAt       DateTime?
+
   createdAt DateTime @default(now())
 
   claimedCoupons CouponCode[]
 
   @@index([variantId])
   @@index([rewardRuleId])
+  @@index([shopifyCustomerId])
+  @@index([email])
 }
 
 // Simple counters for the Phase 1 analytics dashboard (impressions, conversions,
@@ -464,6 +477,11 @@ model ShopifyShop {
   scope         String
   installedAt   DateTime  @default(now())
   uninstalledAt DateTime?
+
+  // The Website that holds this shop's popups/campaigns. Set on install so
+  // storefront config lookups (/api/widget/config?shop=) resolve to it.
+  websiteId String?  @unique
+  website   Website? @relation(fields: [websiteId], references: [id], onDelete: SetNull)
 
   @@index([shopDomain])
 }

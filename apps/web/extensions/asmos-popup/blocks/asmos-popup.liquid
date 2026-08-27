@@ -1,0 +1,35 @@
+{%- comment -%}
+  Asmos Popups — app embed block.
+
+  Loads the Asmos widget loader on every storefront page and keys it to this
+  shop by permanent domain. The widget fetches its config from
+  /api/widget/config?shop=<domain>, picks a variant, and renders the popup in a
+  shadow DOM (see public/widget/asmos-widget.js).
+
+  app_url defaults to production; set it to your Shopify CLI dev tunnel when
+  testing with `shopify app dev` so both the loader and its API calls hit the
+  tunnel instead of production.
+{%- endcomment -%}
+{%- assign asmos_host = block.settings.app_url | default: 'https://app.asmos.io' -%}
+<script
+  src="{{ asmos_host }}/widget/asmos-widget.js"
+  data-asmos-shop="{{ shop.permanent_domain }}"
+  data-asmos-host="{{ asmos_host }}"
+  async
+  defer></script>
+
+{% schema %}
+{
+  "name": "Asmos Popups",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "app_url",
+      "label": "Asmos app URL (advanced)",
+      "info": "Leave blank in production. Set to your dev tunnel URL only when testing with the Shopify CLI.",
+      "default": ""
+    }
+  ]
+}
+{% endschema %}

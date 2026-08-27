@@ -22,6 +22,11 @@ export async function getOrCreateAccountForShop(
       where: { id: existing.id },
       data: { accessToken: encryptedToken, scope, uninstalledAt: null },
     });
+    // Backfill the Website link for shops provisioned before websites were
+    // linked, so storefront config lookups by shop domain resolve.
+    if (!existing.websiteId) {
+      await ensureWebsiteForShop(existing.id, existing.accountId, shopDomain);
+    }
     return existing.account;
   }
 
@@ -33,8 +38,36 @@ export async function getOrCreateAccountForShop(
         create: { shopDomain, accessToken: encryptedToken, scope },
       },
     },
+    include: { shopifyShop: true },
   });
+  if (account.shopifyShop) {
+    await ensureWebsiteForShop(account.shopifyShop.id, account.id, shopDomain);
+  }
   return account;
+}
+
+// Every Shopify shop needs a Website row so its Campaigns have a parent and
+// /api/widget/config?shop= can resolve. url is the shop's permanent domain
+// (e.g. "example.myshopify.com"), which the theme app extension passes as
+// data-asmos-shop. Idempotent so reinstall/backfill can't create duplicates.
+async function ensureWebsiteForShop(
+  shopId: string,
+  accountId: string,
+  shopDomain: string,
+) {
+  let website = await prisma.website.findFirst({
+    where: { accountId, url: shopDomain },
+  });
+  if (!website) {
+    website = await prisma.website.create({
+      data: { accountId, url: shopDomain },
+    });
+  }
+  await prisma.shopifyShop.update({
+    where: { id: shopId },
+    data: { websiteId: website.id },
+  });
+  return website;
 }
 
 export async function getAccessTokenForShop(shopDomain: string): Promise<string | null> {
