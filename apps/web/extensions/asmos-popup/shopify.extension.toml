@@ -9,3 +9,5 @@ api_version = "2026-07"
 type = "theme"
 name = "Asmos Popups"
 handle = "asmos-popup"
+
+uid = "b19377f7-6819-b3d6-0fe0-38996ceb262f02b4cc23"
