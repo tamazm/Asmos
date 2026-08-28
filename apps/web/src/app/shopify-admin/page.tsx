@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { OnboardingWizard } from "./OnboardingWizard";
 
 type Status = "loading" | "ready" | "error";
 
@@ -115,6 +116,12 @@ export default function ShopifyAdminHome() {
   const [exporting, setExporting] = useState(false);
   const [segments, setSegments] = useState<Segment[] | null>(null);
   const [segmentsNeedScope, setSegmentsNeedScope] = useState(false);
+  // Onboarding gate. `embedAck` records that the merchant confirmed enabling the
+  // theme embed (there's no server-side signal for it), and `onboarded` is the
+  // sticky "finished the wizard" flag. Both are persisted per-shop in
+  // localStorage so a returning merchant lands straight in the dashboard.
+  const [embedAck, setEmbedAck] = useState(false);
+  const [onboarded, setOnboarded] = useState(false);
 
   const refreshScopes = useCallback(async () => {
     try {
@@ -214,6 +221,17 @@ export default function ShopifyAdminHome() {
         }
         setShop(data.shop);
         setLinked(Boolean(data.linked));
+        // Hydrate onboarding flags for this shop before we flip to "ready", so an
+        // already-onboarded merchant lands straight in the dashboard with no
+        // flash of the wizard. Keyed by shop so each store is evaluated on its
+        // own. (Setting state here, after the await, is intentionally not the
+        // synchronous-effect anti-pattern.)
+        try {
+          setEmbedAck(localStorage.getItem(`asmos_embed_ack_${data.shop}`) === "1");
+          setOnboarded(localStorage.getItem(`asmos_onboarded_${data.shop}`) === "1");
+        } catch {
+          /* localStorage unavailable (privacy mode) — treat as not-yet-onboarded. */
+        }
         setStatus("ready");
         await Promise.all([refreshScopes(), loadCampaigns(), loadBilling(), loadLeads(), loadSegments()]);
       } catch (err) {
@@ -236,6 +254,24 @@ export default function ShopifyAdminHome() {
     const t = setInterval(loadCampaigns, 4000);
     return () => clearInterval(t);
   }, [campaigns, loadCampaigns]);
+
+  function acknowledgeEmbed() {
+    setEmbedAck(true);
+    try {
+      if (shop) localStorage.setItem(`asmos_embed_ack_${shop}`, "1");
+    } catch {
+      /* Non-fatal: the flag just won't persist across reloads. */
+    }
+  }
+
+  function finishOnboarding() {
+    setOnboarded(true);
+    try {
+      if (shop) localStorage.setItem(`asmos_onboarded_${shop}`, "1");
+    } catch {
+      /* Non-fatal. */
+    }
+  }
 
   async function toggleScope(scope: string, isGranted: boolean) {
     setBusyScope(scope);
@@ -399,6 +435,32 @@ export default function ShopifyAdminHome() {
   const list = campaigns ?? [];
   const activeCampaign = list.find((c) => c.status === "ACTIVE") ?? null;
   const hasCampaigns = list.length > 0;
+
+  // Mandatory onboarding gate. Until the merchant has connected their Asmos
+  // account, put a popup live, and switched on the theme embed, we show the
+  // guided wizard instead of the full dashboard. `onboarded` (set by the
+  // wizard's finish button) makes it sticky so we never re-gate a merchant who
+  // later pauses a campaign. The flags are hydrated in boot() before status
+  // flips to "ready", so an already-onboarded merchant never flashes the wizard.
+  const onboardingComplete = onboarded || (linked && Boolean(activeCampaign) && embedAck);
+  if (!onboardingComplete) {
+    return (
+      <OnboardingWizard
+        linked={linked}
+        connecting={connecting}
+        onConnect={connectAccount}
+        campaigns={list}
+        hasActiveCampaign={Boolean(activeCampaign)}
+        creating={creating}
+        onCreateStarter={createStarterPopup}
+        onSelectActive={setActivePopup}
+        embedAcknowledged={embedAck}
+        onOpenThemeEditor={() => shop && openThemeEditor(shop)}
+        onAcknowledgeEmbed={acknowledgeEmbed}
+        onFinish={finishOnboarding}
+      />
+    );
+  }
 
   return (
     <s-page heading="Asmos">
