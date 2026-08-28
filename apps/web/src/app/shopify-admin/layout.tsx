@@ -20,12 +20,26 @@
 export default function ShopifyAdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
+      {/* Warm the TLS/handshake to Shopify's CDN before the parser reaches the
+          scripts below — shaves handshake latency off App Bridge/Polaris and,
+          with it, LCP (App Store perf gate: LCP < 2.5s). */}
+      <link rel="preconnect" href="https://cdn.shopify.com" crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href="https://cdn.shopify.com" />
       <meta name="shopify-api-key" content={process.env.NEXT_PUBLIC_SHOPIFY_API_KEY} />
-      {/* eslint-disable @next/next/no-sync-scripts -- intentional: Shopify requires these
-          unbundled and parser-blocking, not deferred/async; see comment above. */}
+      {/* App Bridge MUST stay the first script and load synchronously (Shopify's
+          "latest App Bridge / admin performance" requirement) — do not defer it.
+          eslint-disable-next-line: intentional unbundled parser-blocking script. */}
+      {/* eslint-disable-next-line @next/next/no-sync-scripts */}
       <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" />
-      <script src="https://cdn.shopify.com/shopifycloud/polaris.js" />
-      {/* eslint-enable @next/next/no-sync-scripts */}
+      {/* Polaris, by contrast, has no first-script requirement. Loading it
+          `defer` unblocks the body paint (it no longer stalls the parser), which
+          is the single biggest LCP win here: the plain-HTML first screen in
+          page.tsx can paint right after App Bridge instead of waiting on Polaris.
+          `defer` still executes before DOMContentLoaded — long before the async
+          session round-trip completes — so s-* components are always upgraded by
+          the time the app flips from skeleton to the Polaris UI. */}
+      {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+      <script src="https://cdn.shopify.com/shopifycloud/polaris.js" defer />
       {children}
     </>
   );

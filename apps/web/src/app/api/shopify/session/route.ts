@@ -1,4 +1,5 @@
 import { RequestedTokenType } from "@shopify/shopify-api";
+import { prisma } from "@/lib/prisma";
 import { shopify } from "@/lib/shopify/client";
 import { verifySessionToken, InvalidSessionTokenError } from "@/lib/shopify/session";
 import { getOrCreateAccountForShop } from "@/lib/shopify/tenant";
@@ -42,6 +43,12 @@ export async function POST(request: Request): Promise<Response> {
       shop: shopDomain,
       sessionToken,
       requestedTokenType: RequestedTokenType.OfflineAccessToken,
+      // Request an EXPIRING offline token (+ refresh token). Permanent offline
+      // tokens are deprecated — public apps must use expiring ones by
+      // 2027-01-01, and calls made with legacy tokens are flagged. This runs on
+      // every embedded load, so any legacy token on file is swapped for an
+      // expiring one the next time the merchant opens the app.
+      expiring: true,
     }));
   } catch (err) {
     console.error("[shopify/session] tokenExchange failed", shopDomain, err);
@@ -61,7 +68,13 @@ export async function POST(request: Request): Promise<Response> {
   // readable JSON error instead of an empty-body 500.
   let account;
   try {
-    account = await getOrCreateAccountForShop(session.shop, session.accessToken, session.scope ?? "");
+    account = await getOrCreateAccountForShop(session.shop, {
+      accessToken: session.accessToken,
+      scope: session.scope ?? "",
+      expiresAt: session.expires ?? null,
+      refreshToken: session.refreshToken ?? null,
+      refreshTokenExpiresAt: session.refreshTokenExpires ?? null,
+    });
     // The reused dashboard UI and /shopify-admin API routes resolve this shop's
     // Account from this cookie (no Clerk).
     await setShopSessionCookie({ shopDomain: session.shop, accountId: account.id });
@@ -76,9 +89,19 @@ export async function POST(request: Request): Promise<Response> {
   // Reconcile the optional-scope-gated webhooks (orders/paid, customers/create)
   // against what the merchant has granted. Fire-and-forget: a failure here must
   // not block the merchant from loading the embedded app.
-  reconcileDataWebhooks(session.shop).catch((err) => {
+  // Pass the just-exchanged token straight through so reconcile doesn't have to
+  // re-resolve/refresh it.
+  reconcileDataWebhooks(session.shop, session.accessToken).catch((err) => {
     console.error("[shopify/session] reconcileDataWebhooks failed", session.shop, err);
   });
 
-  return Response.json({ ok: true, shop: session.shop });
+  // `linked` tells the embedded UI whether this shop is on its auto-provisioned
+  // throwaway account (show the "connect your Asmos account" prompt) or has been
+  // linked to the merchant's real account.
+  const shopRow = await prisma.shopifyShop.findUnique({
+    where: { shopDomain: session.shop },
+    select: { linkedAt: true },
+  });
+
+  return Response.json({ ok: true, shop: session.shop, linked: Boolean(shopRow?.linkedAt) });
 }

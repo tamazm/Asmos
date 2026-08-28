@@ -8,13 +8,22 @@ import { getOrCreateAccountForShop } from "@/lib/shopify/tenant";
 export async function GET(request: Request): Promise<Response> {
   const { headers, session } = await shopify.auth.callback({
     rawRequest: request,
+    // Request an expiring offline token (+ refresh token); permanent offline
+    // tokens are deprecated (see /api/shopify/session).
+    expiring: true,
   });
 
   if (!session.accessToken) {
     return Response.json({ error: "OAuth callback did not return an access token" }, { status: 502 });
   }
 
-  await getOrCreateAccountForShop(session.shop, session.accessToken, session.scope ?? "");
+  await getOrCreateAccountForShop(session.shop, {
+    accessToken: session.accessToken,
+    scope: session.scope ?? "",
+    expiresAt: session.expires ?? null,
+    refreshToken: session.refreshToken ?? null,
+    refreshTokenExpiresAt: session.refreshTokenExpires ?? null,
+  });
 
   const embeddedAppUrl = await shopify.auth.getEmbeddedAppUrl({ rawRequest: request });
 

@@ -8,6 +8,7 @@ import { recomputeCampaignAllocation } from "@/lib/bandit";
 import { dispatchWebhook } from "@/lib/webhook";
 import { capturePostHogEvents, isPostHogCaptureConfigured } from "@/lib/posthog-server";
 import { classifyUserIntent } from "@/lib/userIntent";
+import { upsertShopifyCustomer } from "@/lib/shopify/customers";
 
 export async function OPTIONS() {
   return corsPreflight();
@@ -57,6 +58,9 @@ export async function POST(request: Request) {
               webhookUrl: true,
               webhookSecret: true,
               webhookEnabled: true,
+              // Present only for Shopify-connected accounts — lets us write the
+              // captured lead back into the shop's admin as a Customer.
+              shopifyShop: { select: { shopDomain: true, uninstalledAt: true } },
             },
           },
         },
@@ -197,6 +201,32 @@ export async function POST(request: Request) {
       console.error("[webhook] lead.captured dispatch failed", err);
     }
   });
+
+  // Sync the lead into the merchant's Shopify admin as a Customer (Forms-category
+  // requirement + "send collected data back to the merchant"). Fire-and-forget:
+  // Shopify latency or errors must never delay or break the widget's lead ack.
+  // Also stamps the resulting Shopify customer id onto the Lead so GDPR
+  // customers/redact can locate it (see lib/shopify/compliance.ts).
+  const shopifyShop = variant.campaign.account.shopifyShop;
+  if (shopifyShop && !shopifyShop.uninstalledAt && (body.email || body.phone)) {
+    after(async () => {
+      try {
+        const customerId = await upsertShopifyCustomer(shopifyShop.shopDomain, {
+          email: body.email,
+          phone: body.phone,
+          name: body.name,
+          acceptsMarketing: Boolean(body.consentGiven),
+        });
+        if (customerId) {
+          await prisma.lead
+            .update({ where: { id: lead.id }, data: { shopifyCustomerId: customerId } })
+            .catch((err) => console.error("[shopify/customers] lead stamp failed", err));
+        }
+      } catch (err) {
+        console.error("[shopify/customers] upsert failed", err);
+      }
+    });
+  }
 
   // Forward the conversion plus its intent cohort to PostHog.
   if (isPostHogCaptureConfigured()) {

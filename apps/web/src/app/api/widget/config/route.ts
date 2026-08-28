@@ -229,6 +229,11 @@ export async function GET(request: Request) {
   const publicRewards = campaign.rewards.map((r) => ({ id: r.id, label: r.label, type: r.type }));
 
   return corsJson({
+    // The Shopify app's numeric id, forwarded to the widget so it can attribute
+    // Visitor API calls (Shopify.analytics.visitor) to this app. Optional: set
+    // SHOPIFY_APP_ID (from the Partner dashboard / currentAppInstallation) for
+    // best data quality; the widget still reports without it.
+    appId: process.env.SHOPIFY_APP_ID || null,
     campaign: {
       id: campaign.id,
       type: campaign.type,
