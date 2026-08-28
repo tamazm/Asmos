@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 // ── Mandatory onboarding wizard ───────────────────────────────────────────────
 // Rendered in place of the dashboard (see page.tsx) until the merchant has
 // completed the three logical steps that get Asmos actually running on their
@@ -28,6 +30,7 @@ export function OnboardingWizard({
   creating,
   onCreateStarter,
   onSelectActive,
+  onOpenBuilder,
   embedAcknowledged,
   onOpenThemeEditor,
   onAcknowledgeEmbed,
@@ -41,6 +44,7 @@ export function OnboardingWizard({
   creating: boolean;
   onCreateStarter: () => void;
   onSelectActive: (id: string) => void;
+  onOpenBuilder: () => void;
   embedAcknowledged: boolean;
   onOpenThemeEditor: () => void;
   onAcknowledgeEmbed: () => void;
@@ -117,6 +121,7 @@ export function OnboardingWizard({
                 creating={creating}
                 onCreateStarter={onCreateStarter}
                 onSelectActive={onSelectActive}
+                onOpenBuilder={onOpenBuilder}
               />
             )}
           </StepCard>
@@ -167,41 +172,47 @@ export function OnboardingWizard({
   );
 }
 
-// ── Step 2 body: generate a starter, or pick among existing popups ────────────
+// ── Step 2 body: generate a starter, pick an existing popup, or build in Asmos ─
 function Step2Body({
   campaigns,
   creating,
   onCreateStarter,
   onSelectActive,
+  onOpenBuilder,
 }: {
   campaigns: Campaign[];
   creating: boolean;
   onCreateStarter: () => void;
   onSelectActive: (id: string) => void;
+  onOpenBuilder: () => void;
 }) {
-  const generating = campaigns.some((c) => c.status === "GENERATING");
+  // "Generating" covers both the in-flight create request (creating) and a popup
+  // that's landed in GENERATING — so the animated card appears the instant the
+  // button is clicked and stays until the popup is actually ready.
+  const generating = creating || campaigns.some((c) => c.status === "GENERATING");
   const selectable = campaigns.filter((c) => c.status !== "GENERATING" && c.status !== "FAILED");
 
-  // No popups yet → generate one. Popups exist but none is live → let them pick.
+  if (generating) {
+    return <GeneratingCard />;
+  }
+
+  // No popups yet → generate one, or jump into the full Asmos builder.
   if (campaigns.length === 0) {
     return (
-      <s-box>
-        <s-button
-          variant="primary"
-          loading={creating}
-          disabled={creating}
-          onClick={onCreateStarter}
-        >
-          Generate my popup
-        </s-button>
-      </s-box>
+      <s-stack direction="block" gap="small-300">
+        <s-box>
+          <s-button variant="primary" onClick={onCreateStarter}>
+            Generate my popup
+          </s-button>
+        </s-box>
+        <s-text tone="subdued">
+          Prefer to design it yourself? <s-link onClick={onOpenBuilder}>Build one in Asmos</s-link>.
+        </s-text>
+      </s-stack>
     );
   }
 
-  if (generating && selectable.length === 0) {
-    return <s-text tone="subdued">Generating your popup — this takes about a minute…</s-text>;
-  }
-
+  // Popups exist but none is live → let them pick which one runs.
   return (
     <s-stack direction="block" gap="small-300">
       <s-text tone="subdued">Pick the popup to run on your store:</s-text>
@@ -215,12 +226,70 @@ function Step2Body({
           </s-stack>
         </s-box>
       ))}
-      <s-box>
-        <s-button loading={creating} disabled={creating} onClick={onCreateStarter}>
-          Or generate a new one
-        </s-button>
-      </s-box>
+      <s-stack direction="inline" gap="small-300" alignItems="center">
+        <s-button onClick={onCreateStarter}>Generate a new one</s-button>
+        <s-button onClick={onOpenBuilder}>Build one in Asmos</s-button>
+      </s-stack>
     </s-stack>
+  );
+}
+
+// ── Animated "generating" state ───────────────────────────────────────────────
+// A spinner plus staged status text so the ~minute-long AI generation reads as
+// progress rather than a frozen screen. The stages are cosmetic (the backend
+// only exposes GENERATING → ready); they cycle to convey liveness.
+const GENERATION_STAGES = [
+  "Analyzing your store…",
+  "Designing your popup…",
+  "Writing the copy…",
+  "Polishing the details…",
+];
+
+function GeneratingCard() {
+  const [stage, setStage] = useState(0);
+  useEffect(() => {
+    const t = setInterval(
+      () => setStage((s) => (s + 1) % GENERATION_STAGES.length),
+      2500,
+    );
+    return () => clearInterval(t);
+  }, []);
+
+  return (
+    <s-box border="base" borderRadius="base" padding="base">
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <Spinner />
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, color: "#1a1a1a" }}>
+            Generating your popup
+          </div>
+          <div style={{ fontSize: 13, color: "#6d7175" }}>
+            {GENERATION_STAGES[stage]} This usually takes about a minute.
+          </div>
+        </div>
+      </div>
+    </s-box>
+  );
+}
+
+function Spinner() {
+  return (
+    <>
+      <style>{"@keyframes asmos-spin{to{transform:rotate(360deg)}}"}</style>
+      <span
+        aria-hidden
+        style={{
+          flex: "0 0 auto",
+          width: 22,
+          height: 22,
+          borderRadius: "50%",
+          border: "2.5px solid #e3e3e3",
+          borderTopColor: "#2a2a35",
+          display: "inline-block",
+          animation: "asmos-spin 0.7s linear infinite",
+        }}
+      />
+    </>
   );
 }
 

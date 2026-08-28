@@ -232,8 +232,17 @@ export default function ShopifyAdminHome() {
         } catch {
           /* localStorage unavailable (privacy mode) — treat as not-yet-onboarded. */
         }
+        // Load campaigns BEFORE flipping to "ready" so the onboarding gate is
+        // decided against real data. On the first "ready" render campaigns would
+        // otherwise still be null → activeCampaign null → an already-onboarded
+        // merchant flashes the wizard for a beat before the dashboard appears.
+        // The skeleton (LoadingShell) keeps animating in the meantime.
+        await loadCampaigns();
+        if (cancelled) return;
         setStatus("ready");
-        await Promise.all([refreshScopes(), loadCampaigns(), loadBilling(), loadLeads(), loadSegments()]);
+        // These populate dashboard-only sections (not the onboarding gate), so
+        // let them stream in after the reveal instead of blocking it.
+        void Promise.all([refreshScopes(), loadBilling(), loadLeads(), loadSegments()]);
       } catch (err) {
         if (cancelled) return;
         setStatus("error");
@@ -457,6 +466,7 @@ export default function ShopifyAdminHome() {
         creating={creating}
         onCreateStarter={createStarterPopup}
         onSelectActive={setActivePopup}
+        onOpenBuilder={openAsmosBuilder}
         embedAcknowledged={embedAck}
         onOpenThemeEditor={() => shop && openThemeEditor(shop)}
         onAcknowledgeEmbed={acknowledgeEmbed}

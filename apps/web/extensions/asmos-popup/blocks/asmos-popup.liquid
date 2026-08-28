@@ -6,11 +6,12 @@
   /api/widget/config?shop=<domain>, picks a variant, and renders the popup in a
   shadow DOM (see public/widget/asmos-widget.js).
 
-  app_url defaults to production; set it to your Shopify CLI dev tunnel when
-  testing with `shopify app dev` so both the loader and its API calls hit the
-  tunnel instead of production.
+  The host is hardcoded to production — deliberately NOT a merchant-facing
+  setting (a stray edit would silently break the widget). When testing with
+  `shopify app dev`, temporarily point asmos_host at your CLI tunnel here and
+  leave it uncommitted.
 {%- endcomment -%}
-{%- assign asmos_host = block.settings.app_url | default: 'https://app.asmos.io' -%}
+{%- assign asmos_host = 'https://app.asmos.io' -%}
 <script
   src="{{ asmos_host }}/widget/asmos-widget.js"
   data-asmos-shop="{{ shop.permanent_domain }}"
@@ -22,14 +23,6 @@
 {
   "name": "Asmos Popups",
   "target": "body",
-  "settings": [
-    {
-      "type": "text",
-      "id": "app_url",
-      "label": "Asmos app URL (advanced)",
-      "info": "Keep the default in production. Change it to your dev tunnel URL only when testing with the Shopify CLI.",
-      "default": "https://app.asmos.io"
-    }
-  ]
+  "settings": []
 }
 {% endschema %}
