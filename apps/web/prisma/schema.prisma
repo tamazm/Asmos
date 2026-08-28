@@ -127,6 +127,7 @@ model Account {
   invites                   Invite[]
   notifications             Notification[]
   shopifyShop               ShopifyShop?
+  integrationConnections    IntegrationConnection[]
 }
 
 model User {
@@ -620,4 +621,59 @@ model ScrapedPopupExample {
   scrapedAt     DateTime @default(now())
 
   @@index([industry, present])
+}
+
+enum IntegrationProvider {
+  webhooks
+  zapier
+  make
+  n8n
+  slack
+  discord
+  teams
+  klaviyo
+  mailchimp
+  hubspot
+  mailgun
+  twilio
+}
+
+model IntegrationConnection {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  provider IntegrationProvider
+  enabled  Boolean  @default(true)
+
+  // Non-secret config: endpoint URL, list id, from-address, etc.
+  config Json @default("{}")
+
+  // AES-256-GCM EncryptedSecret whose plaintext is a JSON secret bundle.
+  // Never returned to the client in plaintext.
+  credentials Json?
+
+  // Which canonical events fire this connection (e.g. ["lead.captured"]).
+  subscribedEvents String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deliveries IntegrationDelivery[]
+
+  @@index([accountId, provider])
+}
+
+model IntegrationDelivery {
+  id           String                @id @default(cuid())
+  connectionId String
+  connection   IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  event  String
+  status String // "success" | "failed" | "skipped"
+  detail String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([connectionId, createdAt])
 }
