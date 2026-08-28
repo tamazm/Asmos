@@ -314,18 +314,73 @@ In the `Account` model (`apps/web/prisma/schema.prisma`, around line 79), add al
   integrationConnections IntegrationConnection[]
 ```
 
-- [ ] **Step 3: Create and apply the migration**
+- [ ] **Step 3: Hand-write the migration SQL (no database required)**
+
+The repo's deploy pipeline (`.github/workflows/migrate.yml`) runs `prisma migrate deploy`
+on push to `main`, which **applies** committed migration files — it does not need us to
+generate them against a live DB. So author the migration file by hand, matching the exact
+format Prisma emits (see `prisma/migrations/20260826010000_add_shopify_shop/migration.sql`).
+
+Create `apps/web/prisma/migrations/20260829000000_add_integration_connections/migration.sql`:
+```sql
+-- CreateEnum
+CREATE TYPE "IntegrationProvider" AS ENUM ('webhooks', 'zapier', 'make', 'n8n', 'slack', 'discord', 'teams', 'klaviyo', 'mailchimp', 'hubspot', 'mailgun', 'twilio');
+
+-- CreateTable
+CREATE TABLE "IntegrationConnection" (
+    "id" TEXT NOT NULL,
+    "accountId" TEXT NOT NULL,
+    "provider" "IntegrationProvider" NOT NULL,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
+    "config" JSONB NOT NULL DEFAULT '{}',
+    "credentials" JSONB,
+    "subscribedEvents" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "IntegrationConnection_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "IntegrationDelivery" (
+    "id" TEXT NOT NULL,
+    "connectionId" TEXT NOT NULL,
+    "event" TEXT NOT NULL,
+    "status" TEXT NOT NULL,
+    "detail" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "IntegrationDelivery_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "IntegrationConnection_accountId_provider_idx" ON "IntegrationConnection"("accountId", "provider");
+
+-- CreateIndex
+CREATE INDEX "IntegrationDelivery_connectionId_createdAt_idx" ON "IntegrationDelivery"("connectionId", "createdAt");
+
+-- AddForeignKey
+ALTER TABLE "IntegrationConnection" ADD CONSTRAINT "IntegrationConnection_accountId_fkey" FOREIGN KEY ("accountId") REFERENCES "Account"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "IntegrationDelivery" ADD CONSTRAINT "IntegrationDelivery_connectionId_fkey" FOREIGN KEY ("connectionId") REFERENCES "IntegrationConnection"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+```
+
+The SQL must exactly match the models added in Steps 1–2 (column names, types, the
+`config`/`subscribedEvents` defaults, and the FK cascade). `migrate deploy` records the
+migration by folder name and computes its checksum at apply time — a hand-authored file is
+applied identically to a generated one.
+
+- [ ] **Step 4: Regenerate the Prisma client (no DB needed) and typecheck**
 
 Run (from `apps/web/`):
 ```bash
-npx prisma migrate dev --name add_integration_connections
+npx prisma generate && npx tsc --noEmit
 ```
-Expected: creates `prisma/migrations/<timestamp>_add_integration_connections/migration.sql`, applies it, regenerates the client. If the local DB is unreachable, run against a dev DB per the repo's normal workflow (see `.github/workflows/migrate.yml`).
-
-- [ ] **Step 4: Verify the client regenerated**
-
-Run: `npx prisma generate`
-Expected: no error; `IntegrationConnection` / `IntegrationDelivery` now available on the Prisma client.
+Expected: client regenerates with `IntegrationConnection` / `IntegrationDelivery`; no type
+errors. (`prisma generate` reads `schema.prisma` only — it does not connect to a database.
+If a dev/shadow DB is ever available, `npx prisma migrate dev` will report "in sync",
+confirming the hand-written SQL matches the schema.)
 
 - [ ] **Step 5: Commit**
 
@@ -1435,9 +1490,40 @@ git add scripts/backfill-integration-connections.ts package.json package-lock.js
 git commit -m "feat: backfill script for legacy integration data"
 ```
 
-- [ ] **Step 6: Production run (operational, not committed)**
+- [ ] **Step 6: Wire the backfill into the deploy pipeline (auto, idempotent)**
 
-Document in the PR description that after deploy, the backfill must be run once against production with `INTEGRATION_ENCRYPTION_KEY` set. Deploying the schema migration (Task 3) before running this script is required.
+Because the backfill is idempotent, run it automatically on every deploy right after the
+schema migration. In `.github/workflows/migrate.yml`, add a step after the existing
+"Run Prisma Migrate" step:
+```yaml
+      - name: Backfill integration connections
+        working-directory: ./apps/web
+        run: npx tsx scripts/backfill-integration-connections.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          INTEGRATION_ENCRYPTION_KEY: ${{ secrets.INTEGRATION_ENCRYPTION_KEY }}
+```
+This runs only when the workflow triggers (push to `main` touching `prisma/`), after
+`prisma migrate deploy` has created the tables — the correct order. Re-runs are safe
+(the script skips already-migrated `(account, provider)` pairs).
+
+- [ ] **Step 7: One-time secrets setup (operational, done by the repo owner)**
+
+Document in the PR description that before this merges to `main`, two secrets must exist:
+- **GitHub Actions secret** `INTEGRATION_ENCRYPTION_KEY` (repo settings → Secrets) so the
+  backfill step can encrypt — alongside the existing `DATABASE_URL` secret.
+- **Vercel env var** `INTEGRATION_ENCRYPTION_KEY` (all environments) so the running app can
+  encrypt/decrypt at request time.
+
+Same value in both, generated once with `openssl rand -hex 32`. This is the only manual
+step in Phase 0.
+
+- [ ] **Step 8: Commit the workflow change**
+
+```bash
+git add ../../.github/workflows/migrate.yml
+git commit -m "ci: run integration backfill after prisma migrate deploy"
+```
 
 ---
 
