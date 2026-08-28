@@ -81,7 +81,7 @@ export function OnboardingWizard({
             }
           >
             {step1 === "active" && (
-              <s-stack direction="block" gap="tight">
+              <s-stack direction="block" gap="small-300">
                 <s-box>
                   <s-button
                     variant="primary"
@@ -132,7 +132,7 @@ export function OnboardingWizard({
             }
           >
             {step3 === "active" && (
-              <s-stack direction="block" gap="tight">
+              <s-stack direction="block" gap="small-300">
                 <s-box>
                   <s-button variant="primary" onClick={onOpenThemeEditor}>
                     Open theme editor
@@ -203,7 +203,7 @@ function Step2Body({
   }
 
   return (
-    <s-stack direction="block" gap="tight">
+    <s-stack direction="block" gap="small-300">
       <s-text tone="subdued">Pick the popup to run on your store:</s-text>
       {selectable.map((c) => (
         <s-box key={c.id} border="base" borderRadius="base" padding="base">
@@ -245,17 +245,23 @@ function StepCard({
       padding="base"
       background={state === "active" ? "subdued" : undefined}
     >
-      <s-stack direction="inline" gap="base" alignItems="start">
+      {/* Explicit flex row (not s-stack) so the marker always stays pinned left
+          and the content column fills the rest — s-stack inline lets a long
+          description wrap the whole content block below the marker. minWidth:0
+          lets the text wrap inside the column instead of overflowing. */}
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
         <StepMarker index={index} state={state} />
-        <s-stack direction="block" gap="tight">
-          <s-stack direction="inline" gap="tight" alignItems="center">
-            <s-text type="strong">{title}</s-text>
-            {state === "done" && <s-badge tone="success">Done</s-badge>}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <s-stack direction="block" gap="small-300">
+            <s-stack direction="inline" gap="small-300" alignItems="center">
+              <s-text type="strong">{title}</s-text>
+              {state === "done" && <s-badge tone="success">Done</s-badge>}
+            </s-stack>
+            <s-text tone="subdued">{description}</s-text>
+            {children}
           </s-stack>
-          <s-text tone="subdued">{description}</s-text>
-          {children}
-        </s-stack>
-      </s-stack>
+        </div>
+      </div>
     </s-box>
   );
 }
@@ -294,7 +300,7 @@ function ProgressBar({ completed, total }: { completed: number; total: number })
   const pct = Math.round((completed / total) * 100);
   return (
     <s-box>
-      <s-stack direction="block" gap="tight">
+      <s-stack direction="block" gap="small-300">
         <s-text tone="subdued">
           Step {Math.min(completed + 1, total)} of {total}
           {completed === total ? " — complete" : ""}

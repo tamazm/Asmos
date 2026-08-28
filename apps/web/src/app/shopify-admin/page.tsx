@@ -432,7 +432,10 @@ export default function ShopifyAdminHome() {
     return <ErrorShell message={error} />;
   }
 
-  const list = campaigns ?? [];
+  // Hide FAILED popups entirely — a generation that errored isn't something the
+  // merchant can act on, so it shouldn't clutter the list, the selector, or the
+  // counts. (FAILED is never the active popup, so this can't hide a live one.)
+  const list = (campaigns ?? []).filter((c) => c.status !== "FAILED");
   const activeCampaign = list.find((c) => c.status === "ACTIVE") ?? null;
   const hasCampaigns = list.length > 0;
 
@@ -624,7 +627,7 @@ export default function ShopifyAdminHome() {
                 <s-box key={scope}>
                   <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
                     <s-stack direction="block" gap="none">
-                      <s-stack direction="inline" gap="tight" alignItems="center">
+                      <s-stack direction="inline" gap="small-300" alignItems="center">
                         <s-text type="strong">{label}</s-text>
                         <s-badge tone={isGranted ? "success" : "neutral"}>{isGranted ? "On" : "Off"}</s-badge>
                       </s-stack>
@@ -648,7 +651,7 @@ export default function ShopifyAdminHome() {
         <s-section heading="Plan">
           <s-stack direction="block" gap="base">
             {subscription ? (
-              <s-stack direction="inline" gap="tight" alignItems="center">
+              <s-stack direction="inline" gap="small-300" alignItems="center">
                 <s-text type="strong">{subscription.name}</s-text>
                 <s-badge tone={subscription.status === "ACTIVE" ? "success" : "warning"}>
                   {subscription.status.toLowerCase()}
@@ -678,7 +681,7 @@ export default function ShopifyAdminHome() {
                   <s-box key={p.key} border="base" borderRadius="base" padding="base">
                     <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
                       <s-stack direction="block" gap="none">
-                        <s-stack direction="inline" gap="tight" alignItems="center">
+                        <s-stack direction="inline" gap="small-300" alignItems="center">
                           <s-text type="strong">{p.name}</s-text>
                           {isCurrent && <s-badge tone="success">current</s-badge>}
                         </s-stack>
@@ -718,7 +721,12 @@ export default function ShopifyAdminHome() {
 // whole boot sequence. Reserved heights keep CLS < 0.1 when the real Polaris UI
 // swaps in. Inline styles so there's zero external CSS/JS on the critical path.
 const SHELL_WRAP: React.CSSProperties = {
+  // width:100% + box-sizing so the shell fills the (flex) admin container. Without
+  // it the wrap shrinks to its widest child (the tiny "Asmos" heading) and the
+  // width-less skeleton cards collapse with it.
+  width: "100%",
   maxWidth: 998,
+  boxSizing: "border-box",
   margin: "0 auto",
   padding: "20px 16px",
   fontFamily:
@@ -738,6 +746,8 @@ function SkeletonCard({ height }: { height: number }) {
       aria-hidden
       style={{
         height,
+        width: "100%",
+        boxSizing: "border-box",
         borderRadius: 12,
         border: "1px solid #e3e3e3",
         background:
@@ -887,7 +897,7 @@ function CampaignRow({
       <s-stack direction="block" gap="base">
         <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
           <s-stack direction="block" gap="none">
-            <s-stack direction="inline" gap="tight" alignItems="center">
+            <s-stack direction="inline" gap="small-300" alignItems="center">
               <s-text type="strong">{campaign.name}</s-text>
               <s-badge tone={STATUS_TONE[campaign.status]}>
                 {isActive ? "live" : campaign.status.toLowerCase()}
@@ -895,7 +905,7 @@ function CampaignRow({
             </s-stack>
             <s-text tone="subdued">{placementSummary(campaign.placement)}</s-text>
           </s-stack>
-          <s-stack direction="inline" gap="tight" alignItems="center">
+          <s-stack direction="inline" gap="small-300" alignItems="center">
             <s-button disabled={busy || isGenerating} onClick={() => setEditing((v) => !v)}>
               {editing ? "Close" : "Edit placement"}
             </s-button>
