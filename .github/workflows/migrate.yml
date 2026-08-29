@@ -50,9 +50,9 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
-      - name: Backfill integration connections
-        working-directory: ./apps/web
-        run: npx tsx scripts/backfill-integration-connections.ts
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          INTEGRATION_ENCRYPTION_KEY: ${{ secrets.INTEGRATION_ENCRYPTION_KEY }}
+      # NOTE: the integration-connections backfill is intentionally NOT run here.
+      # It is a one-time migration of legacy webhook/API-key data and is run
+      # manually, once, from a maintainer's machine — see
+      # apps/web/scripts/backfill-integration-connections.ts. This keeps the
+      # deploy pipeline from auto-running a data migration against production and
+      # avoids needing INTEGRATION_ENCRYPTION_KEY in CI secrets.

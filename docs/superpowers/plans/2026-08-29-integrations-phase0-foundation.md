@@ -1490,40 +1490,31 @@ git add scripts/backfill-integration-connections.ts package.json package-lock.js
 git commit -m "feat: backfill script for legacy integration data"
 ```
 
-- [ ] **Step 6: Wire the backfill into the deploy pipeline (auto, idempotent)**
+- [ ] **Step 6: Run the backfill ONCE, manually, from a maintainer's machine (NOT in CI)**
 
-Because the backfill is idempotent, run it automatically on every deploy right after the
-schema migration. In `.github/workflows/migrate.yml`, add a step after the existing
-"Run Prisma Migrate" step:
-```yaml
-      - name: Backfill integration connections
-        working-directory: ./apps/web
-        run: npx tsx scripts/backfill-integration-connections.ts
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          INTEGRATION_ENCRYPTION_KEY: ${{ secrets.INTEGRATION_ENCRYPTION_KEY }}
+Decision: the backfill is a one-time data migration and is deliberately kept OUT of the
+deploy pipeline, so CI never auto-runs a data migration against production and no
+`INTEGRATION_ENCRYPTION_KEY` is needed in CI secrets. `.github/workflows/migrate.yml`
+carries only `prisma migrate deploy` (plus a comment pointing here).
+
+After the schema migration has been applied to the target database (via the normal deploy),
+run the backfill once, locally, against that database:
+```bash
+cd apps/web
+INTEGRATION_ENCRYPTION_KEY=<the-prod-key> DATABASE_URL=<prod-db-url> \
+  npx tsx scripts/backfill-integration-connections.ts
 ```
-This runs only when the workflow triggers (push to `main` touching `prisma/`), after
-`prisma migrate deploy` has created the tables — the correct order. Re-runs are safe
-(the script skips already-migrated `(account, provider)` pairs).
+It prints the created count and is idempotent (safe to re-run; skips already-migrated
+`(account, provider)` pairs).
 
 - [ ] **Step 7: One-time secrets setup (operational, done by the repo owner)**
 
-Document in the PR description that before this merges to `main`, two secrets must exist:
-- **GitHub Actions secret** `INTEGRATION_ENCRYPTION_KEY` (repo settings → Secrets) so the
-  backfill step can encrypt — alongside the existing `DATABASE_URL` secret.
+Only ONE place needs the key now:
 - **Vercel env var** `INTEGRATION_ENCRYPTION_KEY` (all environments) so the running app can
-  encrypt/decrypt at request time.
+  encrypt/decrypt credentials at request time. Generated once with `openssl rand -hex 32`.
 
-Same value in both, generated once with `openssl rand -hex 32`. This is the only manual
-step in Phase 0.
-
-- [ ] **Step 8: Commit the workflow change**
-
-```bash
-git add ../../.github/workflows/migrate.yml
-git commit -m "ci: run integration backfill after prisma migrate deploy"
-```
+The maintainer running Step 6 uses that same key value in their local shell for the one-time
+backfill. No GitHub Actions secret is required.
 
 ---
 
