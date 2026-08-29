@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ProviderWebhookCard, type ProviderCardProps } from "@/components/integrations/ProviderWebhookCard";
 
 type IntegrationStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -95,6 +96,19 @@ const CATEGORY_LABELS = {
   email: "Email marketing",
   automation: "Automation",
 } as const;
+
+// ── Provider cards (Zapier/Make/n8n/Slack/Discord/Teams) ───────────────────
+
+type ConnState = { provider: string; connected: boolean; url: string | null; subscribedEvents: string[]; lastDelivery: { status: string; at: string } | null };
+
+const PROVIDER_META: Array<Omit<ProviderCardProps, "initialUrl" | "initialEvents" | "initialLastDelivery"> & { group: "Automation" | "Notifications" }> = [
+  { provider: "zapier", name: "Zapier", category: "Automation", group: "Automation", docsUrl: "https://zapier.com/apps/webhook/integrations", urlLabel: "Zapier Catch Hook URL", urlPlaceholder: "https://hooks.zapier.com/hooks/catch/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#FF4A00"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">Z</text></svg> },
+  { provider: "make", name: "Make", category: "Automation", group: "Automation", docsUrl: "https://www.make.com/en/help/tools/webhooks", urlLabel: "Make Custom Webhook URL", urlPlaceholder: "https://hook.eu1.make.com/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#6D00CC"/><text x="8" y="27" fontSize="18" fontWeight="bold" fill="#fff">M</text></svg> },
+  { provider: "n8n", name: "n8n", category: "Automation", group: "Automation", docsUrl: "https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/", urlLabel: "n8n Webhook URL", urlPlaceholder: "https://<your-n8n>/webhook/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#EA4B71"/><text x="9" y="27" fontSize="15" fontWeight="bold" fill="#fff">n8</text></svg> },
+  { provider: "slack", name: "Slack", category: "Notifications", group: "Notifications", docsUrl: "https://api.slack.com/messaging/webhooks", urlLabel: "Slack Incoming Webhook URL", urlPlaceholder: "https://hooks.slack.com/services/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#4A154B"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">S</text></svg> },
+  { provider: "discord", name: "Discord", category: "Notifications", group: "Notifications", docsUrl: "https://support.discord.com/hc/en-us/articles/228383668", urlLabel: "Discord Channel Webhook URL", urlPlaceholder: "https://discord.com/api/webhooks/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#5865F2"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">D</text></svg> },
+  { provider: "teams", name: "Microsoft Teams", category: "Notifications", group: "Notifications", docsUrl: "https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook", urlLabel: "Teams Incoming Webhook URL", urlPlaceholder: "https://outlook.office.com/webhook/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#4B53BC"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">T</text></svg> },
+];
 
 // ── Webhook card (real API) ────────────────────────────────────────────────
 
@@ -498,12 +512,36 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 export default function IntegrationsPage() {
   const categories = Array.from(new Set(INTEGRATIONS.map((i) => i.category)));
 
+  const [conns, setConns] = useState<ConnState[] | null>(null);
+  useEffect(() => {
+    fetch("/api/integrations/connections").then((r) => r.json())
+      .then((d: { connections: ConnState[] }) => setConns(d.connections))
+      .catch(() => setConns([]));
+  }, []);
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader title="Integrations" />
       <p className="text-sm text-[color:var(--color-text-secondary)]">
         Connect Asmos to your marketing stack. Leads and events sync automatically once a connection is active.
       </p>
+
+      {(["Automation", "Notifications"] as const).map((group) => (
+        <section key={group}>
+          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">{group}</h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {PROVIDER_META.filter((m) => m.group === group).map((m) => {
+              const c = conns?.find((x) => x.provider === m.provider);
+              return (
+                <ProviderWebhookCard key={m.provider} {...m}
+                  initialUrl={c?.url ?? null}
+                  initialEvents={c?.subscribedEvents ?? []}
+                  initialLastDelivery={c?.lastDelivery ?? null} />
+              );
+            })}
+          </div>
+        </section>
+      ))}
 
       {categories.map((cat) => (
         <section key={cat}>
