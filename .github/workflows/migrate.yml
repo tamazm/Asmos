@@ -49,3 +49,10 @@ jobs:
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Backfill integration connections
+        working-directory: ./apps/web
+        run: npx tsx scripts/backfill-integration-connections.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          INTEGRATION_ENCRYPTION_KEY: ${{ secrets.INTEGRATION_ENCRYPTION_KEY }}
