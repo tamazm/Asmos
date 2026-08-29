@@ -89,6 +89,16 @@
       }
     }
 
+    #asmosResultLayout {
+      flex-direction: column;
+    }
+
+    @media (min-width: 900px) {
+      #asmosResultLayout {
+        flex-direction: row !important;
+      }
+    }
+
     @media (max-width: 560px) {
       #asmosHero {
         padding: 40px 16px 28px !important;
@@ -305,24 +315,44 @@
   </section>
 
   <!-- Real scan results — hidden until a fetch to /api/analyze resolves, then
-       swapped in for the hero + showcase demo above (see showResult() below). -->
-  <div id="asmosResultPanel" style="display:none; width:100%; max-width:560px; margin:0 auto; padding:48px 20px; box-sizing:border-box; font-family:'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif;">
-    <div style="background:#fff; border-radius:20px; padding:28px; box-shadow:0 12px 40px rgba(15,23,42,0.10); text-align:left; box-sizing:border-box;">
-      <img id="asmosResultScreenshot" alt="" style="display:none; width:100%; max-height:280px; object-fit:cover; object-position:top; border-radius:12px; border:1px solid #e2e8f0; box-sizing:border-box; margin-bottom:18px;" />
-      <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:6px;">
-        <div style="min-width:0;">
-          <div id="asmosResultStoreName" style="font-size:18px; font-weight:600; color:#0f172a; overflow-wrap:anywhere;"></div>
-          <div id="asmosResultUrl" style="font-size:12px; color:#165DFF; margin-top:2px; overflow-wrap:anywhere;"></div>
-          <div id="asmosResultIndustry" style="font-size:12px; color:#64748b; margin-top:2px;"></div>
+       swapped in for the hero + showcase demo above (see showResult() below).
+       Left column is the screenshot, right column is everything else -
+       mirrors the pre-submit showcase's left-image/right-card layout above. -->
+  <div id="asmosResultPanel" style="display:none; width:100%; max-width:1080px; margin:0 auto; padding:48px 20px; box-sizing:border-box; font-family:'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif;">
+    <div id="asmosResultLayout" style="display:flex; gap:24px; align-items:stretch;">
+      <!-- Left: the actual screenshot taken of the analyzed site -->
+      <div id="asmosResultImageCol" style="display:none; width:100%; flex:1; min-width:0; border-radius:20px; overflow:hidden; box-shadow:0 12px 40px rgba(15,23,42,0.10); background:#fff;">
+        <img id="asmosResultScreenshot" alt="" style="display:block; width:100%; height:100%; min-height:240px; object-fit:cover; object-position:top; box-sizing:border-box;" />
+      </div>
+      <!-- Right: grade, verdict, checklist, email capture -->
+      <div style="width:100%; flex:1; min-width:0; background:#fff; border-radius:20px; padding:28px; box-sizing:border-box; box-shadow:0 12px 40px rgba(15,23,42,0.10); text-align:left;">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:6px;">
+          <div style="min-width:0;">
+            <div id="asmosResultStoreName" style="font-size:18px; font-weight:600; color:#0f172a; overflow-wrap:anywhere;"></div>
+            <div id="asmosResultUrl" style="font-size:12px; color:#165DFF; margin-top:2px; overflow-wrap:anywhere;"></div>
+            <div id="asmosResultIndustry" style="font-size:12px; color:#64748b; margin-top:2px;"></div>
+          </div>
+          <div style="text-align:right; flex-shrink:0;">
+            <div id="asmosResultGrade" style="font-size:30px; font-weight:700; line-height:1;"></div>
+            <div id="asmosResultScore" style="font-size:11px; color:#64748b; margin-top:2px; white-space:nowrap;"></div>
+          </div>
         </div>
-        <div style="text-align:right; flex-shrink:0;">
-          <div id="asmosResultGrade" style="font-size:30px; font-weight:700; line-height:1;"></div>
-          <div id="asmosResultScore" style="font-size:11px; color:#64748b; margin-top:2px; white-space:nowrap;"></div>
+        <div id="asmosResultVerdict" style="font-size:13px; color:#334155; line-height:1.55; margin:14px 0 0;"></div>
+        <div id="asmosResultTopIssue" style="display:none; font-size:12px; color:#165DFF; background:#eef4ff; border-radius:10px; padding:10px 12px; margin:12px 0 18px;"></div>
+        <div id="asmosResultChecklist" style="margin-top:14px;"></div>
+
+        <div style="border-top:1px solid #e2e8f0; margin-top:18px; padding-top:18px;">
+          <p style="margin:0 0 8px; font-size:12px; font-weight:600; color:#0f172a;">Get this report emailed to you</p>
+          <form id="asmosEmailForm" style="display:flex; flex-wrap:wrap; gap:8px;">
+            <input type="email" id="asmosReportEmail" placeholder="you@company.com" autocomplete="email"
+              style="flex:1; min-width:160px; border:1px solid #e6e9f2; border-radius:999px; padding:9px 14px; font-size:13px; color:#0f172a; outline:none; font-family:inherit; box-sizing:border-box;" />
+            <button type="submit" id="asmosEmailSubmitBtn"
+              style="flex-shrink:0; border:0; border-radius:999px; background:#165DFF; color:#fff; font-size:13px; font-weight:500; padding:0 18px; height:36px; cursor:pointer; font-family:inherit;">Send
+              report</button>
+          </form>
+          <p id="asmosEmailHelper" style="margin:8px 0 0; font-size:11px; color:#64748b;"></p>
         </div>
       </div>
-      <div id="asmosResultVerdict" style="font-size:13px; color:#334155; line-height:1.55; margin:14px 0 0;"></div>
-      <div id="asmosResultTopIssue" style="display:none; font-size:12px; color:#165DFF; background:#eef4ff; border-radius:10px; padding:10px 12px; margin:12px 0 18px;"></div>
-      <div id="asmosResultChecklist" style="margin-top:14px;"></div>
     </div>
     <div style="text-align:center; margin-top:16px;">
       <button id="asmosTryAnotherBtn" type="button"
@@ -431,8 +461,14 @@
       var showcaseSection = document.getElementById("asmosShowcaseSection");
       var hero = document.getElementById("asmosHero");
       var resultPanel = document.getElementById("asmosResultPanel");
+      var resultImageCol = document.getElementById("asmosResultImageCol");
       var resultScreenshot = document.getElementById("asmosResultScreenshot");
       var tryAnotherBtn = document.getElementById("asmosTryAnotherBtn");
+      var emailForm = document.getElementById("asmosEmailForm");
+      var emailInput = document.getElementById("asmosReportEmail");
+      var emailBtn = document.getElementById("asmosEmailSubmitBtn");
+      var emailHelper = document.getElementById("asmosEmailHelper");
+      var lastResult = null;
 
       var CHECKS = [
         ["popup", "Popup"],
@@ -463,16 +499,25 @@
 
       function showResult(data) {
         data = data || {};
+        lastResult = data;
         hero.style.display = "none";
         showcaseSection.style.display = "none";
 
         if (data.screenshotBase64) {
           resultScreenshot.src = "data:image/jpeg;base64," + data.screenshotBase64;
-          resultScreenshot.style.display = "block";
+          resultImageCol.style.display = "block";
         } else {
           resultScreenshot.removeAttribute("src");
-          resultScreenshot.style.display = "none";
+          resultImageCol.style.display = "none";
         }
+
+        emailForm.style.display = "";
+        emailInput.value = "";
+        emailInput.disabled = false;
+        emailBtn.disabled = false;
+        emailBtn.textContent = "Send report";
+        emailHelper.textContent = "";
+        emailHelper.style.color = HELPER_COLOR;
 
         var score = typeof data.overallScore === "number" ? data.overallScore : data.score;
         var grade = data.grade || "—";
@@ -520,6 +565,59 @@
 
         resultPanel.style.display = "block";
       }
+
+      var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      emailForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var email = emailInput.value.trim();
+        if (!EMAIL_RE.test(email)) {
+          emailHelper.textContent = "Enter a valid email address";
+          emailHelper.style.color = ERROR_COLOR;
+          return;
+        }
+        if (!lastResult) return;
+
+        emailInput.disabled = true;
+        emailBtn.disabled = true;
+        emailBtn.textContent = "Sending...";
+        emailHelper.textContent = "";
+        emailHelper.style.color = HELPER_COLOR;
+
+        var score = typeof lastResult.overallScore === "number" ? lastResult.overallScore : lastResult.score;
+
+        // Same-origin as the analysis call above, and CORS-enabled for the
+        // same reason - see /api/analyze/lead/route.ts. Persists the lead
+        // and emails the report; the endpoint returns { ok: true } even on
+        // its own internal failures so as not to punish the visitor for a
+        // server-side hiccup, so this only distinguishes a genuine network
+        // failure (offline, blocked request) from "it went through".
+        fetch("https://app.asmos.io/api/analyze/lead", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: email,
+            storeUrl: lastResult.storeUrl,
+            storeName: lastResult.storeName,
+            industry: lastResult.industry,
+            score: typeof score === "number" ? score : null,
+            grade: lastResult.grade,
+            gradeLabel: lastResult.gradeLabel,
+            topIssue: lastResult.topIssue,
+          }),
+        })
+          .then(function () {
+            emailBtn.textContent = "Sent";
+            emailHelper.textContent = "Report on its way to " + email;
+          })
+          .catch(function () {
+            emailInput.disabled = false;
+            emailBtn.disabled = false;
+            emailBtn.textContent = "Send report";
+            emailHelper.textContent = "Something went wrong. Please try again.";
+            emailHelper.style.color = ERROR_COLOR;
+          });
+      });
 
       tryAnotherBtn.addEventListener("click", function () {
         resultPanel.style.display = "none";
