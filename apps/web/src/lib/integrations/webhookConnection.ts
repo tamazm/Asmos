@@ -38,32 +38,37 @@ export async function saveWebhook(
 ): Promise<void> {
   const existing = await findWebhook(accountId);
 
-  if (input.webhookEnabled === false) {
-    if (existing) {
-      await prisma.integrationConnection.upsert({
-        where: { id: existing.id },
-        update: { enabled: false },
-        create: { accountId, provider: "webhooks", enabled: false, config: {}, subscribedEvents: DEFAULT_EVENTS },
-      });
+  if (existing) {
+    // Field-conditional update: only touch a column when the caller actually
+    // provided that key, so a partial PATCH (e.g. a bare enable/disable, or a
+    // secret-only change) never wipes the stored URL or secret.
+    const data: {
+      enabled?: boolean;
+      config?: { url: string } | Record<string, never>;
+      credentials?: EncryptedSecret;
+    } = {};
+    if ("webhookEnabled" in input) data.enabled = Boolean(input.webhookEnabled);
+    if ("webhookUrl" in input) data.config = input.webhookUrl ? { url: input.webhookUrl } : {};
+    if ("webhookSecret" in input) {
+      // A provided-but-empty secret clears it, stored as an empty (still
+      // encrypted) bundle so the column stays a valid EncryptedSecret.
+      data.credentials = encryptBundle(input.webhookSecret ? { signingSecret: input.webhookSecret } : {});
     }
+    await prisma.integrationConnection.update({ where: { id: existing.id }, data });
     return;
   }
 
-  const credentials = input.webhookSecret ? encryptBundle({ signingSecret: input.webhookSecret }) : existing?.credentials ?? undefined;
+  // No existing connection. Only create one when there's a URL to store — a bare
+  // disable or secret change against a nonexistent connection is a no-op.
+  if (!input.webhookUrl) return;
 
-  await prisma.integrationConnection.upsert({
-    where: { id: existing?.id ?? "__none__" },
-    update: {
-      enabled: true,
-      config: { url: input.webhookUrl },
-      ...(input.webhookSecret ? { credentials } : {}),
-    },
-    create: {
+  await prisma.integrationConnection.create({
+    data: {
       accountId,
       provider: "webhooks",
-      enabled: true,
+      enabled: "webhookEnabled" in input ? Boolean(input.webhookEnabled) : true,
       config: { url: input.webhookUrl },
-      credentials,
+      credentials: input.webhookSecret ? encryptBundle({ signingSecret: input.webhookSecret }) : undefined,
       subscribedEvents: DEFAULT_EVENTS,
     },
   });
