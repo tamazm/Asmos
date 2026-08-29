@@ -2,6 +2,7 @@ import type { IntegrationAdapter, IntegrationProvider } from "./types";
 import { webhookAdapter } from "./adapters/webhookAdapter";
 import { zapierAdapter, makeAdapter, n8nAdapter } from "./adapters/envelopeAdapters";
 import { slackAdapter } from "./adapters/slackAdapter";
+import { discordAdapter } from "./adapters/discordAdapter";
 
 // Adapters implemented so far. Later phases add their entries here.
 const ADAPTERS: Partial<Record<IntegrationProvider, IntegrationAdapter>> = {
@@ -10,6 +11,7 @@ const ADAPTERS: Partial<Record<IntegrationProvider, IntegrationAdapter>> = {
   make: makeAdapter,
   n8n: n8nAdapter,
   slack: slackAdapter,
+  discord: discordAdapter,
 };
 
 export function getAdapter(provider: IntegrationProvider): IntegrationAdapter | undefined {
