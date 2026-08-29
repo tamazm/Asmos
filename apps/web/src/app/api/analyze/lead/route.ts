@@ -4,9 +4,14 @@ import { prisma } from "@/lib/prisma";
 
 // Called from the embeddable widget (public/embed/analyze.html), which is
 // loaded on arbitrary third-party origins - see the matching comment on
-// /api/analyze/route.ts.
+// /api/analyze/route.ts. Unlike that GET endpoint, this one is a POST sent
+// with a JSON body, which is not a CORS-"simple" request - the browser
+// preflights it with OPTIONS first and checks Allow-Methods/Allow-Headers
+// too, not just Allow-Origin, so all three need to be set here.
 function cors<T extends NextResponse>(res: T): T {
   res.headers.set("Access-Control-Allow-Origin", "*");
+  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.headers.set("Access-Control-Allow-Headers", "Content-Type");
   return res;
 }
 
