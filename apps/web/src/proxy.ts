@@ -11,6 +11,8 @@ const isProtectedRoute = createRouteMatcher([
   "/analytics(.*)",
   "/integrations(.*)",
   "/settings(.*)",
+  // Merchant must be signed in to link a Shopify store to their Asmos account.
+  "/connect(.*)",
 ]);
 
 // Routes that live on app.asmos.io - the actual platform, plus sign-in/up
@@ -35,6 +37,7 @@ const isAppRoute = createRouteMatcher([
   "/tools(.*)",
   "/store-preview(.*)",
   "/shopify-admin(.*)",
+  "/connect(.*)",
 ]);
 
 const APP_HOST = process.env.NEXT_PUBLIC_APP_HOST || "app.asmos.io";

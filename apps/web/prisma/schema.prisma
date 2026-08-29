@@ -478,6 +478,20 @@ model ShopifyShop {
   installedAt   DateTime  @default(now())
   uninstalledAt DateTime?
 
+  // Expiring offline access tokens (Shopify deprecates permanent offline tokens;
+  // public apps must use expiring ones by 2027-01-01). The offline access token
+  // above now lives ~1h; refreshToken (encrypted) renews it for ~90d without a
+  // merchant present. See lib/shopify/tenant.ts:getValidAccessTokenForShop.
+  tokenExpiresAt        DateTime?
+  refreshToken          String?
+  refreshTokenExpiresAt DateTime?
+
+  // Set when a merchant links this shop to their existing (Clerk-backed) Asmos
+  // account via the top-frame connect flow (see /api/shopify/connect). Null =
+  // still on the auto-provisioned throwaway account created at install. Drives
+  // the "Connect your Asmos account" prompt in the embedded admin.
+  linkedAt DateTime?
+
   // The Website that holds this shop's popups/campaigns. Set on install so
   // storefront config lookups (/api/widget/config?shop=) resolve to it.
   websiteId String?  @unique

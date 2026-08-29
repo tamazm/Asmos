@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { OnboardingWizard } from "./OnboardingWizard";
 
 type Status = "loading" | "ready" | "error";
 
@@ -67,6 +68,12 @@ interface Lead {
   createdAt: string;
 }
 
+interface Segment {
+  id: string;
+  name: string;
+  memberCount: number;
+}
+
 const TRIGGER_LABELS: Record<Trigger, string> = {
   time_delay: "After a delay",
   exit_intent: "On exit intent",
@@ -94,6 +101,8 @@ function openThemeEditor(shop: string) {
 export default function ShopifyAdminHome() {
   const [status, setStatus] = useState<Status>("loading");
   const [shop, setShop] = useState<string | null>(null);
+  const [linked, setLinked] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [granted, setGranted] = useState<string[]>([]);
   const [busyScope, setBusyScope] = useState<string | null>(null);
@@ -105,6 +114,14 @@ export default function ShopifyAdminHome() {
   const [showPlans, setShowPlans] = useState(false);
   const [leads, setLeads] = useState<Lead[] | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [segments, setSegments] = useState<Segment[] | null>(null);
+  const [segmentsNeedScope, setSegmentsNeedScope] = useState(false);
+  // Onboarding gate. `embedAck` records that the merchant confirmed enabling the
+  // theme embed (there's no server-side signal for it), and `onboarded` is the
+  // sticky "finished the wizard" flag. Both are persisted per-shop in
+  // localStorage so a returning merchant lands straight in the dashboard.
+  const [embedAck, setEmbedAck] = useState(false);
+  const [onboarded, setOnboarded] = useState(false);
 
   const refreshScopes = useCallback(async () => {
     try {
@@ -140,6 +157,21 @@ export default function ShopifyAdminHome() {
       setCampaigns(data.campaigns ?? []);
     } catch {
       /* Non-fatal: manager still renders, list just stays as-is. */
+    }
+  }, []);
+
+  const loadSegments = useCallback(async () => {
+    try {
+      const token = await window.shopify!.idToken();
+      const res = await fetch("/api/shopify/admin/segments", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      setSegmentsNeedScope(Boolean(data.needsScope));
+      setSegments(data.segments ?? []);
+    } catch {
+      /* Non-fatal: Audiences section just won't populate. */
     }
   }, []);
 
@@ -188,8 +220,29 @@ export default function ShopifyAdminHome() {
           return;
         }
         setShop(data.shop);
+        setLinked(Boolean(data.linked));
+        // Hydrate onboarding flags for this shop before we flip to "ready", so an
+        // already-onboarded merchant lands straight in the dashboard with no
+        // flash of the wizard. Keyed by shop so each store is evaluated on its
+        // own. (Setting state here, after the await, is intentionally not the
+        // synchronous-effect anti-pattern.)
+        try {
+          setEmbedAck(localStorage.getItem(`asmos_embed_ack_${data.shop}`) === "1");
+          setOnboarded(localStorage.getItem(`asmos_onboarded_${data.shop}`) === "1");
+        } catch {
+          /* localStorage unavailable (privacy mode) — treat as not-yet-onboarded. */
+        }
+        // Load campaigns BEFORE flipping to "ready" so the onboarding gate is
+        // decided against real data. On the first "ready" render campaigns would
+        // otherwise still be null → activeCampaign null → an already-onboarded
+        // merchant flashes the wizard for a beat before the dashboard appears.
+        // The skeleton (LoadingShell) keeps animating in the meantime.
+        await loadCampaigns();
+        if (cancelled) return;
         setStatus("ready");
-        await Promise.all([refreshScopes(), loadCampaigns(), loadBilling(), loadLeads()]);
+        // These populate dashboard-only sections (not the onboarding gate), so
+        // let them stream in after the reveal instead of blocking it.
+        void Promise.all([refreshScopes(), loadBilling(), loadLeads(), loadSegments()]);
       } catch (err) {
         if (cancelled) return;
         setStatus("error");
@@ -201,7 +254,7 @@ export default function ShopifyAdminHome() {
     return () => {
       cancelled = true;
     };
-  }, [refreshScopes, loadCampaigns, loadBilling, loadLeads]);
+  }, [refreshScopes, loadCampaigns, loadBilling, loadLeads, loadSegments]);
 
   // Poll while anything is still generating so the list flips to a live-able
   // state on its own without the merchant reloading the iframe.
@@ -211,6 +264,24 @@ export default function ShopifyAdminHome() {
     return () => clearInterval(t);
   }, [campaigns, loadCampaigns]);
 
+  function acknowledgeEmbed() {
+    setEmbedAck(true);
+    try {
+      if (shop) localStorage.setItem(`asmos_embed_ack_${shop}`, "1");
+    } catch {
+      /* Non-fatal: the flag just won't persist across reloads. */
+    }
+  }
+
+  function finishOnboarding() {
+    setOnboarded(true);
+    try {
+      if (shop) localStorage.setItem(`asmos_onboarded_${shop}`, "1");
+    } catch {
+      /* Non-fatal. */
+    }
+  }
+
   async function toggleScope(scope: string, isGranted: boolean) {
     setBusyScope(scope);
     try {
@@ -219,11 +290,52 @@ export default function ShopifyAdminHome() {
         : await window.shopify!.scopes.request([scope]);
       if (state) setGranted(state.granted);
       else await refreshScopes();
+      // Granting/revoking read_customers changes whether the Audiences panel can
+      // read segments — refresh it (this is also what fires the segments /
+      // customerSegmentMembers queries the moment the scope is allowed).
+      if (scope === "read_customers") await loadSegments();
     } catch (err) {
       window.shopify?.toast?.show((err as Error).message || "Could not update permission", { isError: true });
     } finally {
       setBusyScope(null);
     }
+  }
+
+  // Break out of the Shopify iframe to the top-frame connect flow on
+  // app.asmos.io, where the merchant signs into their existing Asmos account and
+  // links this store (Clerk sign-in can't run inside the admin iframe).
+  async function connectAccount() {
+    setConnecting(true);
+    try {
+      const token = await window.shopify!.idToken();
+      const res = await fetch("/api/shopify/admin/connect", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) {
+        window.shopify?.toast?.show(data.error ?? "Could not start connection", { isError: true });
+        return;
+      }
+      window.open(data.url, "_top");
+    } catch (err) {
+      window.shopify?.toast?.show((err as Error).message, { isError: true });
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  // Send a linked merchant to the full Asmos popup builder (top-frame). The embed
+  // is served from the app origin, so window.location.origin is app.asmos.io.
+  function openAsmosBuilder() {
+    window.open(`${window.location.origin}/campaigns/new`, "_top");
+  }
+
+  // The dropdown's "which popup is live" control: activating one campaign pauses
+  // the rest (single-active model), so setting the active popup is just a PATCH
+  // that activates the chosen one.
+  async function setActivePopup(id: string) {
+    await patchCampaign(id, { action: "activate" });
   }
 
   async function createStarterPopup() {
@@ -322,33 +434,73 @@ export default function ShopifyAdminHome() {
   }
 
   if (status === "loading") {
-    return (
-      <s-page heading="Asmos">
-        <s-stack direction="inline" gap="base">
-          <s-spinner accessibilityLabel="Connecting" />
-          <s-text>Connecting…</s-text>
-        </s-stack>
-      </s-page>
-    );
+    return <LoadingShell />;
   }
 
   if (status === "error") {
-    return (
-      <s-page heading="Asmos">
-        <s-banner tone="critical">
-          <s-text>{error}</s-text>
-        </s-banner>
-      </s-page>
-    );
+    return <ErrorShell message={error} />;
   }
 
-  const list = campaigns ?? [];
+  // Hide FAILED popups entirely — a generation that errored isn't something the
+  // merchant can act on, so it shouldn't clutter the list, the selector, or the
+  // counts. (FAILED is never the active popup, so this can't hide a live one.)
+  const list = (campaigns ?? []).filter((c) => c.status !== "FAILED");
   const activeCampaign = list.find((c) => c.status === "ACTIVE") ?? null;
   const hasCampaigns = list.length > 0;
+
+  // Mandatory onboarding gate. Until the merchant has connected their Asmos
+  // account, put a popup live, and switched on the theme embed, we show the
+  // guided wizard instead of the full dashboard. `onboarded` (set by the
+  // wizard's finish button) makes it sticky so we never re-gate a merchant who
+  // later pauses a campaign. The flags are hydrated in boot() before status
+  // flips to "ready", so an already-onboarded merchant never flashes the wizard.
+  const onboardingComplete = onboarded || (linked && Boolean(activeCampaign) && embedAck);
+  if (!onboardingComplete) {
+    return (
+      <OnboardingWizard
+        linked={linked}
+        connecting={connecting}
+        onConnect={connectAccount}
+        campaigns={list}
+        hasActiveCampaign={Boolean(activeCampaign)}
+        creating={creating}
+        onCreateStarter={createStarterPopup}
+        onSelectActive={setActivePopup}
+        onOpenBuilder={openAsmosBuilder}
+        embedAcknowledged={embedAck}
+        onOpenThemeEditor={() => shop && openThemeEditor(shop)}
+        onAcknowledgeEmbed={acknowledgeEmbed}
+        onFinish={finishOnboarding}
+      />
+    );
+  }
 
   return (
     <s-page heading="Asmos">
       <s-stack direction="block" gap="large">
+        {/* Connect prompt — shown until this store is linked to the merchant's
+            existing Asmos account. Breaks out to the top-frame connect flow. */}
+        {!linked && (
+          <s-banner tone="info" heading="Connect your Asmos account">
+            <s-stack direction="block" gap="base">
+              <s-text>
+                Already use Asmos on the web? Connect your account to manage the popups you’ve
+                already built and choose which one runs on this store.
+              </s-text>
+              <s-box>
+                <s-button
+                  variant="primary"
+                  loading={connecting}
+                  disabled={connecting}
+                  onClick={connectAccount}
+                >
+                  Connect Asmos account
+                </s-button>
+              </s-box>
+            </s-stack>
+          </s-banner>
+        )}
+
         {/* Smart status — reflects where the merchant actually is, and surfaces
             the "turn on the embed" action exactly when a popup is live. */}
         {!hasCampaigns ? (
@@ -379,18 +531,37 @@ export default function ShopifyAdminHome() {
             <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
               <s-text tone="subdued">
                 {hasCampaigns
-                  ? "Activate one popup at a time, and control when and where it appears."
-                  : "Asmos generates a lead-capture popup tailored to your store. Customize it any time."}
+                  ? "Choose which popup runs on your store, and control when and where it appears."
+                  : linked
+                    ? "Build a popup in Asmos, then choose it here to run it on your store."
+                    : "Asmos generates a lead-capture popup tailored to your store. Customize it any time."}
               </s-text>
               <s-button
                 variant={hasCampaigns ? undefined : "primary"}
-                loading={creating}
-                disabled={creating}
-                onClick={createStarterPopup}
+                loading={!linked && creating}
+                disabled={!linked && creating}
+                onClick={linked ? openAsmosBuilder : createStarterPopup}
               >
-                {hasCampaigns ? "Generate another" : "Generate popup"}
+                {linked
+                  ? hasCampaigns
+                    ? "Create another in Asmos"
+                    : "Create a popup in Asmos"
+                  : hasCampaigns
+                    ? "Generate another"
+                    : "Generate popup"}
               </s-button>
             </s-stack>
+
+            {/* "Which popup is live" dropdown — the primary selection control the
+                merchant asked for. Activating one pauses the rest (single-active
+                model), so this is just an activate PATCH. */}
+            {hasCampaigns && (
+              <ActivePopupSelect
+                campaigns={list}
+                activeId={activeCampaign?.id ?? null}
+                onSelect={setActivePopup}
+              />
+            )}
 
             {list.map((c) => (
               <CampaignRow
@@ -425,6 +596,38 @@ export default function ShopifyAdminHome() {
           </s-stack>
         </s-section>
 
+        {/* ── Audiences (Shopify customer segments) ────────────────────────── */}
+        <s-section heading="Audiences">
+          <s-stack direction="block" gap="base">
+            {segmentsNeedScope ? (
+              <s-text tone="subdued">
+                Allow <s-text type="strong">Customers</s-text> below to see how your shoppers are
+                segmented and understand who your popups are reaching.
+              </s-text>
+            ) : segments == null ? (
+              <s-text tone="subdued">Loading…</s-text>
+            ) : segments.length === 0 ? (
+              <s-text tone="subdued">
+                No customer segments yet. Create segments in Shopify to see them here.
+              </s-text>
+            ) : (
+              <>
+                <s-text tone="subdued">Your Shopify customer segments.</s-text>
+                {segments.map((seg) => (
+                  <s-box key={seg.id} border="base" borderRadius="base" padding="base">
+                    <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
+                      <s-text type="strong">{seg.name}</s-text>
+                      <s-badge tone="info">
+                        {seg.memberCount >= 10 ? "10+ members" : `${seg.memberCount} member${seg.memberCount === 1 ? "" : "s"}`}
+                      </s-badge>
+                    </s-stack>
+                  </s-box>
+                ))}
+              </>
+            )}
+          </s-stack>
+        </s-section>
+
         {/* ── Permissions (secondary) ──────────────────────────────────────── */}
         <s-section heading="What Asmos can track">
           <s-stack direction="block" gap="base">
@@ -434,7 +637,7 @@ export default function ShopifyAdminHome() {
                 <s-box key={scope}>
                   <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
                     <s-stack direction="block" gap="none">
-                      <s-stack direction="inline" gap="tight" alignItems="center">
+                      <s-stack direction="inline" gap="small-300" alignItems="center">
                         <s-text type="strong">{label}</s-text>
                         <s-badge tone={isGranted ? "success" : "neutral"}>{isGranted ? "On" : "Off"}</s-badge>
                       </s-stack>
@@ -458,7 +661,7 @@ export default function ShopifyAdminHome() {
         <s-section heading="Plan">
           <s-stack direction="block" gap="base">
             {subscription ? (
-              <s-stack direction="inline" gap="tight" alignItems="center">
+              <s-stack direction="inline" gap="small-300" alignItems="center">
                 <s-text type="strong">{subscription.name}</s-text>
                 <s-badge tone={subscription.status === "ACTIVE" ? "success" : "warning"}>
                   {subscription.status.toLowerCase()}
@@ -488,7 +691,7 @@ export default function ShopifyAdminHome() {
                   <s-box key={p.key} border="base" borderRadius="base" padding="base">
                     <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
                       <s-stack direction="block" gap="none">
-                        <s-stack direction="inline" gap="tight" alignItems="center">
+                        <s-stack direction="inline" gap="small-300" alignItems="center">
                           <s-text type="strong">{p.name}</s-text>
                           {isCurrent && <s-badge tone="success">current</s-badge>}
                         </s-stack>
@@ -517,6 +720,157 @@ export default function ShopifyAdminHome() {
         </s-section>
       </s-stack>
     </s-page>
+  );
+}
+
+// ── First-paint shells (plain HTML, no Polaris dependency) ───────────────────
+// These render from the server HTML and paint the instant App Bridge loads —
+// they do NOT wait on polaris.js (deferred) or the /api/shopify/session round
+// trip. That makes a large skeleton card the LCP element (well under the App
+// Store's 2.5s gate) instead of the old spinner, which only appeared after the
+// whole boot sequence. Reserved heights keep CLS < 0.1 when the real Polaris UI
+// swaps in. Inline styles so there's zero external CSS/JS on the critical path.
+const SHELL_WRAP: React.CSSProperties = {
+  // width:100% + box-sizing so the shell fills the (flex) admin container. Without
+  // it the wrap shrinks to its widest child (the tiny "Asmos" heading) and the
+  // width-less skeleton cards collapse with it.
+  width: "100%",
+  maxWidth: 998,
+  boxSizing: "border-box",
+  margin: "0 auto",
+  padding: "20px 16px",
+  fontFamily:
+    "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+};
+const SHELL_HEADING: React.CSSProperties = {
+  fontSize: 20,
+  lineHeight: "28px",
+  fontWeight: 650,
+  color: "#1a1a1a",
+  margin: "0 0 16px",
+};
+
+function SkeletonCard({ height }: { height: number }) {
+  return (
+    <div
+      aria-hidden
+      style={{
+        height,
+        width: "100%",
+        boxSizing: "border-box",
+        borderRadius: 12,
+        border: "1px solid #e3e3e3",
+        background:
+          "linear-gradient(100deg, #f6f6f7 30%, #efeff1 50%, #f6f6f7 70%)",
+        backgroundSize: "200% 100%",
+        animation: "asmos-shimmer 1.4s ease-in-out infinite",
+        marginBottom: 16,
+      }}
+    />
+  );
+}
+
+function LoadingShell() {
+  return (
+    <div style={SHELL_WRAP}>
+      {/* Keyframes for the shimmer; scoped, tiny, inline so it's on the HTML. */}
+      <style>{"@keyframes asmos-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}"}</style>
+      <h1 style={SHELL_HEADING}>Asmos</h1>
+      {/* The tallest block is the LCP candidate and paints immediately. */}
+      <SkeletonCard height={72} />
+      <SkeletonCard height={188} />
+      <SkeletonCard height={140} />
+      <span
+        style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}
+        role="status"
+      >
+        Loading your Asmos dashboard…
+      </span>
+    </div>
+  );
+}
+
+function ErrorShell({ message }: { message: string | null }) {
+  return (
+    <div style={SHELL_WRAP}>
+      <h1 style={SHELL_HEADING}>Asmos</h1>
+      <div
+        role="alert"
+        style={{
+          borderRadius: 12,
+          border: "1px solid #e0b3b3",
+          background: "#fff4f4",
+          padding: 16,
+          color: "#8a1f1f",
+          fontSize: 14,
+          lineHeight: "20px",
+        }}
+      >
+        {message ?? "Something went wrong loading the app."}
+      </div>
+    </div>
+  );
+}
+
+// ── Active-popup selector ─────────────────────────────────────────────────────
+// The dropdown a merchant uses to pick which popup runs on their storefront.
+// GENERATING/FAILED popups can't go live, so they're shown but disabled.
+function ActivePopupSelect({
+  campaigns,
+  activeId,
+  onSelect,
+}: {
+  campaigns: Campaign[];
+  activeId: string | null;
+  onSelect: (id: string) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function handleChange(id: string) {
+    if (!id || id === activeId) return;
+    setBusy(true);
+    try {
+      await onSelect(id);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <s-box border="base" borderRadius="base" padding="base">
+      <label style={{ fontSize: 12, fontWeight: 600, marginBottom: 4, display: "block" }}>
+        Active popup on your store
+      </label>
+      <select
+        style={{
+          padding: "8px 10px",
+          borderRadius: 8,
+          border: "1px solid #c9cccf",
+          fontSize: 14,
+          width: "100%",
+          boxSizing: "border-box",
+        }}
+        value={activeId ?? ""}
+        disabled={busy}
+        onChange={(e) => handleChange(e.target.value)}
+      >
+        <option value="" disabled>
+          {activeId ? "Change active popup…" : "None live — choose one…"}
+        </option>
+        {campaigns.map((c) => {
+          const notReady = c.status === "GENERATING" || c.status === "FAILED";
+          return (
+            <option key={c.id} value={c.id} disabled={notReady}>
+              {c.name}
+              {c.id === activeId ? " — live" : notReady ? ` — ${c.status.toLowerCase()}` : ""}
+            </option>
+          );
+        })}
+      </select>
+      {busy && (
+        <s-text tone="subdued">Updating…</s-text>
+      )}
+    </s-box>
   );
 }
 
@@ -553,7 +907,7 @@ function CampaignRow({
       <s-stack direction="block" gap="base">
         <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
           <s-stack direction="block" gap="none">
-            <s-stack direction="inline" gap="tight" alignItems="center">
+            <s-stack direction="inline" gap="small-300" alignItems="center">
               <s-text type="strong">{campaign.name}</s-text>
               <s-badge tone={STATUS_TONE[campaign.status]}>
                 {isActive ? "live" : campaign.status.toLowerCase()}
@@ -561,7 +915,7 @@ function CampaignRow({
             </s-stack>
             <s-text tone="subdued">{placementSummary(campaign.placement)}</s-text>
           </s-stack>
-          <s-stack direction="inline" gap="tight" alignItems="center">
+          <s-stack direction="inline" gap="small-300" alignItems="center">
             <s-button disabled={busy || isGenerating} onClick={() => setEditing((v) => !v)}>
               {editing ? "Close" : "Edit placement"}
             </s-button>

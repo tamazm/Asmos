@@ -24,14 +24,14 @@ const SCOPE_GATED_TOPICS: { topic: string; scope: string }[] = [
 
 type ExistingSub = { id: string; topic: string; callbackUrl: string | null };
 
-async function getGrantedScopes(shopDomain: string): Promise<Set<string>> {
+async function getGrantedScopes(shopDomain: string, token?: string): Promise<Set<string>> {
   const data = await adminGraphql<{
     currentAppInstallation?: { accessScopes?: { handle: string }[] };
-  }>(shopDomain, `query { currentAppInstallation { accessScopes { handle } } }`);
+  }>(shopDomain, `query { currentAppInstallation { accessScopes { handle } } }`, undefined, token);
   return new Set((data?.currentAppInstallation?.accessScopes ?? []).map((s) => s.handle));
 }
 
-async function getExistingSubs(shopDomain: string): Promise<ExistingSub[]> {
+async function getExistingSubs(shopDomain: string, token?: string): Promise<ExistingSub[]> {
   const data = await adminGraphql<{
     webhookSubscriptions?: {
       edges: { node: { id: string; topic: string; endpoint: { callbackUrl?: string } | null } }[];
@@ -47,6 +47,8 @@ async function getExistingSubs(shopDomain: string): Promise<ExistingSub[]> {
         } }
       }
     }`,
+    undefined,
+    token,
   );
   return (data?.webhookSubscriptions?.edges ?? []).map((e) => ({
     id: e.node.id,
@@ -55,7 +57,7 @@ async function getExistingSubs(shopDomain: string): Promise<ExistingSub[]> {
   }));
 }
 
-async function createSub(shopDomain: string, topic: string): Promise<void> {
+async function createSub(shopDomain: string, topic: string, token?: string): Promise<void> {
   const data = await adminGraphql<{
     webhookSubscriptionCreate?: { userErrors: { message: string }[] };
   }>(
@@ -67,26 +69,29 @@ async function createSub(shopDomain: string, topic: string): Promise<void> {
       }
     }`,
     { topic, sub: { callbackUrl: CALLBACK_URL, format: "JSON" } },
+    token,
   );
   const errs = data?.webhookSubscriptionCreate?.userErrors ?? [];
   if (errs.length) throw new Error(`webhookSubscriptionCreate(${topic}): ${errs.map((e) => e.message).join("; ")}`);
 }
 
-async function deleteSub(shopDomain: string, id: string): Promise<void> {
+async function deleteSub(shopDomain: string, id: string, token?: string): Promise<void> {
   await adminGraphql(
     shopDomain,
     `mutation Delete($id: ID!) {
       webhookSubscriptionDelete(id: $id) { userErrors { message } }
     }`,
     { id },
+    token,
   );
 }
 
-// Reconcile the scope-gated webhooks for one shop. Idempotent.
-export async function reconcileDataWebhooks(shopDomain: string): Promise<void> {
+// Reconcile the scope-gated webhooks for one shop. Idempotent. Pass the freshly
+// exchanged access token from the session route to skip an extra token refresh.
+export async function reconcileDataWebhooks(shopDomain: string, token?: string): Promise<void> {
   const [granted, existing] = await Promise.all([
-    getGrantedScopes(shopDomain),
-    getExistingSubs(shopDomain),
+    getGrantedScopes(shopDomain, token),
+    getExistingSubs(shopDomain, token),
   ]);
 
   for (const { topic, scope } of SCOPE_GATED_TOPICS) {
@@ -94,9 +99,9 @@ export async function reconcileDataWebhooks(shopDomain: string): Promise<void> {
     const wanted = granted.has(scope);
 
     if (wanted && mine.length === 0) {
-      await createSub(shopDomain, topic);
+      await createSub(shopDomain, topic, token);
     } else if (!wanted && mine.length > 0) {
-      for (const s of mine) await deleteSub(shopDomain, s.id);
+      for (const s of mine) await deleteSub(shopDomain, s.id, token);
     }
     // wanted && exists, or !wanted && absent -> nothing to do.
   }

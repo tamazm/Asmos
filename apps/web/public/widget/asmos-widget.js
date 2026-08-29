@@ -30,6 +30,9 @@
   // ─── State ────────────────────────────────────────────────────────────────
   var chosenVariant = null;
   var shown = false;
+  // Shopify app id, passed through /api/widget/config for Shopify stores. Used
+  // when reporting captured contact info to Shopify's Visitor API on submit.
+  var visitorAppId = null;
 
   // ─── Behavioral context (AI popup variation roadmap, Phase 0) ──────────────
   // Persistent first-party per-visitor id - used as the PostHog distinct_id
@@ -613,6 +616,28 @@
         // /api/widget/leads already creates the SUBMISSION CampaignEvent
         // server-side - don't also fire one from here, that would double-count.
         converted = true;
+        // Report the captured contact info to Shopify's Visitor API so the
+        // shopper's identifying details are logged against their Online Store
+        // session (Shopify's Forms-category requirement + better attribution).
+        // Present only on Shopify storefronts; best-effort so it can never break
+        // the popup's success state.
+        try {
+          if (
+            window.Shopify &&
+            window.Shopify.analytics &&
+            typeof window.Shopify.analytics.visitor === "function"
+          ) {
+            var visitorInfo = {};
+            if (data.email) visitorInfo.email = data.email;
+            if (data.phone) visitorInfo.phone = data.phone;
+            if (visitorInfo.email || visitorInfo.phone) {
+              window.Shopify.analytics.visitor(
+                visitorInfo,
+                visitorAppId ? { appId: visitorAppId } : undefined
+              );
+            }
+          }
+        } catch (e) { /* never break the popup on analytics failure */ }
         showSuccess(resData.reward ? [resData.reward] : chosenVariant.rewards);
       })
       .catch(function () {
@@ -685,6 +710,7 @@
     if (alreadySeen()) return;
     fetchConfig().then(function (data) {
       if (!data || !data.campaign) return;
+      if (data.appId) visitorAppId = data.appId;
       var c = data.campaign;
       if (!c.variants || !c.variants.length) return;
 

@@ -1,18 +1,23 @@
-import { getAccessTokenForShop } from "./tenant";
+import { getValidAccessTokenForShop } from "./tenant";
 
-// Minimal Admin GraphQL client: posts to the shop's Admin API with its stored
-// (decrypted) offline token. A raw fetch keeps this independent of per-request
-// SDK session juggling — any /api/shopify/admin/* feature that needs live shop
-// data (billing, catalog, orders) can call this.
+// Minimal Admin GraphQL client: posts to the shop's Admin API with a currently
+// valid (expiring) offline token, refreshing transparently as needed. A raw
+// fetch keeps this independent of per-request SDK session juggling — any
+// /api/shopify/admin/* feature that needs live shop data (billing, catalog,
+// orders) can call this.
 const API_VERSION = "2026-07";
 
 export async function adminGraphql<T = any>(
   shopDomain: string,
   query: string,
   variables?: Record<string, unknown>,
+  // An access token freshly obtained by the caller (e.g. the session route just
+  // exchanged one) — passing it skips a redundant refresh round-trip. Omit to
+  // resolve/refresh the shop's stored token.
+  accessToken?: string,
 ): Promise<T> {
-  const token = await getAccessTokenForShop(shopDomain);
-  if (!token) throw new Error(`No Shopify access token for ${shopDomain}`);
+  const token = accessToken ?? (await getValidAccessTokenForShop(shopDomain));
+  if (!token) throw new Error(`No valid Shopify access token for ${shopDomain}`);
 
   const res = await fetch(`https://${shopDomain}/admin/api/${API_VERSION}/graphql.json`, {
     method: "POST",
