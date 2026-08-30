@@ -5,7 +5,7 @@ import type { Prisma } from ".prisma/client";
 
 type DesignPatch = Record<string, string | number | boolean | null>;
 
-async function findOwnedVariant(campaignId: string, variantId: string, accountId: string) {
+export async function findOwnedVariant(campaignId: string, variantId: string, accountId: string) {
   return prisma.variant.findFirst({
     where: { id: variantId, campaignId, campaign: { accountId } },
   });

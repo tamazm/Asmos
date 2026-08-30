@@ -11,6 +11,7 @@ import { confidenceVsControl } from "@/lib/stats";
 import { VariantDetailActions } from "./VariantDetailActions";
 import { PopupPreviewCard } from "./PopupPreviewCard";
 import { VisualEditor } from "./VisualEditor";
+import { StitchDesignPanel } from "./StitchDesignPanel";
 
 export default async function VariantDetailPage(props: {
   params: Promise<{ id: string; variantId: string }>;
@@ -26,6 +27,19 @@ export default async function VariantDetailPage(props: {
         include: {
           events: true,
           _count: { select: { leads: true } },
+          stitchDesigns: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: {
+              id: true,
+              prompt: true,
+              deviceType: true,
+              status: true,
+              lastError: true,
+              createdAt: true,
+              htmlContent: true,
+            },
+          },
         },
         orderBy: { createdAt: "asc" },
       },
@@ -146,6 +160,13 @@ export default async function VariantDetailPage(props: {
         variantId={variantId}
         defaultColor="#111827"
         initialDesign={design}
+      />
+
+      {/* AI Design Preview (Google Stitch) - reference only, does not affect the live popup */}
+      <StitchDesignPanel
+        campaignId={campaignId}
+        variantId={variantId}
+        initialDesign={variant.stitchDesigns[0] ?? null}
       />
 
       {/* Popup Preview */}

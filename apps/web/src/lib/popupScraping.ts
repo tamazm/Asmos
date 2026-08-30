@@ -88,13 +88,13 @@ export function normalizeUrl(raw: string): string {
 export type PaletteEntry = { hex: string; areaShare: number };
 
 /**
- * Everything about a scraped popup's design, as one connected object -
- * matching the shape of lib/popupDna.ts's knobs (colour by role, typography,
- * shape, density, imagery) rather than a handful of disconnected facts. This
- * is what makes a scraped example actually comparable to a generated one:
- * you can see that the button's own colour, shape and fill go together, not
- * just that the popup had a blue palette and separately a pill-shaped button
- * somewhere.
+ * Everything the scraper reads off one popup, before it gets split into
+ * independent parts for storage (see PopupPart in schema.prisma and
+ * scrapePopupBatch.ts). Matches the shape of lib/popupDna.ts's knobs (colour
+ * by role, typography, shape, density, imagery) - the extraction below
+ * already reads each field off its OWN specific DOM element (card, headline,
+ * button, image), which is exactly what makes per-role slicing possible
+ * without changing POPUP_SCRAPE_FN at all.
  */
 export type ScrapedPopupDesign = {
   template: "split-screen" | "corner-toast" | "fullscreen-takeover" | null;
@@ -130,6 +130,81 @@ export type ScrapedPopupDesign = {
 
   hasShadow: boolean;
 };
+
+// ─── Dissected part styles ──────────────────────────────────────────────────
+//
+// One of these per PopupPart.style, keyed by PopupPartRole. Slicing
+// ScrapedPopupDesign into these four groups (rather than a 5th "flat"
+// shape) is what lets pickPartCandidates/applyPartSelection in
+// popupGeneration.ts mix a button from one scraped popup with a card from
+// another - see PopupPart's model comment in schema.prisma for why.
+
+export type CardPartStyle = {
+  template: ScrapedPopupDesign["template"];
+  layout: string | null;
+  backgroundColor: string | null;
+  cornerRadius: string | null;
+  padding: string | null;
+  density: ScrapedPopupDesign["density"];
+  hasShadow: boolean;
+};
+
+export type TypographyPartStyle = {
+  headlineFont: string | null;
+  bodyFont: string | null;
+  headlineFontSize: string | null;
+  fontWeight: string | null;
+  textColor: string | null;
+};
+
+export type ButtonPartStyle = {
+  accentColor: string | null;
+  buttonRadius: string | null;
+  buttonShape: ScrapedPopupDesign["buttonShape"];
+  buttonFill: ScrapedPopupDesign["buttonFill"];
+};
+
+export type ImagePartStyle = {
+  hasImage: boolean;
+  imagePosition: ScrapedPopupDesign["imagePosition"];
+};
+
+/** Slices a full scraped design into its four independent part styles. */
+export function designToParts(d: ScrapedPopupDesign): {
+  card: CardPartStyle;
+  typography: TypographyPartStyle;
+  button: ButtonPartStyle;
+  image: ImagePartStyle;
+} {
+  return {
+    card: {
+      template: d.template,
+      layout: d.layout,
+      backgroundColor: d.backgroundColor,
+      cornerRadius: d.cornerRadius,
+      padding: d.padding,
+      density: d.density,
+      hasShadow: d.hasShadow,
+    },
+    typography: {
+      headlineFont: d.headlineFont,
+      bodyFont: d.bodyFont,
+      headlineFontSize: d.headlineFontSize,
+      fontWeight: d.fontWeight,
+      textColor: d.textColor,
+    },
+    button: {
+      accentColor: d.accentColor,
+      buttonRadius: d.buttonRadius,
+      buttonShape: d.buttonShape,
+      buttonFill: d.buttonFill,
+    },
+    image: {
+      hasImage: d.hasImage,
+      imagePosition: d.imagePosition,
+    },
+  };
+}
 
 export type PopupScrapeResult = {
   present: boolean;

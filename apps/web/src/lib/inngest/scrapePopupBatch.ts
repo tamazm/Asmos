@@ -1,7 +1,18 @@
 import { inngest } from "./client";
 import { prisma } from "@/lib/prisma";
-import { POPUP_SCRAPE_FN, normalizeIndustry, normalizePopupScrapeResult, normalizeUrl } from "@/lib/popupScraping";
+import {
+  POPUP_SCRAPE_FN,
+  designToParts,
+  normalizeIndustry,
+  normalizePopupScrapeResult,
+  normalizeUrl,
+  type ButtonPartStyle,
+  type CardPartStyle,
+  type ImagePartStyle,
+  type TypographyPartStyle,
+} from "@/lib/popupScraping";
 import { takePageScreenshot, extractColorsFromScreenshot } from "@/lib/screenshotColors";
+import type { Prisma } from ".prisma/client";
 
 // Scraped popup design library - see lib/popupScraping.ts and
 // popupGeneration.ts's getScrapedExamplesSection. Triggered from the
@@ -34,7 +45,7 @@ export const scrapePopupBatch = inngest.createFunction(
         // covers the same URL appearing twice within one pasted batch: the
         // loop is sequential, so the first occurrence's row already exists
         // by the time the second is checked.
-        const existing = await prisma.scrapedPopupExample.findUnique({
+        const existing = await prisma.scrapedSite.findUnique({
           where: { normalizedUrl },
           select: { id: true },
         });
@@ -88,17 +99,50 @@ export const scrapePopupBatch = inngest.createFunction(
           // otherwise auto-assign from the page's own title/meta description
           // and the popup's own copy - no more requiring one per URL.
           const industry = segment.trim() ? normalizeIndustry(segment) : normalizeIndustry(result.industrySignal || url);
-          await prisma.scrapedPopupExample.create({
-            data: {
-              sourceUrl: url,
-              normalizedUrl,
-              segment: segment.trim() || "(auto-detected)",
-              industry,
-              present,
-              html: result.html,
-              design,
-              screenshot,
-            },
+
+          const { card, typography, button, image } = designToParts(design);
+          // Only create a part when its role actually has a measured signal -
+          // otherwise the fallback-screenshot path above (which only fills in
+          // colour, never fonts/button shape/image) would insert empty
+          // TYPOGRAPHY/BUTTON/IMAGE placeholders that add nothing to the
+          // candidate pool generation later picks from.
+          const parts: { role: "CARD" | "TYPOGRAPHY" | "BUTTON" | "IMAGE"; style: Prisma.InputJsonValue }[] = [];
+          if (card.backgroundColor || card.cornerRadius) {
+            parts.push({ role: "CARD", style: card satisfies CardPartStyle as Prisma.InputJsonValue });
+          }
+          if (typography.headlineFont || typography.textColor) {
+            parts.push({ role: "TYPOGRAPHY", style: typography satisfies TypographyPartStyle as Prisma.InputJsonValue });
+          }
+          if (button.accentColor || button.buttonShape) {
+            parts.push({ role: "BUTTON", style: button satisfies ButtonPartStyle as Prisma.InputJsonValue });
+          }
+          // Only when there IS an image - "no image" isn't a selectable
+          // treatment, it's the default generation falls back to when no
+          // IMAGE part gets picked for a given popup.
+          if (image.hasImage) {
+            parts.push({ role: "IMAGE", style: image satisfies ImagePartStyle as Prisma.InputJsonValue });
+          }
+
+          await prisma.$transaction(async (tx) => {
+            const site = await tx.scrapedSite.create({
+              data: {
+                sourceUrl: url,
+                normalizedUrl,
+                segment: segment.trim() || "(auto-detected)",
+                industry,
+                present,
+                html: result.html,
+                headline: design.headline,
+                subhead: design.subhead,
+                ctaText: design.ctaText,
+                screenshot,
+              },
+            });
+            if (parts.length > 0) {
+              await tx.popupPart.createMany({
+                data: parts.map((p) => ({ siteId: site.id, role: p.role, industry, style: p.style })),
+              });
+            }
           });
           return { status: "scraped" as const };
         } catch (err) {
