@@ -378,7 +378,7 @@ export default async function ({ page, context }) {
     const isCookieNotice = (el) => {
       const identity = ((el.className || "") + " " + (el.id || "")).toLowerCase();
       if (
-        /cookie|consent|gdpr|ccpa|onetrust|cookiebot|osano|trustarc|quantcast|cookielaw|termly|cookieyes|iubenda|didomi|usercentrics|cmpbox|cky-/i.test(
+        /cookie|consent|gdpr|ccpa|onetrust|cookiebot|osano|trustarc|quantcast|cookielaw|termly|cookieyes|iubenda|didomi|usercentrics|cmpbox|cky-|termsfeed|cookieconsent|civiccookie/i.test(
           identity,
         )
       ) {
@@ -390,10 +390,30 @@ export default async function ({ page, context }) {
       );
     };
 
+    // Generic containers (most vendors' own class/id naming contains one of
+    // these words, or uses the proper ARIA role) plus a growing list of named
+    // popup/ESP vendors whose markup doesn't always match the generic words
+    // (e.g. Klaviyo's own container is "klaviyo-form" - no "modal"/"popup" in
+    // it). Checked against id as well as class, not just class - plenty of
+    // implementations put the identifying string there instead. Same vendor
+    // list this app already trusts elsewhere (POPUP_LIBRARY_SIGNALS in
+    // api/analyze/route.ts), extended with a few more common platforms - meant
+    // to keep growing as new vendors show up in scraped batches, not a closed
+    // set matched against a fixed provider list.
     const candidates = [...document.querySelectorAll(
-      "[class*='modal'], [class*='popup'], [class*='optin'], [class*='newsletter'], " +
-      "[role='dialog'], [aria-modal='true'], [class*='klaviyo'], [id*='privy'], " +
-      "[class*='justuno'], [class*='wisepops'], [class*='poptin'], .fancybox-container"
+      "[class*='modal'], [id*='modal'], [class*='popup'], [id*='popup'], " +
+      "[class*='optin'], [id*='optin'], [class*='newsletter'], [id*='newsletter'], " +
+      "[class*='lightbox'], [class*='subscribe'], [id*='subscribe'], " +
+      "[role='dialog'], [aria-modal='true'], .fancybox-container, " +
+      "[class*='klaviyo'], [id*='klaviyo'], [class*='privy'], [id*='privy'], " +
+      "[class*='justuno'], [id*='justuno'], [class*='wisepops'], [id*='wisepops'], " +
+      "[class*='poptin'], [id*='poptin'], [class*='omnisend'], [id*='omnisend'], " +
+      "[class*='wheelio'], [id*='wheelio'], [class*='spin-a-sale'], [id*='spin-a-sale'], " +
+      "[class*='sumo'], [id*='sumo'], [class*='optinmonster'], [id*='optinmonster'], " +
+      "[class*='popupsmart'], [id*='popupsmart'], [class*='mailmunch'], [id*='mailmunch'], " +
+      "[class*='sleeknote'], [id*='sleeknote'], [class*='optimonk'], [id*='optimonk'], " +
+      "[class*='picreel'], [id*='picreel'], [class*='adoric'], [id*='adoric'], " +
+      "[class*='convertflow'], [id*='convertflow'], [class*='bounceexchange'], [id*='bounceexchange']"
     )].filter(isVisible).filter((el) => !isCookieNotice(el));
 
     // Prefer the largest visible candidate among what's left.
@@ -435,7 +455,9 @@ export default async function ({ page, context }) {
     const txt = (el) => (el && el.textContent ? el.textContent.trim().slice(0, 200) : null);
     const headlineEl = popupEl.querySelector("h1, h2, [class*='headline'], [class*='title']");
     const subheadEl = popupEl.querySelector("p, [class*='subhead'], [class*='subtitle']");
-    const ctaEl = popupEl.querySelector("button[type='submit'], button, [class*='cta'], a[class*='btn']");
+    const ctaEl = popupEl.querySelector(
+      "button[type='submit'], button, input[type='submit'], [role='button'], [class*='cta'], a[class*='btn']",
+    );
     const imgEl = popupEl.querySelector("img");
 
     // getComputedStyle always returns colour in rgb()/rgba() form - even when
