@@ -1740,35 +1740,43 @@ export async function industryFallbackColor(industry: string | undefined): Promi
   // Neutral, not Asmos's own brand blue - this whole function is now a
   // dead-for-purpose safety net anyway: generatePopupWithVariants throws
   // before generation can ever reach a point where this return value would
-  // actually be used (see the top of that function).
+  // actually be used (see the top of that function). Real bucket data (own
+  // bucket, then "Other" as a fallback) is tried first; this literal only
+  // fires if there is no scraped data anywhere at all yet.
   const NEUTRAL_FALLBACK = "#111827";
   if (!industry) return NEUTRAL_FALLBACK;
   try {
     const bucket = normalizeIndustry(industry);
-    // The CTA button's own colour is the most deliberately "brand" choice in
-    // a popup - merchants pick that colour on purpose, whereas a card's
-    // background is just as likely to be a large neutral with nothing
-    // brand-like about it. Prefer it; fall back to a card's background only
-    // if no button part was captured for this industry at all.
-    const buttonParts = await prisma.popupPart.findMany({
-      where: { industry: bucket, role: "BUTTON" },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      select: { style: true },
-    });
-    for (const p of buttonParts) {
-      const accentColor = (p.style as Partial<ButtonPartStyle> | null)?.accentColor;
-      if (typeof accentColor === "string" && HEX_RE.test(accentColor)) return accentColor;
-    }
-    const cardParts = await prisma.popupPart.findMany({
-      where: { industry: bucket, role: "CARD" },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-      select: { style: true },
-    });
-    for (const p of cardParts) {
-      const backgroundColor = (p.style as Partial<CardPartStyle> | null)?.backgroundColor;
-      if (typeof backgroundColor === "string" && HEX_RE.test(backgroundColor)) return backgroundColor;
+    // Own bucket first, then "Other" - a bucket with no coverage yet should
+    // still get a real measured colour from somewhere in the library rather
+    // than jumping straight to a hardcoded literal.
+    const buckets = bucket === "Other" ? [bucket] : [bucket, "Other"];
+    for (const b of buckets) {
+      // The CTA button's own colour is the most deliberately "brand" choice in
+      // a popup - merchants pick that colour on purpose, whereas a card's
+      // background is just as likely to be a large neutral with nothing
+      // brand-like about it. Prefer it; fall back to a card's background only
+      // if no button part was captured for this bucket at all.
+      const buttonParts = await prisma.popupPart.findMany({
+        where: { industry: b, role: "BUTTON" },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { style: true },
+      });
+      for (const p of buttonParts) {
+        const accentColor = (p.style as Partial<ButtonPartStyle> | null)?.accentColor;
+        if (typeof accentColor === "string" && HEX_RE.test(accentColor)) return accentColor;
+      }
+      const cardParts = await prisma.popupPart.findMany({
+        where: { industry: b, role: "CARD" },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { style: true },
+      });
+      for (const p of cardParts) {
+        const backgroundColor = (p.style as Partial<CardPartStyle> | null)?.backgroundColor;
+        if (typeof backgroundColor === "string" && HEX_RE.test(backgroundColor)) return backgroundColor;
+      }
     }
   } catch (err) {
     console.warn("[popupGeneration] failed to fetch industry fallback colour, using default:", err);
@@ -1818,12 +1826,25 @@ async function pickPartCandidates<T>(
   count: number,
 ): Promise<PartCandidate<T>[]> {
   const bucket = normalizeIndustry(industry ?? "");
-  const rows = await prisma.popupPart.findMany({
+  let rows = await prisma.popupPart.findMany({
     where: { industry: bucket, role },
     orderBy: { createdAt: "desc" },
     take: 200, // a wide pool to rank within - the poolSize below is the actual selection count
     select: { id: true, style: true },
   });
+  // No coverage for this specific bucket (a normal state early on - one
+  // industry gets scraped before another) - fall back to the "Other" bucket's
+  // real scraped data rather than coming back empty and forcing the caller
+  // into its no-data throw. Only real parts count as a fallback here, never a
+  // hardcoded literal colour/style - that's the whole point of this pass.
+  if (rows.length === 0 && bucket !== "Other") {
+    rows = await prisma.popupPart.findMany({
+      where: { industry: "Other", role },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: { id: true, style: true },
+    });
+  }
   const candidates: PartCandidate<T>[] = rows.map((r) => ({ id: r.id, style: r.style as T }));
   const poolSize = Math.max(count, 6);
 
