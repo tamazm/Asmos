@@ -321,57 +321,7 @@ model Variant {
   events      CampaignEvent[]
   wonCampaign Campaign?       @relation("CampaignWinner")
 
-  // AI design mockups (lib/inngest/generateStitchDesign.ts) - reference-only
-  // previews a merchant can look at for inspiration. Deliberately never read
-  // by widget.js or renderPopupTemplate; see StitchDesign's own doc comment.
-  stitchDesigns StitchDesign[]
-
   @@index([campaignId])
-}
-
-// A single AI-generated design mockup (Google Stitch) for a variant, kept as
-// its own table rather than fields on Variant so a merchant can try several
-// prompts and compare them, and so this feature is structurally unable to
-// leak into the live-serving read path - only Variant.generatedCode/popupSpec
-// are ever read by widget.js, and nothing here writes to those fields.
-//
-// This is a design *reference* only. Stitch has no awareness of this app's
-// popup runtime (lib/templates/runtime.ts - tracking, suppression, the
-// multi-step flow state machine), so its output is never served live.
-enum StitchDesignStatus {
-  QUEUED
-  GENERATING
-  COMPLETE
-  FAILED
-}
-
-model StitchDesign {
-  id        String  @id @default(cuid())
-  variantId String
-  variant   Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
-
-  prompt     String             @db.Text
-  deviceType String             @default("DESKTOP") // Stitch's own closed set (MOBILE|DESKTOP|TABLET|AGNOSTIC) - not worth a DB enum
-  status     StitchDesignStatus @default(QUEUED)
-
-  stitchProjectId String?
-  stitchScreenId  String?
-
-  // Fetched once and persisted at generation time so the preview keeps
-  // working regardless of how long Stitch's own download URLs stay valid.
-  htmlContent      String? @db.Text
-  imageData        Bytes?
-  imageContentType String?
-
-  stitchHtmlUrl  String? // kept for debugging only, never relied on for serving
-  stitchImageUrl String?
-
-  lastError String? @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([variantId])
 }
 
 model RewardRule {
