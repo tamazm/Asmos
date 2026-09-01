@@ -7,6 +7,7 @@ import { SyncProviderCard, type SyncCardProps } from "@/components/integrations/
 import { RequestIntegrationCard } from "@/components/integrations/RequestIntegrationCard";
 import { MessagingProviderCard, type MessagingProviderMeta } from "@/components/integrations/MessagingProviderCard";
 import { TestConnectionButton } from "@/components/integrations/TestConnectionButton";
+import { EventSelector, EventSummary } from "@/components/integrations/EventSelector";
 import { AUTOMATION_EVENT_OPTIONS, eventLabel } from "@/lib/integrations/events";
 
 type IntegrationStatus = "disconnected" | "connecting" | "connected" | "error";
@@ -279,7 +280,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-sm sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="shrink-0">{integration.icon}</div>
@@ -310,9 +311,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">Endpoint URL</p>
           <p className="break-all font-mono text-xs text-[color:var(--color-text-primary)]">{webhookUrl}</p>
-          <p className="text-xs text-[color:var(--color-text-secondary)]">
-            Fires on: {events.map(eventLabel).join(", ")}
-          </p>
+          <EventSummary events={events} eventLabel={eventLabel} />
           {maskedSecret && (
             <>
               <p className="mt-1 text-xs font-medium text-[color:var(--color-text-secondary)]">Signing secret</p>
@@ -324,22 +323,11 @@ function WebhookCard({ integration }: { integration: Integration }) {
 
       {showInput && status !== "connected" && (
         <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-[color:var(--color-text-primary)]">Send on</span>
-            {AUTOMATION_EVENT_OPTIONS.map((event) => (
-              <label key={event.id} className="flex items-start gap-2 text-xs text-[color:var(--color-text-secondary)]">
-                <input
-                  type="checkbox"
-                  checked={events.includes(event.id)}
-                  onChange={() => setEvents((current) => current.includes(event.id) ? current.filter((id) => id !== event.id) : [...current, event.id])}
-                />
-                <span>
-                  <span className="block text-[color:var(--color-text-primary)]">{event.label}</span>
-                  <span className="block text-[11px] leading-relaxed">{event.description}</span>
-                </span>
-              </label>
-            ))}
-          </div>
+          <EventSelector
+            options={AUTOMATION_EVENT_OPTIONS}
+            selected={events}
+            onToggle={(id) => setEvents((current) => current.includes(id) ? current.filter((eventId) => eventId !== id) : [...current, id])}
+          />
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
               Endpoint URL <span className="text-red-500">*</span>
@@ -371,7 +359,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
         </div>
       )}
 
-      <div className="mt-auto flex items-center gap-2">
+      <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[color:var(--color-border)] pt-3">
         {status !== "connected" ? (
           <button
             onClick={handleConnect}

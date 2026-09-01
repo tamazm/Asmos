@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SetupGuideButton } from "./SetupGuideButton";
 import { TestConnectionButton } from "./TestConnectionButton";
+import { EventSelector, EventSummary } from "./EventSelector";
 import { LEAD_EVENT_OPTIONS } from "@/lib/integrations/events";
 
 export interface SyncCardProps {
@@ -105,7 +106,7 @@ export function SyncProviderCard(props: SyncCardProps) {
   const showForm = (editing || !connected) && !oauthSetup;
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-sm sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="shrink-0">{props.icon}</div>
@@ -117,6 +118,7 @@ export function SyncProviderCard(props: SyncCardProps) {
         <span className={connected && !needsOAuth
           ? "inline-flex items-center gap-1 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-success)]"
           : "rounded-full bg-[color:var(--color-neutral-badge)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-text-secondary)]"}>
+          {connected && !needsOAuth && <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />}
           {needsOAuth ? "Reconnect required" : connected ? "Connected" : "Not connected"}
         </span>
       </div>
@@ -131,9 +133,7 @@ export function SyncProviderCard(props: SyncCardProps) {
               {f.label}: <span className="font-mono">{config[f.key]}</span>
             </p>
           ))}
-          <p className="text-xs text-[color:var(--color-text-secondary)] mt-1">
-            Fires on: {events.map((e) => LEAD_EVENT_OPTIONS.find((o) => o.id === e)?.label).filter(Boolean).join(", ")}
-          </p>
+          <EventSummary events={events} eventLabel={(event) => LEAD_EVENT_OPTIONS.find((o) => o.id === event)?.label} />
           {lastDelivery && (
             <p className="text-xs text-[color:var(--color-text-secondary)]">
               Last delivery: {lastDelivery.status} · {new Date(lastDelivery.at).toLocaleString()}
@@ -165,20 +165,12 @@ export function SyncProviderCard(props: SyncCardProps) {
             </div>
           ))}
           
-          <div className="flex flex-col gap-1.5 mt-2">
-            <span className="text-xs font-medium text-[color:var(--color-text-primary)]">Send on</span>
-            {LEAD_EVENT_OPTIONS.map((o) => (
-              <label key={o.id} className="flex items-center gap-2 text-xs text-[color:var(--color-text-secondary)]">
-                <input type="checkbox" checked={events.includes(o.id)} onChange={() => toggleEvent(o.id)} />
-                {o.label}
-              </label>
-            ))}
-          </div>
+          <EventSelector options={LEAD_EVENT_OPTIONS} selected={events} onToggle={toggleEvent} />
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
       )}
 
-      <div className="mt-auto flex items-center gap-2">
+      <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[color:var(--color-border)] pt-3">
         {oauthSetup ? (
           <a
             href={props.oauthUrl}

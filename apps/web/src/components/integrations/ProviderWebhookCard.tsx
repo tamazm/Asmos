@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SetupGuideButton } from "./SetupGuideButton";
 import { TestConnectionButton } from "./TestConnectionButton";
+import { EventSelector, EventSummary } from "./EventSelector";
 import { AUTOMATION_EVENT_OPTIONS, eventLabel } from "@/lib/integrations/events";
 
 export interface ProviderCardProps {
@@ -77,7 +78,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
   const showForm = editing || !connected;
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-sm sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="shrink-0">{props.icon}</div>
@@ -89,6 +90,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
         <span className={connected
           ? "inline-flex items-center gap-1 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-success)]"
           : "rounded-full bg-[color:var(--color-neutral-badge)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-text-secondary)]"}>
+          {connected && <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />}
           {connected ? "Connected" : "Not connected"}
         </span>
       </div>
@@ -96,9 +98,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
       {connected && !editing && (
         <div className="flex flex-col gap-1">
           <p className="break-all font-mono text-xs text-[color:var(--color-text-primary)]">{url}</p>
-          <p className="text-xs text-[color:var(--color-text-secondary)]">
-            Fires on: {events.map(eventLabel).join(", ")}
-          </p>
+          <EventSummary events={events} eventLabel={eventLabel} />
           {props.supportsSigning && (
             <p className="text-xs text-[color:var(--color-text-secondary)]">
               Signing: {maskedSecret ? <span className="font-mono">{maskedSecret}</span> : "unsigned"}
@@ -117,18 +117,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
           <label className="text-xs font-medium text-[color:var(--color-text-primary)]">{props.urlLabel}</label>
           <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={props.urlPlaceholder}
             className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]" />
-          <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-[color:var(--color-text-primary)]">Send on</span>
-            {AUTOMATION_EVENT_OPTIONS.map((o) => (
-              <label key={o.id} className="flex items-start gap-2 text-xs text-[color:var(--color-text-secondary)]">
-                <input type="checkbox" checked={events.includes(o.id)} onChange={() => toggleEvent(o.id)} />
-                <span>
-                  <span className="block text-[color:var(--color-text-primary)]">{o.label}</span>
-                  <span className="block text-[11px] leading-relaxed">{o.description}</span>
-                </span>
-              </label>
-            ))}
-          </div>
+          <EventSelector options={AUTOMATION_EVENT_OPTIONS} selected={events} onToggle={toggleEvent} />
           {props.supportsSigning && (
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
@@ -146,7 +135,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
         </div>
       )}
 
-      <div className="mt-auto flex items-center gap-2">
+      <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[color:var(--color-border)] pt-3">
         {showForm ? (
           <button onClick={save} disabled={saving}
             className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white disabled:opacity-50 cursor-pointer">

@@ -31,19 +31,19 @@ export function TestConnectionButton({ provider }: { provider: string }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex min-w-0 flex-col items-start gap-1">
       <button
         type="button"
         onClick={testConnection}
         disabled={testing}
-        className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+        className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3.5 py-2 text-sm font-medium text-[color:var(--color-text-primary)] transition-colors hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
       >
         {testing ? "Testing..." : "Test connection"}
       </button>
       {result && (
         <span
           role="status"
-          className={result.kind === "success" ? "text-xs text-[color:var(--color-success)]" : "text-xs text-red-600"}
+          className={result.kind === "success" ? "max-w-[180px] text-[11px] leading-4 text-[color:var(--color-success)]" : "max-w-[180px] text-[11px] leading-4 text-red-600"}
         >
           {result.message}
         </span>
