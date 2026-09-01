@@ -133,7 +133,7 @@ const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initia
       url: "https://developers.klaviyo.com/en/docs/retrieve_api_credentials",
       steps: [
         "Log in to Klaviyo and click your account name (bottom-left), then 'Settings'.",
-        "Open the 'API keys' tab, click 'Create Private API Key', give it a name with Full Access, then copy the key (it starts with pk_).",
+        "Open the 'API keys' tab, click 'Create Private API Key', choose 'Custom Key', and select only Lists: read, Lists: write, Profiles: write, Subscriptions: write, and Events: write. Do not use Full Access. Then copy the key (it starts with pk_).",
         "For the List ID, go to 'Audience' → 'Lists & Segments', open the list you want, and copy the List ID shown under its name.",
         "Paste the API key and List ID into the fields above and click Save connection.",
       ],
@@ -490,6 +490,16 @@ export default function IntegrationsPage() {
       <PageHeader title="Integrations" />
       <p className="text-sm text-[color:var(--color-text-secondary)]">
         Connect Asmos to your marketing stack. Leads and events sync automatically once a connection is active.
+      </p>
+      <p className="-mt-5 text-xs text-[color:var(--color-text-secondary)]">
+        See how integration data and credentials are handled in our{" "}
+        <a
+          href="https://asmos.io/privacy-policy"
+          className="text-[color:var(--color-primary)] underline underline-offset-2 hover:text-[color:var(--color-primary-dark)]"
+        >
+          Privacy Policy
+        </a>
+        .
       </p>
 
       {/* 1. Marketing — the priority for ecommerce: get leads into the tools that actually sell. */}
