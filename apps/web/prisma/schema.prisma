@@ -656,12 +656,17 @@ model IntegrationConnection {
   // Which canonical events fire this connection (e.g. ["lead.captured"]).
   subscribedEvents String[] @default([])
 
+  // Messaging providers (mailgun/twilio) only: array of
+  // { event, delayMinutes, templateId }. Stored as JSON to keep v1 simple.
+  rules Json @default("[]")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   deliveries IntegrationDelivery[]
+  templates  MessageTemplate[]
 
-  @@index([accountId, provider])
+  @@unique([accountId, provider])
 }
 
 model IntegrationDelivery {
@@ -676,4 +681,20 @@ model IntegrationDelivery {
   createdAt DateTime @default(now())
 
   @@index([connectionId, createdAt])
+}
+
+model MessageTemplate {
+  id           String  @id @default(cuid())
+  connectionId String
+  connection   IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  name    String
+  channel String            // "email" | "sms"
+  subject String?           // email only
+  body    String  @db.Text  // supports {{lead.name}}, {{reward.coupon_code}}, ...
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([connectionId])
 }

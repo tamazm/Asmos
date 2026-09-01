@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    integrationConnection: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
+    integrationConnection: { findUnique: vi.fn(), findFirst: vi.fn(), upsert: vi.fn(), update: vi.fn(), create: vi.fn() },
   },
 }));
 
@@ -19,33 +19,32 @@ describe("webhookConnection", () => {
   });
 
   it("getWebhookView returns disabled defaults when no connection exists", async () => {
-    (prisma.integrationConnection.findFirst as any).mockResolvedValue(null);
+    (prisma.integrationConnection.findUnique as any).mockResolvedValue(null);
     const view = await getWebhookView("a1");
     expect(view).toEqual({ webhookUrl: null, webhookSecret: null, webhookEnabled: false });
   });
 
   it("creates an enabled webhooks connection with the two default events when none exists", async () => {
-    (prisma.integrationConnection.findFirst as any).mockResolvedValue(null);
-    (prisma.integrationConnection.create as any).mockResolvedValue({});
+    (prisma.integrationConnection.upsert as any).mockResolvedValue({});
     await saveWebhook("a1", { webhookUrl: "https://x.com/h", webhookSecret: "shh", webhookEnabled: true });
 
-    const call = (prisma.integrationConnection.create as any).mock.calls[0][0];
-    expect(call.data.provider).toBe("webhooks");
-    expect(call.data.config).toEqual({ url: "https://x.com/h" });
-    expect(call.data.subscribedEvents).toEqual(["lead.captured", "variant.winner_declared"]);
-    expect(call.data.enabled).toBe(true);
-    expect(JSON.stringify(call.data.credentials)).not.toContain("shh");
+    const call = (prisma.integrationConnection.upsert as any).mock.calls[0][0];
+    expect(call.create.provider).toBe("webhooks");
+    expect(call.create.config).toEqual({ url: "https://x.com/h" });
+    expect(call.create.subscribedEvents).toEqual(["lead.captured", "variant.winner_declared"]);
+    expect(call.create.enabled).toBe(true);
+    expect(JSON.stringify(call.create.credentials)).not.toContain("shh");
   });
 
   it("does not create a row for a bare disable when no connection exists", async () => {
-    (prisma.integrationConnection.findFirst as any).mockResolvedValue(null);
+    (prisma.integrationConnection.findUnique as any).mockResolvedValue(null);
     await saveWebhook("a1", { webhookEnabled: false });
-    expect(prisma.integrationConnection.create).not.toHaveBeenCalled();
+    expect(prisma.integrationConnection.upsert).not.toHaveBeenCalled();
     expect(prisma.integrationConnection.update).not.toHaveBeenCalled();
   });
 
   it("toggles only `enabled` on a bare disable, leaving config + credentials untouched", async () => {
-    (prisma.integrationConnection.findFirst as any).mockResolvedValue({
+    (prisma.integrationConnection.findUnique as any).mockResolvedValue({
       id: "c1",
       enabled: true,
       config: { url: "https://x.com/h" },
@@ -59,7 +58,7 @@ describe("webhookConnection", () => {
   });
 
   it("clears the signing secret when webhookSecret is null, leaving the url intact", async () => {
-    (prisma.integrationConnection.findFirst as any).mockResolvedValue({
+    (prisma.integrationConnection.findUnique as any).mockResolvedValue({
       id: "c1",
       enabled: true,
       config: { url: "https://x.com/h" },

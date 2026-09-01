@@ -1,19 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { SetupGuideButton } from "./SetupGuideButton";
+import { Modal } from "@/components/ui/Modal";
 
-export interface ProviderCardProps {
+export interface SyncCardProps {
   provider: string;
   name: string;
   category: string;
   group: string;
   docsUrl?: string;
-  setupSteps?: string[];
+  setupGuide?: { url: string; steps: string[] };
   icon: React.ReactNode;
-  urlLabel: string;
-  urlPlaceholder: string;
-  initialUrl: string | null;
+  keyLabel: string;
+  keyPlaceholder: string;
+  configFields?: Array<{ key: string; label: string; placeholder: string }>;
+  initialMaskedKey: string | null;
+  initialConfig: Record<string, string>;
   initialEvents: string[];
   initialLastDelivery: { status: string; at: string } | null;
 }
@@ -23,46 +25,76 @@ const EVENT_OPTIONS = [
   { id: "variant.winner_declared", label: "Winner declared" },
 ];
 
-export function ProviderWebhookCard(props: ProviderCardProps) {
-  const [url, setUrl] = useState(props.initialUrl ?? "");
-  const [connected, setConnected] = useState(Boolean(props.initialUrl));
+export function SyncProviderCard(props: SyncCardProps) {
+  const [apiKey, setApiKey] = useState("");
+  const [config, setConfig] = useState<Record<string, string>>(props.initialConfig || {});
+  
+  const [connected, setConnected] = useState(Boolean(props.initialMaskedKey));
+  const [maskedKey, setMaskedKey] = useState<string | null>(props.initialMaskedKey);
   const [events, setEvents] = useState<string[]>(
-    props.initialEvents.length ? props.initialEvents : ["lead.captured", "variant.winner_declared"],
+    props.initialEvents?.length ? props.initialEvents : ["lead.captured"],
   );
+  
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const lastDelivery = props.initialLastDelivery;
+  const [lastDelivery, setLastDelivery] = useState(props.initialLastDelivery);
 
   function toggleEvent(id: string) {
     setEvents((prev) => (prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]));
   }
 
+  function handleConfigChange(key: string, value: string) {
+    setConfig(prev => ({ ...prev, [key]: value }));
+  }
+
   async function save() {
-    if (!url.trim().startsWith("https://")) { setError("URL must start with https://"); return; }
+    if (!connected && !apiKey.trim()) { setError("API key is required."); return; }
     if (events.length === 0) { setError("Select at least one event."); return; }
+    
+    // Check config fields
+    if (props.configFields) {
+      for (const field of props.configFields) {
+        if (!config[field.key]?.trim()) {
+          setError(`${field.label} is required.`);
+          return;
+        }
+      }
+    }
+
     setSaving(true); setError(null);
     try {
-      const res = await fetch("/api/integrations/connections", {
+      const payload: any = { provider: props.provider, subscribedEvents: events };
+      if (apiKey.trim()) payload.apiKey = apiKey.trim();
+      if (Object.keys(config).length > 0) payload.config = config;
+
+      const res = await fetch("/api/integrations/sync", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: props.provider, url: url.trim(), subscribedEvents: events }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Failed to save."); return; }
-      setConnected(true); setEditing(false);
+      
+      const updated = data.connections?.find((c: any) => c.provider === props.provider);
+      if (updated?.lastDelivery) setLastDelivery(updated.lastDelivery);
+      if (updated?.maskedKey) setMaskedKey(updated.maskedKey);
+      
+      setApiKey(""); // clear plain text input
+      setConnected(true); 
+      setEditing(false);
     } catch { setError("Network error."); } finally { setSaving(false); }
   }
 
   async function disconnect() {
     setSaving(true);
     try {
-      await fetch("/api/integrations/connections", {
+      await fetch("/api/integrations/sync", {
         method: "DELETE", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: props.provider }),
       });
     } catch { /* best effort */ } finally { setSaving(false); }
-    setConnected(false); setUrl(""); setEditing(false); setError(null);
+    setConnected(false); setApiKey(""); setConfig({}); setMaskedKey(null); setEditing(false); setError(null);
   }
 
   const showForm = editing || !connected;
@@ -86,8 +118,15 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
 
       {connected && !editing && (
         <div className="flex flex-col gap-1">
-          <p className="break-all font-mono text-xs text-[color:var(--color-text-primary)]">{url}</p>
-          <p className="text-xs text-[color:var(--color-text-secondary)]">
+          <p className="font-mono text-xs text-[color:var(--color-text-primary)]">
+            API Key: {maskedKey}
+          </p>
+          {props.configFields?.map(f => (
+            <p key={f.key} className="text-xs text-[color:var(--color-text-primary)]">
+              {f.label}: <span className="font-mono">{config[f.key]}</span>
+            </p>
+          ))}
+          <p className="text-xs text-[color:var(--color-text-secondary)] mt-1">
             Fires on: {events.map((e) => EVENT_OPTIONS.find((o) => o.id === e)?.label).filter(Boolean).join(", ")}
           </p>
           {lastDelivery && (
@@ -100,10 +139,22 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
 
       {showForm && (
         <div className="flex flex-col gap-3">
-          <label className="text-xs font-medium text-[color:var(--color-text-primary)]">{props.urlLabel}</label>
-          <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={props.urlPlaceholder}
-            className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]" />
-          <div className="flex flex-col gap-1.5">
+          <div>
+            <label className="text-xs font-medium text-[color:var(--color-text-primary)] mb-1 block">{props.keyLabel}</label>
+            <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={props.keyPlaceholder}
+              className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]" />
+            {connected && <p className="text-xs text-[color:var(--color-text-secondary)] mt-1">Leave blank to keep existing key.</p>}
+          </div>
+          
+          {props.configFields?.map(field => (
+            <div key={field.key}>
+              <label className="text-xs font-medium text-[color:var(--color-text-primary)] mb-1 block">{field.label}</label>
+              <input type="text" value={config[field.key] || ""} onChange={(e) => handleConfigChange(field.key, e.target.value)} placeholder={field.placeholder}
+                className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]" />
+            </div>
+          ))}
+          
+          <div className="flex flex-col gap-1.5 mt-2">
             <span className="text-xs font-medium text-[color:var(--color-text-primary)]">Send on</span>
             {EVENT_OPTIONS.map((o) => (
               <label key={o.id} className="flex items-center gap-2 text-xs text-[color:var(--color-text-secondary)]">
@@ -131,11 +182,8 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
               {saving ? "..." : "Disconnect"}</button>
           </>
         )}
-        {props.docsUrl && !props.setupSteps && (
+        {props.docsUrl && (
           <a href={props.docsUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-[color:var(--color-primary)] hover:underline">Docs</a>
-        )}
-        {props.setupSteps && (
-          <SetupGuideButton providerName={props.name} docsUrl={props.docsUrl} setupSteps={props.setupSteps} />
         )}
       </div>
     </div>

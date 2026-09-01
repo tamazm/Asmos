@@ -226,8 +226,10 @@ delivery function and the connect/validate API both resolve adapters through it.
 ### Per-adapter behaviour
 
 - **webhook/notification (zapier, make, n8n, slack, discord, teams):** build a
-  payload and POST to `config.url`. Zapier/Make/n8n reuse the existing signed
-  JSON envelope from `lib/webhook.ts`. Slack/Discord/Teams format a channel-native
+  payload and POST to `config.url`. Zapier/Make/n8n reuse the existing JSON
+  envelope from `lib/webhook.ts` but deliver it unsigned (HMAC signing is
+  currently only exposed on the native Webhooks adapter where a secret field exists,
+  though the adapter code is forward-looking). Slack/Discord/Teams format a channel-native
   message (Slack blocks, Discord embed, Teams MessageCard) — e.g.
   "🎉 New lead: jane@x.com from *Summer Popup* · coupon SAVE10".
 - **sync (klaviyo, mailchimp, hubspot):** on `lead.captured`/`gift.claimed`, upsert

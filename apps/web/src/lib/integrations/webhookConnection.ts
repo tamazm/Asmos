@@ -11,7 +11,7 @@ export interface WebhookView {
 }
 
 async function findWebhook(accountId: string) {
-  return prisma.integrationConnection.findFirst({ where: { accountId, provider: "webhooks" } });
+  return prisma.integrationConnection.findUnique({ where: { accountId_provider: { accountId, provider: "webhooks" } } });
 }
 
 export async function getWebhookView(accountId: string): Promise<WebhookView> {
@@ -36,12 +36,11 @@ export async function saveWebhook(
   accountId: string,
   input: { webhookUrl?: string | null; webhookSecret?: string | null; webhookEnabled?: boolean },
 ): Promise<void> {
-  const existing = await findWebhook(accountId);
+  // If no URL is provided, we only want to update if it already exists (e.g. toggling enabled)
+  if (!input.webhookUrl) {
+    const existing = await findWebhook(accountId);
+    if (!existing) return;
 
-  if (existing) {
-    // Field-conditional update: only touch a column when the caller actually
-    // provided that key, so a partial PATCH (e.g. a bare enable/disable, or a
-    // secret-only change) never wipes the stored URL or secret.
     const data: {
       enabled?: boolean;
       config?: { url: string } | Record<string, never>;
@@ -50,20 +49,27 @@ export async function saveWebhook(
     if ("webhookEnabled" in input) data.enabled = Boolean(input.webhookEnabled);
     if ("webhookUrl" in input) data.config = input.webhookUrl ? { url: input.webhookUrl } : {};
     if ("webhookSecret" in input) {
-      // A provided-but-empty secret clears it, stored as an empty (still
-      // encrypted) bundle so the column stays a valid EncryptedSecret.
       data.credentials = encryptBundle(input.webhookSecret ? { signingSecret: input.webhookSecret } : {});
     }
     await prisma.integrationConnection.update({ where: { id: existing.id }, data });
     return;
   }
 
-  // No existing connection. Only create one when there's a URL to store — a bare
-  // disable or secret change against a nonexistent connection is a no-op.
-  if (!input.webhookUrl) return;
+  const updateData: {
+    enabled?: boolean;
+    config?: { url: string };
+    credentials?: EncryptedSecret;
+  } = {};
+  if ("webhookEnabled" in input) updateData.enabled = Boolean(input.webhookEnabled);
+  if ("webhookUrl" in input) updateData.config = { url: input.webhookUrl };
+  if ("webhookSecret" in input) {
+    updateData.credentials = encryptBundle(input.webhookSecret ? { signingSecret: input.webhookSecret } : {});
+  }
 
-  await prisma.integrationConnection.create({
-    data: {
+  await prisma.integrationConnection.upsert({
+    where: { accountId_provider: { accountId, provider: "webhooks" } },
+    update: updateData,
+    create: {
       accountId,
       provider: "webhooks",
       enabled: "webhookEnabled" in input ? Boolean(input.webhookEnabled) : true,

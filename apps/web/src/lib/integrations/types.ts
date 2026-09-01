@@ -46,6 +46,11 @@ export interface DeliveryResult {
 export interface DeliverContext {
   event: IntegrationEvent;
   connection: ResolvedConnection;
+  renderedContent?: {
+    subject: string | null;
+    body: string;
+    to: string;
+  };
 }
 
 export interface IntegrationAdapter {

@@ -57,22 +57,25 @@ export async function saveConnection(
   }
   const events = input.subscribedEvents?.filter((e) => CANONICAL_EVENTS.includes(e));
 
-  const existing = await prisma.integrationConnection.findFirst({ where: { accountId, provider } });
-
-  if (existing) {
+  if (input.url === undefined) {
+    const existing = await prisma.integrationConnection.findUnique({ where: { accountId_provider: { accountId, provider } } });
+    if (!existing) throw new Error("A URL is required to create a connection");
+    
     const data: { enabled?: boolean; config?: { url: string }; subscribedEvents?: string[] } = {};
-    if (input.url !== undefined) {
-      data.config = { url: input.url };
-      data.enabled = true;
-    }
     if (events !== undefined) data.subscribedEvents = events;
     await prisma.integrationConnection.update({ where: { id: existing.id }, data });
     return;
   }
 
-  if (!input.url) throw new Error("A URL is required to create a connection");
-  await prisma.integrationConnection.create({
-    data: {
+  const updateData: { enabled?: boolean; config?: { url: string }; subscribedEvents?: string[] } = {};
+  updateData.config = { url: input.url };
+  updateData.enabled = true;
+  if (events !== undefined) updateData.subscribedEvents = events;
+
+  await prisma.integrationConnection.upsert({
+    where: { accountId_provider: { accountId, provider } },
+    update: updateData,
+    create: {
       accountId,
       provider,
       enabled: true,

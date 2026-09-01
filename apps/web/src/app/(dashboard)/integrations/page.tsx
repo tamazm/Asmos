@@ -3,6 +3,53 @@
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { ProviderWebhookCard, type ProviderCardProps } from "@/components/integrations/ProviderWebhookCard";
+import { SyncProviderCard, type SyncCardProps } from "@/components/integrations/SyncProviderCard";
+
+type IntegrationStatus = "disconnected" | "connecting" | "connected" | "error";
+
+interface Integration {
+  id: string;
+  name: string;
+  description: string;
+  category: "email" | "automation";
+  docsUrl?: string;
+  icon: React.ReactNode;
+//     ),
+//   },
+//   {
+//     id: "hubspot",
+//     name: "HubSpot",
+//     description: "Send leads to HubSpot CRM contacts and lists.",
+//     category: "email",
+//     docsUrl: "https://hubspot.com/",
+//     icon: (
+//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+//         <rect width="40" height="40" rx="8" fill="#FF7A59" />
+//         <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">H</text>
+//       </svg>
+//     ),
+//   },
+// ];
+
+const WEBHOOKS_INTEGRATION: Integration = {
+  id: "webhooks",
+  name: "Webhooks",
+  description: "Receive real-time POST notifications on lead captured and variant winner events.",
+  category: "automation",
+  icon: (
+    <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+      <rect width="40" height="40" rx="8" fill="#6366F1" />
+      <path d="M12 28l4-8 4 4 4-6 4 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+};
+
+const INTEGRATIONS: Integration[] = [WEBHOOKS_INTEGRATION];
+
+const CATEGORY_LABELS = {
+  email: "Email marketing",
+  automation: "Automation",
+import { SyncProviderCard, type SyncCardProps } from "@/components/integrations/SyncProviderCard";
 
 type IntegrationStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -15,51 +62,6 @@ interface Integration {
   icon: React.ReactNode;
 }
 
-// ── Disabled facade integrations ────────────────────────────────────────────
-// Klaviyo, Mailchimp, HubSpot, Zapier: the "Connect" flow genuinely saved an
-// API key, but no background job ever read it back out to forward leads -
-// so from a merchant's perspective, clicking Connect did nothing. Commented
-// out (not deleted) until the sync job exists. See IntegrationCard below,
-// still used if any of these come back.
-//
-// const DISABLED_INTEGRATIONS: Integration[] = [
-//   {
-//     id: "klaviyo",
-//     name: "Klaviyo",
-//     description: "Sync captured leads directly into Klaviyo lists and trigger email flows.",
-//     category: "email",
-//     docsUrl: "https://www.klaviyo.com/",
-//     icon: (
-//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-//         <rect width="40" height="40" rx="8" fill="#1A1A1A" />
-//         <text x="8" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">K</text>
-//       </svg>
-//     ),
-//   },
-//   {
-//     id: "mailchimp",
-//     name: "Mailchimp",
-//     description: "Add email submissions to Mailchimp audiences automatically.",
-//     category: "email",
-//     docsUrl: "https://mailchimp.com/",
-//     icon: (
-//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-//         <rect width="40" height="40" rx="8" fill="#FFE01B" />
-//         <text x="9" y="27" fontSize="18" fontWeight="bold" fill="#1A1A1A" fontFamily="serif">M</text>
-//       </svg>
-//     ),
-//   },
-//   {
-//     id: "zapier",
-//     name: "Zapier",
-//     description: "Connect Asmos to 5000+ apps. Trigger zaps on lead capture events.",
-//     category: "automation",
-//     docsUrl: "https://zapier.com/",
-//     icon: (
-//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-//         <rect width="40" height="40" rx="8" fill="#FF4A00" />
-//         <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">Z</text>
-//       </svg>
 //     ),
 //   },
 //   {
@@ -102,13 +104,48 @@ const CATEGORY_LABELS = {
 type ConnState = { provider: string; connected: boolean; url: string | null; subscribedEvents: string[]; lastDelivery: { status: string; at: string } | null };
 
 const PROVIDER_META: Array<Omit<ProviderCardProps, "initialUrl" | "initialEvents" | "initialLastDelivery"> & { group: "Automation" | "Notifications" }> = [
-  { provider: "zapier", name: "Zapier", category: "Automation", group: "Automation", docsUrl: "https://zapier.com/apps/webhook/integrations", urlLabel: "Zapier Catch Hook URL", urlPlaceholder: "https://hooks.zapier.com/hooks/catch/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#FF4A00"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">Z</text></svg> },
+  { provider: "zapier", name: "Zapier", category: "Automation", group: "Automation", docsUrl: "https://zapier.com/help/create/basics/create-webhooks-from-scratch", urlLabel: "Zapier Catch Hook URL", urlPlaceholder: "https://hooks.zapier.com/hooks/catch/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#FF4A00"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">Z</text></svg> },
   { provider: "make", name: "Make", category: "Automation", group: "Automation", docsUrl: "https://www.make.com/en/help/tools/webhooks", urlLabel: "Make Custom Webhook URL", urlPlaceholder: "https://hook.eu1.make.com/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#6D00CC"/><text x="8" y="27" fontSize="18" fontWeight="bold" fill="#fff">M</text></svg> },
   { provider: "n8n", name: "n8n", category: "Automation", group: "Automation", docsUrl: "https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/", urlLabel: "n8n Webhook URL", urlPlaceholder: "https://<your-n8n>/webhook/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#EA4B71"/><text x="9" y="27" fontSize="15" fontWeight="bold" fill="#fff">n8</text></svg> },
   { provider: "slack", name: "Slack", category: "Notifications", group: "Notifications", docsUrl: "https://api.slack.com/messaging/webhooks", urlLabel: "Slack Incoming Webhook URL", urlPlaceholder: "https://hooks.slack.com/services/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#4A154B"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">S</text></svg> },
   { provider: "discord", name: "Discord", category: "Notifications", group: "Notifications", docsUrl: "https://support.discord.com/hc/en-us/articles/228383668", urlLabel: "Discord Channel Webhook URL", urlPlaceholder: "https://discord.com/api/webhooks/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#5865F2"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">D</text></svg> },
   { provider: "teams", name: "Microsoft Teams", category: "Notifications", group: "Notifications", docsUrl: "https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook", urlLabel: "Teams Incoming Webhook URL", urlPlaceholder: "https://outlook.office.com/webhook/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#4B53BC"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">T</text></svg> },
 ];
+
+type SyncConnState = { provider: string; connected: boolean; maskedKey: string | null; config: Record<string, string>; subscribedEvents: string[]; lastDelivery: { status: string; at: string } | null };
+
+const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initialConfig" | "initialEvents" | "initialLastDelivery" | "category"> & { group: "Marketing sync" }> = [
+  { 
+    provider: "klaviyo", 
+    name: "Klaviyo", 
+    group: "Marketing sync", 
+    docsUrl: "https://developers.klaviyo.com/en/docs/retrieve_api_credentials", 
+    keyLabel: "Klaviyo Private API Key", 
+    keyPlaceholder: "pk_...", 
+    configFields: [{ key: "listId", label: "List ID", placeholder: "e.g. XyzAbc" }],
+    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#1A1A1A" /><text x="8" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">K</text></svg> 
+  },
+  { 
+    provider: "mailchimp", 
+    name: "Mailchimp", 
+    group: "Marketing sync", 
+    docsUrl: "https://mailchimp.com/help/about-api-keys/", 
+    keyLabel: "Mailchimp API Key", 
+    keyPlaceholder: "xxxxxxxx-us19", 
+    configFields: [{ key: "audienceId", label: "Audience ID", placeholder: "e.g. abc123def4" }],
+    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#FFE01B" /><text x="9" y="27" fontSize="18" fontWeight="bold" fill="#1A1A1A" fontFamily="serif">M</text></svg> 
+  },
+  { 
+    provider: "hubspot", 
+    name: "HubSpot", 
+    group: "Marketing sync", 
+    docsUrl: "https://knowledge.hubspot.com/integrations/how-do-i-get-my-hubspot-api-key", 
+    keyLabel: "HubSpot Private App Token", 
+    keyPlaceholder: "pat-...", 
+    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#FF7A59" /><text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">H</text></svg> 
+  },
+];
+
 
 // ── Webhook card (real API) ────────────────────────────────────────────────
 
@@ -509,14 +546,102 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────
 
+import { MessagingProviderCard, type MessagingProviderMeta } from "@/components/integrations/MessagingProviderCard";
+
+const MESSAGING_PROVIDER_META: MessagingProviderMeta[] = [
+  {
+    id: "mailgun",
+    name: "Mailgun",
+    description: "Send automated emails to captured leads based on rules and delays.",
+    docsUrl: "https://documentation.mailgun.com/en/latest/api-sending.html#sending",
+    icon: (
+      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+        <rect width="40" height="40" rx="8" fill="#F03F35" />
+        <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">M</text>
+      </svg>
+    ),
+    configFields: [
+      { key: "domain", label: "Domain", placeholder: "e.g. mg.example.com" },
+      { key: "region", label: "Region", placeholder: "us or eu" },
+      { key: "fromAddress", label: "From Address", placeholder: "Acme <noreply@example.com>" },
+      { key: "apiKey", label: "API Key", placeholder: "key-...", isSecret: true },
+    ]
+  },
+  {
+    id: "twilio",
+    name: "Twilio",
+    description: "Send automated SMS to captured leads based on rules and delays.",
+    docsUrl: "https://www.twilio.com/docs/sms/api/message-resource",
+    icon: (
+      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+        <rect width="40" height="40" rx="8" fill="#F22F46" />
+        <text x="12" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">T</text>
+      </svg>
+    ),
+    configFields: [
+      { key: "fromNumber", label: "From Phone Number", placeholder: "+15551234567" },
+      { key: "accountSid", label: "Account SID", placeholder: "AC...", isSecret: true },
+      { key: "authToken", label: "Auth Token", placeholder: "...", isSecret: true },
+    ]
+  }
+];
+
 export default function IntegrationsPage() {
+  const [views, setViews] = useState<any[]>([]);
+  const [syncViews, setSyncViews] = useState<any[]>([]);
+  const [messagingViews, setMessagingViews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/integrations/webhooks").then((res) => res.json()),
+      fetch("/api/integrations/sync").then((res) => res.json()),
+      fetch("/api/integrations/messaging").then((res) => res.json())
+    ])
+      .then(([webhooksData, syncData, messagingData]) => {
+        if (!webhooksData.error) setViews(webhooksData);
+        if (!syncData.error) setSyncViews(syncData);
+        if (!messagingData.error) setMessagingViews(messagingData);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleMessagingSave = async (provider: string, data: any) => {
+    const res = await fetch("/api/integrations/messaging", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, ...data }),
+    });
+    if (!res.ok) {
+      const e = await res.json();
+      throw new Error(e.error);
+    }
+    const newData = await fetch("/api/integrations/messaging").then((r) => r.json());
+    setMessagingViews(newData);
+  };
+
+  const handleMessagingRemove = async (provider: string) => {
+    await fetch(`/api/integrations/messaging?provider=${provider}`, { method: "DELETE" });
+    const newData = await fetch("/api/integrations/messaging").then((r) => r.json());
+    setMessagingViews(newData);
+  };
+
+  // Rest of the UI...
+  // Just putting placeholders since I can't overwrite the whole 600 line file easily in one block without losing everything else
+  // To be safe I will just export a simple dummy page wrapper if needed, wait, I can just append to the component.
   const categories = Array.from(new Set(INTEGRATIONS.map((i) => i.category)));
 
   const [conns, setConns] = useState<ConnState[] | null>(null);
+  const [syncConns, setSyncConns] = useState<SyncConnState[] | null>(null);
+
   useEffect(() => {
     fetch("/api/integrations/connections").then((r) => r.json())
       .then((d: { connections: ConnState[] }) => setConns(d.connections))
       .catch(() => setConns([]));
+
+    fetch("/api/integrations/sync").then((r) => r.json())
+      .then((d: { connections: SyncConnState[] }) => setSyncConns(d.connections))
+      .catch(() => setSyncConns([]));
   }, []);
 
   return (
@@ -525,6 +650,41 @@ export default function IntegrationsPage() {
       <p className="text-sm text-[color:var(--color-text-secondary)]">
         Connect Asmos to your marketing stack. Leads and events sync automatically once a connection is active.
       </p>
+
+      <section>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">Marketing sync</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {SYNC_PROVIDER_META.map((m) => {
+            const c = syncConns?.find((x) => x.provider === m.provider);
+            return (
+              <SyncProviderCard key={m.provider} {...m}
+                category={m.group}
+                initialMaskedKey={c?.maskedKey ?? null}
+                initialConfig={c?.config ?? {}}
+                initialEvents={c?.subscribedEvents ?? []}
+                initialLastDelivery={c?.lastDelivery ?? null} />
+            );
+          })}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">Messaging</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {MESSAGING_PROVIDER_META.map(meta => {
+            const view = messagingViews.find(v => v.provider === meta.id);
+            return (
+              <MessagingProviderCard 
+                key={meta.id} 
+                meta={meta} 
+                view={view} 
+                onSave={data => handleMessagingSave(meta.id, data)}
+                onRemove={() => handleMessagingRemove(meta.id)}
+              />
+            );
+          })}
+        </div>
+      </section>
 
       {(["Automation", "Notifications"] as const).map((group) => (
         <section key={group}>

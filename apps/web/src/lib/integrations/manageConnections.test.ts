@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    integrationConnection: { findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
+    integrationConnection: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), upsert: vi.fn(), update: vi.fn(), create: vi.fn(), deleteMany: vi.fn() },
   },
 }));
 
@@ -43,18 +43,17 @@ describe("manageConnections", () => {
   });
 
   it("saveConnection creates a new connection with default events when none exists", async () => {
-    (prisma.integrationConnection.findFirst as any).mockResolvedValue(null);
-    (prisma.integrationConnection.create as any).mockResolvedValue({});
+    (prisma.integrationConnection.upsert as any).mockResolvedValue({});
     await saveConnection("a1", "slack", { url: "https://s" });
-    const data = (prisma.integrationConnection.create as any).mock.calls[0][0].data;
-    expect(data.provider).toBe("slack");
-    expect(data.config).toEqual({ url: "https://s" });
-    expect(data.enabled).toBe(true);
-    expect(data.subscribedEvents).toEqual(["lead.captured", "variant.winner_declared"]);
+    const createData = (prisma.integrationConnection.upsert as any).mock.calls[0][0].create;
+    expect(createData.provider).toBe("slack");
+    expect(createData.config).toEqual({ url: "https://s" });
+    expect(createData.enabled).toBe(true);
+    expect(createData.subscribedEvents).toEqual(["lead.captured", "variant.winner_declared"]);
   });
 
   it("saveConnection updates only provided fields on an existing row", async () => {
-    (prisma.integrationConnection.findFirst as any).mockResolvedValue({ id: "c1" });
+    (prisma.integrationConnection.findUnique as any).mockResolvedValue({ id: "c1" });
     (prisma.integrationConnection.update as any).mockResolvedValue({});
     await saveConnection("a1", "slack", { subscribedEvents: ["lead.captured"] });
     const call = (prisma.integrationConnection.update as any).mock.calls[0][0];

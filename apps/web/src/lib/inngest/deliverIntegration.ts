@@ -2,6 +2,7 @@ import { inngest } from "./client";
 import { resolveConnection, recordDelivery } from "../integrations/connections";
 import { getAdapter } from "../integrations/registry";
 import type { DeliveryResult, IntegrationEvent } from "../integrations/types";
+import { parseRules, matchRules, executeRule } from "../integrations/messagingRules";
 
 /** Thrown to signal Inngest that it should retry this delivery. */
 export class RetriableDeliveryError extends Error {}
@@ -26,6 +27,17 @@ export async function runDelivery(connectionId: string, event: IntegrationEvent)
     return result;
   }
 
+  if (adapter.kind === "sync" || adapter.kind === "messaging") {
+    if (event.event === "lead.captured") {
+      const consent = event.payload.lead.consent_given;
+      if (!consent) {
+        const result: DeliveryResult = { status: "skipped", detail: "lead did not consent" };
+        await recordDelivery(connectionId, event.event, result);
+        return result;
+      }
+    }
+  }
+
   const result = await adapter.deliver({ event, connection });
   await recordDelivery(connectionId, event.event, result);
 
@@ -35,10 +47,6 @@ export async function runDelivery(connectionId: string, event: IntegrationEvent)
   return result;
 }
 
-// Delivers a single integration event to a single connection. Retries are
-// classified by runDelivery itself (RetriableDeliveryError vs. a returned
-// "failed" result) rather than left to Inngest's default retry-on-any-throw
-// behavior, so permanent failures (bad auth, 4xx) don't burn retry budget.
 export const deliverIntegration = inngest.createFunction(
   { id: "integration-deliver", triggers: { event: "integration/deliver" }, retries: 4 },
   async ({ event, step }) => {
@@ -46,6 +54,55 @@ export const deliverIntegration = inngest.createFunction(
       connectionId: string;
       event: IntegrationEvent;
     };
-    return step.run("deliver", () => runDelivery(connectionId, domainEvent));
+    // Resolve connection + adapter (shared setup step)
+    const { connection, adapter } = await step.run("resolve", async () => {
+      const conn = await resolveConnection(connectionId);
+      if (!conn || !conn.enabled) return { connection: null, adapter: null };
+      const adp = getAdapter(conn.provider);
+      return { connection: conn, adapter: adp ? { kind: adp.kind, provider: adp.provider } : null };
+    });
+    if (!connection || !adapter) {
+      return step.run("skip", () => runDelivery(connectionId, domainEvent));
+    }
+    // Consent check for sync/messaging
+    if (adapter.kind === "sync" || adapter.kind === "messaging") {
+      if (domainEvent.event === "lead.captured" && !domainEvent.payload.lead.consent_given) {
+        return step.run("skip-no-consent", async () => {
+          const result: DeliveryResult = { status: "skipped", detail: "lead did not consent" };
+          await recordDelivery(connectionId, domainEvent.event, result);
+          return result;
+        });
+      }
+    }
+    // Non-messaging: single delivery (existing behavior)
+    if (adapter.kind !== "messaging") {
+      return step.run("deliver", () => runDelivery(connectionId, domainEvent));
+    }
+    // Messaging: fan out per matching rule with durable delays
+    const rules = await step.run("match-rules", async () => {
+      const conn = await resolveConnection(connectionId);
+      return matchRules(parseRules(conn?.config.rules), domainEvent);
+    });
+    for (const rule of rules) {
+      if (rule.delayMinutes > 0) {
+        await step.sleep(`wait-${rule.templateId}`, `${rule.delayMinutes}m`);
+      }
+      await step.run(`send-${rule.templateId}`, async () => {
+        const conn = await resolveConnection(connectionId);
+        if (!conn || !conn.enabled) {
+          const r: DeliveryResult = { status: "skipped", detail: "connection disabled during delay" };
+          await recordDelivery(connectionId, domainEvent.event, r);
+          return r;
+        }
+        const adp = getAdapter(conn.provider)!;
+        const result = await executeRule(rule, domainEvent, conn, adp);
+        await recordDelivery(connectionId, domainEvent.event, result);
+        if (result.status === "failed" && result.retriable) {
+          throw new RetriableDeliveryError(result.detail ?? "retriable");
+        }
+        return result;
+      });
+    }
   },
 );
+

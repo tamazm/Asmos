@@ -4,6 +4,11 @@ import { zapierAdapter, makeAdapter, n8nAdapter } from "./adapters/envelopeAdapt
 import { slackAdapter } from "./adapters/slackAdapter";
 import { discordAdapter } from "./adapters/discordAdapter";
 import { teamsAdapter } from "./adapters/teamsAdapter";
+import { klaviyoAdapter } from "./adapters/klaviyoAdapter";
+import { mailchimpAdapter } from "./adapters/mailchimpAdapter";
+import { hubspotAdapter } from "./adapters/hubspotAdapter";
+import { mailgunAdapter } from "./adapters/mailgunAdapter";
+import { twilioAdapter } from "./adapters/twilioAdapter";
 
 // Adapters implemented so far. Later phases add their entries here.
 const ADAPTERS: Partial<Record<IntegrationProvider, IntegrationAdapter>> = {
@@ -14,6 +19,11 @@ const ADAPTERS: Partial<Record<IntegrationProvider, IntegrationAdapter>> = {
   slack: slackAdapter,
   discord: discordAdapter,
   teams: teamsAdapter,
+  klaviyo: klaviyoAdapter,
+  mailchimp: mailchimpAdapter,
+  hubspot: hubspotAdapter,
+  mailgun: mailgunAdapter,
+  twilio: twilioAdapter,
 };
 
 export function getAdapter(provider: IntegrationProvider): IntegrationAdapter | undefined {

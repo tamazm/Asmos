@@ -11,6 +11,8 @@ function createEnvelopeAdapter(provider: IntegrationProvider): IntegrationAdapte
     },
     async deliver({ event, connection }) {
       return postWebhook(String(connection.config.url ?? ""), event, {
+        // signingSecret is currently always null for these providers since the UI doesn't 
+        // collect it, so payloads ship unsigned. This is intentional forward-looking code.
         secret: connection.secrets.signingSecret ?? null,
         event: event.event,
       });

@@ -5,12 +5,16 @@ describe("adapter registry", () => {
   it("resolves the webhooks adapter", () => {
     expect(getAdapter("webhooks")?.provider).toBe("webhooks");
   });
-  it("returns undefined for a provider with no adapter yet", () => {
-    expect(getAdapter("klaviyo")).toBeUndefined();
+  
+  it("returns undefined for a bogus provider", () => {
+    // @ts-expect-error
+    expect(getAdapter("bogus")).toBeUndefined();
   });
-  it("resolves all six Phase 1 providers", () => {
-    for (const p of ["webhooks", "zapier", "make", "n8n", "slack", "discord", "teams"] as const) {
+
+  it("resolves all twelve Phase 1-3 providers", () => {
+    for (const p of ["webhooks", "zapier", "make", "n8n", "slack", "discord", "teams", "klaviyo", "mailchimp", "hubspot", "mailgun", "twilio"] as const) {
       expect(getAdapter(p)?.provider).toBe(p);
     }
   });
 });
+
