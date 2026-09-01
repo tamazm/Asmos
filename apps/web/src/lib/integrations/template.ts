@@ -2,15 +2,19 @@ import type { IntegrationEvent } from "./types";
 
 type TemplateVars = Record<string, string | null | undefined>;
 
-/** Render a template string by replacing {{key}} with escaped values.
- *  Unknown vars render as empty string. Nested paths use dot notation. */
-export function renderTemplate(template: string, vars: TemplateVars): string {
+/** Render a template string by replacing {{key}} with values.
+ *  Unknown vars render as empty string. Nested paths use dot notation.
+ *  `escape` HTML-encodes substituted values — correct for HTML email bodies,
+ *  but must be false for plain-text output (SMS bodies, email subjects) or
+ *  characters like ' and & leak through as &#039; / &amp;. */
+export function renderTemplate(template: string, vars: TemplateVars, escape: boolean = true): string {
   if (!template) return "";
   return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
     const k = key.trim();
     const val = vars[k];
     if (val === null || val === undefined) return "";
-    return escapeHtml(String(val));
+    const str = String(val);
+    return escape ? escapeHtml(str) : str;
   });
 }
 

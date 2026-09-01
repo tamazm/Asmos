@@ -47,7 +47,7 @@ describe("manageSyncConnections", () => {
           provider: "klaviyo",
           enabled: true,
           config: { listId: "XYZ123" },
-          secrets: { apiKey: { encrypted: "pk_12345" } },
+          credentials: { encrypted: JSON.stringify({ apiKey: "pk_12345" }) },
           subscribedEvents: ["lead.captured"],
           deliveries: [{ status: "success", createdAt: new Date("2026-01-01T00:00:00Z") }],
         }
@@ -97,7 +97,7 @@ describe("manageSyncConnections", () => {
       expect((prisma.integrationConnection as any).upsert).toHaveBeenCalledWith(expect.objectContaining({
         where: { accountId_provider: { accountId: "a1", provider: "klaviyo" } },
         create: expect.objectContaining({
-          secrets: { apiKey: { encrypted: "good_key" } },
+          credentials: { encrypted: JSON.stringify({ apiKey: "good_key" }) },
           config: { listId: "XYZ123" }
         })
       }));
@@ -105,7 +105,7 @@ describe("manageSyncConnections", () => {
     
     it("preserves API key if missing in input but present in existing", async () => {
       (prisma.integrationConnection as any).findUnique.mockResolvedValue({
-        secrets: { apiKey: { encrypted: "existing_key" } },
+        credentials: { encrypted: JSON.stringify({ apiKey: "existing_key" }) },
         config: { listId: "OLD123" }
       });
       (getAdapter as any).mockReturnValue({
@@ -117,7 +117,7 @@ describe("manageSyncConnections", () => {
       expect(res.ok).toBe(true);
       expect((prisma.integrationConnection as any).upsert).toHaveBeenCalledWith(expect.objectContaining({
         update: expect.objectContaining({
-          secrets: { apiKey: { encrypted: "existing_key" } },
+          credentials: { encrypted: JSON.stringify({ apiKey: "existing_key" }) },
           config: { listId: "NEW123" }
         })
       }));

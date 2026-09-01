@@ -46,8 +46,9 @@ export async function POST(req: Request) {
 
     const renderedContent = {
       to: testRecipient,
-      subject: template.subject ? renderTemplate(template.subject, vars) : null,
-      body: renderTemplate(template.body, vars),
+      // Match production rendering: subjects are plain text; only HTML email bodies are escaped.
+      subject: template.subject ? renderTemplate(template.subject, vars, false) : null,
+      body: renderTemplate(template.body, vars, template.channel === "email"),
     };
 
     const secretsStr = conn.credentials ? await decryptSecret(conn.credentials as any) : "{}";

@@ -29,6 +29,20 @@ export async function auth() {
   return clerkAuth();
 }
 
+/**
+ * Resolve the signed-in user's account in one call, for API routes that need
+ * an accountId. Returns null when unauthenticated so callers can 401.
+ * Uses a dynamic import of account.ts to avoid a circular import (account.ts
+ * imports currentUser from this module).
+ */
+export async function getAccountSession(): Promise<{ userId: string; accountId: string } | null> {
+  const { userId } = await auth();
+  if (!userId) return null;
+  const { getOrCreateAccount } = await import("@/lib/account");
+  const account = await getOrCreateAccount();
+  return { userId: String(userId), accountId: account.id };
+}
+
 // Sync protect shim used in layouts
 export const authProtect = async () => {
   if (isMock) return;

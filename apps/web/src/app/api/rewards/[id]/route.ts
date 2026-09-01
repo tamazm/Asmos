@@ -1,9 +1,11 @@
 import { auth } from "@/lib/auth-adapter";
 import { resolveAccountForRequest } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
+import { syncRewardDiscountToShopify } from "@/lib/shopify/discounts";
 import type { RewardType } from ".prisma/client";
 
 const VALID_TYPES: RewardType[] = ["COUPON", "DISCOUNT_PERCENT", "DISCOUNT_FIXED", "FREE_SHIPPING", "GIFT"];
+const DISCOUNT_TYPES: RewardType[] = ["DISCOUNT_PERCENT", "DISCOUNT_FIXED"];
 
 async function findOwnedReward(rewardId: string, accountId: string) {
   return prisma.rewardRule.findFirst({
@@ -31,6 +33,7 @@ export async function PATCH(
     category?: string | null;
     type?: string;
     couponCode?: string | null;
+    discountValue?: number | null;
     weight?: number;
     maxRedemptions?: number | null;
     active?: boolean;
@@ -63,6 +66,22 @@ export async function PATCH(
     data.type = body.type;
   }
   if (body.couponCode !== undefined) data.couponCode = body.couponCode?.trim() || null;
+  if (body.discountValue !== undefined) {
+    if (body.discountValue === null) {
+      data.discountValue = null;
+    } else {
+      const v = Math.floor(Number(body.discountValue));
+      if (!Number.isFinite(v) || v < 1) {
+        return Response.json({ error: "discountValue must be a positive whole number" }, { status: 400 });
+      }
+      // Cap percentages at 100; the effective type is the incoming one, or the stored one.
+      const effectiveType = (body.type as RewardType) ?? reward.type;
+      if (effectiveType === "DISCOUNT_PERCENT" && v > 100) {
+        return Response.json({ error: "A percentage discount can't exceed 100." }, { status: 400 });
+      }
+      data.discountValue = v;
+    }
+  }
   if (body.weight !== undefined) {
     const w = Math.floor(Number(body.weight));
     if (!Number.isFinite(w) || w < 0) return Response.json({ error: "weight must be a non-negative number" }, { status: 400 });
@@ -106,6 +125,15 @@ export async function PATCH(
   }
 
   const updated = await prisma.rewardRule.update({ where: { id: reward.id }, data });
+
+  // Best-effort: keep the matching Shopify discount in sync when a coded discount
+  // reward changes. Never let a Shopify hiccup fail the reward update.
+  try {
+    await syncRewardDiscountToShopify(account.id, updated);
+  } catch (e) {
+    console.warn("Shopify discount sync failed (reward still updated):", e instanceof Error ? e.message : e);
+  }
+
   return Response.json({ reward: updated });
 }
 

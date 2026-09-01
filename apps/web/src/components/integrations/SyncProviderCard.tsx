@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
+import { SetupGuideButton } from "./SetupGuideButton";
 
 export interface SyncCardProps {
   provider: string;
@@ -182,9 +183,11 @@ export function SyncProviderCard(props: SyncCardProps) {
               {saving ? "..." : "Disconnect"}</button>
           </>
         )}
-        {props.docsUrl && (
+        {props.setupGuide ? (
+          <SetupGuideButton providerName={props.name} docsUrl={props.setupGuide.url} setupSteps={props.setupGuide.steps} />
+        ) : props.docsUrl ? (
           <a href={props.docsUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-[color:var(--color-primary)] hover:underline">Docs</a>
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -71,6 +71,30 @@ describe("runDelivery", () => {
     expect(res.status).toBe("failed");
   });
 
+  it("invokes a sync (klaviyo) adapter with the resolved connection + lead payload when consented", async () => {
+    // Mirrors what resolveConnection produces after decrypting the `credentials`
+    // bundle: secrets.apiKey is populated and config carries the listId.
+    const klaviyoConn = {
+      id: "k1", accountId: "a1", provider: "klaviyo" as const, enabled: true,
+      config: { listId: "LIST123" }, subscribedEvents: ["lead.captured"],
+      secrets: { apiKey: "pk_live_123" },
+    };
+    (resolveConnection as any).mockResolvedValue(klaviyoConn);
+    const mockDeliver = vi.fn().mockResolvedValue({ status: "success" });
+    (getAdapter as any).mockReturnValue({ kind: "sync", provider: "klaviyo", deliver: mockDeliver });
+
+    const res = await runDelivery("k1", event);
+
+    expect(res.status).toBe("success");
+    expect(mockDeliver).toHaveBeenCalledWith({ event, connection: klaviyoConn });
+    // Adapter received the decrypted key + list id it needs to hit the provider.
+    const arg = mockDeliver.mock.calls[0][0];
+    expect(arg.connection.secrets.apiKey).toBe("pk_live_123");
+    expect(arg.connection.config.listId).toBe("LIST123");
+    expect(arg.event.payload.lead.email).toBe("a@b.c");
+    expect(recordDelivery).toHaveBeenCalledWith("k1", "lead.captured", { status: "success" });
+  });
+
   it("skips delivery for sync adapters when lead did not consent", async () => {
     (resolveConnection as any).mockResolvedValue(resolved);
     (getAdapter as any).mockReturnValue({ kind: "sync", deliver: vi.fn() });

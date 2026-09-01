@@ -35,6 +35,7 @@ export async function PATCH(request: Request) {
     provider?: string;
     url?: string;
     subscribedEvents?: string[];
+    signingSecret?: string | null;
   };
 
   if (!isUrlProvider(body.provider)) {
@@ -47,6 +48,8 @@ export async function PATCH(request: Request) {
     await saveConnection(account.id, body.provider, {
       url: body.url?.trim(),
       subscribedEvents: body.subscribedEvents,
+      signingSecret:
+        typeof body.signingSecret === "string" ? body.signingSecret.trim() : body.signingSecret,
     });
   } catch (err) {
     return Response.json(

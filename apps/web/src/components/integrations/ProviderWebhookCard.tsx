@@ -13,8 +13,11 @@ export interface ProviderCardProps {
   icon: React.ReactNode;
   urlLabel: string;
   urlPlaceholder: string;
+  /** When true, show an optional HMAC signing-secret field (e.g. Zapier/Make/n8n). */
+  supportsSigning?: boolean;
   initialUrl: string | null;
   initialEvents: string[];
+  initialMaskedSecret?: string | null;
   initialLastDelivery: { status: string; at: string } | null;
 }
 
@@ -29,6 +32,8 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
   const [events, setEvents] = useState<string[]>(
     props.initialEvents.length ? props.initialEvents : ["lead.captured", "variant.winner_declared"],
   );
+  const [signingSecret, setSigningSecret] = useState("");
+  const [maskedSecret, setMaskedSecret] = useState<string | null>(props.initialMaskedSecret ?? null);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,13 +48,20 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
     if (events.length === 0) { setError("Select at least one event."); return; }
     setSaving(true); setError(null);
     try {
+      const body: Record<string, unknown> = { provider: props.provider, url: url.trim(), subscribedEvents: events };
+      // Only send the secret when the user typed a new one — an empty field on
+      // an already-connected card must not silently wipe the saved secret.
+      if (props.supportsSigning && signingSecret.trim()) body.signingSecret = signingSecret.trim();
       const res = await fetch("/api/integrations/connections", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: props.provider, url: url.trim(), subscribedEvents: events }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Failed to save."); return; }
+      const view = data.connections?.find((c: { provider: string; maskedSecret: string | null }) => c.provider === props.provider);
+      if (view) setMaskedSecret(view.maskedSecret ?? null);
+      setSigningSecret("");
       setConnected(true); setEditing(false);
     } catch { setError("Network error."); } finally { setSaving(false); }
   }
@@ -62,7 +74,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
         body: JSON.stringify({ provider: props.provider }),
       });
     } catch { /* best effort */ } finally { setSaving(false); }
-    setConnected(false); setUrl(""); setEditing(false); setError(null);
+    setConnected(false); setUrl(""); setSigningSecret(""); setMaskedSecret(null); setEditing(false); setError(null);
   }
 
   const showForm = editing || !connected;
@@ -90,6 +102,11 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
           <p className="text-xs text-[color:var(--color-text-secondary)]">
             Fires on: {events.map((e) => EVENT_OPTIONS.find((o) => o.id === e)?.label).filter(Boolean).join(", ")}
           </p>
+          {props.supportsSigning && (
+            <p className="text-xs text-[color:var(--color-text-secondary)]">
+              Signing: {maskedSecret ? <span className="font-mono">{maskedSecret}</span> : "unsigned"}
+            </p>
+          )}
           {lastDelivery && (
             <p className="text-xs text-[color:var(--color-text-secondary)]">
               Last delivery: {lastDelivery.status} · {new Date(lastDelivery.at).toLocaleString()}
@@ -112,6 +129,19 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
               </label>
             ))}
           </div>
+          {props.supportsSigning && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
+                Signing secret <span className="font-normal text-[color:var(--color-text-secondary)]">(optional)</span>
+              </label>
+              <input type="password" value={signingSecret} onChange={(e) => setSigningSecret(e.target.value)}
+                placeholder={maskedSecret ? `${maskedSecret} — type to replace` : "Verify requests came from Asmos"}
+                className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]" />
+              <p className="text-xs text-[color:var(--color-text-secondary)]">
+                If set, Asmos signs each request with <code className="font-mono">X-Asmos-Signature: sha256=&lt;hmac&gt;</code> so your workflow can verify it.
+              </p>
+            </div>
+          )}
           {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
       )}

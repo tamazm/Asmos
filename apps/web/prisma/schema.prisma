@@ -128,6 +128,20 @@ model Account {
   notifications             Notification[]
   shopifyShop               ShopifyShop?
   integrationConnections    IntegrationConnection[]
+  integrationRequests       IntegrationRequest[]
+}
+
+// A merchant's free-text request for an integration Asmos doesn't offer yet.
+// Submitted from the Integrations tab; reviewed by superadmins.
+model IntegrationRequest {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([createdAt])
 }
 
 model User {
@@ -337,6 +351,10 @@ model RewardRule {
   type        RewardType
   // Legacy single shared code - still supported, used when no CouponCode pool exists.
   couponCode  String?
+  // Numeric discount value, used only for DISCOUNT_PERCENT (whole percent, e.g. 10 = 10%)
+  // and DISCOUNT_FIXED (whole units of the shop's currency, e.g. 5 = $5). Null for other
+  // types. Powers native Shopify discount-code creation - see src/lib/shopify/discounts.ts.
+  discountValue Int?
   // Win probability weight for game-based popups (wheel/scratch card); ignored for plain forms.
   weight      Int        @default(1)
 

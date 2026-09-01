@@ -49,10 +49,12 @@ export async function renderRule(
 
   const vars = buildTemplateVars(event);
   
+  const channel = template.channel as "email" | "sms";
   return {
-    subject: template.subject ? renderTemplate(template.subject, vars) : null,
-    body: renderTemplate(template.body, vars),
-    channel: template.channel as "email" | "sms",
+    // Subjects are plain text; only the HTML email body should be escaped.
+    subject: template.subject ? renderTemplate(template.subject, vars, false) : null,
+    body: renderTemplate(template.body, vars, channel === "email"),
+    channel,
   };
 }
 

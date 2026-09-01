@@ -1,6 +1,24 @@
 import { prisma } from "@/lib/prisma";
-import { encryptSecret, decryptSecret } from "./crypto";
+import { encryptBundle, maskSecret } from "./connections";
+import { decryptSecret, type EncryptedSecret } from "./crypto";
 import { getAdapter } from "./registry";
+
+/**
+ * Sync providers store their API key in the shared `credentials` column as an
+ * AES-256-GCM EncryptedSecret whose plaintext is a JSON bundle `{ apiKey }`.
+ * This is the SAME format the delivery path (`resolveConnection` →
+ * `decryptBundle`) reads, so `connection.secrets.apiKey` is populated for the
+ * adapter. Storing under a separate shape/column would silently break delivery.
+ */
+function readApiKey(raw: unknown): string {
+  if (!raw) return "";
+  try {
+    const bundle = JSON.parse(decryptSecret(raw as EncryptedSecret)) as { apiKey?: string };
+    return bundle.apiKey ?? "";
+  } catch {
+    return "";
+  }
+}
 
 const SYNC_PROVIDERS = ["klaviyo", "mailchimp", "hubspot"] as const;
 export type SyncProvider = (typeof SYNC_PROVIDERS)[number];
@@ -27,21 +45,13 @@ export async function listSyncConnectionViews(accountId: string): Promise<SyncCo
   });
 
   return SYNC_PROVIDERS.map((provider): SyncConnectionView => {
-    const row = rows.find((r) => r.provider === provider);
+    const row = rows.find((r: (typeof rows)[number]) => r.provider === provider);
     if (!row || !row.enabled) {
       return { provider, connected: false, maskedKey: null, config: {}, subscribedEvents: [], lastDelivery: null };
     }
 
-    let maskedKey: string | null = null;
-    const secrets = row.secrets as { apiKey?: any };
-    if (secrets?.apiKey) {
-      const apiKey = decryptSecret(secrets.apiKey);
-      if (apiKey.length > 4) {
-        maskedKey = "•".repeat(8) + apiKey.slice(-4);
-      } else {
-        maskedKey = "•".repeat(8);
-      }
-    }
+    const apiKey = readApiKey(row.credentials);
+    const maskedKey = apiKey ? maskSecret(apiKey) : null;
 
     const config = (row.config as Record<string, string>) || {};
     const last = row.deliveries[0];
@@ -68,7 +78,7 @@ export async function saveSyncConnection(
     where: { accountId_provider: { accountId, provider } }
   });
 
-  let apiKeyToStore = existing && existing.secrets ? decryptSecret((existing.secrets as any).apiKey) : "";
+  let apiKeyToStore = existing ? readApiKey(existing.credentials) : "";
   if (input.apiKey !== undefined && input.apiKey !== "") {
     apiKeyToStore = input.apiKey;
   }
@@ -98,7 +108,7 @@ export async function saveSyncConnection(
   const updateData = {
     enabled: true,
     config: newConfig,
-    secrets: { apiKey: encryptSecret(apiKeyToStore) },
+    credentials: encryptBundle({ apiKey: apiKeyToStore }),
     subscribedEvents: events
   };
 
