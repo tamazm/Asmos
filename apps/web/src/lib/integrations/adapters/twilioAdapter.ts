@@ -5,34 +5,28 @@ export const twilioAdapter: IntegrationAdapter = {
   kind: "messaging",
 
   async validate({ config, secrets }) {
-    const accountSid = secrets.accountSid;
-    const authToken = secrets.authToken;
+    const accountSid = (config.accountSid as string | undefined) || secrets.accountSid;
+    const apiKeySid = (config.apiKeySid as string | undefined) || secrets.apiKeySid;
+    const apiKeySecret = secrets.apiKeySecret;
 
-    if (!accountSid || !authToken) {
-      return { ok: false, error: "Missing Account SID or Auth Token" };
+    // Existing connections may still use an Auth Token. Keep them deliverable
+    // during migration; new submissions are rejected by the connection manager.
+    if (!apiKeySid && !apiKeySecret && accountSid && secrets.authToken) {
+      return { ok: true };
     }
 
-    const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}.json`;
-
-    try {
-      const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
-      const res = await fetch(url, {
-        method: "GET",
-        headers: {
-          Authorization: `Basic ${auth}`,
-        },
-      });
-
-      if (res.status === 200) {
-        return { ok: true };
-      }
-      if (res.status === 401) {
-        return { ok: false, error: "Invalid credentials" };
-      }
-      return { ok: false, error: `Unexpected status ${res.status}` };
-    } catch (err: any) {
-      return { ok: false, error: err.message || "Failed to connect to Twilio" };
+    if (!accountSid || !apiKeySid || !apiKeySecret) {
+      return { ok: false, error: "Missing Account SID or Restricted API Key" };
     }
+
+    if (!accountSid.startsWith("AC") || !apiKeySid.startsWith("SK")) {
+      return { ok: false, error: "Use a Twilio Account SID and Restricted API Key SID" };
+    }
+
+    // Restricted keys should not need account-level read permission just to
+    // validate a messaging connection. The first message send verifies the
+    // key's allowed action against Twilio's Messages endpoint.
+    return { ok: true };
   },
 
   async deliver({ connection, renderedContent }: DeliverContext): Promise<DeliveryResult> {
@@ -40,8 +34,9 @@ export const twilioAdapter: IntegrationAdapter = {
       return { status: "failed", detail: "Missing rendered content", retriable: false };
     }
 
-    const accountSid = connection.secrets.accountSid;
-    const authToken = connection.secrets.authToken;
+    const accountSid = (connection.config.accountSid as string | undefined) || connection.secrets.accountSid;
+    const apiKeySid = (connection.config.apiKeySid as string | undefined) || connection.secrets.apiKeySid;
+    const apiKeySecret = connection.secrets.apiKeySecret || connection.secrets.authToken;
     const fromNumber = connection.config.fromNumber as string;
 
     const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
@@ -51,7 +46,7 @@ export const twilioAdapter: IntegrationAdapter = {
     params.append("To", renderedContent.to);
     params.append("Body", renderedContent.body);
 
-    const auth = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+    const auth = Buffer.from(`${apiKeySid || accountSid}:${apiKeySecret}`).toString("base64");
 
     try {
       const res = await fetch(url, {

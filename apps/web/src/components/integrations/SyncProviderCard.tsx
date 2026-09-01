@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Modal } from "@/components/ui/Modal";
 import { SetupGuideButton } from "./SetupGuideButton";
 
 export interface SyncCardProps {
@@ -11,11 +10,14 @@ export interface SyncCardProps {
   group: string;
   docsUrl?: string;
   setupGuide?: { url: string; steps: string[] };
+  authMode?: "apiKey" | "oauth";
+  oauthUrl?: string;
   icon: React.ReactNode;
-  keyLabel: string;
-  keyPlaceholder: string;
+  keyLabel?: string;
+  keyPlaceholder?: string;
   configFields?: Array<{ key: string; label: string; placeholder: string }>;
   initialMaskedKey: string | null;
+  initialAuthType?: "apiKey" | "oauth" | null;
   initialConfig: Record<string, string>;
   initialEvents: string[];
   initialLastDelivery: { status: string; at: string } | null;
@@ -40,6 +42,9 @@ export function SyncProviderCard(props: SyncCardProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastDelivery, setLastDelivery] = useState(props.initialLastDelivery);
+  const authMode = props.authMode ?? "apiKey";
+  const needsOAuth = authMode === "oauth" && props.initialAuthType === "apiKey";
+  const oauthSetup = authMode === "oauth" && (!connected || needsOAuth);
 
   function toggleEvent(id: string) {
     setEvents((prev) => (prev.includes(id) ? prev.filter((e) => e !== id) : [...prev, id]));
@@ -50,7 +55,8 @@ export function SyncProviderCard(props: SyncCardProps) {
   }
 
   async function save() {
-    if (!connected && !apiKey.trim()) { setError("API key is required."); return; }
+    if (oauthSetup) { setError(`Connect ${props.name} before saving.`); return; }
+    if (authMode !== "oauth" && !connected && !apiKey.trim()) { setError("API key is required."); return; }
     if (events.length === 0) { setError("Select at least one event."); return; }
     
     // Check config fields
@@ -66,7 +72,7 @@ export function SyncProviderCard(props: SyncCardProps) {
     setSaving(true); setError(null);
     try {
       const payload: any = { provider: props.provider, subscribedEvents: events };
-      if (apiKey.trim()) payload.apiKey = apiKey.trim();
+      if (authMode !== "oauth" && apiKey.trim()) payload.apiKey = apiKey.trim();
       if (Object.keys(config).length > 0) payload.config = config;
 
       const res = await fetch("/api/integrations/sync", {
@@ -98,7 +104,7 @@ export function SyncProviderCard(props: SyncCardProps) {
     setConnected(false); setApiKey(""); setConfig({}); setMaskedKey(null); setEditing(false); setError(null);
   }
 
-  const showForm = editing || !connected;
+  const showForm = (editing || !connected) && !oauthSetup;
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
@@ -110,10 +116,10 @@ export function SyncProviderCard(props: SyncCardProps) {
             <p className="text-xs text-[color:var(--color-text-secondary)]">{props.category}</p>
           </div>
         </div>
-        <span className={connected
+        <span className={connected && !needsOAuth
           ? "inline-flex items-center gap-1 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-success)]"
           : "rounded-full bg-[color:var(--color-neutral-badge)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-text-secondary)]"}>
-          {connected ? "Connected" : "Not connected"}
+          {needsOAuth ? "Reconnect required" : connected ? "Connected" : "Not connected"}
         </span>
       </div>
 
@@ -138,14 +144,20 @@ export function SyncProviderCard(props: SyncCardProps) {
         </div>
       )}
 
+      {oauthSetup && (
+        <p className="text-xs leading-relaxed text-[color:var(--color-text-secondary)]">
+          Connect securely through {props.name}. You will not need to paste an account-wide API key into Asmos.
+        </p>
+      )}
+
       {showForm && (
         <div className="flex flex-col gap-3">
-          <div>
+          {authMode !== "oauth" && <div>
             <label className="text-xs font-medium text-[color:var(--color-text-primary)] mb-1 block">{props.keyLabel}</label>
             <input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={props.keyPlaceholder}
               className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]" />
             {connected && <p className="text-xs text-[color:var(--color-text-secondary)] mt-1">Leave blank to keep existing key.</p>}
-          </div>
+          </div>}
           
           {props.configFields?.map(field => (
             <div key={field.key}>
@@ -168,8 +180,15 @@ export function SyncProviderCard(props: SyncCardProps) {
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        {showForm ? (
+      <div className="mt-auto flex items-center gap-2">
+        {oauthSetup ? (
+          <a
+            href={props.oauthUrl}
+            className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white"
+          >
+            Connect {props.name}
+          </a>
+        ) : showForm ? (
           <button onClick={save} disabled={saving}
             className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white disabled:opacity-50 cursor-pointer">
             {saving ? "Saving..." : "Save connection"}

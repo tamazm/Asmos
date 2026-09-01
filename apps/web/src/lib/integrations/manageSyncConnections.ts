@@ -4,19 +4,16 @@ import { decryptSecret, type EncryptedSecret } from "./crypto";
 import { getAdapter } from "./registry";
 
 /**
- * Sync providers store their API key in the shared `credentials` column as an
- * AES-256-GCM EncryptedSecret whose plaintext is a JSON bundle `{ apiKey }`.
- * This is the SAME format the delivery path (`resolveConnection` →
- * `decryptBundle`) reads, so `connection.secrets.apiKey` is populated for the
- * adapter. Storing under a separate shape/column would silently break delivery.
+ * Sync providers store their credentials in the shared `credentials` column as
+ * an AES-256-GCM EncryptedSecret. Legacy API-key connections use `{ apiKey }`;
+ * OAuth connections use a provider-specific secret bundle.
  */
-function readApiKey(raw: unknown): string {
-  if (!raw) return "";
+function readSecrets(raw: unknown): Record<string, string> {
+  if (!raw) return {};
   try {
-    const bundle = JSON.parse(decryptSecret(raw as EncryptedSecret)) as { apiKey?: string };
-    return bundle.apiKey ?? "";
+    return JSON.parse(decryptSecret(raw as EncryptedSecret)) as Record<string, string>;
   } catch {
-    return "";
+    return {};
   }
 }
 
@@ -31,6 +28,7 @@ export interface SyncConnectionView {
   provider: SyncProvider;
   connected: boolean;
   maskedKey: string | null;
+  authType: "apiKey" | "oauth" | null;
   config: Record<string, string>;
   subscribedEvents: string[];
   lastDelivery: { status: string; at: string } | null;
@@ -47,11 +45,12 @@ export async function listSyncConnectionViews(accountId: string): Promise<SyncCo
   return SYNC_PROVIDERS.map((provider): SyncConnectionView => {
     const row = rows.find((r: (typeof rows)[number]) => r.provider === provider);
     if (!row || !row.enabled) {
-      return { provider, connected: false, maskedKey: null, config: {}, subscribedEvents: [], lastDelivery: null };
+      return { provider, connected: false, maskedKey: null, authType: null, config: {}, subscribedEvents: [], lastDelivery: null };
     }
 
-    const apiKey = readApiKey(row.credentials);
-    const maskedKey = apiKey ? maskSecret(apiKey) : null;
+    const secrets = readSecrets(row.credentials);
+    const secret = secrets.apiKey || secrets.accessToken || "";
+    const maskedKey = secret ? maskSecret(secret) : null;
 
     const config = (row.config as Record<string, string>) || {};
     const last = row.deliveries[0];
@@ -60,6 +59,7 @@ export async function listSyncConnectionViews(accountId: string): Promise<SyncCo
       provider,
       connected: true,
       maskedKey,
+      authType: secrets.accessToken ? "oauth" : secrets.apiKey ? "apiKey" : null,
       config,
       subscribedEvents: row.subscribedEvents ?? [],
       lastDelivery: last ? { status: last.status, at: last.createdAt.toISOString() } : null,
@@ -74,16 +74,21 @@ export async function saveSyncConnection(
 ): Promise<{ ok: boolean; error?: string }> {
   if (!isSyncProvider(provider)) throw new Error(`Unknown sync provider: ${String(provider)}`);
 
+  if (provider === "mailchimp" && input.apiKey) {
+    return { ok: false, error: "Mailchimp connections must use OAuth. API keys are not accepted." };
+  }
+
   const existing = await prisma.integrationConnection.findUnique({
     where: { accountId_provider: { accountId, provider } }
   });
 
-  let apiKeyToStore = existing ? readApiKey(existing.credentials) : "";
+  const existingSecrets = existing ? readSecrets(existing.credentials) : {};
+  let secretsToStore = existingSecrets;
   if (input.apiKey !== undefined && input.apiKey !== "") {
-    apiKeyToStore = input.apiKey;
+    secretsToStore = { apiKey: input.apiKey };
   }
   
-  if (!apiKeyToStore) {
+  if (!secretsToStore.apiKey && !secretsToStore.accessToken) {
     return { ok: false, error: "API key is required" };
   }
 
@@ -97,7 +102,7 @@ export async function saveSyncConnection(
   }
   
   const validationResult = await adapter.validate({
-    secrets: { apiKey: apiKeyToStore },
+    secrets: secretsToStore,
     config: newConfig
   });
   
@@ -108,7 +113,7 @@ export async function saveSyncConnection(
   const updateData = {
     enabled: true,
     config: newConfig,
-    credentials: encryptBundle({ apiKey: apiKeyToStore }),
+    credentials: input.apiKey ? encryptBundle({ apiKey: input.apiKey }) : existing?.credentials,
     subscribedEvents: events
   };
 

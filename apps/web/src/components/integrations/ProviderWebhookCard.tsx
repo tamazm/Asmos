@@ -146,7 +146,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="mt-auto flex items-center gap-2">
         {showForm ? (
           <button onClick={save} disabled={saving}
             className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white disabled:opacity-50 cursor-pointer">

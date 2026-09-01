@@ -121,7 +121,7 @@ const PROVIDER_META: Array<Omit<ProviderCardProps, "initialUrl" | "initialEvents
     ], urlLabel: "Teams Incoming Webhook URL", urlPlaceholder: "https://outlook.office.com/webhook/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#4B53BC"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">T</text></svg> },
 ];
 
-type SyncConnState = { provider: string; connected: boolean; maskedKey: string | null; config: Record<string, string>; subscribedEvents: string[]; lastDelivery: { status: string; at: string } | null };
+type SyncConnState = { provider: string; connected: boolean; maskedKey: string | null; authType: "apiKey" | "oauth" | null; config: Record<string, string>; subscribedEvents: string[]; lastDelivery: { status: string; at: string } | null };
 
 const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initialConfig" | "initialEvents" | "initialLastDelivery" | "category"> & { group: "Marketing sync" }> = [
   {
@@ -147,18 +147,17 @@ const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initia
     provider: "mailchimp",
     name: "Mailchimp",
     group: "Marketing sync",
-    docsUrl: "https://mailchimp.com/help/about-api-keys/",
+    authMode: "oauth",
+    oauthUrl: "/api/integrations/mailchimp/authorize",
+    docsUrl: "https://mailchimp.com/developer/marketing/guides/access-user-data-oauth-2/",
     setupGuide: {
-      url: "https://mailchimp.com/help/about-api-keys/",
+      url: "https://mailchimp.com/developer/marketing/guides/access-user-data-oauth-2/",
       steps: [
-        "Log in to Mailchimp, click your profile icon, and choose 'Account & billing'.",
-        "Go to 'Extras' → 'API keys', click 'Create A Key', and copy it (it ends with something like -us19).",
+        "Click 'Connect Mailchimp' and authorize Asmos in Mailchimp. Asmos uses OAuth, so you do not need to paste an account-wide API key.",
         "For the Audience ID, go to 'Audience' → 'Audience dashboard' → 'Settings' → 'Audience name and defaults' and copy the 'Audience ID'.",
-        "Paste the API key and Audience ID into the fields above and click Save connection.",
+        "After authorization, click Edit on this card, enter the Audience ID, and click Save connection.",
       ],
     },
-    keyLabel: "Mailchimp API Key",
-    keyPlaceholder: "xxxxxxxx-us19",
     configFields: [{ key: "audienceId", label: "Audience ID", placeholder: "e.g. abc123def4" }],
     icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#FFE01B" /><text x="9" y="27" fontSize="18" fontWeight="bold" fill="#1A1A1A" fontFamily="serif">M</text></svg>
   },
@@ -347,7 +346,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="mt-auto flex items-center gap-2">
         {status !== "connected" ? (
           <button
             onClick={handleConnect}
@@ -413,12 +412,13 @@ const MESSAGING_PROVIDER_META: MessagingProviderMeta[] = [
     id: "twilio",
     name: "Twilio",
     description: "Send automated SMS to captured leads based on rules and delays.",
+    requiresRestrictedKey: true,
     docsUrl: "https://www.twilio.com/docs/sms/api/message-resource",
     setupSteps: [
       "Log in to the Twilio Console at console.twilio.com.",
-      "On the main dashboard, find 'Account Info' and copy your 'Account SID' and 'Auth Token' (click to reveal the token).",
+      "Open Account Security and create a Restricted API Key. Allow only the permission to create messages, then copy the Key SID and secret.",
       "Go to 'Phone Numbers' → 'Manage' → 'Active numbers' and copy the number you'll text from (in +15551234567 format).",
-      "Paste the number, Account SID, and Auth Token into the fields above and click Save Connection.",
+      "Paste the Account SID, Restricted API Key SID, secret, and sending number into the fields above and click Save Connection.",
     ],
     icon: (
       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
@@ -428,8 +428,9 @@ const MESSAGING_PROVIDER_META: MessagingProviderMeta[] = [
     ),
     configFields: [
       { key: "fromNumber", label: "From Phone Number", placeholder: "+15551234567" },
-      { key: "accountSid", label: "Account SID", placeholder: "AC...", isSecret: true },
-      { key: "authToken", label: "Auth Token", placeholder: "...", isSecret: true },
+      { key: "accountSid", label: "Account SID", placeholder: "AC..." },
+      { key: "apiKeySid", label: "Restricted API Key SID", placeholder: "SK..." },
+      { key: "apiKeySecret", label: "Restricted API Key Secret", placeholder: "...", isSecret: true },
     ]
   }
 ];
@@ -515,6 +516,7 @@ export default function IntegrationsPage() {
                 <SyncProviderCard key={m.provider} {...m}
                   category={m.group}
                   initialMaskedKey={c?.maskedKey ?? null}
+                  initialAuthType={c?.authType ?? null}
                   initialConfig={c?.config ?? {}}
                   initialEvents={c?.subscribedEvents ?? []}
                   initialLastDelivery={c?.lastDelivery ?? null} />

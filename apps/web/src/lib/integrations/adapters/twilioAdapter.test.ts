@@ -11,34 +11,38 @@ describe("twilioAdapter", () => {
   });
 
   describe("validate", () => {
-    it("returns ok for 200", async () => {
-      mockFetch.mockResolvedValueOnce({ status: 200 });
+    it("accepts a restricted API key without account-level validation", async () => {
+      const res = await twilioAdapter.validate({
+        config: { accountSid: "AC123", apiKeySid: "SK123" },
+        secrets: { apiKeySecret: "secret123" },
+      });
+      expect(res.ok).toBe(true);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("rejects incomplete restricted API key credentials", async () => {
+      const res = await twilioAdapter.validate({
+        config: { accountSid: "AC123" },
+        secrets: { apiKeySecret: "secret123" },
+      });
+      expect(res.ok).toBe(false);
+      expect(res.error).toContain("Restricted API Key");
+    });
+
+    it("keeps legacy Auth Token connections working during migration", async () => {
       const res = await twilioAdapter.validate({
         config: {},
         secrets: { accountSid: "AC123", authToken: "token123" },
       });
       expect(res.ok).toBe(true);
-      expect(mockFetch).toHaveBeenCalledWith("https://api.twilio.com/2010-04-01/Accounts/AC123.json", expect.objectContaining({
-        headers: { Authorization: "Basic QUMxMjM6dG9rZW4xMjM=" }
-      }));
-    });
-
-    it("returns error for 401", async () => {
-      mockFetch.mockResolvedValueOnce({ status: 401 });
-      const res = await twilioAdapter.validate({
-        config: {},
-        secrets: { accountSid: "AC123", authToken: "token123" },
-      });
-      expect(res.ok).toBe(false);
-      expect(res.error).toBe("Invalid credentials");
     });
   });
 
   describe("deliver", () => {
     const ctx = {
       connection: {
-        config: { fromNumber: "+15551234567" },
-        secrets: { accountSid: "AC123", authToken: "token123" },
+        config: { fromNumber: "+15551234567", accountSid: "AC123", apiKeySid: "SK123" },
+        secrets: { apiKeySecret: "secret123" },
       },
       renderedContent: {
         to: "+19876543210",
@@ -54,7 +58,7 @@ describe("twilioAdapter", () => {
 
       const [url, init] = mockFetch.mock.calls[0];
       expect(url).toBe("https://api.twilio.com/2010-04-01/Accounts/AC123/Messages.json");
-      expect(init.headers.Authorization).toBe("Basic QUMxMjM6dG9rZW4xMjM=");
+      expect(init.headers.Authorization).toBe("Basic U0sxMjM6c2VjcmV0MTIz");
       expect(init.headers["Content-Type"]).toBe("application/x-www-form-urlencoded");
       expect(init.body).toBe("From=%2B15551234567&To=%2B19876543210&Body=Hello+SMS");
     });

@@ -19,6 +19,34 @@ function getDataCenter(apiKey: string): string | null {
   return parts.length > 1 ? parts[parts.length - 1] : null;
 }
 
+function getAuth(secrets: Record<string, string>): { dataCenter: string; headers: Record<string, string> } | null {
+  if (secrets.accessToken && secrets.dataCenter) {
+    return {
+      dataCenter: secrets.dataCenter,
+      headers: {
+        "Authorization": `Bearer ${secrets.accessToken}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+    };
+  }
+
+  if (secrets.apiKey) {
+    const dataCenter = getDataCenter(secrets.apiKey);
+    if (!dataCenter) return null;
+    return {
+      dataCenter,
+      headers: {
+        "Authorization": `Basic ${Buffer.from(`any:${secrets.apiKey}`).toString("base64")}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+      },
+    };
+  }
+
+  return null;
+}
+
 export const mailchimpAdapter: IntegrationAdapter = {
   provider: "mailchimpAdapter".replace("Adapter", "") as any,
 
@@ -28,32 +56,21 @@ export const mailchimpAdapter: IntegrationAdapter = {
       return { status: "skipped", detail: `Ignored event: ${event.event}` };
     }
 
-    const apiKey = connection.secrets.apiKey;
-    if (!apiKey) {
-      return { status: "failed", retriable: false, detail: "Missing Mailchimp API key" };
-    }
-
     const audienceId = connection.config.audienceId;
     if (!audienceId) {
       return { status: "failed", retriable: false, detail: "Missing Mailchimp Audience ID" };
     }
 
-    const dc = getDataCenter(apiKey);
-    if (!dc) {
-      return { status: "failed", retriable: false, detail: "Invalid Mailchimp API key format (missing data center)" };
+    const auth = getAuth(connection.secrets);
+    if (!auth) {
+      return { status: "failed", retriable: false, detail: "Missing or invalid Mailchimp OAuth connection" };
     }
 
     const { email, name, phone } = event.payload.lead;
     const { firstName, lastName } = splitName(name);
     const subscriberHash = getSubscriberHash(email);
 
-    const headers = {
-      "Authorization": `Basic ${Buffer.from(`any:${apiKey}`).toString("base64")}`,
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-    };
-
-    const baseUrl = `https://${dc}.api.mailchimp.com/3.0`;
+    const baseUrl = `https://${auth.dataCenter}.api.mailchimp.com/3.0`;
 
     // 1. Upsert member
     const body = {
@@ -69,7 +86,7 @@ export const mailchimpAdapter: IntegrationAdapter = {
     try {
       const res = await fetch(`${baseUrl}/lists/${audienceId}/members/${subscriberHash}`, {
         method: "PUT",
-        headers,
+        headers: auth.headers,
         body: JSON.stringify(body),
       });
 
@@ -94,7 +111,7 @@ export const mailchimpAdapter: IntegrationAdapter = {
 
       const tagRes = await fetch(`${baseUrl}/lists/${audienceId}/members/${subscriberHash}/tags`, {
         method: "POST",
-        headers,
+        headers: auth.headers,
         body: JSON.stringify(tagsBody),
       });
 
@@ -116,18 +133,15 @@ export const mailchimpAdapter: IntegrationAdapter = {
   },
 
   async validate({ secrets, config }): Promise<{ ok: boolean; error?: string }> {
-    if (!secrets.apiKey || !config.audienceId) return { ok: false };
+    if ((!secrets.apiKey && !secrets.accessToken) || !config.audienceId) return { ok: false };
     
-    const dc = getDataCenter(secrets.apiKey);
-    if (!dc) return { ok: false };
-
     try {
-      const res = await fetch(`https://${dc}.api.mailchimp.com/3.0/lists/${config.audienceId}`, {
+      const auth = getAuth(secrets);
+      if (!auth) return { ok: false, error: "Mailchimp OAuth connection is required" };
+
+      const res = await fetch(`https://${auth.dataCenter}.api.mailchimp.com/3.0/lists/${config.audienceId}`, {
         method: "GET",
-        headers: {
-          "Authorization": `Basic ${Buffer.from(`any:${secrets.apiKey}`).toString("base64")}`,
-          "Accept": "application/json",
-        },
+        headers: auth.headers,
       });
       return { ok: res.ok };
     } catch {

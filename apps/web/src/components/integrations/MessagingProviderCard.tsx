@@ -14,6 +14,7 @@ export interface MessagingProviderMeta {
   description: string;
   docsUrl?: string;
   setupSteps?: string[];
+  requiresRestrictedKey?: boolean;
   icon: React.ReactNode;
   configFields: { key: string; label: string; placeholder: string; isSecret?: boolean }[];
 }
@@ -63,6 +64,10 @@ export function MessagingProviderCard({
   }
 
   const handleSave = async () => {
+    if (needsRestrictedKey && !secrets.apiKeySecret?.trim()) {
+      flash("error", "Enter the new Restricted API Key secret to reconnect Twilio.");
+      return;
+    }
     setSaving(true);
     setStatus(null);
     try {
@@ -169,9 +174,10 @@ export function MessagingProviderCard({
   };
 
   const isConnected = view?.connected;
+  const needsRestrictedKey = Boolean(isConnected && meta.requiresRestrictedKey && view?.authType === "authToken");
 
   return (
-    <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 mb-4">
+    <div className="flex flex-col rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 mb-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {meta.icon}
@@ -185,21 +191,11 @@ export function MessagingProviderCard({
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          {isConnected && (
-            <Button variant="secondary" onClick={() => setExpanded(!expanded)}>
-              {expanded ? "Close" : "Manage Rules"}
-            </Button>
-          )}
-          {!isConnected && (
-            <Button variant="primary" onClick={() => setExpanded(!expanded)}>
-              Connect
-            </Button>
-          )}
-          {isConnected && (
-            <Button variant="secondary" className="text-red-500 hover:text-red-600" onClick={onRemove}>Disconnect</Button>
-          )}
-        </div>
+        {needsRestrictedKey && (
+          <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-text-secondary)]">
+            Reconnect required
+          </span>
+        )}
       </div>
 
       {status && (
@@ -330,6 +326,27 @@ export function MessagingProviderCard({
           )}
         </div>
       )}
+
+      <div className="mt-auto flex gap-2 pt-4">
+        {isConnected && !needsRestrictedKey && (
+          <Button variant="secondary" onClick={() => setExpanded(!expanded)}>
+            {expanded ? "Close" : "Manage Rules"}
+          </Button>
+        )}
+        {isConnected && needsRestrictedKey && (
+          <Button variant="primary" onClick={() => setExpanded(!expanded)}>
+            {expanded ? "Close" : "Reconnect"}
+          </Button>
+        )}
+        {!isConnected && (
+          <Button variant="primary" onClick={() => setExpanded(!expanded)}>
+            Connect
+          </Button>
+        )}
+        {isConnected && (
+          <Button variant="secondary" className="text-red-500 hover:text-red-600" onClick={onRemove}>Disconnect</Button>
+        )}
+      </div>
     </div>
   );
 }

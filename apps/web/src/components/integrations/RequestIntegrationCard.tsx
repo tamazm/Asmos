@@ -76,7 +76,7 @@ export function RequestIntegrationCard() {
             className="w-full resize-none rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150"
           />
           {error && <p className="text-xs text-red-500">{error}</p>}
-          <div>
+          <div className="mt-auto">
             <button
               onClick={submit}
               disabled={submitting}
