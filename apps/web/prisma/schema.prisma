@@ -216,14 +216,14 @@ model StoreProfile {
   website   Website @relation(fields: [websiteId], references: [id], onDelete: Cascade)
 
   // ── What they sell (from the catalogue: products.json / Store API / JSON-LD)
-  category      String? // "children's sleepwear", never "Ecommerce / Retail"
-  subcategories String[] @default([])
-  audience      String? // "parents of under-fives"
-  priceBandMin  Int? // minor units (pence/cents)
-  priceBandMax  Int?
+  category        String? // "children's sleepwear", never "Ecommerce / Retail"
+  subcategories   String[] @default([])
+  audience        String? // "parents of under-fives"
+  priceBandMin    Int? // minor units (pence/cents)
+  priceBandMax    Int?
   priceBandMedian Int?
-  currency      String?
-  productCount  Int?
+  currency        String?
+  productCount    Int?
 
   // ── How it looks (from the DOM, measured, not guessed)
   palette       Json? // [{ hex, areaShare, role }]
@@ -300,17 +300,17 @@ model Variant {
   campaignId String
   campaign   Campaign @relation("CampaignVariants", fields: [campaignId], references: [id], onDelete: Cascade)
 
-  name            String
+  name               String
   // Fixed-split traffic allocation across a campaign's variants (Phase 3 - no bandit yet).
-  trafficPercent  Int           @default(100)
-  isControl       Boolean       @default(false)
-  status          VariantStatus @default(ACTIVE)
-  tournamentRound Int           @default(1)
+  trafficPercent     Int           @default(100)
+  isControl          Boolean       @default(false)
+  status             VariantStatus @default(ACTIVE)
+  tournamentRound    Int           @default(1)
   // Consecutive knockout evaluations in which this arm's posterior probability
   // of being best sat below the elimination threshold. Requiring two in a row
   // means one unlucky window cannot end a variant on its own. Reset whenever
   // the arm climbs back above the threshold.
-  eliminationStrikes Int        @default(0)
+  eliminationStrikes Int           @default(0)
 
   // Popup builder output: design, form fields, targeting/trigger rules.
   // Kept as JSON rather than normalized tables - no querying needs beyond
@@ -324,7 +324,7 @@ model Variant {
   // testAxis is the single lever this variant tests - used by the bandit allocator
   // and PostHog to attribute conversion deltas without ambiguity.
   testAxis         String? // "trigger | friction | copy | layout | visual"
-  popupSpec        Json?   // Structured AI popup spec (trigger, headline, subhead, cta, fields, design_tokens)
+  popupSpec        Json? // Structured AI popup spec (trigger, headline, subhead, cta, fields, design_tokens)
   generatedCode    String? @db.Text // AI-generated self-contained HTML/CSS popup code
   hypothesis       String? // One sentence: what this variant tests and why
   motivatingMetric String? // Plain-language motivating metric for dashboard display
@@ -611,32 +611,34 @@ model LearnedPattern {
 // human to be popular, high-traffic stores, so a captured row is trusted the
 // moment it exists. The only filter generation applies is `present` - a
 // scrape that found no popup on the page has nothing useful to offer.
-model ScrapedPopupExample {
-  id            String   @id @default(cuid())
+// A scraped page's site-level facts. The design itself is NOT stored here -
+// see PopupPart below and its doc comment for why.
+model ScrapedSite {
+  id            String @id @default(cuid())
   sourceUrl     String
   // Host + path, lowercased, protocol/www/query/hash/trailing-slash stripped
   // (lib/popupScraping.ts's normalizeUrl) - the dedupe key, so scraping
   // https://Example.com/ twice (or with/without www, http vs https) doesn't
   // produce two rows or spend a second Browserless call on the same site.
-  normalizedUrl String   @unique
+  normalizedUrl String @unique
   segment       String // raw label as scraped, e.g. "Retail"
   industry      String // normalized bucket (lib/popupScraping.ts's normalizeIndustry) - what generation matches on
 
-  present       Boolean  @default(false)
-  html          String?  @db.Text
-  // Everything about the design itself, as one connected object - copy,
-  // colour (by role: card background, CTA accent, headline text - not just a
-  // flat palette), typography, shape, density, imagery - matching the shape
-  // of lib/popupDna.ts's knobs so a scraped example is actually comparable to
-  // a generated one. See ScrapedPopupDesign in lib/popupScraping.ts. Used to
-  // be six separate flat columns (headline/subhead/ctaText/templateGuess/
-  // layoutGuess/palette) with no connection between them - you could see a
-  // popup had a blue palette and separately that it had a pill button, but
-  // nothing said the button *was* the blue thing.
-  design        Json?
-  screenshot    String?  @db.Text // base64 data: URL, cropped to just the popup element
+  present Boolean @default(false)
+  html    String? @db.Text
 
-  scrapedAt     DateTime @default(now())
+  // Whole-popup copy, kept here (not on any one PopupPart) since it's only
+  // ever used as tonal reference text (getScrapedExamplesSection) - never
+  // applied structurally to a generated popup the way parts are.
+  headline String?
+  subhead  String?
+  ctaText  String?
+
+  screenshot String? @db.Text // base64 data: URL, cropped to just the popup element
+
+  scrapedAt DateTime @default(now())
+
+  parts PopupPart[]
 
   @@index([industry, present])
 }
@@ -715,4 +717,43 @@ model MessageTemplate {
   updatedAt DateTime @updatedAt
 
   @@index([connectionId])
+}
+
+enum PopupPartRole {
+  CARD // background, corner radius, padding/density, shadow, template/layout
+  TYPOGRAPHY // headline/body font, size, weight, text colour
+  BUTTON // the CTA's own fill colour, radius/shape, solid vs outline
+  IMAGE // presence + position
+}
+
+/// One dissected design element from a scraped popup - a card, a typography
+/// treatment, a button, or an image treatment - kept independently so
+/// generation can mix a button from one scraped popup with a card from
+/// another, rather than always copying one whole popup's design as a unit
+/// (the previous ScrapedPopupExample.design behaviour). See
+/// lib/popupGeneration.ts's pickPartCandidates/applyPartSelection: the AI
+/// itself picks which specific part fills each role from a real,
+/// industry-relevant candidate pool, judging which combination reads as
+/// cohesive - the deliberate trade-off against keeping colour/shape/
+/// typography "connected" per popup, which ScrapedPopupExample's own
+/// comment used to argue for.
+model PopupPart {
+  id     String      @id @default(cuid())
+  siteId String
+  site   ScrapedSite @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  role     PopupPartRole
+  // Denormalized from site.industry so candidate lookups (pickPartCandidates)
+  // never need a join - same flat-industry convention ScrapedPopupExample
+  // already used.
+  industry String
+
+  // Role-specific style fields - see the CardPartStyle/TypographyPartStyle/
+  // ButtonPartStyle/ImagePartStyle discriminated-by-role types in
+  // lib/popupScraping.ts for the exact shape per role.
+  style Json
+
+  createdAt DateTime @default(now())
+
+  @@index([industry, role])
 }

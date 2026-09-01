@@ -15,6 +15,7 @@ import {
 } from "@/lib/popupGeneration";
 import { buildVariantBriefs, hashSeed } from "@/lib/designBrief";
 import { renderPopupTemplate } from "@/lib/templates";
+import { sanitizeRedirectUrl } from "@/lib/templates/runtime";
 import { brandTokensFromStoreProfile, computedStylesFromStoreProfile } from "@/lib/storeProfile";
 import type { CampaignGenerationStageCode } from "@/lib/campaignGenerationStages";
 import { generateCouponCode } from "@/lib/reward";
@@ -253,6 +254,14 @@ async function runGeneration(
       typeof context.fixedPrizeLimit === "number" && context.fixedPrizeLimit > 0
         ? Math.floor(context.fixedPrizeLimit)
         : undefined;
+    // Sanitized here, once, before it reaches renderPopupTemplate/HTML - same
+    // authoritative gate as the Visual Editor's manual-edit path (see
+    // sanitizeRedirectUrl's doc comment: this executes as a real navigation
+    // in every shopper's browser, so an invalid value must never survive to
+    // become markup, not just get escaped).
+    const redirectUrl = sanitizeRedirectUrl(
+      typeof context.redirectUrl === "string" ? context.redirectUrl : null,
+    );
 
     // Cold start (no analytics yet): 2 variants alongside control, so a fresh
     // campaign already explores three genuinely different regions of the
@@ -324,6 +333,7 @@ async function runGeneration(
             primaryColor: output.baseline.spec.design_tokens.palette[0],
             ctaText: output.baseline.spec.cta,
             imageUrl: output.baseline.spec.image_url,
+            redirectUrl,
           },
           formFields: output.baseline.spec.fields,
           targeting: {
@@ -353,6 +363,7 @@ async function runGeneration(
             brandFonts: output.baseline.spec.design_tokens,
             palette: output.baseline.spec.design_tokens.palette,
             discountPercent: output.baseline.spec.discount_percent,
+            redirectUrl,
           }),
         },
         ...output.variants.map((v, idx) => ({
@@ -365,6 +376,7 @@ async function runGeneration(
             primaryColor: v.spec.design_tokens.palette[0],
             ctaText: v.spec.cta,
             imageUrl: v.spec.image_url,
+            redirectUrl,
           },
           formFields: v.spec.fields,
           targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds, pages: pageTargeting },
@@ -382,6 +394,7 @@ async function runGeneration(
             brandFonts: v.spec.design_tokens,
             palette: v.spec.design_tokens.palette,
             discountPercent: v.spec.discount_percent,
+            redirectUrl,
           }),
           testAxis: v.test_axis,
           hypothesis: v.hypothesis,

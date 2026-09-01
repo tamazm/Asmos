@@ -88,13 +88,13 @@ export function normalizeUrl(raw: string): string {
 export type PaletteEntry = { hex: string; areaShare: number };
 
 /**
- * Everything about a scraped popup's design, as one connected object -
- * matching the shape of lib/popupDna.ts's knobs (colour by role, typography,
- * shape, density, imagery) rather than a handful of disconnected facts. This
- * is what makes a scraped example actually comparable to a generated one:
- * you can see that the button's own colour, shape and fill go together, not
- * just that the popup had a blue palette and separately a pill-shaped button
- * somewhere.
+ * Everything the scraper reads off one popup, before it gets split into
+ * independent parts for storage (see PopupPart in schema.prisma and
+ * scrapePopupBatch.ts). Matches the shape of lib/popupDna.ts's knobs (colour
+ * by role, typography, shape, density, imagery) - the extraction below
+ * already reads each field off its OWN specific DOM element (card, headline,
+ * button, image), which is exactly what makes per-role slicing possible
+ * without changing POPUP_SCRAPE_FN at all.
  */
 export type ScrapedPopupDesign = {
   template: "split-screen" | "corner-toast" | "fullscreen-takeover" | null;
@@ -130,6 +130,81 @@ export type ScrapedPopupDesign = {
 
   hasShadow: boolean;
 };
+
+// ─── Dissected part styles ──────────────────────────────────────────────────
+//
+// One of these per PopupPart.style, keyed by PopupPartRole. Slicing
+// ScrapedPopupDesign into these four groups (rather than a 5th "flat"
+// shape) is what lets pickPartCandidates/applyPartSelection in
+// popupGeneration.ts mix a button from one scraped popup with a card from
+// another - see PopupPart's model comment in schema.prisma for why.
+
+export type CardPartStyle = {
+  template: ScrapedPopupDesign["template"];
+  layout: string | null;
+  backgroundColor: string | null;
+  cornerRadius: string | null;
+  padding: string | null;
+  density: ScrapedPopupDesign["density"];
+  hasShadow: boolean;
+};
+
+export type TypographyPartStyle = {
+  headlineFont: string | null;
+  bodyFont: string | null;
+  headlineFontSize: string | null;
+  fontWeight: string | null;
+  textColor: string | null;
+};
+
+export type ButtonPartStyle = {
+  accentColor: string | null;
+  buttonRadius: string | null;
+  buttonShape: ScrapedPopupDesign["buttonShape"];
+  buttonFill: ScrapedPopupDesign["buttonFill"];
+};
+
+export type ImagePartStyle = {
+  hasImage: boolean;
+  imagePosition: ScrapedPopupDesign["imagePosition"];
+};
+
+/** Slices a full scraped design into its four independent part styles. */
+export function designToParts(d: ScrapedPopupDesign): {
+  card: CardPartStyle;
+  typography: TypographyPartStyle;
+  button: ButtonPartStyle;
+  image: ImagePartStyle;
+} {
+  return {
+    card: {
+      template: d.template,
+      layout: d.layout,
+      backgroundColor: d.backgroundColor,
+      cornerRadius: d.cornerRadius,
+      padding: d.padding,
+      density: d.density,
+      hasShadow: d.hasShadow,
+    },
+    typography: {
+      headlineFont: d.headlineFont,
+      bodyFont: d.bodyFont,
+      headlineFontSize: d.headlineFontSize,
+      fontWeight: d.fontWeight,
+      textColor: d.textColor,
+    },
+    button: {
+      accentColor: d.accentColor,
+      buttonRadius: d.buttonRadius,
+      buttonShape: d.buttonShape,
+      buttonFill: d.buttonFill,
+    },
+    image: {
+      hasImage: d.hasImage,
+      imagePosition: d.imagePosition,
+    },
+  };
+}
 
 export type PopupScrapeResult = {
   present: boolean;
@@ -303,7 +378,7 @@ export default async function ({ page, context }) {
     const isCookieNotice = (el) => {
       const identity = ((el.className || "") + " " + (el.id || "")).toLowerCase();
       if (
-        /cookie|consent|gdpr|ccpa|onetrust|cookiebot|osano|trustarc|quantcast|cookielaw|termly|cookieyes|iubenda|didomi|usercentrics|cmpbox|cky-/i.test(
+        /cookie|consent|gdpr|ccpa|onetrust|cookiebot|osano|trustarc|quantcast|cookielaw|termly|cookieyes|iubenda|didomi|usercentrics|cmpbox|cky-|termsfeed|cookieconsent|civiccookie/i.test(
           identity,
         )
       ) {
@@ -315,10 +390,30 @@ export default async function ({ page, context }) {
       );
     };
 
+    // Generic containers (most vendors' own class/id naming contains one of
+    // these words, or uses the proper ARIA role) plus a growing list of named
+    // popup/ESP vendors whose markup doesn't always match the generic words
+    // (e.g. Klaviyo's own container is "klaviyo-form" - no "modal"/"popup" in
+    // it). Checked against id as well as class, not just class - plenty of
+    // implementations put the identifying string there instead. Same vendor
+    // list this app already trusts elsewhere (POPUP_LIBRARY_SIGNALS in
+    // api/analyze/route.ts), extended with a few more common platforms - meant
+    // to keep growing as new vendors show up in scraped batches, not a closed
+    // set matched against a fixed provider list.
     const candidates = [...document.querySelectorAll(
-      "[class*='modal'], [class*='popup'], [class*='optin'], [class*='newsletter'], " +
-      "[role='dialog'], [aria-modal='true'], [class*='klaviyo'], [id*='privy'], " +
-      "[class*='justuno'], [class*='wisepops'], [class*='poptin'], .fancybox-container"
+      "[class*='modal'], [id*='modal'], [class*='popup'], [id*='popup'], " +
+      "[class*='optin'], [id*='optin'], [class*='newsletter'], [id*='newsletter'], " +
+      "[class*='lightbox'], [class*='subscribe'], [id*='subscribe'], " +
+      "[role='dialog'], [aria-modal='true'], .fancybox-container, " +
+      "[class*='klaviyo'], [id*='klaviyo'], [class*='privy'], [id*='privy'], " +
+      "[class*='justuno'], [id*='justuno'], [class*='wisepops'], [id*='wisepops'], " +
+      "[class*='poptin'], [id*='poptin'], [class*='omnisend'], [id*='omnisend'], " +
+      "[class*='wheelio'], [id*='wheelio'], [class*='spin-a-sale'], [id*='spin-a-sale'], " +
+      "[class*='sumo'], [id*='sumo'], [class*='optinmonster'], [id*='optinmonster'], " +
+      "[class*='popupsmart'], [id*='popupsmart'], [class*='mailmunch'], [id*='mailmunch'], " +
+      "[class*='sleeknote'], [id*='sleeknote'], [class*='optimonk'], [id*='optimonk'], " +
+      "[class*='picreel'], [id*='picreel'], [class*='adoric'], [id*='adoric'], " +
+      "[class*='convertflow'], [id*='convertflow'], [class*='bounceexchange'], [id*='bounceexchange']"
     )].filter(isVisible).filter((el) => !isCookieNotice(el));
 
     // Prefer the largest visible candidate among what's left.
@@ -360,7 +455,9 @@ export default async function ({ page, context }) {
     const txt = (el) => (el && el.textContent ? el.textContent.trim().slice(0, 200) : null);
     const headlineEl = popupEl.querySelector("h1, h2, [class*='headline'], [class*='title']");
     const subheadEl = popupEl.querySelector("p, [class*='subhead'], [class*='subtitle']");
-    const ctaEl = popupEl.querySelector("button[type='submit'], button, [class*='cta'], a[class*='btn']");
+    const ctaEl = popupEl.querySelector(
+      "button[type='submit'], button, input[type='submit'], [role='button'], [class*='cta'], a[class*='btn']",
+    );
     const imgEl = popupEl.querySelector("img");
 
     // getComputedStyle always returns colour in rgb()/rgba() form - even when

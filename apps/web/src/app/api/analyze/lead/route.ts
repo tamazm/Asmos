@@ -2,16 +2,31 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+// Called from the embeddable widget (public/embed/analyze.html), which is
+// loaded on arbitrary third-party origins - see the matching comment on
+// /api/analyze/route.ts. Unlike that GET endpoint, this one is a POST sent
+// with a JSON body, which is not a CORS-"simple" request - the browser
+// preflights it with OPTIONS first and checks Allow-Methods/Allow-Headers
+// too, not just Allow-Origin, so all three need to be set here.
+function cors<T extends NextResponse>(res: T): T {
+  res.headers.set("Access-Control-Allow-Origin", "*");
+  res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.headers.set("Access-Control-Allow-Headers", "Content-Type");
+  return res;
+}
+
+export async function OPTIONS() { return cors(new NextResponse(null, { status: 204 })); }
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { email, storeUrl, storeName, industry, score, grade, gradeLabel, topIssue, topFindings } = body;
 
     if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "Invalid email" }, { status: 400 });
+      return cors(NextResponse.json({ error: "Invalid email" }, { status: 400 }));
     }
     if (!storeUrl || typeof storeUrl !== "string") {
-      return NextResponse.json({ error: "Missing storeUrl" }, { status: 400 });
+      return cors(NextResponse.json({ error: "Missing storeUrl" }, { status: 400 }));
     }
 
     // Upsert - don't create duplicates for same email + store
@@ -75,10 +90,10 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({ ok: true, id: lead.id });
+    return cors(NextResponse.json({ ok: true, id: lead.id }));
   } catch (e) {
     console.error("[analyze/lead] Failed to save lead:", e);
     // Don't fail the UX - return ok so the frontend flow continues
-    return NextResponse.json({ ok: true, saved: false });
+    return cors(NextResponse.json({ ok: true, saved: false }));
   }
 }

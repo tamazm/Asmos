@@ -19,7 +19,14 @@ import { prisma } from "@/lib/prisma";
 import { hogqlString, isPostHogQueryConfigured, queryPostHog } from "@/lib/posthog-server";
 import { classifyUserIntent, userIntentLevelFromScore } from "@/lib/userIntent";
 import { formatImageLibraryForPrompt, isLibraryImage, UNSERVED_STORE_TYPES } from "@/lib/imageLibrary";
-import { normalizeIndustry, type ScrapedPopupDesign } from "@/lib/popupScraping";
+import {
+  normalizeIndustry,
+  type ButtonPartStyle,
+  type CardPartStyle,
+  type ImagePartStyle,
+  type TypographyPartStyle,
+} from "@/lib/popupScraping";
+import type { PopupPartRole } from ".prisma/client";
 import {
   dnaFingerprint,
   normalizeDna,
@@ -205,6 +212,13 @@ export type PopupDiagnosis = {
 
 export type TemplateId = "split-screen" | "corner-toast" | "fullscreen-takeover";
 
+export type PopupStructure = {
+  shell?: string | null;
+  layout?: string | null;
+  imageMode?: string | null;
+  placement?: string | null;
+};
+
 export type PopupSpec = {
   trigger: string;
   delay_seconds: number | null;
@@ -224,8 +238,11 @@ export type PopupSpec = {
   // Added for the AI popup variation roadmap (Phase 3) - previously every
   // popup used the same split-screen template regardless of what the AI
   // chose, with layout_style only varying its CSS within that one skeleton.
-  template_id: TemplateId;
-  layout_style: "split-left" | "split-right" | "centered" | "minimal";
+  // `structure` acts as the more flexible, model-authored override so the AI
+  // can specify shell/layout intent without being trapped behind a fixed enum.
+  template_id: TemplateId | string;
+  layout_style: "split-left" | "split-right" | "centered" | "minimal" | string;
+  structure?: PopupStructure | null;
   image_url: string | null;
   design_tokens: { palette: string[]; type_display: string; type_body: string };
   /**
@@ -239,6 +256,14 @@ export type PopupSpec = {
    * what the model produced.
    */
   dna: PopupDna;
+  // The model's own part picks from that generation call's candidate menus
+  // (pickPartCandidates) - resolved and applied server-side (see
+  // resolvePartSelection/applyPartSelection), which is what actually sets
+  // template_id/layout_style/design_tokens/dna above from real scraped data.
+  card_part_id: string;
+  typography_part_id: string;
+  button_part_id: string;
+  image_part_id: string | null;
 };
 
 export type BaselineOutput = {
@@ -278,7 +303,7 @@ CRITICAL CONSTRAINTS (never break these):
 - Every variant MUST change exactly ONE test_axis from the baseline (unless constraints.multivariate is true).
 - brand_tokens (palette, type_display, type_body, signature_element) are NEVER a test axis.
 - Return ONLY valid JSON matching the output schema. No prose, no markdown fences, no explanation outside the JSON.
-- Never write HTML. The server renders the popup from your JSON spec using the template named by template_id.
+- Never write HTML. The server renders the popup from your JSON spec using the template and structure you specify (template_id or structure.shell), then applies layout_style/structure.layout to the chosen shell.
 
 CONTENT & COMPLIANCE GUARDRAILS (never break these - enforced server-side too, but get it right here first):
 - Never suggest, imply, or offer anything illegal, regulated, or inappropriate as a discount, prize, or
@@ -505,8 +530,18 @@ const popupSpecSchema = {
     fields: { type: "array", items: { type: "string" } },
     coupon_code: { type: "string" },
     discount_percent: { type: ["number", "null"] },
-    template_id: { type: "string", enum: ["split-screen", "corner-toast", "fullscreen-takeover"] },
-    layout_style: { type: "string", enum: ["split-left", "split-right", "centered", "minimal"] },
+    template_id: { type: "string" },
+    layout_style: { type: "string" },
+    structure: {
+      type: "object",
+      properties: {
+        shell: { type: ["string", "null"] },
+        layout: { type: ["string", "null"] },
+        imageMode: { type: ["string", "null"] },
+        placement: { type: ["string", "null"] },
+      },
+      additionalProperties: false,
+    },
     image_url: { type: ["string", "null"] },
     design_tokens: {
       type: "object",
@@ -519,8 +554,26 @@ const popupSpecSchema = {
       additionalProperties: false,
     },
     dna: popupDnaJsonSchema,
+    // The four part-candidate ids this spec is built from (see
+    // pickPartCandidates/formatPartCandidatesForPrompt) - the model picks one
+    // per role from the menus in the prompt, choosing whichever combination
+    // it judges reads as visually cohesive together. Validated and resolved
+    // server-side in resolvePartSelection/applyPartSelection, which also
+    // overwrite template_id/layout_style/design_tokens/dna above with the
+    // picked parts' own real values - the fields above only matter as a
+    // fallback if resolution fails entirely.
+    card_part_id: { type: "string" },
+    typography_part_id: { type: "string" },
+    button_part_id: { type: "string" },
+    // Nullable, same convention as image_url - null is a deliberate "no
+    // image" choice, not a missing field.
+    image_part_id: { type: ["string", "null"] },
   },
-  required: ["trigger", "delay_seconds", "frequency_cap", "headline", "subhead", "cta", "fields", "coupon_code", "discount_percent", "template_id", "layout_style", "image_url", "design_tokens", "dna"],
+  required: [
+    "trigger", "delay_seconds", "frequency_cap", "headline", "subhead", "cta", "fields", "coupon_code",
+    "discount_percent", "template_id", "layout_style", "image_url", "design_tokens", "dna",
+    "card_part_id", "typography_part_id", "button_part_id", "image_part_id",
+  ],
   additionalProperties: false,
 } as const;
 
@@ -1342,43 +1395,38 @@ async function getLearnedPatternsSection(): Promise<string> {
 }
 
 // Real popups scraped from high-traffic live sites (see lib/popupScraping.ts
-// and scripts/popup-scraper/), industry-matched - the model's only source of
-// actual visual/structural grounding, instead of picking template_id and
-// layout_style as blind enum names. No review gate, unlike learned patterns
+// and scripts/popup-scraper/), industry-matched - copy/tonal grounding here;
+// actual visual/structural grounding comes from the PopupPart candidate
+// menus (pickPartCandidates below). No review gate, unlike learned patterns
 // above: the source sites are hand-picked to already be high quality, so a
 // captured row is trusted the moment it exists (see model comment on
-// ScrapedPopupExample). Best-effort, same as getLearnedPatternsSection.
+// PopupPart in schema.prisma). Best-effort, same as getLearnedPatternsSection.
 async function getScrapedExamplesSection(rawIndustry: string | null | undefined): Promise<string> {
   if (!rawIndustry) return "";
   try {
     const industry = normalizeIndustry(rawIndustry);
-    const examples = await prisma.scrapedPopupExample.findMany({
+    const examples = await prisma.scrapedSite.findMany({
       where: { industry, present: true },
       orderBy: { scrapedAt: "desc" },
       take: 5,
-      select: { design: true },
+      select: { headline: true, subhead: true, ctaText: true },
     });
     if (examples.length === 0) return ""; // no off-industry examples - same "when in doubt, null" rule as imagery
-    // Deliberately NOT including these examples' own colours: brand_tokens.palette
-    // (the merchant's own analyzed site) is the one and only colour source and is
-    // explicitly locked/never-invented elsewhere in this prompt. Showing a
-    // second, concrete set of hex codes here - even captioned "don't copy
-    // this" - is a strictly weaker instruction than a lock, and risks exactly
-    // the failure this section should never cause: the model reaching for
-    // some other store's colour instead of this merchant's own.
+    // Copy/tonal grounding only, deliberately not structure: structure (card,
+    // typography, button, image) now comes from the part candidate menus
+    // built in pickPartCandidates/formatPartCandidatesForPrompt, which the
+    // model picks from explicitly per spec - showing a second, looser
+    // structural description here would just risk contradicting that.
+    // Colour is excluded for the same reason it always was: brand_tokens.
+    // palette is the one and only colour source, explicitly locked elsewhere
+    // in this prompt.
     const lines = examples
-      .map((e) => e.design as Partial<ScrapedPopupDesign> | null)
-      .filter((d): d is Partial<ScrapedPopupDesign> => d !== null)
-      .map((d) => {
-        const shape = [d.buttonShape, d.buttonFill].filter(Boolean).join("/");
-        const extras = [d.density, shape].filter(Boolean).join(", ");
-        return `- ${d.template ?? "unknown"}/${d.layout ?? "unknown"}${extras ? ` (${extras})` : ""}: "${d.headline}" / "${d.subhead}" / CTA "${d.ctaText}"`;
-      });
+      .filter((e) => e.headline || e.subhead || e.ctaText)
+      .map((e) => `- "${e.headline ?? ""}" / "${e.subhead ?? ""}" / CTA "${e.ctaText ?? ""}"`);
     if (lines.length === 0) return "";
     return (
-      "\n\nREAL EXAMPLES FROM THIS INDUSTRY (scraped from high-traffic live sites - for structural and\n" +
-      "tonal grounding only; never take colour from these, only from brand_tokens.palette above; do not\n" +
-      "copy any of these verbatim):\n" +
+      "\n\nREAL COPY FROM THIS INDUSTRY (scraped from high-traffic live sites - for tonal grounding only;\n" +
+      "do not copy any of these verbatim):\n" +
       lines.join("\n")
     );
   } catch (err) {
@@ -1575,40 +1623,58 @@ export async function generatePopupWithVariants(
 ): Promise<PopupGenerationOutput> {
   // The merchant's own real measured colour, if the caller found one (via
   // brandTokensFromAnalyzeResult/StoreProfile) - captured before it gets
-  // overridden below. Used only to judge which scraped examples are actually
-  // relevant to THIS merchant; never applied as an output colour itself.
+  // overridden below. Used only to judge which parts are actually relevant to
+  // THIS merchant; never applied as an output colour itself.
   const queryColor = input.brand_tokens?.palette?.[0] ?? null;
+  const candidateCount = input.constraints.variant_count + 1;
 
   // Generation is scraped-data-only now: no merchant site extraction, no
   // generic default. Resolved before any provider call, both to fail fast
-  // and so a missing-coverage failure never costs an AI call.
-  const scrapedDesigns = await pickScrapedDesigns(input.store.category, input.constraints.variant_count + 1, queryColor);
-  if (scrapedDesigns.length === 0) {
+  // and so a missing-coverage failure never costs an AI call. IMAGE is the
+  // one role allowed to come back empty - "no image" is a valid choice, not
+  // a missing-coverage failure.
+  const [cardCandidates, typographyCandidates, buttonCandidates, imageCandidates] = await Promise.all([
+    pickPartCandidates<CardPartStyle>("CARD", input.store.category, queryColor, (s) => s.backgroundColor, candidateCount),
+    pickPartCandidates<TypographyPartStyle>("TYPOGRAPHY", input.store.category, queryColor, (s) => s.textColor, candidateCount),
+    pickPartCandidates<ButtonPartStyle>("BUTTON", input.store.category, queryColor, (s) => s.accentColor, candidateCount),
+    pickPartCandidates<ImagePartStyle>("IMAGE", input.store.category, queryColor, () => null, candidateCount),
+  ]);
+  if (cardCandidates.length === 0 || typographyCandidates.length === 0 || buttonCandidates.length === 0) {
     throw new Error(
-      `No scraped popup examples available for industry "${normalizeIndustry(input.store.category)}" - cannot generate without scraped design data. Scrape some sites in this industry first.`,
+      `No scraped design parts available for industry "${normalizeIndustry(input.store.category)}" - cannot generate without scraped design data. Scrape some sites in this industry first.`,
     );
   }
 
-  // Colour/font ground truth now comes from the scraped design, not the
-  // merchant's own analyzed site - overrides whatever the caller computed
-  // via brandTokensFromAnalyzeResult before calling here. The existing
-  // prompt language ("brand_tokens.palette are LOCKED... use as ground
-  // truth") is unchanged; what it describes now is just different.
-  const primary = scrapedDesigns[0];
+  // Colour/font ground truth now comes from the top-ranked candidate parts,
+  // not the merchant's own analyzed site - overrides whatever the caller
+  // computed via brandTokensFromAnalyzeResult before calling here. The
+  // existing prompt language ("brand_tokens.palette are LOCKED... use as
+  // ground truth") is unchanged; what it describes now is just different.
+  const primaryCard = cardCandidates[0].style;
+  const primaryTypography = typographyCandidates[0].style;
+  const primaryButton = buttonCandidates[0].style;
   input.brand_tokens = {
-    palette: [primary.accentColor, primary.backgroundColor, primary.textColor].filter(
+    palette: [primaryButton.accentColor, primaryCard.backgroundColor, primaryTypography.textColor].filter(
       (c): c is string => Boolean(c),
     ),
-    type_display: primary.headlineFont ?? "system-ui, -apple-system, sans-serif",
-    type_body: primary.bodyFont ?? "system-ui, -apple-system, sans-serif",
-    imagery_style: primary.hasImage ? "product-forward" : "minimal",
-    signature_element_suggestion: "match the reference popup's own visual treatment",
+    type_display: primaryTypography.headlineFont ?? "system-ui, -apple-system, sans-serif",
+    type_body: primaryTypography.bodyFont ?? "system-ui, -apple-system, sans-serif",
+    imagery_style: imageCandidates.some((c) => c.style.hasImage) ? "product-forward" : "minimal",
+    signature_element_suggestion: "match the reference parts' own visual treatment",
   };
+
+  const { section: partCandidateSection, maps: partCandidateMaps } = buildPartCandidateSection(
+    cardCandidates,
+    typographyCandidates,
+    buttonCandidates,
+    imageCandidates,
+  );
 
   const systemPrompt =
     POPUP_GENERATION_SYSTEM_PROMPT +
     (await getLearnedPatternsSection()) +
-    (await getScrapedExamplesSection(input.store?.category));
+    (await getScrapedExamplesSection(input.store?.category)) +
+    partCandidateSection;
   const userMessage = buildUserMessage(input, briefs);
   // Whatever the merchant configured (or DEFAULT_MAX_DISCOUNT_PERCENT if
   // they didn't) - already sanity-bounded in buildPopupInput, not re-capped
@@ -1617,21 +1683,21 @@ export async function generatePopupWithVariants(
 
   const finish = (result: PopupGenerationOutput): PopupGenerationOutput => {
     const briefed = briefs ? applyBriefs(result, briefs) : result;
-    // Structure/shape/density/imagery forced from real scraped designs -
-    // cycling through the pool so baseline and each variant can still read
-    // as visually distinct from each other, even though every value traces
-    // back to a real scraped popup rather than the model's own invention.
-    // Copy is untouched. Applied before normalizeOutputDna so its safety net
-    // still coerces anything this step left alone.
+    // Structure/shape/density/imagery forced from the model's own picked
+    // parts (resolved defensively against a hallucinated id) - the model
+    // chooses its own combination per spec, so baseline and each variant can
+    // read as visually distinct without any server-side cycling through a
+    // pool by index. Copy is untouched. Applied before normalizeOutputDna so
+    // its safety net still coerces anything this step left alone.
     const designed: PopupGenerationOutput = {
       ...briefed,
       baseline: {
         ...briefed.baseline,
-        spec: applyScrapedDesign(briefed.baseline.spec, scrapedDesigns[0]),
+        spec: applyPartSelection(briefed.baseline.spec, resolvePartSelection(briefed.baseline.spec, partCandidateMaps)),
       },
-      variants: briefed.variants.map((v, i) => ({
+      variants: briefed.variants.map((v) => ({
         ...v,
-        spec: applyScrapedDesign(v.spec, scrapedDesigns[(i + 1) % scrapedDesigns.length]),
+        spec: applyPartSelection(v.spec, resolvePartSelection(v.spec, partCandidateMaps)),
       })),
     };
     return applyContentGuardrails(normalizeOutputDna(designed), maxDiscountPercent);
@@ -1694,38 +1760,43 @@ export async function industryFallbackColor(industry: string | undefined): Promi
   // Neutral, not Asmos's own brand blue - this whole function is now a
   // dead-for-purpose safety net anyway: generatePopupWithVariants throws
   // before generation can ever reach a point where this return value would
-  // actually be used (see the top of that function).
+  // actually be used (see the top of that function). Real bucket data (own
+  // bucket, then "Other" as a fallback) is tried first; this literal only
+  // fires if there is no scraped data anywhere at all yet.
   const NEUTRAL_FALLBACK = "#111827";
   if (!industry) return NEUTRAL_FALLBACK;
   try {
     const bucket = normalizeIndustry(industry);
-    const examples = await prisma.scrapedPopupExample.findMany({
-      where: { industry: bucket, present: true },
-      orderBy: { scrapedAt: "desc" },
-      take: 10,
-      select: { design: true },
-    });
-    for (const e of examples) {
-      const design = e.design as Partial<ScrapedPopupDesign> | null;
-      if (!design) continue;
-      // The CTA button's own colour is the most deliberately "brand" choice
-      // in a popup - merchants pick that colour on purpose, whereas the
-      // overall painted-area palette below is just as likely to be a large
-      // neutral background or body-text colour with nothing brand-like
-      // about it. Prefer it; fall back to the palette only if no button was
-      // captured on that particular popup.
-      if (typeof design.accentColor === "string" && HEX_RE.test(design.accentColor)) {
-        return design.accentColor;
-      }
-      const palette = design.palette;
-      if (!Array.isArray(palette) || palette.length === 0) continue;
-      const sorted = [...palette].sort((a, b) => {
-        const aShare = (a as { areaShare?: number })?.areaShare ?? 0;
-        const bShare = (b as { areaShare?: number })?.areaShare ?? 0;
-        return bShare - aShare;
+    // Own bucket first, then "Other" - a bucket with no coverage yet should
+    // still get a real measured colour from somewhere in the library rather
+    // than jumping straight to a hardcoded literal.
+    const buckets = bucket === "Other" ? [bucket] : [bucket, "Other"];
+    for (const b of buckets) {
+      // The CTA button's own colour is the most deliberately "brand" choice in
+      // a popup - merchants pick that colour on purpose, whereas a card's
+      // background is just as likely to be a large neutral with nothing
+      // brand-like about it. Prefer it; fall back to a card's background only
+      // if no button part was captured for this bucket at all.
+      const buttonParts = await prisma.popupPart.findMany({
+        where: { industry: b, role: "BUTTON" },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { style: true },
       });
-      const hex = (sorted[0] as { hex?: unknown })?.hex;
-      if (typeof hex === "string" && HEX_RE.test(hex)) return hex;
+      for (const p of buttonParts) {
+        const accentColor = (p.style as Partial<ButtonPartStyle> | null)?.accentColor;
+        if (typeof accentColor === "string" && HEX_RE.test(accentColor)) return accentColor;
+      }
+      const cardParts = await prisma.popupPart.findMany({
+        where: { industry: b, role: "CARD" },
+        orderBy: { createdAt: "desc" },
+        take: 10,
+        select: { style: true },
+      });
+      for (const p of cardParts) {
+        const backgroundColor = (p.style as Partial<CardPartStyle> | null)?.backgroundColor;
+        if (typeof backgroundColor === "string" && HEX_RE.test(backgroundColor)) return backgroundColor;
+      }
     }
   } catch (err) {
     console.warn("[popupGeneration] failed to fetch industry fallback colour, using default:", err);
@@ -1733,13 +1804,6 @@ export async function industryFallbackColor(industry: string | undefined): Promi
   return NEUTRAL_FALLBACK;
 }
 
-/**
- * Real scraped popup designs for a merchant's industry - up to `count`
- * distinct ones, most recent first. Generation is now scraped-data-only: no
- * merchant's own site extraction, no generic default. Callers are expected
- * to throw when this comes back empty (see generatePopupWithVariants) rather
- * than degrading to anything else.
- */
 function hexToRgb(hex: string): [number, number, number] | null {
   const m = hex.match(/^#([0-9a-f]{6})$/i);
   if (!m) return null;
@@ -1755,83 +1819,243 @@ function colorDistance(a: string, b: string): number {
   return Math.sqrt((ca[0] - cb[0]) ** 2 + (ca[1] - cb[1]) ** 2 + (ca[2] - cb[2]) ** 2);
 }
 
-function designColor(d: ScrapedPopupDesign): string {
-  return d.accentColor ?? d.backgroundColor ?? d.palette[0]?.hex ?? "";
-}
+type PartCandidate<T> = { id: string; style: T };
 
 /**
- * Scraped designs for a merchant's industry, ranked by relevance rather than
- * pure recency or pure chance. With hundreds of rows in one industry, always
- * taking "most recent" leaves most of them permanently unused, and picking
- * randomly turns design quality into a coin flip. Instead: when the
- * merchant's own real colour is known (queryColor - measured off their site,
- * never used as the output colour itself, only to judge relevance), rank the
- * whole pool by colour closeness and take the closest matches. Falls back to
- * recency when there's no colour to match against at all (a brand-new store,
- * or one whose extraction genuinely found nothing).
+ * Real dissected popup parts for one role (CARD/TYPOGRAPHY/BUTTON/IMAGE) in a
+ * merchant's industry, ranked by relevance rather than pure recency or pure
+ * chance. With hundreds of rows in one industry, always taking "most recent"
+ * leaves most of them permanently unused, and picking randomly turns design
+ * quality into a coin flip. Instead: when the merchant's own real colour is
+ * known (queryColor - measured off their site, never used as the output
+ * colour itself, only to judge relevance), rank by colour closeness on that
+ * role's own colour field. Falls back to recency when there's no colour to
+ * match against (a brand-new store) or the role has none (IMAGE).
+ *
+ * Generation is scraped-data-only: no merchant site extraction, no generic
+ * default. Callers are expected to throw when CARD/TYPOGRAPHY/BUTTON come
+ * back empty (see generatePopupWithVariants) rather than degrading to
+ * anything else - IMAGE is the one role allowed to come back empty, since
+ * "no image" is itself a valid choice.
  */
-async function pickScrapedDesigns(
+async function pickPartCandidates<T>(
+  role: PopupPartRole,
   industry: string | null | undefined,
-  count: number,
   queryColor: string | null,
-): Promise<ScrapedPopupDesign[]> {
+  colorOf: (style: T) => string | null,
+  count: number,
+): Promise<PartCandidate<T>[]> {
   const bucket = normalizeIndustry(industry ?? "");
-  const rows = await prisma.scrapedPopupExample.findMany({
-    where: { industry: bucket, present: true },
-    orderBy: { scrapedAt: "desc" },
+  let rows = await prisma.popupPart.findMany({
+    where: { industry: bucket, role },
+    orderBy: { createdAt: "desc" },
     take: 200, // a wide pool to rank within - the poolSize below is the actual selection count
-    select: { design: true },
+    select: { id: true, style: true },
   });
-  const designs = rows.map((r) => r.design as ScrapedPopupDesign).filter((d): d is ScrapedPopupDesign => Boolean(d));
-  const poolSize = Math.max(count, 5);
+  // No coverage for this specific bucket (a normal state early on - one
+  // industry gets scraped before another) - fall back to the "Other" bucket's
+  // real scraped data rather than coming back empty and forcing the caller
+  // into its no-data throw. Only real parts count as a fallback here, never a
+  // hardcoded literal colour/style - that's the whole point of this pass.
+  if (rows.length === 0 && bucket !== "Other") {
+    rows = await prisma.popupPart.findMany({
+      where: { industry: "Other", role },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+      select: { id: true, style: true },
+    });
+  }
+  const candidates: PartCandidate<T>[] = rows.map((r) => ({ id: r.id, style: r.style as T }));
+  const poolSize = Math.max(count, 6);
 
-  if (!queryColor) return designs.slice(0, poolSize);
+  if (!queryColor) return candidates.slice(0, poolSize);
 
-  return [...designs]
-    .sort((a, b) => colorDistance(queryColor, designColor(a)) - colorDistance(queryColor, designColor(b)))
+  return [...candidates]
+    .sort((a, b) => colorDistance(queryColor, colorOf(a.style) ?? "") - colorDistance(queryColor, colorOf(b.style) ?? ""))
     .slice(0, poolSize);
 }
 
+// ─── Part candidate menus (prompt-facing) ──────────────────────────────────
+//
+// Each role's candidates get a short prompt-facing id (C1, T1, B1, I1...)
+// rather than exposing real cuids to the model - shorter for it to read back
+// correctly, and the id->real-part map below is what actually resolves and
+// validates its answer, so a hallucinated id is caught the same way
+// isLibraryImage/sanitizeSpecImage already catch a hallucinated image URL.
+
+function describeCardCandidate(s: CardPartStyle): string {
+  const bits = [
+    s.template, s.layout,
+    s.backgroundColor ? `background ${s.backgroundColor}` : null,
+    s.cornerRadius ? `radius ${s.cornerRadius}` : null,
+    s.density,
+    s.hasShadow ? "shadowed" : null,
+  ].filter(Boolean);
+  return bits.join(", ") || "no distinguishing style captured";
+}
+
+function describeTypographyCandidate(s: TypographyPartStyle): string {
+  const bits = [
+    s.headlineFont ? `headline font ${s.headlineFont}` : null,
+    s.headlineFontSize,
+    s.fontWeight ? `weight ${s.fontWeight}` : null,
+    s.bodyFont ? `body font ${s.bodyFont}` : null,
+    s.textColor ? `text colour ${s.textColor}` : null,
+  ].filter(Boolean);
+  return bits.join(", ") || "no distinguishing style captured";
+}
+
+function describeButtonCandidate(s: ButtonPartStyle): string {
+  const bits = [
+    s.buttonShape, s.buttonFill,
+    s.accentColor ? `colour ${s.accentColor}` : null,
+    s.buttonRadius ? `radius ${s.buttonRadius}` : null,
+  ].filter(Boolean);
+  return bits.join(", ") || "no distinguishing style captured";
+}
+
+function describeImageCandidate(s: ImagePartStyle): string {
+  return s.hasImage ? `image positioned ${s.imagePosition}` : "no image";
+}
+
+function buildPartMenu<T>(
+  prefix: string,
+  candidates: PartCandidate<T>[],
+  describe: (s: T) => string,
+): { map: Map<string, PartCandidate<T>>; lines: string[] } {
+  const map = new Map<string, PartCandidate<T>>();
+  const lines = candidates.map((c, i) => {
+    const promptId = `${prefix}${i + 1}`;
+    map.set(promptId, c);
+    return `  ${promptId}: ${describe(c.style)}`;
+  });
+  return { map, lines };
+}
+
+type PartCandidateMaps = {
+  card: Map<string, PartCandidate<CardPartStyle>>;
+  typography: Map<string, PartCandidate<TypographyPartStyle>>;
+  button: Map<string, PartCandidate<ButtonPartStyle>>;
+  image: Map<string, PartCandidate<ImagePartStyle>>;
+};
+
 /**
- * Forces a spec's structure/shape/density/imagery to match a real scraped
- * design - the same "code-level enforcement, not just a prompt instruction"
- * lesson the colour lock already applies, extended to everything visual.
- * Copy (headline/subhead/cta/etc.) is untouched: that stays the model's own
- * work, informed but not dictated by scraped examples.
+ * Builds the DESIGN PART LIBRARY prompt section and the id->real-part maps
+ * used to resolve the model's answer afterward. One call per generation
+ * request (not per spec) - baseline and every variant read from the same
+ * menus, but the model can (and is told to) pick a different combination for
+ * each, which is what makes variants read as visually distinct without
+ * server-side cycling through a pool by index the way applyScrapedDesign
+ * used to.
  */
-function applyScrapedDesign(spec: PopupSpec, d: ScrapedPopupDesign): PopupSpec {
+function buildPartCandidateSection(
+  cardCandidates: PartCandidate<CardPartStyle>[],
+  typographyCandidates: PartCandidate<TypographyPartStyle>[],
+  buttonCandidates: PartCandidate<ButtonPartStyle>[],
+  imageCandidates: PartCandidate<ImagePartStyle>[],
+): { section: string; maps: PartCandidateMaps } {
+  const card = buildPartMenu("C", cardCandidates, describeCardCandidate);
+  const typography = buildPartMenu("T", typographyCandidates, describeTypographyCandidate);
+  const button = buildPartMenu("B", buttonCandidates, describeButtonCandidate);
+  const image = buildPartMenu("I", imageCandidates, describeImageCandidate);
+
+  const section =
+    "\n\nDESIGN PART LIBRARY (real dissected pieces from scraped popups in this industry - not one whole\n" +
+    "reference popup, independent parts you combine yourself). For EVERY spec you produce - the baseline\n" +
+    "and each variant - pick exactly one id per role via card_part_id/typography_part_id/button_part_id/\n" +
+    "image_part_id. Use your own judgment about which combination reads as visually cohesive together (a\n" +
+    "soft rounded card paired with a hard-edged rectangular button rarely looks deliberate). You do not have\n" +
+    "to pick the same combination twice - deliberately varying it across variants is good.\n" +
+    (image.lines.length === 0 ? "No image options available this time - image_part_id must be null.\n" : "") +
+    "\nCARD options:\n" + (card.lines.join("\n") || "  (none)") + "\n" +
+    "\nTYPOGRAPHY options:\n" + (typography.lines.join("\n") || "  (none)") + "\n" +
+    "\nBUTTON options:\n" + (button.lines.join("\n") || "  (none)") + "\n" +
+    (image.lines.length > 0 ? "\nIMAGE options:\n" + image.lines.join("\n") + "\n" : "");
+
+  return { section, maps: { card: card.map, typography: typography.map, button: button.map, image: image.map } };
+}
+
+/**
+ * Looks up the model's 4 picked ids in that call's candidate maps. A miss
+ * (hallucinated or omitted id) falls back to that role's own top-ranked
+ * candidate - the same defensive pattern isLibraryImage/sanitizeSpecImage
+ * already use for a hallucinated image URL, extended to every part role.
+ */
+function resolvePartSelection(
+  spec: PopupSpec,
+  maps: PartCandidateMaps,
+): { card: CardPartStyle; typography: TypographyPartStyle; button: ButtonPartStyle; image: ImagePartStyle | null } {
+  function resolve<T>(pickedId: string | null, map: Map<string, PartCandidate<T>>): T | null {
+    if (pickedId) {
+      const hit = map.get(pickedId);
+      if (hit) return hit.style;
+    }
+    const first = map.values().next().value;
+    return first ? first.style : null;
+  }
+
+  const card = resolve(spec.card_part_id, maps.card);
+  const typography = resolve(spec.typography_part_id, maps.typography);
+  const button = resolve(spec.button_part_id, maps.button);
+  const image = spec.image_part_id === null ? null : resolve(spec.image_part_id, maps.image);
+
+  if (!card || !typography || !button) {
+    throw new Error(
+      "[popupGeneration] no usable CARD/TYPOGRAPHY/BUTTON candidates to resolve part selection - " +
+        "scrape more sites for this industry.",
+    );
+  }
+
+  return { card, typography, button, image };
+}
+
+/**
+ * Forces a spec's structure/shape/density/imagery to match the 4 real
+ * scraped parts the model picked (or resolvePartSelection fell back to) -
+ * the same "code-level enforcement, not just a prompt instruction" lesson
+ * the colour lock already applies, extended to everything visual. Copy
+ * (headline/subhead/cta/etc.) is untouched: that stays the model's own work,
+ * informed but not dictated by scraped examples. Replaces applyScrapedDesign,
+ * which forced a spec to match ONE whole scraped design instead of an
+ * independently-picked combination of parts.
+ */
+function applyPartSelection(
+  spec: PopupSpec,
+  parts: { card: CardPartStyle; typography: TypographyPartStyle; button: ButtonPartStyle; image: ImagePartStyle | null },
+): PopupSpec {
   const cornerBucket = (px: string | null): CornerRadius => {
     const n = px ? parseFloat(px) : 0;
     if (!Number.isFinite(n) || n <= 0) return "sharp";
     return n < 14 ? "soft" : n < 28 ? "rounded" : "pill";
   };
-  const layout = d.layout;
+  const { card, typography, button, image } = parts;
+  const layout = card.layout;
   const validLayout = layout === "split-left" || layout === "split-right" || layout === "centered" || layout === "minimal";
-  const palette = [d.accentColor, d.backgroundColor, d.textColor].filter((c): c is string => Boolean(c));
+  const palette = [button.accentColor, card.backgroundColor, typography.textColor].filter((c): c is string => Boolean(c));
 
   return {
     ...spec,
-    template_id: d.template ?? spec.template_id,
+    template_id: card.template ?? spec.template_id,
     layout_style: validLayout ? (layout as PopupSpec["layout_style"]) : spec.layout_style,
     design_tokens: {
       palette: palette.length > 0 ? palette : spec.design_tokens.palette,
-      type_display: d.headlineFont ?? spec.design_tokens.type_display,
-      type_body: d.bodyFont ?? spec.design_tokens.type_body,
+      type_display: typography.headlineFont ?? spec.design_tokens.type_display,
+      type_body: typography.bodyFont ?? spec.design_tokens.type_body,
     },
     dna: {
       ...spec.dna,
-      corner_radius: cornerBucket(d.cornerRadius),
-      button_shape: d.buttonShape ?? spec.dna.button_shape,
-      button_fill: d.buttonFill === "solid" || d.buttonFill === "outline" ? d.buttonFill : spec.dna.button_fill,
-      density: d.density ?? spec.dna.density,
-      image_treatment: !d.hasImage
+      corner_radius: cornerBucket(card.cornerRadius),
+      button_shape: button.buttonShape ?? spec.dna.button_shape,
+      button_fill: button.buttonFill === "solid" || button.buttonFill === "outline" ? button.buttonFill : spec.dna.button_fill,
+      density: card.density ?? spec.dna.density,
+      image_treatment: !image || !image.hasImage
         ? "none"
-        : d.imagePosition === "top"
+        : image.imagePosition === "top"
           ? "top_band"
-          : d.imagePosition === "background"
+          : image.imagePosition === "background"
             ? "background"
             : "side",
-      elevation: d.hasShadow ? "raised" : "flat",
+      elevation: card.hasShadow ? "raised" : "flat",
     },
   };
 }

@@ -3,6 +3,13 @@ import type { PopupDna } from "@/lib/popupDna";
 // Shared prop shape for every popup template. Each template in this directory
 // implements a `render*Template` function with this signature - see
 // lib/templates/index.ts for the template_id -> render function dispatch.
+export interface PopupStructure {
+  shell?: string | null;
+  layout?: string | null;
+  imageMode?: string | null;
+  placement?: string | null;
+}
+
 export interface PopupTemplateProps {
   headline: string;
   subhead: string;
@@ -11,7 +18,8 @@ export interface PopupTemplateProps {
   couponCode?: string | null;
   imageUrl?: string | null;
   goal?: "EMAIL" | "DISCOUNT" | "BOTH";
-  layoutStyle?: "split-left" | "split-right" | "centered" | "minimal";
+  layoutStyle?: "split-left" | "split-right" | "centered" | "minimal" | string;
+  structure?: PopupStructure | null;
   /**
    * The design DNA (see lib/popupDna.ts) - the ~30 composable knobs that make
    * two popups genuinely different rather than the same skeleton with
@@ -51,6 +59,15 @@ export interface PopupTemplateProps {
    * the card surface would report failures that aren't on screen.
    */
   templateId?: string | null;
+  /**
+   * Where the reveal/success step's exit CTA sends the shopper, instead of
+   * just closing the popup. Merchant-set only (Visual Editor) - not part of
+   * AI generation, since the model has no data on what pages actually exist
+   * on a given store. Must already be sanitized (see sanitizeRedirectUrl in
+   * runtime.ts) by the time it reaches here - this executes as a real
+   * navigation in the shopper's browser.
+   */
+  redirectUrl?: string | null;
 }
 
 /** Props after normalization - what each template actually receives. */
