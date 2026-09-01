@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOrCreateAccount } from "@/lib/account";
-import { stripe } from "@/lib/stripe/client";
+import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 
 export async function POST(req: NextRequest) {
   try {
+    if (!isStripeConfigured) {
+      return NextResponse.json(
+        { error: "Billing is temporarily unavailable. Please contact support." },
+        { status: 503 },
+      );
+    }
+
     const account = await getOrCreateAccount();
 
     if (!account.stripeCustomerId) {
@@ -14,6 +21,7 @@ export async function POST(req: NextRequest) {
     }
 
     const baseUrl = process.env.NEXT_PUBLIC_APP_HOST || new URL(req.url).origin;
+    const stripe = getStripe();
 
     const session = await stripe.billingPortal.sessions.create({
       customer: account.stripeCustomerId,

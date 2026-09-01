@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe/client";
+import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { prisma } from "@/lib/prisma";
 import { getTierByStripePriceId } from "@/lib/stripe/pricing";
 import { SubscriptionStatus, PlanTier } from "@prisma/client";
@@ -37,10 +37,15 @@ export async function POST(req: NextRequest) {
     console.error("STRIPE_WEBHOOK_SECRET is not set");
     return NextResponse.json({ error: "Webhook secret missing" }, { status: 500 });
   }
+  if (!isStripeConfigured) {
+    console.error("STRIPE_SECRET_KEY is not set");
+    return NextResponse.json({ error: "Stripe configuration missing" }, { status: 503 });
+  }
 
   let event: Stripe.Event;
 
   try {
+    const stripe = getStripe();
     event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err: any) {
     console.error(`Webhook signature verification failed: ${err.message}`);

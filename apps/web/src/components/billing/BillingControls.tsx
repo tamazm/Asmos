@@ -8,9 +8,10 @@ interface BillingControlsProps {
   subscriptionStatus: string;
   hasStripeCustomer: boolean;
   isShopify: boolean;
+  isStripeConfigured: boolean;
 }
 
-export function BillingControls({ planTier, subscriptionStatus, hasStripeCustomer, isShopify }: BillingControlsProps) {
+export function BillingControls({ planTier, subscriptionStatus, hasStripeCustomer, isShopify, isStripeConfigured }: BillingControlsProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [interval, setInterval] = useState<BillingInterval>("monthly");
 
@@ -87,6 +88,15 @@ export function BillingControls({ planTier, subscriptionStatus, hasStripeCustome
         )}
       </div>
 
+      {!isStripeConfigured && (
+        <div
+          role="status"
+          className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          Pricing is shown for reference. Online billing is not configured yet, so plan changes are temporarily unavailable.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
           { id: "STARTER", name: "Starter", price: interval === "yearly" ? "$290/yr" : "$29/mo" },
@@ -105,14 +115,14 @@ export function BillingControls({ planTier, subscriptionStatus, hasStripeCustome
               </div>
               <button
                 onClick={() => handleCheckout(tier.id)}
-                disabled={isCurrentPlan || loading !== null}
+                disabled={isCurrentPlan || loading !== null || !isStripeConfigured}
                 className={`mt-6 w-full rounded-lg px-3 py-2 text-sm font-semibold shadow-sm transition-colors ${
                   isCurrentPlan
                     ? "bg-gray-100 text-gray-400 cursor-not-allowed"
                     : "bg-[color:var(--color-primary)] text-white hover:bg-[color:var(--color-primary-hover)] disabled:opacity-50"
                 }`}
               >
-                {loading === tier.id ? "Loading..." : isCurrentPlan ? "Current Plan" : "Upgrade"}
+                {loading === tier.id ? "Loading..." : isCurrentPlan ? "Current Plan" : !isStripeConfigured ? "Unavailable" : "Upgrade"}
               </button>
             </div>
           )

@@ -1,14 +1,28 @@
 import Stripe from "stripe";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.warn("STRIPE_SECRET_KEY is not set in the environment.");
-}
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
-  // Use a stable recent version for the types
-  apiVersion: "2024-06-20", 
-  appInfo: {
-    name: "Asmos",
-    version: "0.1.0",
-  },
-});
+export const isStripeConfigured = Boolean(stripeSecretKey);
+
+let stripe: Stripe | undefined;
+
+/**
+ * Stripe is optional for local development and preview builds. Keep it out of
+ * module initialization so Next can collect API route data without a secret.
+ */
+export function getStripe(): Stripe {
+  if (!stripeSecretKey) {
+    throw new Error("Billing is not configured. Please contact support to enable billing.");
+  }
+
+  stripe ??= new Stripe(stripeSecretKey, {
+    // Use a stable recent version for the types
+    apiVersion: "2024-06-20",
+    appInfo: {
+      name: "Asmos",
+      version: "0.1.0",
+    },
+  });
+
+  return stripe;
+}

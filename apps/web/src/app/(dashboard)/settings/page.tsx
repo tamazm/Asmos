@@ -8,6 +8,7 @@ import { TeamManagement } from "./TeamManagement";
 import { SettingsTabs } from "./SettingsTabs";
 import { AutonomySettings } from "./AutonomySettings";
 import { BillingControls } from "@/components/billing/BillingControls";
+import { isStripeConfigured } from "@/lib/stripe/client";
 
 export default async function SettingsPage() {
   const account = await getOrCreateAccount();
@@ -50,6 +51,7 @@ export default async function SettingsPage() {
       subscriptionStatus={account.subscriptionStatus}
       hasStripeCustomer={!!account.stripeCustomerId}
       isShopify={isShopify}
+      isStripeConfigured={isStripeConfigured}
     />
   );
 
