@@ -79,6 +79,7 @@ export default async function VariantDetailPage(props: {
     ctaText?: string;
     primaryColor?: string;
     imageUrl?: string;
+    redirectUrl?: string;
   };
 
   const statusLabel = isWinner ? "Winner" : variant.isControl ? "Control" : "Variant";

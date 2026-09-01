@@ -38,6 +38,7 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
   const [fixedPrizeLimit, setFixedPrizeLimit] = useState("");
   const [pageTargetMode, setPageTargetMode] = useState<PageTargetMode>("all");
   const [pageTargetPatterns, setPageTargetPatterns] = useState("");
+  const [redirectUrl, setRedirectUrl] = useState("");
   const [scrapedPages, setScrapedPages] = useState<string[] | null>(null);
   const [scrapingPages, setScrapingPages] = useState(false);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
@@ -139,6 +140,7 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                 ? Math.max(1, Math.floor(Number(fixedPrizeLimit)))
                 : undefined,
             pageTargeting,
+            redirectUrl: redirectUrl.trim() || undefined,
           },
         }),
       });
@@ -490,6 +492,37 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                               )}
                             </div>
                           )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Redirect URL - where the popup's final button sends shoppers,
+                        instead of just closing. Reuses the same scraped-pages list
+                        as page targeting above, if already fetched, so a merchant
+                        can pick a real page instead of typing one blind. */}
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                        Where should the button send shoppers? <span className="font-normal text-[color:var(--color-text-secondary)]">(optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={redirectUrl}
+                        onChange={(e) => setRedirectUrl(e.target.value)}
+                        placeholder="e.g. /collections/sale (leave blank to just close the popup)"
+                        className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+                      />
+                      {scrapedPages && scrapedPages.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {scrapedPages.map((path) => (
+                            <button
+                              key={path}
+                              type="button"
+                              onClick={() => setRedirectUrl(path)}
+                              className={`rounded-full border px-2.5 py-1 font-mono text-xs transition-colors ${redirectUrl === path ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5 text-[color:var(--color-text-primary)]" : "border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/50"}`}
+                            >
+                              {path}
+                            </button>
+                          ))}
                         </div>
                       )}
                     </div>

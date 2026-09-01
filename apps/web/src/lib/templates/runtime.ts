@@ -35,6 +35,31 @@ export function esc(value: string | null | undefined): string {
     .replace(/'/g, "&#39;");
 }
 
+/**
+ * A merchant-set redirect URL executes as `window.location.href = url` in
+ * every shopper's browser on the storefront (see the data-redirect click
+ * handler in runtimeScript below) - not just HTML-escaped output. Without
+ * this, a `javascript:`/`data:` "URL" would be a real stored-XSS vector
+ * against a merchant's own shoppers, not just a markup-injection risk.
+ * Called at every layer that touches this value (persisting it, and again
+ * right before it becomes HTML) rather than trusted once - defence in depth
+ * for something that runs unsupervised in a third party's browser.
+ */
+export function sanitizeRedirectUrl(raw: string | null | undefined): string | null {
+  const trimmed = (raw ?? "").trim();
+  if (!trimmed) return null;
+  // A single leading slash is a same-site relative path - safe. `//host/...`
+  // is protocol-relative and silently points off-domain, so it's rejected
+  // along with everything else that isn't a plain relative path.
+  if (trimmed.startsWith("/") && !trimmed.startsWith("//")) return trimmed;
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? trimmed : null;
+  } catch {
+    return null;
+  }
+}
+
 // ─── Flow resolution ─────────────────────────────────────────────────────────
 
 export type ResolvedFlow = {
@@ -212,6 +237,15 @@ export function stepsMarkup(props: PopupTemplateProps, dna: PopupDna, flow: Reso
   const copy = resolveStepCopy(dna, headline);
   const offer = offerMarkup(dna, discountPercent);
 
+  // Third sanitization pass (persistence and the click handler each also
+  // run this) right at the point this becomes HTML actually served to
+  // browsers - see sanitizeRedirectUrl's own doc comment for why this isn't
+  // trusted once. Reveal/success CTAs navigate instead of just closing when
+  // set; unset (the vast majority of variants) keeps today's data-dismiss
+  // behaviour exactly as before.
+  const redirectUrl = sanitizeRedirectUrl(props.redirectUrl);
+  const exitCtaAttr = redirectUrl ? `data-redirect="${esc(redirectUrl)}"` : "data-dismiss";
+
   const teaser = flow.hasTeaser
     ? `<section class="popup-step" data-step="1" ${flow.startingStep !== 1 ? "hidden" : ""}>
         ${timerMarkup(dna)}
@@ -258,7 +292,7 @@ export function stepsMarkup(props: PopupTemplateProps, dna: PopupDna, flow: Reso
           <span id="asmosPopupCodeValue">${esc(couponCode || "WELCOME10")}</span>
           <button type="button" id="asmosPopupCopy" aria-label="Copy code">Copy</button>
         </div>
-        <button type="button" class="asmos-cta" data-dismiss>${esc(copy.revealCta)}</button>
+        <button type="button" class="asmos-cta" ${exitCtaAttr}>${esc(copy.revealCta)}</button>
       </section>`
     : "";
 
@@ -266,7 +300,7 @@ export function stepsMarkup(props: PopupTemplateProps, dna: PopupDna, flow: Reso
     ? `<section class="popup-step" data-step="4" hidden>
         <h2 class="asmos-headline">${esc(dna.success_headline)}</h2>
         <p class="asmos-sub">${esc(dna.success_subhead)}</p>
-        <button type="button" class="asmos-cta" data-dismiss>Continue</button>
+        <button type="button" class="asmos-cta" ${exitCtaAttr}>Continue</button>
       </section>`
     : "";
 
@@ -654,6 +688,24 @@ export function runtimeScript(opts: RuntimeOptions): string {
   }
   if (CFG.closeOnBackdrop) {
     root.addEventListener('click', function (e) { if (e.target === root) closePopup(); });
+  }
+
+  // ── Redirect (exit CTA sends the shopper somewhere instead of closing) ───
+  // No sendBeacon/timing workaround needed for the track() call below - the
+  // widget's post() helper already uses fetch(..., { keepalive: true }),
+  // which is specifically designed to survive the page navigating away
+  // mid-request.
+  var redirectEls = root.querySelectorAll('[data-redirect]');
+  for (var rd = 0; rd < redirectEls.length; rd++) {
+    (function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        var url = btn.getAttribute('data-redirect');
+        if (!url) { closePopup(); return; }
+        track('INTERACTION', { step: 'redirect_click' });
+        window.location.href = url;
+      });
+    })(redirectEls[rd]);
   }
 
   // ── Submission ───────────────────────────────────────────────────────────

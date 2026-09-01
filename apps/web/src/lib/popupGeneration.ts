@@ -212,6 +212,13 @@ export type PopupDiagnosis = {
 
 export type TemplateId = "split-screen" | "corner-toast" | "fullscreen-takeover";
 
+export type PopupStructure = {
+  shell?: string | null;
+  layout?: string | null;
+  imageMode?: string | null;
+  placement?: string | null;
+};
+
 export type PopupSpec = {
   trigger: string;
   delay_seconds: number | null;
@@ -231,8 +238,11 @@ export type PopupSpec = {
   // Added for the AI popup variation roadmap (Phase 3) - previously every
   // popup used the same split-screen template regardless of what the AI
   // chose, with layout_style only varying its CSS within that one skeleton.
-  template_id: TemplateId;
-  layout_style: "split-left" | "split-right" | "centered" | "minimal";
+  // `structure` acts as the more flexible, model-authored override so the AI
+  // can specify shell/layout intent without being trapped behind a fixed enum.
+  template_id: TemplateId | string;
+  layout_style: "split-left" | "split-right" | "centered" | "minimal" | string;
+  structure?: PopupStructure | null;
   image_url: string | null;
   design_tokens: { palette: string[]; type_display: string; type_body: string };
   /**
@@ -293,7 +303,7 @@ CRITICAL CONSTRAINTS (never break these):
 - Every variant MUST change exactly ONE test_axis from the baseline (unless constraints.multivariate is true).
 - brand_tokens (palette, type_display, type_body, signature_element) are NEVER a test axis.
 - Return ONLY valid JSON matching the output schema. No prose, no markdown fences, no explanation outside the JSON.
-- Never write HTML. The server renders the popup from your JSON spec using the template named by template_id.
+- Never write HTML. The server renders the popup from your JSON spec using the template and structure you specify (template_id or structure.shell), then applies layout_style/structure.layout to the chosen shell.
 
 CONTENT & COMPLIANCE GUARDRAILS (never break these - enforced server-side too, but get it right here first):
 - Never suggest, imply, or offer anything illegal, regulated, or inappropriate as a discount, prize, or
@@ -520,8 +530,18 @@ const popupSpecSchema = {
     fields: { type: "array", items: { type: "string" } },
     coupon_code: { type: "string" },
     discount_percent: { type: ["number", "null"] },
-    template_id: { type: "string", enum: ["split-screen", "corner-toast", "fullscreen-takeover"] },
-    layout_style: { type: "string", enum: ["split-left", "split-right", "centered", "minimal"] },
+    template_id: { type: "string" },
+    layout_style: { type: "string" },
+    structure: {
+      type: "object",
+      properties: {
+        shell: { type: ["string", "null"] },
+        layout: { type: ["string", "null"] },
+        imageMode: { type: ["string", "null"] },
+        placement: { type: ["string", "null"] },
+      },
+      additionalProperties: false,
+    },
     image_url: { type: ["string", "null"] },
     design_tokens: {
       type: "object",

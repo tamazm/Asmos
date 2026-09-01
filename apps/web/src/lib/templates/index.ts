@@ -3,7 +3,7 @@ import { renderCornerToastTemplate } from "./cornerToast";
 import { renderFullscreenTakeoverTemplate } from "./fullscreenTakeover";
 import { normalizeDna } from "../popupDna";
 import { auditPopupContrast, type ContrastViolation } from "./contrastAudit";
-import type { PopupTemplateProps, ResolvedTemplateProps } from "./types";
+import type { PopupTemplateProps, ResolvedTemplateProps, PopupStructure } from "./types";
 
 export type { PopupTemplateProps, ResolvedTemplateProps } from "./types";
 
@@ -20,18 +20,48 @@ const TEMPLATES: Record<TemplateId, (props: ResolvedTemplateProps) => string> = 
   "fullscreen-takeover": renderFullscreenTakeoverTemplate,
 };
 
+function normalizeShell(templateId: string | null | undefined, structure?: PopupStructure | null): TemplateId {
+  const raw = (structure?.shell ?? templateId ?? "split-screen").toLowerCase();
+  if (["corner-toast", "toast"].includes(raw)) return "corner-toast";
+  if (["fullscreen-takeover", "takeover", "sheet", "full-bleed"].includes(raw)) return "fullscreen-takeover";
+  return "split-screen";
+}
+
+function normalizeLayoutStyle(
+  layoutStyle: PopupTemplateProps["layoutStyle"],
+  structure?: PopupStructure | null,
+): PopupTemplateProps["layoutStyle"] {
+  const raw = (structure?.layout ?? layoutStyle ?? "split-left").toLowerCase();
+  return ["split-left", "split-right", "centered", "minimal", "stacked", "asymmetric"].includes(raw)
+    ? raw
+    : (layoutStyle ?? "split-left");
+}
+
+function resolveTemplateAndLayout(
+  templateId: string | null | undefined,
+  props: PopupTemplateProps,
+): { templateId: TemplateId; layoutStyle: PopupTemplateProps["layoutStyle"] } {
+  const normalizedTemplateId = normalizeShell(templateId, props.structure);
+  return {
+    templateId: normalizedTemplateId,
+    layoutStyle: normalizeLayoutStyle(props.layoutStyle, props.structure),
+  };
+}
+
 export function renderPopupTemplate(
   templateId: string | null | undefined,
   props: PopupTemplateProps,
 ): string {
-  const render = (templateId && TEMPLATES[templateId as TemplateId]) || TEMPLATES["split-screen"];
+  const { templateId: normalizedTemplateId, layoutStyle } = resolveTemplateAndLayout(templateId, props);
+  const render = TEMPLATES[normalizedTemplateId];
   // Normalizing here (rather than in each template) means every call site -
   // generation, the dashboard preview, /store-preview - gets the same
   // back-compat behaviour for Variant rows written before the DNA existed.
   const resolved: ResolvedTemplateProps = {
     ...props,
+    layoutStyle,
     dna: normalizeDna(props.dna),
-    templateId: templateId ?? "split-screen",
+    templateId: normalizedTemplateId,
   };
 
   // A popup whose CTA cannot be read is not a variant, it is a defect, and it
@@ -59,11 +89,13 @@ export function renderPopupTemplateChecked(
   templateId: string | null | undefined,
   props: PopupTemplateProps,
 ): { html: string; violations: ContrastViolation[] } {
-  const render = (templateId && TEMPLATES[templateId as TemplateId]) || TEMPLATES["split-screen"];
+  const { templateId: normalizedTemplateId, layoutStyle } = resolveTemplateAndLayout(templateId, props);
+  const render = TEMPLATES[normalizedTemplateId];
   const resolved: ResolvedTemplateProps = {
     ...props,
+    layoutStyle,
     dna: normalizeDna(props.dna),
-    templateId: templateId ?? "split-screen",
+    templateId: normalizedTemplateId,
   };
   return { html: render(resolved), violations: auditPopupContrast(resolved) };
 }

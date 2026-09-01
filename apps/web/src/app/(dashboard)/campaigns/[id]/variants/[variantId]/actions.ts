@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { renderPopupTemplate } from "@/lib/templates";
+import { sanitizeRedirectUrl } from "@/lib/templates/runtime";
 
 export async function updateVariantDesign(
   campaignId: string,
@@ -13,6 +14,7 @@ export async function updateVariantDesign(
     ctaText: string;
     primaryColor: string;
     imageUrl: string;
+    redirectUrl: string;
   }
 ) {
   const variant = await prisma.variant.findUnique({
@@ -27,6 +29,13 @@ export async function updateVariantDesign(
   if (!variant) throw new Error("Variant not found");
 
   const reward = variant.campaign.rewards[0];
+  // Sanitized once, here, before it's persisted anywhere - this is the
+  // authoritative gate (see sanitizeRedirectUrl's doc comment: a bad value
+  // executing as window.location.href in a shopper's browser is a real
+  // stored-XSS vector, not just a display bug). An invalid input is silently
+  // dropped to null (closes the popup instead) rather than persisted as
+  // something that will never actually take effect.
+  const redirectUrl = sanitizeRedirectUrl(design.redirectUrl);
   // Preserve whichever template/layout the AI originally chose for this
   // variant (see popupSpec.template_id) - a manual copy/color edit shouldn't
   // silently reset it back to the default split-screen template.
@@ -59,6 +68,7 @@ export async function updateVariantDesign(
     brandFonts: existingSpec.design_tokens ?? null,
     palette: existingSpec.design_tokens?.palette ?? null,
     discountPercent: existingSpec.discount_percent ?? null,
+    redirectUrl,
   });
 
   await prisma.variant.update({
@@ -71,6 +81,7 @@ export async function updateVariantDesign(
         ctaText: design.ctaText,
         primaryColor: design.primaryColor,
         imageUrl: design.imageUrl,
+        redirectUrl,
       },
       generatedCode,
     },

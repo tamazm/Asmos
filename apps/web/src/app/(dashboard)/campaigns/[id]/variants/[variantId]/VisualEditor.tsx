@@ -28,6 +28,7 @@ export function VisualEditor({
     ctaText?: string;
     primaryColor?: string;
     imageUrl?: string;
+    redirectUrl?: string;
   };
   initialRewards?: { id: string; label: string; couponCode: string | null }[];
 }) {
@@ -36,6 +37,7 @@ export function VisualEditor({
   const [ctaText, setCtaText] = useState(initialDesign.ctaText || "");
   const [primaryColor, setPrimaryColor] = useState(initialDesign.primaryColor || defaultColor);
   const [imageUrl, setImageUrl] = useState(initialDesign.imageUrl || "");
+  const [redirectUrl, setRedirectUrl] = useState(initialDesign.redirectUrl || "");
   const [rewards, setRewards] = useState(initialRewards || []);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -49,6 +51,7 @@ export function VisualEditor({
         ctaText,
         primaryColor,
         imageUrl,
+        redirectUrl,
       });
       alert("Design updated successfully! The preview will reflect your changes.");
     } catch (err) {
@@ -115,6 +118,21 @@ export function VisualEditor({
             value={ctaText}
             onChange={(e) => setCtaText(e.target.value)}
           />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+            Redirect URL (optional)
+          </label>
+          <input
+            type="text"
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm text-black"
+            value={redirectUrl}
+            onChange={(e) => setRedirectUrl(e.target.value)}
+            placeholder="/collections/sale or https://..."
+          />
+          <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">
+            Where the popup&apos;s final button sends shoppers. Leave blank to just close the popup.
+          </p>
         </div>
         <div>
           <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">
