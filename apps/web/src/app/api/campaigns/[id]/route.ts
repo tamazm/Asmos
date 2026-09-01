@@ -113,6 +113,25 @@ export async function PATCH(
     data,
   });
 
+  // Keep low-volume lifecycle changes available to webhook and notification
+  // integrations without emitting duplicates when a status is unchanged.
+  if (body.status !== undefined && body.status !== campaign.status) {
+    after(async () => {
+      try {
+        await emitIntegrationEvent(campaign.account.id, {
+          event: body.status === "ACTIVE" ? "campaign.activated" : "campaign.paused",
+          payload: {
+            campaign_id: campaign.id,
+            campaign_name: campaign.name,
+            changed_at: new Date().toISOString(),
+          },
+        });
+      } catch (err) {
+        console.error(`[integrations] campaign.${body.status === "ACTIVE" ? "activated" : "paused"} emit failed`, err);
+      }
+    });
+  }
+
   // Emit variant.winner_declared through the integration bus when a winner is set (fire-and-forget).
   if (body.winningVariantId && body.winningVariantId !== null) {
     after(async () => {

@@ -49,7 +49,12 @@ describe("manageConnections", () => {
     expect(createData.provider).toBe("slack");
     expect(createData.config).toEqual({ url: "https://s" });
     expect(createData.enabled).toBe(true);
-    expect(createData.subscribedEvents).toEqual(["lead.captured", "variant.winner_declared"]);
+    expect(createData.subscribedEvents).toEqual([
+      "lead.captured",
+      "variant.winner_declared",
+      "campaign.activated",
+      "campaign.paused",
+    ]);
   });
 
   it("saveConnection updates only provided fields on an existing row", async () => {

@@ -39,4 +39,16 @@ describe("summarizeEvent", () => {
     expect(s.title).toBe("Winner declared");
     expect(s.lines).toContain("Winning variant: B");
   });
+
+  it("summarizes campaign lifecycle events", () => {
+    const activated: IntegrationEvent = {
+      event: "campaign.activated",
+      payload: { campaign_id: "c1", campaign_name: "Summer Sale", changed_at: "2026-08-29T00:00:00.000Z" },
+    };
+    const paused: IntegrationEvent = { ...activated, event: "campaign.paused" };
+
+    expect(summarizeEvent(activated).title).toBe("Campaign went live");
+    expect(summarizeEvent(paused).title).toBe("Campaign paused");
+    expect(summarizeEvent(activated).lines).toContain("Campaign: Summer Sale");
+  });
 });

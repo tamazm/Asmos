@@ -19,6 +19,7 @@ import { sanitizeRedirectUrl } from "@/lib/templates/runtime";
 import { brandTokensFromStoreProfile, computedStylesFromStoreProfile } from "@/lib/storeProfile";
 import type { CampaignGenerationStageCode } from "@/lib/campaignGenerationStages";
 import { generateCouponCode } from "@/lib/reward";
+import { emitIntegrationEvent } from "@/lib/integrations/emit";
 import {
   MAX_CODES_PER_GENERATE_REQUEST,
   MAX_COUPON_CODES_PER_ACCOUNT,
@@ -410,7 +411,7 @@ async function runGeneration(
 
       const campaignAccount = await prisma.campaign.findUnique({
         where: { id: campaignId },
-        select: { accountId: true, account: { select: { planTier: true } } },
+        select: { accountId: true, name: true, account: { select: { planTier: true } } },
       });
       if (!campaignAccount) throw new Error("Campaign disappeared before save");
 
@@ -450,6 +451,21 @@ async function runGeneration(
           }
         });
       });
+
+      try {
+        await emitIntegrationEvent(campaignAccount.accountId, {
+          event: "campaign.activated",
+          payload: {
+            campaign_id: campaignId,
+            campaign_name: campaignAccount.name,
+            changed_at: new Date().toISOString(),
+          },
+        });
+      } catch (err) {
+        // Generation has succeeded. A failed notification must not turn it
+        // into a failed campaign or make the merchant retry generation.
+        console.error("[integrations] generated campaign.activated emit failed", err);
+      }
     });
 
     return { message: "Campaign generated" };

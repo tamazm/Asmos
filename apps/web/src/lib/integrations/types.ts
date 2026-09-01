@@ -1,4 +1,4 @@
-import type { LeadCapturedPayload, VariantWinnerPayload } from "@/lib/webhook";
+import type { CampaignLifecyclePayload, LeadCapturedPayload, VariantWinnerPayload } from "@/lib/webhook";
 
 export const INTEGRATION_PROVIDERS = [
   "webhooks", "zapier", "make", "n8n", "slack", "discord", "teams",
@@ -15,7 +15,9 @@ export function isIntegrationProvider(v: unknown): v is IntegrationProvider {
 // the legacy webhook module to avoid duplication.
 export type IntegrationEvent =
   | { event: "lead.captured"; payload: LeadCapturedPayload }
-  | { event: "variant.winner_declared"; payload: VariantWinnerPayload };
+  | { event: "variant.winner_declared"; payload: VariantWinnerPayload }
+  | { event: "campaign.activated"; payload: CampaignLifecyclePayload }
+  | { event: "campaign.paused"; payload: CampaignLifecyclePayload };
 
 export type IntegrationEventName = IntegrationEvent["event"];
 

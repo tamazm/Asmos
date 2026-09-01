@@ -1,10 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { encryptBundle, maskSecret } from "./connections";
 import { decryptSecret, type EncryptedSecret } from "./crypto";
+import { AUTOMATION_EVENT_IDS } from "./events";
 
 const URL_PROVIDERS = ["zapier", "make", "n8n", "slack", "discord", "teams"] as const;
 type UrlProvider = (typeof URL_PROVIDERS)[number];
-const CANONICAL_EVENTS = ["lead.captured", "variant.winner_declared"];
 
 export function isUrlProvider(p: unknown): p is UrlProvider {
   return typeof p === "string" && (URL_PROVIDERS as readonly string[]).includes(p);
@@ -71,7 +71,7 @@ export async function saveConnection(
   if (input.url !== undefined && !input.url.startsWith("https://")) {
     throw new Error("Endpoint URL must start with https://");
   }
-  const events = input.subscribedEvents?.filter((e) => CANONICAL_EVENTS.includes(e));
+  const events = input.subscribedEvents?.filter((e) => AUTOMATION_EVENT_IDS.includes(e as (typeof AUTOMATION_EVENT_IDS)[number]));
   // undefined = leave unchanged; "" = clear the secret; non-empty = set/rotate it.
   const credentials =
     input.signingSecret === undefined
@@ -103,7 +103,7 @@ export async function saveConnection(
       provider,
       enabled: true,
       config: { url: input.url },
-      subscribedEvents: events ?? CANONICAL_EVENTS,
+      subscribedEvents: events ?? [...AUTOMATION_EVENT_IDS],
       credentials,
     },
   });

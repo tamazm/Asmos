@@ -6,6 +6,8 @@ import { ProviderWebhookCard, type ProviderCardProps } from "@/components/integr
 import { SyncProviderCard, type SyncCardProps } from "@/components/integrations/SyncProviderCard";
 import { RequestIntegrationCard } from "@/components/integrations/RequestIntegrationCard";
 import { MessagingProviderCard, type MessagingProviderMeta } from "@/components/integrations/MessagingProviderCard";
+import { TestConnectionButton } from "@/components/integrations/TestConnectionButton";
+import { AUTOMATION_EVENT_OPTIONS, eventLabel } from "@/lib/integrations/events";
 
 type IntegrationStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -21,7 +23,7 @@ interface Integration {
 const WEBHOOKS_INTEGRATION: Integration = {
   id: "webhooks",
   name: "Webhooks",
-  description: "Receive real-time POST notifications on lead captured and variant winner events.",
+  description: "Receive real-time POST notifications for leads, winners, and campaign lifecycle changes.",
   category: "automation",
   icon: (
     <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
@@ -190,6 +192,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [maskedSecret, setMaskedSecret] = useState<string | null>(null);
+  const [events, setEvents] = useState<string[]>(AUTOMATION_EVENT_OPTIONS.map((event) => event.id));
   const [showInput, setShowInput] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -198,10 +201,11 @@ function WebhookCard({ integration }: { integration: Integration }) {
   useEffect(() => {
     fetch("/api/account/webhook")
       .then((r) => r.json())
-      .then((data: { webhookUrl: string | null; webhookSecret: string | null; webhookEnabled: boolean }) => {
+      .then((data: { webhookUrl: string | null; webhookSecret: string | null; webhookEnabled: boolean; subscribedEvents?: string[] }) => {
         if (data.webhookEnabled && data.webhookUrl) {
           setWebhookUrl(data.webhookUrl);
           setMaskedSecret(data.webhookSecret);
+          setEvents(data.subscribedEvents?.length ? data.subscribedEvents : AUTOMATION_EVENT_OPTIONS.map((event) => event.id));
           setStatus("connected");
         }
       })
@@ -233,6 +237,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
           webhookUrl: webhookUrl.trim(),
           webhookSecret: webhookSecret.trim() || undefined,
           webhookEnabled: true,
+          subscribedEvents: events,
         }),
       });
       const data = await res.json();
@@ -241,6 +246,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
         return;
       }
       setMaskedSecret(data.webhookSecret);
+      setEvents(data.subscribedEvents?.length ? data.subscribedEvents : events);
       setStatus("connected");
       setShowInput(false);
       setWebhookSecret(""); // clear plaintext from state
@@ -304,6 +310,9 @@ function WebhookCard({ integration }: { integration: Integration }) {
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">Endpoint URL</p>
           <p className="break-all font-mono text-xs text-[color:var(--color-text-primary)]">{webhookUrl}</p>
+          <p className="text-xs text-[color:var(--color-text-secondary)]">
+            Fires on: {events.map(eventLabel).join(", ")}
+          </p>
           {maskedSecret && (
             <>
               <p className="mt-1 text-xs font-medium text-[color:var(--color-text-secondary)]">Signing secret</p>
@@ -315,6 +324,22 @@ function WebhookCard({ integration }: { integration: Integration }) {
 
       {showInput && status !== "connected" && (
         <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs font-medium text-[color:var(--color-text-primary)]">Send on</span>
+            {AUTOMATION_EVENT_OPTIONS.map((event) => (
+              <label key={event.id} className="flex items-start gap-2 text-xs text-[color:var(--color-text-secondary)]">
+                <input
+                  type="checkbox"
+                  checked={events.includes(event.id)}
+                  onChange={() => setEvents((current) => current.includes(event.id) ? current.filter((id) => id !== event.id) : [...current, event.id])}
+                />
+                <span>
+                  <span className="block text-[color:var(--color-text-primary)]">{event.label}</span>
+                  <span className="block text-[11px] leading-relaxed">{event.description}</span>
+                </span>
+              </label>
+            ))}
+          </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
               Endpoint URL <span className="text-red-500">*</span>
@@ -357,6 +382,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
           </button>
         ) : (
           <>
+            <TestConnectionButton provider={integration.id} />
             <button
               onClick={() => { setShowInput(true); setStatus("disconnected"); }}
               disabled={saving}

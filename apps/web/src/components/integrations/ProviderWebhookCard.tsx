@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { SetupGuideButton } from "./SetupGuideButton";
+import { TestConnectionButton } from "./TestConnectionButton";
+import { AUTOMATION_EVENT_OPTIONS, eventLabel } from "@/lib/integrations/events";
 
 export interface ProviderCardProps {
   provider: string;
@@ -21,16 +23,11 @@ export interface ProviderCardProps {
   initialLastDelivery: { status: string; at: string } | null;
 }
 
-const EVENT_OPTIONS = [
-  { id: "lead.captured", label: "Lead captured" },
-  { id: "variant.winner_declared", label: "Winner declared" },
-];
-
 export function ProviderWebhookCard(props: ProviderCardProps) {
   const [url, setUrl] = useState(props.initialUrl ?? "");
   const [connected, setConnected] = useState(Boolean(props.initialUrl));
   const [events, setEvents] = useState<string[]>(
-    props.initialEvents.length ? props.initialEvents : ["lead.captured", "variant.winner_declared"],
+    props.initialEvents.length ? props.initialEvents : AUTOMATION_EVENT_OPTIONS.map((option) => option.id),
   );
   const [signingSecret, setSigningSecret] = useState("");
   const [maskedSecret, setMaskedSecret] = useState<string | null>(props.initialMaskedSecret ?? null);
@@ -100,7 +97,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
         <div className="flex flex-col gap-1">
           <p className="break-all font-mono text-xs text-[color:var(--color-text-primary)]">{url}</p>
           <p className="text-xs text-[color:var(--color-text-secondary)]">
-            Fires on: {events.map((e) => EVENT_OPTIONS.find((o) => o.id === e)?.label).filter(Boolean).join(", ")}
+            Fires on: {events.map(eventLabel).join(", ")}
           </p>
           {props.supportsSigning && (
             <p className="text-xs text-[color:var(--color-text-secondary)]">
@@ -122,10 +119,13 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
             className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]" />
           <div className="flex flex-col gap-1.5">
             <span className="text-xs font-medium text-[color:var(--color-text-primary)]">Send on</span>
-            {EVENT_OPTIONS.map((o) => (
-              <label key={o.id} className="flex items-center gap-2 text-xs text-[color:var(--color-text-secondary)]">
+            {AUTOMATION_EVENT_OPTIONS.map((o) => (
+              <label key={o.id} className="flex items-start gap-2 text-xs text-[color:var(--color-text-secondary)]">
                 <input type="checkbox" checked={events.includes(o.id)} onChange={() => toggleEvent(o.id)} />
-                {o.label}
+                <span>
+                  <span className="block text-[color:var(--color-text-primary)]">{o.label}</span>
+                  <span className="block text-[11px] leading-relaxed">{o.description}</span>
+                </span>
               </label>
             ))}
           </div>
@@ -154,6 +154,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
           </button>
         ) : (
           <>
+            <TestConnectionButton provider={props.provider} />
             <button onClick={() => setEditing(true)} disabled={saving}
               className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)] hover:border-[color:var(--color-primary)] cursor-pointer disabled:opacity-50">Edit</button>
             <button onClick={disconnect} disabled={saving}

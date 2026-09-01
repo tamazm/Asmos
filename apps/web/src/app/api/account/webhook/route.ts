@@ -31,6 +31,7 @@ export async function PATCH(request: Request) {
     webhookUrl?: string;
     webhookSecret?: string;
     webhookEnabled?: boolean;
+    subscribedEvents?: string[];
   };
 
   const account = await getOrCreateAccount();
@@ -39,6 +40,7 @@ export async function PATCH(request: Request) {
     webhookUrl?: string | null;
     webhookSecret?: string | null;
     webhookEnabled?: boolean;
+    subscribedEvents?: string[];
   } = {};
 
   // Validate + set URL
@@ -72,6 +74,10 @@ export async function PATCH(request: Request) {
       body.webhookSecret && body.webhookSecret.trim().length > 0
         ? body.webhookSecret.trim()
         : null;
+  }
+
+  if ("subscribedEvents" in body) {
+    input.subscribedEvents = body.subscribedEvents;
   }
 
   // Set enabled flag

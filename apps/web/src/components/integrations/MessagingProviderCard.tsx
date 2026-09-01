@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SetupGuideButton } from "./SetupGuideButton";
+import { TestConnectionButton } from "./TestConnectionButton";
 
 const inputCls =
   "w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150";
@@ -329,9 +330,12 @@ export function MessagingProviderCard({
 
       <div className="mt-auto flex gap-2 pt-4">
         {isConnected && !needsRestrictedKey && (
-          <Button variant="secondary" onClick={() => setExpanded(!expanded)}>
-            {expanded ? "Close" : "Manage Rules"}
-          </Button>
+          <>
+            {!expanded && <TestConnectionButton provider={meta.id} />}
+            <Button variant="secondary" onClick={() => setExpanded(!expanded)}>
+              {expanded ? "Close" : "Manage Rules"}
+            </Button>
+          </>
         )}
         {isConnected && needsRestrictedKey && (
           <Button variant="primary" onClick={() => setExpanded(!expanded)}>

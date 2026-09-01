@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { SetupGuideButton } from "./SetupGuideButton";
+import { TestConnectionButton } from "./TestConnectionButton";
+import { LEAD_EVENT_OPTIONS } from "@/lib/integrations/events";
 
 export interface SyncCardProps {
   provider: string;
@@ -23,20 +25,16 @@ export interface SyncCardProps {
   initialLastDelivery: { status: string; at: string } | null;
 }
 
-const EVENT_OPTIONS = [
-  { id: "lead.captured", label: "Lead captured" },
-  { id: "variant.winner_declared", label: "Winner declared" },
-];
-
 export function SyncProviderCard(props: SyncCardProps) {
   const [apiKey, setApiKey] = useState("");
   const [config, setConfig] = useState<Record<string, string>>(props.initialConfig || {});
   
   const [connected, setConnected] = useState(Boolean(props.initialMaskedKey));
   const [maskedKey, setMaskedKey] = useState<string | null>(props.initialMaskedKey);
-  const [events, setEvents] = useState<string[]>(
-    props.initialEvents?.length ? props.initialEvents : ["lead.captured"],
-  );
+  const [events, setEvents] = useState<string[]>(() => {
+    const supported = props.initialEvents?.filter((event) => LEAD_EVENT_OPTIONS.some((option) => option.id === event)) ?? [];
+    return supported.length ? supported : ["lead.captured"];
+  });
   
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -134,7 +132,7 @@ export function SyncProviderCard(props: SyncCardProps) {
             </p>
           ))}
           <p className="text-xs text-[color:var(--color-text-secondary)] mt-1">
-            Fires on: {events.map((e) => EVENT_OPTIONS.find((o) => o.id === e)?.label).filter(Boolean).join(", ")}
+            Fires on: {events.map((e) => LEAD_EVENT_OPTIONS.find((o) => o.id === e)?.label).filter(Boolean).join(", ")}
           </p>
           {lastDelivery && (
             <p className="text-xs text-[color:var(--color-text-secondary)]">
@@ -169,7 +167,7 @@ export function SyncProviderCard(props: SyncCardProps) {
           
           <div className="flex flex-col gap-1.5 mt-2">
             <span className="text-xs font-medium text-[color:var(--color-text-primary)]">Send on</span>
-            {EVENT_OPTIONS.map((o) => (
+            {LEAD_EVENT_OPTIONS.map((o) => (
               <label key={o.id} className="flex items-center gap-2 text-xs text-[color:var(--color-text-secondary)]">
                 <input type="checkbox" checked={events.includes(o.id)} onChange={() => toggleEvent(o.id)} />
                 {o.label}
@@ -195,6 +193,7 @@ export function SyncProviderCard(props: SyncCardProps) {
           </button>
         ) : (
           <>
+            {!needsOAuth && <TestConnectionButton provider={props.provider} />}
             <button onClick={() => setEditing(true)} disabled={saving}
               className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)] hover:border-[color:var(--color-primary)] cursor-pointer disabled:opacity-50">Edit</button>
             <button onClick={disconnect} disabled={saving}

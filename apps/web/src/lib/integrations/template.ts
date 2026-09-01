@@ -49,5 +49,11 @@ export function buildTemplateVars(event: IntegrationEvent): TemplateVars {
     };
   }
 
+  if (event.event === "campaign.activated" || event.event === "campaign.paused") {
+    return {
+      "campaign.name": event.payload.campaign_name,
+    };
+  }
+
   return {};
 }

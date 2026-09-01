@@ -21,17 +21,22 @@ describe("webhookConnection", () => {
   it("getWebhookView returns disabled defaults when no connection exists", async () => {
     (prisma.integrationConnection.findUnique as any).mockResolvedValue(null);
     const view = await getWebhookView("a1");
-    expect(view).toEqual({ webhookUrl: null, webhookSecret: null, webhookEnabled: false });
+    expect(view).toEqual({ webhookUrl: null, webhookSecret: null, webhookEnabled: false, subscribedEvents: [] });
   });
 
-  it("creates an enabled webhooks connection with the two default events when none exists", async () => {
+  it("creates an enabled webhooks connection with the default events when none exists", async () => {
     (prisma.integrationConnection.upsert as any).mockResolvedValue({});
     await saveWebhook("a1", { webhookUrl: "https://x.com/h", webhookSecret: "shh", webhookEnabled: true });
 
     const call = (prisma.integrationConnection.upsert as any).mock.calls[0][0];
     expect(call.create.provider).toBe("webhooks");
     expect(call.create.config).toEqual({ url: "https://x.com/h" });
-    expect(call.create.subscribedEvents).toEqual(["lead.captured", "variant.winner_declared"]);
+    expect(call.create.subscribedEvents).toEqual([
+      "lead.captured",
+      "variant.winner_declared",
+      "campaign.activated",
+      "campaign.paused",
+    ]);
     expect(call.create.enabled).toBe(true);
     expect(JSON.stringify(call.create.credentials)).not.toContain("shh");
   });
