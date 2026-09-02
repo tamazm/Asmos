@@ -1,5 +1,15 @@
 import { PrismaClient } from ".prisma/client";
 
+// Automatically rewrite Supabase pooler from port 5432 (Session mode, capped at 15 clients)
+// to port 6543 (Transaction mode, supports thousands of serverless requests).
+// This completely eliminates the (EMAXCONNSESSION) error on Vercel without needing dashboard access.
+if (process.env.DATABASE_URL?.includes(".pooler.supabase.com:5432")) {
+  process.env.DATABASE_URL = process.env.DATABASE_URL.replace(
+    ".pooler.supabase.com:5432",
+    ".pooler.supabase.com:6543",
+  );
+}
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
