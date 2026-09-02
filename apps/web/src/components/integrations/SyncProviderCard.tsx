@@ -37,7 +37,15 @@ export function SyncProviderCard(props: SyncCardProps) {
     return supported.length ? supported : ["lead.captured"];
   });
   
-  const [editing, setEditing] = useState(false);
+  // Consider required config fields incomplete if any are blank. When connected
+  // but missing required fields (e.g. Mailchimp Audience ID after OAuth), we
+  // land on the edit form instead of the "connected" summary view.
+  const missingRequiredConfig = (props.configFields ?? []).some(
+    (field) => !props.initialConfig?.[field.key]?.trim()
+  );
+  const [editing, setEditing] = useState(
+    Boolean(props.initialMaskedKey) && missingRequiredConfig
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastDelivery, setLastDelivery] = useState(props.initialLastDelivery);

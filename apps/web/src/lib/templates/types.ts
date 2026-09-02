@@ -68,6 +68,14 @@ export interface PopupTemplateProps {
    * navigation in the shopper's browser.
    */
   redirectUrl?: string | null;
+  /**
+   * When true, the capture form renders an optional phone `<input type="tel">`
+   * alongside email. Derived from the variant's `formFields` including "phone"
+   * (the single source of truth) — turned on per-popup via the campaign page
+   * toggle or the Twilio card's "add phone to my live popups" action. Phone is
+   * never `required`, so it can't drag down email opt-in rate.
+   */
+  collectPhone?: boolean;
 }
 
 /** Props after normalization - what each template actually receives. */

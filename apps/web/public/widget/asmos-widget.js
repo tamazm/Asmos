@@ -433,10 +433,12 @@
     var inputsHTML = fields.map(function (f) {
       var t = f === "email" ? "email" : f === "phone" ? "tel" : "text";
       var ph = f === "email" ? "Your email address"
-             : f === "phone" ? "Phone number"
+             : f === "phone" ? "Phone number (optional)"
              : f === "name"  ? "Your name"
              : f.charAt(0).toUpperCase() + f.slice(1);
-      return '<input class="asmos-input" type="' + t + '" name="' + esc(f) + '" placeholder="' + esc(ph) + '" required autocomplete="' + esc(f) + '">';
+      // Phone is optional so it can't drag down email opt-in; all other fields required.
+      var req = f === "phone" ? "" : " required";
+      return '<input class="asmos-input" type="' + t + '" name="' + esc(f) + '" placeholder="' + esc(ph) + '"' + req + ' autocomplete="' + esc(f) + '">';
     }).join("");
 
     var brandName = storeName

@@ -3,6 +3,7 @@ import type { CampaignLifecyclePayload, LeadCapturedPayload, VariantWinnerPayloa
 export const INTEGRATION_PROVIDERS = [
   "webhooks", "zapier", "make", "n8n", "slack", "discord", "teams",
   "klaviyo", "mailchimp", "hubspot", "mailgun", "twilio",
+  "omnisend", "brevo", "mailerlite", "drip", "googlesheets",
 ] as const;
 
 export type IntegrationProvider = (typeof INTEGRATION_PROVIDERS)[number];

@@ -103,6 +103,13 @@ const PROVIDER_META: Array<Omit<ProviderCardProps, "initialUrl" | "initialEvents
       "Click Save and turn the workflow Active so the web address stays live.",
       "Paste the web address into the field above and click Save.",
     ], urlLabel: "n8n Webhook URL", urlPlaceholder: "https://<your-n8n>/webhook/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#EA4B71"/><text x="9" y="27" fontSize="15" fontWeight="bold" fill="#fff">n8</text></svg> },
+  { provider: "googlesheets", name: "Google Sheets", category: "Automation", group: "Automation", docsUrl: "https://developers.google.com/apps-script/guides/web", setupSteps: [
+      "Create a Google Sheet, then open 'Extensions' → 'Apps Script'.",
+      "Delete any starter code and paste this, then click Save: function doPost(e){var s=SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();var d=JSON.parse(e.postData.contents);if(d.event!=='lead.captured'){return ContentService.createTextOutput('ok');}var l=(d.payload&&d.payload.lead)||{};s.appendRow([new Date(),l.email||'',l.name||'',l.phone||'',(d.payload&&d.payload.campaign_name)||'']);return ContentService.createTextOutput('ok');}",
+      "Click 'Deploy' → 'New deployment'. For type choose 'Web app'. Set 'Execute as: Me' and 'Who has access: Anyone', then click 'Deploy' and authorize.",
+      "Copy the 'Web app' URL it shows (it ends in /exec).",
+      "Paste that URL into the field above and click Save. Keep only 'Lead captured' selected so the sheet fills with leads.",
+    ], urlLabel: "Apps Script Web App URL", urlPlaceholder: "https://script.google.com/macros/s/.../exec", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#0F9D58"/><text x="9" y="27" fontSize="16" fontWeight="bold" fill="#fff">GS</text></svg> },
   { provider: "slack", name: "Slack", category: "Notifications", group: "Notifications", docsUrl: "https://api.slack.com/messaging/webhooks", setupSteps: [
       "Go to api.slack.com/apps and click 'Create New App' (choose 'From scratch'), then pick your workspace.",
       "In the app's left menu, open 'Incoming Webhooks' and switch the toggle On.",
@@ -182,6 +189,78 @@ const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initia
     keyLabel: "HubSpot Private App Token",
     keyPlaceholder: "pat-...",
     icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#FF7A59" /><text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">H</text></svg>
+  },
+  {
+    provider: "omnisend",
+    name: "Omnisend",
+    group: "Marketing sync",
+    docsUrl: "https://api-docs.omnisend.com/reference/intro",
+    setupGuide: {
+      url: "https://api-docs.omnisend.com/reference/intro",
+      steps: [
+        "Log in to Omnisend and open 'Store settings' → 'Integrations & API' → 'API keys'.",
+        "Click 'Create API key', give it a name, and copy the key it shows.",
+        "Paste the API key into the field above and click Save connection. New leads become subscribed contacts tagged 'asmos'.",
+      ],
+    },
+    keyLabel: "Omnisend API Key",
+    keyPlaceholder: "e.g. 6543ab...",
+    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#1C4E3D" /><text x="9" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">O</text></svg>
+  },
+  {
+    provider: "brevo",
+    name: "Brevo",
+    group: "Marketing sync",
+    docsUrl: "https://developers.brevo.com/docs/getting-started",
+    setupGuide: {
+      url: "https://developers.brevo.com/docs/getting-started",
+      steps: [
+        "Log in to Brevo, click your account name (top-right), then 'SMTP & API' → the 'API Keys' tab.",
+        "Click 'Generate a new API key', name it, and copy it (it starts with xkeysib-).",
+        "For the List ID, go to 'Contacts' → 'Lists' and copy the numeric ID shown next to the list you want.",
+        "Paste the API key and List ID into the fields above and click Save connection.",
+      ],
+    },
+    keyLabel: "Brevo API Key",
+    keyPlaceholder: "xkeysib-...",
+    configFields: [{ key: "listId", label: "List ID", placeholder: "e.g. 3" }],
+    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#0B996E" /><text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">B</text></svg>
+  },
+  {
+    provider: "mailerlite",
+    name: "MailerLite",
+    group: "Marketing sync",
+    docsUrl: "https://developers.mailerlite.com/docs",
+    setupGuide: {
+      url: "https://developers.mailerlite.com/docs",
+      steps: [
+        "Log in to MailerLite and open 'Integrations' from the top menu.",
+        "Find 'MailerLite API', click 'Use', then 'Generate new token'.",
+        "Name the token and copy it.",
+        "Paste it into the field above and click Save connection. New leads are added to your subscribers.",
+      ],
+    },
+    keyLabel: "MailerLite API Key",
+    keyPlaceholder: "eyJ0eXAi...",
+    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#09C269" /><text x="7" y="27" fontSize="15" fontWeight="bold" fill="white" fontFamily="sans-serif">ML</text></svg>
+  },
+  {
+    provider: "drip",
+    name: "Drip",
+    group: "Marketing sync",
+    docsUrl: "https://developer.drip.com/",
+    setupGuide: {
+      url: "https://developer.drip.com/",
+      steps: [
+        "Log in to Drip, click the user menu (top-right) → 'Settings' → 'User Settings', and copy your API token.",
+        "For the Account ID, go to 'Settings' → 'Account' → 'General info' and copy the numeric Account ID.",
+        "Paste the token and Account ID into the fields above and click Save connection. New leads are tagged 'Asmos'.",
+      ],
+    },
+    keyLabel: "Drip API Token",
+    keyPlaceholder: "e.g. 1a2b3c...",
+    configFields: [{ key: "accountId", label: "Account ID", placeholder: "e.g. 1234567" }],
+    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#EC407A" /><text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">D</text></svg>
   },
 ];
 

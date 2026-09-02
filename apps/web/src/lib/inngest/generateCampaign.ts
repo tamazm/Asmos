@@ -15,6 +15,7 @@ import {
 } from "@/lib/popupGeneration";
 import { buildVariantBriefs, hashSeed } from "@/lib/designBrief";
 import { renderPopupTemplate } from "@/lib/templates";
+import { fieldsCollectPhone } from "@/lib/templates/renderVariant";
 import { sanitizeRedirectUrl } from "@/lib/templates/runtime";
 import { brandTokensFromStoreProfile, computedStylesFromStoreProfile } from "@/lib/storeProfile";
 import type { CampaignGenerationStageCode } from "@/lib/campaignGenerationStages";
@@ -365,6 +366,7 @@ async function runGeneration(
             palette: output.baseline.spec.design_tokens.palette,
             discountPercent: output.baseline.spec.discount_percent,
             redirectUrl,
+            collectPhone: fieldsCollectPhone(output.baseline.spec.fields),
           }),
         },
         ...output.variants.map((v, idx) => ({
@@ -396,6 +398,7 @@ async function runGeneration(
             palette: v.spec.design_tokens.palette,
             discountPercent: v.spec.discount_percent,
             redirectUrl,
+            collectPhone: fieldsCollectPhone(v.spec.fields),
           }),
           testAxis: v.test_axis,
           hypothesis: v.hypothesis,

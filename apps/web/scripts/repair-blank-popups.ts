@@ -79,6 +79,7 @@ async function main() {
       name: true,
       popupSpec: true,
       design: true,
+      formFields: true,
       generatedCode: true,
       campaign: {
         select: { id: true, name: true, status: true, generationContext: true },
@@ -134,6 +135,8 @@ async function main() {
         brandFonts: spec.design_tokens ?? null,
         palette: spec.design_tokens?.palette ?? null,
         discountPercent: spec.discount_percent ?? null,
+        // Preserve phone collection so repairing a popup can't strip its phone field.
+        collectPhone: Array.isArray(variant.formFields) && (variant.formFields as unknown[]).includes("phone"),
       });
     } catch (err) {
       errors++;

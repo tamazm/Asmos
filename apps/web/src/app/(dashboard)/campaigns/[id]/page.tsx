@@ -15,6 +15,7 @@ import { PerformanceTable } from "./PerformanceTable";
 import { CampaignTabs } from "./CampaignTabs";
 import { CampaignRowActions } from "../CampaignRowActions";
 import { GenerationStatusScreen } from "./GenerationStatusScreen";
+import { PhoneCollectionToggle } from "./PhoneCollectionToggle";
 
 export default async function CampaignDetailPage(props: PageProps<"/campaigns/[id]">) {
   const { id } = await props.params;
@@ -149,6 +150,15 @@ export default async function CampaignDetailPage(props: PageProps<"/campaigns/[i
         backLabel="Back to Pop-ups"
         status={campaign.status}
       />
+
+      {campaign.type === "FORM" && (
+        <PhoneCollectionToggle
+          campaignId={campaign.id}
+          initialCollectPhone={campaign.variants.some(
+            (v) => Array.isArray(v.formFields) && (v.formFields as unknown[]).includes("phone"),
+          )}
+        />
+      )}
 
       <CampaignTabs
         tabs={[

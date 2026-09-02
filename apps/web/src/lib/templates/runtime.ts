@@ -214,15 +214,25 @@ export function closeMarkup(dna: PopupDna): string {
   return `<button type="button" class="asmos-close" id="asmosPopupClose" aria-label="Close">&times;</button>`;
 }
 
-function formMarkup(dna: PopupDna, submitLabel: string): string {
+function formMarkup(dna: PopupDna, submitLabel: string, collectPhone: boolean): string {
   const label = dna.show_field_label
     ? `<label class="asmos-field-label" for="asmosPopupEmail">${esc(dna.field_label)}</label>`
     : `<label class="visually-hidden" for="asmosPopupEmail">${esc(dna.field_label)}</label>`;
+
+  // Optional phone field: not `required`, so shoppers who skip it still convert
+  // as email leads. Rendered only when the popup collects phone (see
+  // PopupTemplateProps.collectPhone). Read + submitted by the runtime script.
+  const phoneField = collectPhone
+    ? `<label class="visually-hidden" for="asmosPopupPhone">Phone number (optional)</label>
+      <input type="tel" id="asmosPopupPhone" name="phone" class="asmos-email-input asmos-phone-input"
+             placeholder="Phone number (optional)" autocomplete="tel" />`
+    : "";
 
   return `<form class="asmos-form" id="asmosPopupForm" novalidate>
       ${label}
       <input type="email" id="asmosPopupEmail" name="email" class="asmos-email-input"
              placeholder="${esc(dna.email_placeholder)}" autocomplete="email" required />
+      ${phoneField}
       <button type="submit" class="asmos-cta">${esc(submitLabel)}</button>
     </form>`;
 }
@@ -274,7 +284,7 @@ export function stepsMarkup(props: PopupTemplateProps, dna: PopupDna, flow: Reso
         ${captureIsPrimary ? offer : ""}
         <h2 ${captureIsPrimary ? 'id="asmosPopupHeadline"' : ""} class="asmos-headline">${esc(captureHeadline)}</h2>
         <p class="asmos-sub">${esc(captureSubhead)}</p>
-        ${formMarkup(dna, captureCta)}
+        ${formMarkup(dna, captureCta, props.collectPhone ?? false)}
         ${privacyMarkup(dna)}
         ${captureIsPrimary ? proofMarkup(dna) : ""}
         ${dismissMarkup(dna)}
@@ -393,6 +403,8 @@ export function runtimeScript(opts: RuntimeOptions): string {
   var form = root.querySelector('#asmosPopupForm');
   var copyBtn = root.querySelector('#asmosPopupCopy');
   var emailInput = root.querySelector('#asmosPopupEmail');
+  // Optional — only present when the popup collects phone. Read at submit time.
+  var phoneInput = root.querySelector('#asmosPopupPhone');
 
   var openedAt = null;
   var converted = false;
@@ -765,6 +777,9 @@ export function runtimeScript(opts: RuntimeOptions): string {
         ? window.__asmos_behavioral_context()
         : {};
       var payload = { variantId: variant.id, email: email, consentGiven: true };
+      // Optional phone - included only when the popup collects it and the
+      // shopper filled it in. The leads endpoint already accepts a phone field.
+      if (phoneInput) { var phoneVal = phoneInput.value.trim(); if (phoneVal) payload.phone = phoneVal; }
       for (var k in behavioral) { if (Object.prototype.hasOwnProperty.call(behavioral, k)) payload[k] = behavioral[k]; }
       payload.timeToFirstKeystrokeMs = telemetry.timeToFirstKeystrokeMs;
       payload.fieldFocusCount = telemetry.fieldFocusCount;

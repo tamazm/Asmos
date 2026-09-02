@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { renderPopupTemplate } from "@/lib/templates";
 import { sanitizeRedirectUrl } from "@/lib/templates/runtime";
+import { fieldsCollectPhone } from "@/lib/templates/renderVariant";
 
 export async function updateVariantDesign(
   campaignId: string,
@@ -69,6 +70,9 @@ export async function updateVariantDesign(
     palette: existingSpec.design_tokens?.palette ?? null,
     discountPercent: existingSpec.discount_percent ?? null,
     redirectUrl,
+    // Preserve phone collection across a manual copy/color edit — otherwise
+    // editing a headline would silently drop the popup's phone field.
+    collectPhone: fieldsCollectPhone(variant.formFields),
   });
 
   await prisma.variant.update({

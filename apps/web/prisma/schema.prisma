@@ -656,6 +656,11 @@ enum IntegrationProvider {
   hubspot
   mailgun
   twilio
+  omnisend
+  brevo
+  mailerlite
+  drip
+  googlesheets
 }
 
 model IntegrationConnection {

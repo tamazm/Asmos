@@ -17,7 +17,7 @@ function readSecrets(raw: unknown): Record<string, string> {
   }
 }
 
-const SYNC_PROVIDERS = ["klaviyo", "mailchimp", "hubspot"] as const;
+const SYNC_PROVIDERS = ["klaviyo", "mailchimp", "hubspot", "omnisend", "brevo", "mailerlite", "drip"] as const;
 export type SyncProvider = (typeof SYNC_PROVIDERS)[number];
 
 export function isSyncProvider(p: unknown): p is SyncProvider {

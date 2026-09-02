@@ -1,4 +1,5 @@
 import type { IntegrationEvent } from "./types";
+import { leadCapturedVars } from "./mergeFields";
 
 type TemplateVars = Record<string, string | null | undefined>;
 
@@ -31,15 +32,9 @@ export function escapeHtml(s: string): string {
 /** Build the variable map from an IntegrationEvent payload. */
 export function buildTemplateVars(event: IntegrationEvent): TemplateVars {
   if (event.event === "lead.captured") {
-    return {
-      "lead.name": event.payload.lead.name,
-      "lead.email": event.payload.lead.email,
-      "lead.phone": event.payload.lead.phone,
-      "campaign.name": event.payload.campaign_name,
-      "variant.name": event.payload.variant_name,
-      "reward.label": event.payload.reward?.label,
-      "reward.coupon_code": event.payload.reward?.coupon_code,
-    };
+    // Derived from the single merge-field registry so the editor's variable
+    // picker and this renderer never drift — see mergeFields.ts.
+    return leadCapturedVars(event.payload);
   }
 
   if (event.event === "variant.winner_declared") {

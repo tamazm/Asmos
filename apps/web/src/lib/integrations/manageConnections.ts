@@ -3,7 +3,7 @@ import { encryptBundle, maskSecret } from "./connections";
 import { decryptSecret, type EncryptedSecret } from "./crypto";
 import { AUTOMATION_EVENT_IDS } from "./events";
 
-const URL_PROVIDERS = ["zapier", "make", "n8n", "slack", "discord", "teams"] as const;
+const URL_PROVIDERS = ["zapier", "make", "n8n", "slack", "discord", "teams", "googlesheets"] as const;
 type UrlProvider = (typeof URL_PROVIDERS)[number];
 
 export function isUrlProvider(p: unknown): p is UrlProvider {

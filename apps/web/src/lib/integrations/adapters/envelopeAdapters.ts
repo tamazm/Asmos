@@ -23,3 +23,6 @@ function createEnvelopeAdapter(provider: IntegrationProvider): IntegrationAdapte
 export const zapierAdapter = createEnvelopeAdapter("zapier");
 export const makeAdapter = createEnvelopeAdapter("make");
 export const n8nAdapter = createEnvelopeAdapter("n8n");
+// Google Sheets is wired as a plain webhook: the merchant deploys a Google Apps
+// Script Web App that appends a row, and we POST the event envelope to its URL.
+export const googlesheetsAdapter = createEnvelopeAdapter("googlesheets");

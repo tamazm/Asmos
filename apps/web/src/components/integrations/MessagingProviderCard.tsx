@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { SetupGuideButton } from "./SetupGuideButton";
 import { TestConnectionButton } from "./TestConnectionButton";
+import { MERGE_FIELDS } from "@/lib/integrations/mergeFields";
 
 const inputCls =
   "w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150";
@@ -48,10 +49,75 @@ export function MessagingProviderCard({
   const [testRecipient, setTestRecipient] = useState("");
   const [testing, setTesting] = useState(false);
 
+  // Twilio only: SMS has no recipient unless a live popup collects a phone
+  // number. Surface a warning + one-click fix when none do.
+  const isTwilio = meta.id === "twilio";
+  const [phoneCoverage, setPhoneCoverage] = useState<"loading" | "none" | "ok">("loading");
+  const [addingPhone, setAddingPhone] = useState(false);
+
   // Inline, auto-clearing status message (replaces blocking alert() dialogs).
   function flash(kind: "success" | "error", msg: string) {
     setStatus({ kind, msg });
     window.setTimeout(() => setStatus((s) => (s && s.msg === msg ? null : s)), 4000);
+  }
+
+  useEffect(() => {
+    if (!isTwilio || !view?.connected) return;
+    let cancelled = false;
+    fetch("/api/campaigns/phone-collection")
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setPhoneCoverage(d.anyCollectsPhone ? "ok" : "none"); })
+      // Fail open: a status-check error shouldn't nag the merchant with a false warning.
+      .catch(() => { if (!cancelled) setPhoneCoverage("ok"); });
+    return () => { cancelled = true; };
+  }, [isTwilio, view?.connected]);
+
+  async function addPhoneToPopups() {
+    setAddingPhone(true);
+    try {
+      const res = await fetch("/api/campaigns/phone-collection", { method: "POST" });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setPhoneCoverage("ok");
+        flash("success", d.campaignsChanged > 0 ? "Phone field added to your live popups." : "Your popups already collect phone.");
+      } else {
+        flash("error", d.error || "Couldn't update your popups.");
+      }
+    } catch {
+      flash("error", "Couldn't update your popups: network error.");
+    } finally {
+      setAddingPhone(false);
+    }
+  }
+
+  // ── Template variable picker ───────────────────────────────────────────────
+  // Merge fields come from the shared registry (mergeFields.ts) so the picker
+  // and the send-time renderer never drift. Clicking a chip inserts the token
+  // into whichever field (subject/body) the merchant last focused, at the cursor.
+  const subjectRef = useRef<HTMLInputElement>(null);
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const [activeField, setActiveField] = useState<"subject" | "body">("body");
+
+  function insertVariable(token: string) {
+    if (!editingTemplate) return;
+    const snippet = `{{${token}}}`;
+    const field = activeField === "subject" && editingTemplate.channel === "email" ? "subject" : "body";
+    const el = field === "subject" ? subjectRef.current : bodyRef.current;
+    const current = (editingTemplate[field] as string) || "";
+
+    if (el && typeof el.selectionStart === "number") {
+      const start = el.selectionStart;
+      const end = el.selectionEnd ?? start;
+      const next = current.slice(0, start) + snippet + current.slice(end);
+      setEditingTemplate({ ...editingTemplate, [field]: next });
+      requestAnimationFrame(() => {
+        el.focus();
+        const pos = start + snippet.length;
+        el.setSelectionRange(pos, pos);
+      });
+    } else {
+      setEditingTemplate({ ...editingTemplate, [field]: current + snippet });
+    }
   }
 
   async function refreshTemplates() {
@@ -213,6 +279,21 @@ export function MessagingProviderCard({
         </div>
       )}
 
+      {isTwilio && isConnected && phoneCoverage === "none" && (
+        <div className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs text-amber-800">
+          <p className="font-semibold">SMS has no one to text</p>
+          <p className="mt-0.5">None of your live popups collect a phone number yet, so your Twilio rules won&apos;t send.</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Button className="h-8 px-3 text-xs" disabled={addingPhone} onClick={addPhoneToPopups}>
+              {addingPhone ? "Adding..." : "Add phone to my live popups"}
+            </Button>
+            <a href="/campaigns/new" className="text-amber-800 underline underline-offset-2 hover:text-amber-900">
+              or create a new popup
+            </a>
+          </div>
+        </div>
+      )}
+
       {expanded && (
         <div className="mt-6 border-t border-[color:var(--color-border)] pt-4 space-y-4">
           <h4 className="font-medium text-[color:var(--color-text-primary)]">Connection Settings</h4>
@@ -268,19 +349,42 @@ export function MessagingProviderCard({
                     />
                     {editingTemplate.channel === "email" && (
                       <input
+                        ref={subjectRef}
                         className={inputCls}
                         placeholder="Subject"
                         value={editingTemplate.subject}
+                        onFocus={() => setActiveField("subject")}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditingTemplate({ ...editingTemplate, subject: e.target.value })}
                       />
                     )}
                     <textarea
+                      ref={bodyRef}
                       className={inputCls}
-                      placeholder="Body (supports {{lead.name}}, etc)"
+                      placeholder="Body — click a variable below to personalize, e.g. Hi {{lead.name}}!"
                       value={editingTemplate.body}
+                      onFocus={() => setActiveField("body")}
                       onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditingTemplate({ ...editingTemplate, body: e.target.value })}
                       rows={5}
                     />
+
+                    <div>
+                      <p className="text-xs text-[color:var(--color-text-secondary)] mb-1.5">
+                        Insert a variable{editingTemplate.channel === "email" ? ` (into the ${activeField})` : ""} — it&apos;s replaced with each lead&apos;s real value when sent:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {MERGE_FIELDS.map((f) => (
+                          <button
+                            key={f.token}
+                            type="button"
+                            onClick={() => insertVariable(f.token)}
+                            title={`{{${f.token}}} — e.g. ${f.sample}`}
+                            className="rounded-full border border-[color:var(--color-border)] px-2.5 py-1 text-xs text-[color:var(--color-text-primary)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] transition-colors"
+                          >
+                            {f.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                     <div className="flex gap-2">
                       <Button onClick={saveTemplate} disabled={savingTemplate}>
                         {savingTemplate ? "Saving..." : "Save Template"}
@@ -293,17 +397,51 @@ export function MessagingProviderCard({
 
               <div className="mt-8 border-t border-[color:var(--color-border)] pt-4">
                 <h4 className="font-medium mb-2 text-[color:var(--color-text-primary)]">Rules</h4>
+                <p className="text-xs text-[color:var(--color-text-secondary)] mb-2">
+                  {meta.id === "twilio"
+                    ? "Texts send when a shopper submits your popup. SMS only works if the popup collects a phone number."
+                    : "Emails send when a shopper submits your popup."}
+                </p>
                 <div className="space-y-2">
                   {rules.map((r, i) => (
-                    <div key={i} className="flex justify-between items-center border border-[color:var(--color-border)] p-2 rounded text-sm text-[color:var(--color-text-primary)]">
-                      <span>
-                        On <strong>{r.event}</strong>, delay <strong>{r.delayMinutes}m</strong>, send template <strong>{templates.find(t=>t.id===r.templateId)?.name || r.templateId}</strong>
-                      </span>
+                    <div key={i} className="flex flex-wrap justify-between items-center gap-2 border border-[color:var(--color-border)] p-2 rounded text-sm text-[color:var(--color-text-primary)]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Event is fixed to "Lead captured" — it is the only event
+                            that carries a recipient, so any other event would always
+                            skip the send (see messagingRules.executeRule). */}
+                        <span>On <strong>Lead captured</strong>, delay</span>
+                        <input
+                          type="number"
+                          min={0}
+                          max={10080}
+                          className="w-20 rounded border border-[color:var(--color-border)] px-2 py-1 text-sm"
+                          value={r.delayMinutes}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                            const v = Math.max(0, Math.min(10080, Number(e.target.value) || 0));
+                            setRules(rules.map((rr, idx) => (idx === i ? { ...rr, delayMinutes: v } : rr)));
+                          }}
+                        />
+                        <span>min, template</span>
+                        <select
+                          className="rounded border border-[color:var(--color-border)] px-2 py-1 text-sm"
+                          value={r.templateId}
+                          onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
+                            setRules(rules.map((rr, idx) => (idx === i ? { ...rr, templateId: e.target.value } : rr)))
+                          }
+                        >
+                          <option value="">Select template…</option>
+                          {templates.map((t) => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </select>
+                      </div>
                       <Button variant="ghost" className="h-8 px-3 text-xs text-red-500 hover:text-red-600" onClick={() => setRules(rules.filter((_, idx) => idx !== i))}>Remove</Button>
                     </div>
                   ))}
                   <div className="flex gap-2 items-center">
                     <Button variant="secondary" onClick={() => {
+                      // Only lead.captured is supported for messaging — other events
+                      // carry no recipient, so the send would always skip.
                       const newRule = { event: "lead.captured", delayMinutes: 0, templateId: templates[0]?.id || "" };
                       setRules([...rules, newRule]);
                     }}>Add Rule</Button>
