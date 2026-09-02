@@ -1,4 +1,4 @@
-import { auth } from "@/lib/auth-adapter";
+import { auth, currentUser } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 
@@ -66,6 +66,39 @@ export async function GET() {
     }
   }
 
+  let availableShops: { shopDomain: string; installedAt: string }[] = [];
+  if (!shop) {
+    const caller = await currentUser();
+    const callerEmail = caller?.primaryEmailAddress?.emailAddress?.toLowerCase();
+
+    const candidateShops = await prisma.shopifyShop.findMany({
+      where: {
+        uninstalledAt: null,
+        OR: [
+          { linkedAt: null },
+          ...(callerEmail
+            ? [
+                {
+                  account: {
+                    users: {
+                      some: { email: { equals: callerEmail, mode: "insensitive" as const } },
+                    },
+                  },
+                },
+              ]
+            : []),
+        ],
+      },
+      select: { shopDomain: true, installedAt: true },
+      take: 5,
+    });
+
+    availableShops = candidateShops.map((s) => ({
+      shopDomain: s.shopDomain,
+      installedAt: s.installedAt.toISOString(),
+    }));
+  }
+
   return Response.json({
     connected: Boolean(shop),
     shop: shop
@@ -77,6 +110,7 @@ export async function GET() {
           websiteId: shop.websiteId,
         }
       : null,
+    availableShops,
   });
 }
 
@@ -128,6 +162,31 @@ export async function POST(request: Request) {
         websiteId: shop.websiteId,
       },
     });
+  }
+
+  // Ownership verification check:
+  // If this shop is already linked to another active Asmos user account, verify whether the
+  // caller has the same email. If not, require Shopify OAuth re-authentication so a stranger
+  // cannot steal someone else's active store just by typing its domain name.
+  if (shop.linkedAt) {
+    const existingAccount = await prisma.account.findUnique({
+      where: { id: shop.accountId },
+      include: { users: true },
+    });
+    const callerUser = await currentUser();
+    const callerEmail = callerUser?.primaryEmailAddress?.emailAddress?.toLowerCase();
+    const isSameOwner = existingAccount?.users?.some(
+      (u) => u.clerkUserId === userId || (callerEmail && u.email?.toLowerCase() === callerEmail)
+    );
+
+    if (existingAccount && existingAccount.users.length > 0 && !isSameOwner) {
+      return Response.json({
+        connected: false,
+        requiresOAuth: true,
+        message: `This store is currently connected to another Asmos account. To verify ownership and transfer it, please authorize via Shopify.`,
+        installUrl: `/api/shopify/install?shop=${encodeURIComponent(shopDomain)}`,
+      });
+    }
   }
 
   // Ensure a Website exists for this shop on the account

@@ -488,6 +488,7 @@ export default function IntegrationsPage() {
       linkedAt: string | null;
       websiteId?: string | null;
     } | null;
+    availableShops?: { shopDomain: string; installedAt: string }[];
   } | null>(null);
   const [syncConns, setSyncConns] = useState<any[] | null>(null);
   const [webhookConns, setWebhookConns] = useState<any[] | null>(null);
@@ -1273,6 +1274,7 @@ export default function IntegrationsPage() {
                     installedAt: shopifyConn?.shop?.installedAt || null,
                     linkedAt: shopifyConn?.shop?.linkedAt || null,
                     directInstallUrl: p.directInstallUrl,
+                    availableShops: shopifyConn?.availableShops,
                     onDisconnect: handleDisconnectShopify,
                     onConnectDomain: handleConnectShopifyDomain,
                   }

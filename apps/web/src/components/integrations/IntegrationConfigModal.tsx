@@ -143,6 +143,7 @@ export interface IntegrationConfigModalProps {
     installedAt: string | null;
     linkedAt: string | null;
     directInstallUrl: string;
+    availableShops?: { shopDomain: string; installedAt: string }[];
     onDisconnect: () => Promise<void>;
     onConnectDomain?: (domain: string) => Promise<{ connected: boolean; installUrl?: string; message?: string }>;
   };
@@ -740,6 +741,56 @@ export function IntegrationConfigModal({
               </div>
             ) : (
               <div className="space-y-4">
+                {/* Detected Installed Store Card */}
+                {shopifyData.availableShops && shopifyData.availableShops.length > 0 && (
+                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/20 p-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                        Installed Store Detected
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[color:var(--color-text-secondary)] mb-3">
+                      The Asmos Shopify app is installed and ready to link to this account:
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {shopifyData.availableShops.map((s) => (
+                        <div key={s.shopDomain} className="flex items-center justify-between gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-2.5 shadow-xs">
+                          <div>
+                            <span className="font-mono text-xs font-semibold text-[color:var(--color-text-primary)]">{s.shopDomain}</span>
+                            <span className="block text-[10px] text-[color:var(--color-text-secondary)]">Installed via Shopify</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="primary"
+                            disabled={saving}
+                            onClick={async () => {
+                              setSaving(true);
+                              setError(null);
+                              try {
+                                if (shopifyData.onConnectDomain) {
+                                  const res = await shopifyData.onConnectDomain(s.shopDomain);
+                                  if (res.connected) {
+                                    setSuccess("Store connected successfully!");
+                                    setTimeout(() => setSuccess(null), 3000);
+                                  }
+                                }
+                              } catch (err) {
+                                setError((err as Error).message || "Could not connect store.");
+                              } finally {
+                                setSaving(false);
+                              }
+                            }}
+                            className="text-xs h-7 whitespace-nowrap"
+                          >
+                            {saving ? "Connecting…" : "Connect This Store"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* 1-Click Install Card */}
                 <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4 text-center">
                   <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-[#95BF47]/15">

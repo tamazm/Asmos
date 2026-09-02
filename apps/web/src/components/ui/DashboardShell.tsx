@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Toaster } from "react-hot-toast";
 import { Sidebar } from "@/components/ui/Sidebar";
@@ -32,6 +32,21 @@ export function DashboardShell({
 }) {
   const [navOpen, setNavOpen] = useState(false);
 
+  // Lock outer html/body scroll so only the inner <main> can scroll.
+  // Prevents the browser from ever scrolling the outer window down when inputs/radios are focused.
+  useEffect(() => {
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    window.scrollTo(0, 0);
+
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, []);
+
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-[color:var(--color-surface-sunken)]">
       <Toaster position="bottom-right" toastOptions={{ duration: 4000 }} />
@@ -49,7 +64,7 @@ export function DashboardShell({
       <div
         className={cn(
           "fixed inset-y-0 left-0 z-40 shadow-2xl transition-transform duration-200 ease-out",
-          "lg:static lg:z-auto lg:shadow-none lg:translate-x-0",
+          "lg:static lg:z-auto lg:shadow-none lg:translate-x-0 lg:h-full lg:shrink-0",
           navOpen ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -63,7 +78,7 @@ export function DashboardShell({
         />
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex min-w-0 min-h-0 flex-1 flex-col overflow-hidden h-full">
         {/* Top bar */}
         <header className="flex h-20 shrink-0 items-center justify-between gap-3 border-b border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-4 lg:px-6">
           <div className="flex min-w-0 items-center gap-2">
@@ -97,7 +112,7 @@ export function DashboardShell({
           </div>
         </header>
         {/* Page content */}
-        <main className="flex-1 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 lg:px-6">{children}</main>
+        <main className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 lg:px-6">{children}</main>
       </div>
       {testerToolkit}
     </div>

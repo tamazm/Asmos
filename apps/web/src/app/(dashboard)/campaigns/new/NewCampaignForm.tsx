@@ -177,7 +177,7 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
   }
 
   return (
-    <div className="flex flex-col gap-8 max-w-2xl mx-auto">
+    <div className="flex flex-col gap-8 max-w-2xl mx-auto pb-24">
       {/* Header */}
       <div>
         <div className="flex items-center gap-3 mb-1">
@@ -240,8 +240,13 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {/* BOTH: Capture & Offer */}
-                    <label className={`group relative cursor-pointer rounded-lg border p-3 flex flex-col items-center text-center transition-colors ${goal === "BOTH" ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/50"}`}>
-                      <input type="radio" name="goal" value="BOTH" checked={goal === "BOTH"} onChange={() => setGoal("BOTH")} className="sr-only" />
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={goal === "BOTH"}
+                      onClick={() => setGoal("BOTH")}
+                      className={`group relative cursor-pointer rounded-lg border p-3 flex flex-col items-center text-center transition-colors ${goal === "BOTH" ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/50"}`}
+                    >
                       <span className="text-sm font-medium text-[color:var(--color-text-primary)] mb-1">Capture & Offer</span>
                       <span className="text-xs text-[color:var(--color-text-secondary)]">Collect email to reveal code</span>
                       
@@ -254,11 +259,16 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                         </div>
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                       </div>
-                    </label>
+                    </button>
 
                     {/* EMAIL: Email Only */}
-                    <label className={`group relative cursor-pointer rounded-lg border p-3 flex flex-col items-center text-center transition-colors ${goal === "EMAIL" ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/50"}`}>
-                      <input type="radio" name="goal" value="EMAIL" checked={goal === "EMAIL"} onChange={() => setGoal("EMAIL")} className="sr-only" />
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={goal === "EMAIL"}
+                      onClick={() => setGoal("EMAIL")}
+                      className={`group relative cursor-pointer rounded-lg border p-3 flex flex-col items-center text-center transition-colors ${goal === "EMAIL" ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/50"}`}
+                    >
                       <span className="text-sm font-medium text-[color:var(--color-text-primary)] mb-1">Email Only</span>
                       <span className="text-xs text-[color:var(--color-text-secondary)]">Newsletter signup focus</span>
 
@@ -271,11 +281,16 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                         </div>
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                       </div>
-                    </label>
+                    </button>
 
                     {/* DISCOUNT: Discount Only */}
-                    <label className={`group relative cursor-pointer rounded-lg border p-3 flex flex-col items-center text-center transition-colors ${goal === "DISCOUNT" ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/50"}`}>
-                      <input type="radio" name="goal" value="DISCOUNT" checked={goal === "DISCOUNT"} onChange={() => setGoal("DISCOUNT")} className="sr-only" />
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={goal === "DISCOUNT"}
+                      onClick={() => setGoal("DISCOUNT")}
+                      className={`group relative cursor-pointer rounded-lg border p-3 flex flex-col items-center text-center transition-colors ${goal === "DISCOUNT" ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5" : "border-[color:var(--color-border)] hover:border-[color:var(--color-primary)]/50"}`}
+                    >
                       <span className="text-sm font-medium text-[color:var(--color-text-primary)] mb-1">Discount Only</span>
                       <span className="text-xs text-[color:var(--color-text-secondary)]">Give code immediately</span>
 
@@ -288,7 +303,7 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                         </div>
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                       </div>
-                    </label>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -323,20 +338,16 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                           { value: "free_shipping", label: "Free shipping" },
                           { value: "fixed_prize", label: "Fixed prize / gift" },
                         ] as const).map((opt) => (
-                          <label
+                          <button
                             key={opt.value}
-                            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm text-center transition-colors ${discountPreference === opt.value ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5 text-[color:var(--color-text-primary)]" : "border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/50"}`}
+                            type="button"
+                            role="radio"
+                            aria-checked={discountPreference === opt.value}
+                            onClick={() => setDiscountPreference(opt.value)}
+                            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm text-center transition-colors ${discountPreference === opt.value ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5 text-[color:var(--color-text-primary)] font-medium" : "border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/50"}`}
                           >
-                            <input
-                              type="radio"
-                              name="discountPreference"
-                              value={opt.value}
-                              checked={discountPreference === opt.value}
-                              onChange={() => setDiscountPreference(opt.value)}
-                              className="sr-only"
-                            />
                             {opt.label}
-                          </label>
+                          </button>
                         ))}
                       </div>
 
@@ -431,20 +442,16 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                           { value: "include", label: "Only these pages" },
                           { value: "exclude", label: "Everywhere except" },
                         ] as const).map((opt) => (
-                          <label
+                          <button
                             key={opt.value}
-                            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm text-center transition-colors ${pageTargetMode === opt.value ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5 text-[color:var(--color-text-primary)]" : "border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/50"}`}
+                            type="button"
+                            role="radio"
+                            aria-checked={pageTargetMode === opt.value}
+                            onClick={() => setPageTargetMode(opt.value)}
+                            className={`cursor-pointer rounded-lg border px-3 py-2 text-sm text-center transition-colors ${pageTargetMode === opt.value ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary)]/5 text-[color:var(--color-text-primary)] font-medium" : "border-[color:var(--color-border)] text-[color:var(--color-text-secondary)] hover:border-[color:var(--color-primary)]/50"}`}
                           >
-                            <input
-                              type="radio"
-                              name="pageTargetMode"
-                              value={opt.value}
-                              checked={pageTargetMode === opt.value}
-                              onChange={() => setPageTargetMode(opt.value)}
-                              className="sr-only"
-                            />
                             {opt.label}
-                          </label>
+                          </button>
                         ))}
                       </div>
 
