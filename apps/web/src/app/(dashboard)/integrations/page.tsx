@@ -84,51 +84,68 @@ function SkeletonGrid({ count }: { count: number }) {
 
 type ConnState = { provider: string; connected: boolean; url: string | null; subscribedEvents: string[]; maskedSecret: string | null; lastDelivery: { status: string; at: string } | null };
 
+// Actual brand logos (optimized webp in /public/integrations), replacing the
+// old colored letter tiles. Rendered in a fixed 28px box; object-contain keeps
+// both full-bleed color tiles and transparent marks looking right.
+function LogoIcon({ provider, name }: { provider: string; name: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/integrations/${provider}.webp`}
+      alt={`${name} logo`}
+      width={28}
+      height={28}
+      className="h-7 w-7 rounded-md object-contain"
+      loading="lazy"
+    />
+  );
+}
+
 const PROVIDER_META: Array<Omit<ProviderCardProps, "initialUrl" | "initialEvents" | "initialMaskedSecret" | "initialLastDelivery"> & { group: "Automation" | "Notifications" }> = [
   { provider: "zapier", name: "Zapier", category: "Automation", group: "Automation", supportsSigning: true, docsUrl: "https://zapier.com/help/create/basics/create-webhooks-from-scratch", setupSteps: [
       "Log in to Zapier and click Create, then Zaps to start a new Zap.",
       "For the trigger, search for and choose 'Webhooks by Zapier', then pick the 'Catch Hook' event.",
       "Zapier shows a 'Custom Webhook URL' that starts with https://hooks.zapier.com/ — click Copy.",
       "Paste it into the field above and click Save.",
-    ], urlLabel: "Zapier Catch Hook URL", urlPlaceholder: "https://hooks.zapier.com/hooks/catch/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#FF4A00"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">Z</text></svg> },
+    ], urlLabel: "Zapier Catch Hook URL", urlPlaceholder: "https://hooks.zapier.com/hooks/catch/...", icon: <LogoIcon provider="zapier" name="Zapier" /> },
   { provider: "make", name: "Make", category: "Automation", group: "Automation", supportsSigning: true, docsUrl: "https://www.make.com/en/help/tools/webhooks", setupSteps: [
       "Log in to Make and open (or create) the scenario you want to trigger.",
       "Add a module, search for 'Webhooks', then choose 'Custom webhook'.",
       "Click Add, give it a name and click Save — Make shows a web address; click 'Copy address to clipboard'.",
       "Paste it into the field above and click Save.",
-    ], urlLabel: "Make Custom Webhook URL", urlPlaceholder: "https://hook.eu1.make.com/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#6D00CC"/><text x="8" y="27" fontSize="18" fontWeight="bold" fill="#fff">M</text></svg> },
+    ], urlLabel: "Make Custom Webhook URL", urlPlaceholder: "https://hook.eu1.make.com/...", icon: <LogoIcon provider="make" name="Make" /> },
   { provider: "n8n", name: "n8n", category: "Automation", group: "Automation", supportsSigning: true, docsUrl: "https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/", setupSteps: [
       "In n8n, open the workflow you want to run and add a new 'Webhook' node.",
       "Set the method to POST, then copy the 'Production URL' shown on the node.",
       "Click Save and turn the workflow Active so the web address stays live.",
       "Paste the web address into the field above and click Save.",
-    ], urlLabel: "n8n Webhook URL", urlPlaceholder: "https://<your-n8n>/webhook/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#EA4B71"/><text x="9" y="27" fontSize="15" fontWeight="bold" fill="#fff">n8</text></svg> },
+    ], urlLabel: "n8n Webhook URL", urlPlaceholder: "https://<your-n8n>/webhook/...", icon: <LogoIcon provider="n8n" name="n8n" /> },
   { provider: "googlesheets", name: "Google Sheets", category: "Automation", group: "Automation", docsUrl: "https://developers.google.com/apps-script/guides/web", setupSteps: [
       "Create a Google Sheet, then open 'Extensions' → 'Apps Script'.",
       "Delete any starter code and paste this, then click Save: function doPost(e){var s=SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();var d=JSON.parse(e.postData.contents);if(d.event!=='lead.captured'){return ContentService.createTextOutput('ok');}var l=(d.payload&&d.payload.lead)||{};s.appendRow([new Date(),l.email||'',l.name||'',l.phone||'',(d.payload&&d.payload.campaign_name)||'']);return ContentService.createTextOutput('ok');}",
       "Click 'Deploy' → 'New deployment'. For type choose 'Web app'. Set 'Execute as: Me' and 'Who has access: Anyone', then click 'Deploy' and authorize.",
       "Copy the 'Web app' URL it shows (it ends in /exec).",
       "Paste that URL into the field above and click Save. Keep only 'Lead captured' selected so the sheet fills with leads.",
-    ], urlLabel: "Apps Script Web App URL", urlPlaceholder: "https://script.google.com/macros/s/.../exec", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#0F9D58"/><text x="9" y="27" fontSize="16" fontWeight="bold" fill="#fff">GS</text></svg> },
+    ], urlLabel: "Apps Script Web App URL", urlPlaceholder: "https://script.google.com/macros/s/.../exec", icon: <LogoIcon provider="googlesheets" name="Google Sheets" /> },
   { provider: "slack", name: "Slack", category: "Notifications", group: "Notifications", docsUrl: "https://api.slack.com/messaging/webhooks", setupSteps: [
       "Go to api.slack.com/apps and click 'Create New App' (choose 'From scratch'), then pick your workspace.",
       "In the app's left menu, open 'Incoming Webhooks' and switch the toggle On.",
       "Click 'Add New Webhook to Workspace', choose the channel for alerts, and click Allow.",
       "Copy the Webhook URL Slack gives you (it starts with https://hooks.slack.com/).",
       "Paste it into the field above and click Save.",
-    ], urlLabel: "Slack Incoming Webhook URL", urlPlaceholder: "https://hooks.slack.com/services/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#4A154B"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">S</text></svg> },
+    ], urlLabel: "Slack Incoming Webhook URL", urlPlaceholder: "https://hooks.slack.com/services/...", icon: <LogoIcon provider="slack" name="Slack" /> },
   { provider: "discord", name: "Discord", category: "Notifications", group: "Notifications", docsUrl: "https://support.discord.com/hc/en-us/articles/228383668", setupSteps: [
       "In Discord, open the channel where you want alerts and click the gear icon ('Edit Channel').",
       "Go to 'Integrations', then 'Webhooks', and click 'New Webhook'.",
       "Give it a name, then click 'Copy Webhook URL'.",
       "Paste it into the field above and click Save.",
-    ], urlLabel: "Discord Channel Webhook URL", urlPlaceholder: "https://discord.com/api/webhooks/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#5865F2"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">D</text></svg> },
+    ], urlLabel: "Discord Channel Webhook URL", urlPlaceholder: "https://discord.com/api/webhooks/...", icon: <LogoIcon provider="discord" name="Discord" /> },
   { provider: "teams", name: "Microsoft Teams", category: "Notifications", group: "Notifications", docsUrl: "https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook", setupSteps: [
       "In Teams, find the channel where you want alerts and click the '...' menu next to its name.",
       "Choose 'Workflows' and pick the 'Post to a channel when a webhook request is received' template.",
       "Follow the prompts to add it, then copy the web address (URL) it creates for you.",
       "Paste it into the field above and click Save.",
-    ], urlLabel: "Teams Incoming Webhook URL", urlPlaceholder: "https://outlook.office.com/webhook/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#4B53BC"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">T</text></svg> },
+    ], urlLabel: "Teams Incoming Webhook URL", urlPlaceholder: "https://outlook.office.com/webhook/...", icon: <LogoIcon provider="teams" name="Microsoft Teams" /> },
 ];
 
 type SyncConnState = { provider: string; connected: boolean; maskedKey: string | null; authType: "apiKey" | "oauth" | null; config: Record<string, string>; subscribedEvents: string[]; lastDelivery: { status: string; at: string } | null };
@@ -151,7 +168,7 @@ const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initia
     keyLabel: "Klaviyo Private API Key",
     keyPlaceholder: "pk_...",
     configFields: [{ key: "listId", label: "List ID", placeholder: "e.g. XyzAbc" }],
-    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#1A1A1A" /><text x="8" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">K</text></svg>
+    icon: <LogoIcon provider="klaviyo" name="Klaviyo" />
   },
   {
     provider: "mailchimp",
@@ -169,7 +186,7 @@ const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initia
       ],
     },
     configFields: [{ key: "audienceId", label: "Audience ID", placeholder: "e.g. abc123def4" }],
-    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#FFE01B" /><text x="9" y="27" fontSize="18" fontWeight="bold" fill="#1A1A1A" fontFamily="serif">M</text></svg>
+    icon: <LogoIcon provider="mailchimp" name="Mailchimp" />
   },
   {
     provider: "hubspot",
@@ -188,7 +205,7 @@ const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initia
     },
     keyLabel: "HubSpot Private App Token",
     keyPlaceholder: "pat-...",
-    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#FF7A59" /><text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">H</text></svg>
+    icon: <LogoIcon provider="hubspot" name="HubSpot" />
   },
   {
     provider: "omnisend",
@@ -205,7 +222,7 @@ const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initia
     },
     keyLabel: "Omnisend API Key",
     keyPlaceholder: "e.g. 6543ab...",
-    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#1C4E3D" /><text x="9" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">O</text></svg>
+    icon: <LogoIcon provider="omnisend" name="Omnisend" />
   },
   {
     provider: "brevo",
@@ -224,7 +241,7 @@ const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initia
     keyLabel: "Brevo API Key",
     keyPlaceholder: "xkeysib-...",
     configFields: [{ key: "listId", label: "List ID", placeholder: "e.g. 3" }],
-    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#0B996E" /><text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">B</text></svg>
+    icon: <LogoIcon provider="brevo" name="Brevo" />
   },
   {
     provider: "mailerlite",
@@ -242,7 +259,7 @@ const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initia
     },
     keyLabel: "MailerLite API Key",
     keyPlaceholder: "eyJ0eXAi...",
-    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#09C269" /><text x="7" y="27" fontSize="15" fontWeight="bold" fill="white" fontFamily="sans-serif">ML</text></svg>
+    icon: <LogoIcon provider="mailerlite" name="MailerLite" />
   },
   {
     provider: "drip",
@@ -260,7 +277,7 @@ const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initia
     keyLabel: "Drip API Token",
     keyPlaceholder: "e.g. 1a2b3c...",
     configFields: [{ key: "accountId", label: "Account ID", placeholder: "e.g. 1234567" }],
-    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#EC407A" /><text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">D</text></svg>
+    icon: <LogoIcon provider="drip" name="Drip" />
   },
 ];
 
@@ -488,12 +505,7 @@ const MESSAGING_PROVIDER_META: MessagingProviderMeta[] = [
       "Get your API key from the profile menu → 'API Keys' (or 'API security') and copy the sending key.",
       "Paste the domain, region, from address, and API key into the fields above and click Save Connection.",
     ],
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#F03F35" />
-        <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">M</text>
-      </svg>
-    ),
+    icon: <LogoIcon provider="mailgun" name="Mailgun" />,
     configFields: [
       { key: "domain", label: "Domain", placeholder: "e.g. mg.example.com" },
       { key: "region", label: "Region", placeholder: "us or eu" },
@@ -513,12 +525,7 @@ const MESSAGING_PROVIDER_META: MessagingProviderMeta[] = [
       "Go to 'Phone Numbers' → 'Manage' → 'Active numbers' and copy the number you'll text from (in +15551234567 format).",
       "Paste the Account SID, Restricted API Key SID, secret, and sending number into the fields above and click Save Connection.",
     ],
-    icon: (
-      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-        <rect width="40" height="40" rx="8" fill="#F22F46" />
-        <text x="12" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">T</text>
-      </svg>
-    ),
+    icon: <LogoIcon provider="twilio" name="Twilio" />,
     configFields: [
       { key: "fromNumber", label: "From Phone Number", placeholder: "+15551234567" },
       { key: "accountSid", label: "Account SID", placeholder: "AC..." },
