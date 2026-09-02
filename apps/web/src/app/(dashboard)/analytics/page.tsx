@@ -3,16 +3,37 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
+import { cn } from "@/lib/cn";
 import type { CampaignEventType } from ".prisma/client";
 
 const VARIANT_COLORS = ["#3B82F6", "#10B981", "#F97316", "#EC4899", "#8B5CF6", "#06B6D4"];
 
-function MetricCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function MetricCard({
+  label,
+  value,
+  sub,
+  disabled,
+  badge,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  disabled?: boolean;
+  badge?: React.ReactNode;
+}) {
   return (
-    <div className="rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
-      <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">{label}</p>
-      <p className="mt-1.5 text-2xl font-bold tabular-nums text-[color:var(--color-text-primary)]">{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-[color:var(--color-text-secondary)]">{sub}</p>}
+    <div
+      className={cn(
+        "relative rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm transition-all",
+        disabled && "border-dashed bg-[color:var(--color-surface-sunken)]/60 text-[color:var(--color-text-secondary)]",
+      )}
+    >
+      {badge}
+      <div className={cn(disabled && "opacity-60 select-none")}>
+        <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">{label}</p>
+        <p className="mt-1.5 text-2xl font-bold tabular-nums text-[color:var(--color-text-primary)]">{value}</p>
+        {sub && <p className="mt-0.5 text-xs text-[color:var(--color-text-secondary)]">{sub}</p>}
+      </div>
     </div>
   );
 }
@@ -45,6 +66,11 @@ type CampaignRow = {
 
 export default async function AnalyticsPage() {
   const account = await getOrCreateAccount();
+  const shopifyShop = await prisma.shopifyShop.findFirst({
+    where: { accountId: account.id, uninstalledAt: null },
+    select: { id: true },
+  });
+  const isShopifyLinked = Boolean(shopifyShop);
 
   const campaigns = await prisma.campaign.findMany({
     where: { accountId: account.id },
@@ -233,6 +259,31 @@ export default async function AnalyticsPage() {
               : "$0.00"
           }
           sub={attributedLeads.length > 0 ? `${attributedLeads.length} order${attributedLeads.length === 1 ? "" : "s"} attributed` : "Via popup discounts"}
+          disabled={!isShopifyLinked}
+          badge={
+            !isShopifyLinked ? (
+              <Link
+                href="/integrations"
+                className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 transition-all hover:bg-emerald-500/20 hover:scale-105 active:scale-95 dark:text-emerald-300 shadow-xs"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Link Shopify
+                <svg
+                  width="9"
+                  height="9"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M5 12h14m-7-7 7 7-7 7" />
+                </svg>
+              </Link>
+            ) : undefined
+          }
         />
       </div>
 
