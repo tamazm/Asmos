@@ -5,6 +5,7 @@ import { SetupGuideButton } from "./SetupGuideButton";
 import { TestConnectionButton } from "./TestConnectionButton";
 import { EventSelector, EventSummary } from "./EventSelector";
 import { AUTOMATION_EVENT_OPTIONS, eventLabel } from "@/lib/integrations/events";
+import { IntegrationCardShell } from "./IntegrationCardShell";
 
 export interface ProviderCardProps {
   provider: string;
@@ -33,6 +34,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
   const [signingSecret, setSigningSecret] = useState("");
   const [maskedSecret, setMaskedSecret] = useState<string | null>(props.initialMaskedSecret ?? null);
   const [editing, setEditing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const lastDelivery = props.initialLastDelivery;
@@ -60,7 +62,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
       const view = data.connections?.find((c: { provider: string; maskedSecret: string | null }) => c.provider === props.provider);
       if (view) setMaskedSecret(view.maskedSecret ?? null);
       setSigningSecret("");
-      setConnected(true); setEditing(false);
+      setConnected(true); setEditing(false); setExpanded(false);
     } catch { setError("Network error."); } finally { setSaving(false); }
   }
 
@@ -72,33 +74,25 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
         body: JSON.stringify({ provider: props.provider }),
       });
     } catch { /* best effort */ } finally { setSaving(false); }
-    setConnected(false); setUrl(""); setSigningSecret(""); setMaskedSecret(null); setEditing(false); setError(null);
+    setConnected(false); setUrl(""); setSigningSecret(""); setMaskedSecret(null); setEditing(false); setError(null); setExpanded(false);
   }
 
   const showForm = editing || !connected;
+  const inputCls = "w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]";
+  const labelCls = "text-xs font-medium text-[color:var(--color-text-primary)]";
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-sm sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="shrink-0">{props.icon}</div>
-          <div>
-            <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">{props.name}</p>
-            <p className="text-xs text-[color:var(--color-text-secondary)]">{props.category}</p>
-          </div>
-        </div>
-        <span className={connected
-          ? "inline-flex items-center gap-1 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-success)]"
-          : "rounded-full bg-[color:var(--color-neutral-badge)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-text-secondary)]"}>
-          {connected && <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />}
-          {connected ? "Connected" : "Not connected"}
-        </span>
-      </div>
-
+    <IntegrationCardShell
+      icon={props.icon}
+      name={props.name}
+      subtitle={props.category}
+      status={connected ? "connected" : "disconnected"}
+      expanded={expanded}
+      onToggle={() => setExpanded((v) => !v)}
+    >
       {connected && !editing && (
         <div className="flex flex-col gap-1">
           <p className="break-all font-mono text-xs text-[color:var(--color-text-primary)]">{url}</p>
-          <EventSummary events={events} eventLabel={eventLabel} />
           {props.supportsSigning && (
             <p className="text-xs text-[color:var(--color-text-secondary)]">
               Signing: {maskedSecret ? <span className="font-mono">{maskedSecret}</span> : "unsigned"}
@@ -114,28 +108,37 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
 
       {showForm && (
         <div className="flex flex-col gap-3">
-          <label className="text-xs font-medium text-[color:var(--color-text-primary)]">{props.urlLabel}</label>
-          <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={props.urlPlaceholder}
-            className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]" />
-          <EventSelector options={AUTOMATION_EVENT_OPTIONS} selected={events} onToggle={toggleEvent} />
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>{props.urlLabel}</label>
+            <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder={props.urlPlaceholder} className={inputCls} />
+          </div>
           {props.supportsSigning && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
+              <label className={labelCls}>
                 Signing secret <span className="font-normal text-[color:var(--color-text-secondary)]">(optional)</span>
               </label>
               <input type="password" value={signingSecret} onChange={(e) => setSigningSecret(e.target.value)}
-                placeholder={maskedSecret ? `${maskedSecret} — type to replace` : "Verify requests came from Asmos"}
-                className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]" />
+                placeholder={maskedSecret ? `${maskedSecret} — type to replace` : "Verify requests came from Asmos"} className={inputCls} />
               <p className="text-xs text-[color:var(--color-text-secondary)]">
                 If set, Asmos signs each request with <code className="font-mono">X-Asmos-Signature: sha256=&lt;hmac&gt;</code> so your workflow can verify it.
               </p>
             </div>
           )}
-          {error && <p className="text-xs text-red-500">{error}</p>}
         </div>
       )}
 
-      <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[color:var(--color-border)] pt-3">
+      {/* Events — pushed to the bottom, separated from the fields above */}
+      <div className="mt-1 border-t border-[color:var(--color-border)] pt-4">
+        {showForm ? (
+          <EventSelector options={AUTOMATION_EVENT_OPTIONS} selected={events} onToggle={toggleEvent} />
+        ) : (
+          <EventSummary events={events} eventLabel={eventLabel} />
+        )}
+      </div>
+
+      {error && <p className="text-xs text-red-500">{error}</p>}
+
+      <div className="flex flex-wrap items-center gap-2">
         {showForm ? (
           <button onClick={save} disabled={saving}
             className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white disabled:opacity-50 cursor-pointer">
@@ -158,6 +161,6 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
           <SetupGuideButton providerName={props.name} docsUrl={props.docsUrl} setupSteps={props.setupSteps} />
         )}
       </div>
-    </div>
+    </IntegrationCardShell>
   );
 }

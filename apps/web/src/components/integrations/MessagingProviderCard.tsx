@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { SetupGuideButton } from "./SetupGuideButton";
 import { TestConnectionButton } from "./TestConnectionButton";
 import { MERGE_FIELDS } from "@/lib/integrations/mergeFields";
+import { IntegrationCardShell } from "./IntegrationCardShell";
 
 const inputCls =
   "w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150";
@@ -242,28 +243,25 @@ export function MessagingProviderCard({
 
   const isConnected = view?.connected;
   const needsRestrictedKey = Boolean(isConnected && meta.requiresRestrictedKey && view?.authType === "authToken");
+  const cardStatus = needsRestrictedKey ? "reconnect" : isConnected ? "connected" : "disconnected";
+  const subtitle = meta.id === "twilio" ? "SMS" : "Email";
 
   return (
-    <div className="flex flex-col rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 mb-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {meta.icon}
-          <div>
-            <h3 className="font-semibold text-[color:var(--color-text-primary)]">{meta.name}</h3>
-            <p className="text-sm text-[color:var(--color-text-secondary)]">
-              {meta.description}
-              {(meta.setupSteps || meta.docsUrl) && (
-                <SetupGuideButton providerName={meta.name} docsUrl={meta.docsUrl} setupSteps={meta.setupSteps} />
-              )}
-            </p>
-          </div>
-        </div>
-        {needsRestrictedKey && (
-          <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-text-secondary)]">
-            Reconnect required
-          </span>
-        )}
-      </div>
+    <IntegrationCardShell
+      icon={meta.icon}
+      name={meta.name}
+      subtitle={subtitle}
+      status={cardStatus}
+      expanded={expanded}
+      onToggle={() => setExpanded(!expanded)}
+      headerAccessory={!expanded && isConnected && !needsRestrictedKey ? <TestConnectionButton provider={meta.id} /> : undefined}
+    >
+      {(meta.setupSteps || meta.docsUrl) && (
+        <p className="text-sm text-[color:var(--color-text-secondary)]">
+          {meta.description}
+          <SetupGuideButton providerName={meta.name} docsUrl={meta.docsUrl} setupSteps={meta.setupSteps} />
+        </p>
+      )}
 
       {status && (
         <div
@@ -294,8 +292,7 @@ export function MessagingProviderCard({
         </div>
       )}
 
-      {expanded && (
-        <div className="mt-6 border-t border-[color:var(--color-border)] pt-4 space-y-4">
+      <div className="space-y-4">
           <h4 className="font-medium text-[color:var(--color-text-primary)]">Connection Settings</h4>
           {meta.configFields.map((field) => (
             <div key={field.key} className="space-y-1">
@@ -463,32 +460,13 @@ export function MessagingProviderCard({
               </div>
             </>
           )}
+      </div>
+
+      {isConnected && (
+        <div className="border-t border-[color:var(--color-border)] pt-4">
+          <Button variant="secondary" className="text-red-500 hover:text-red-600" onClick={onRemove}>Disconnect</Button>
         </div>
       )}
-
-      <div className="mt-auto flex gap-2 pt-4">
-        {isConnected && !needsRestrictedKey && (
-          <>
-            {!expanded && <TestConnectionButton provider={meta.id} />}
-            <Button variant="secondary" onClick={() => setExpanded(!expanded)}>
-              {expanded ? "Close" : "Manage Rules"}
-            </Button>
-          </>
-        )}
-        {isConnected && needsRestrictedKey && (
-          <Button variant="primary" onClick={() => setExpanded(!expanded)}>
-            {expanded ? "Close" : "Reconnect"}
-          </Button>
-        )}
-        {!isConnected && (
-          <Button variant="primary" onClick={() => setExpanded(!expanded)}>
-            Connect
-          </Button>
-        )}
-        {isConnected && (
-          <Button variant="secondary" className="text-red-500 hover:text-red-600" onClick={onRemove}>Disconnect</Button>
-        )}
-      </div>
-    </div>
+    </IntegrationCardShell>
   );
 }

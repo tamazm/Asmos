@@ -6,6 +6,7 @@ import { ProviderWebhookCard, type ProviderCardProps } from "@/components/integr
 import { SyncProviderCard, type SyncCardProps } from "@/components/integrations/SyncProviderCard";
 import { RequestIntegrationCard } from "@/components/integrations/RequestIntegrationCard";
 import { MessagingProviderCard, type MessagingProviderMeta } from "@/components/integrations/MessagingProviderCard";
+import { IntegrationCardShell } from "@/components/integrations/IntegrationCardShell";
 import { TestConnectionButton } from "@/components/integrations/TestConnectionButton";
 import { EventSelector, EventSummary } from "@/components/integrations/EventSelector";
 import { AUTOMATION_EVENT_OPTIONS, eventLabel } from "@/lib/integrations/events";
@@ -40,12 +41,45 @@ const CATEGORY_LABELS = {
 } as const;
 
 /** Category heading with a plain-language subtitle so merchants know what the group is for. */
-function SectionHeading({ title, subtitle }: { title: string; subtitle: string }) {
+/** A whole integration category: a collapsible header + its grid of cards. */
+function CollapsibleSection({
+  title,
+  subtitle,
+  count,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  count?: number;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(true);
   return (
-    <div className="mb-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">{title}</h2>
-      <p className="mt-1 text-xs text-[color:var(--color-text-secondary)] opacity-80">{subtitle}</p>
-    </div>
+    <section>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="mb-3 flex w-full items-start justify-between gap-3 text-left"
+      >
+        <span>
+          <span className="flex items-center gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">{title}</span>
+            {typeof count === "number" && (
+              <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--color-text-secondary)]">{count}</span>
+            )}
+          </span>
+          <span className="mt-1 block text-xs text-[color:var(--color-text-secondary)] opacity-80">{subtitle}</span>
+        </span>
+        <svg
+          width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"
+          className={`mt-0.5 shrink-0 text-[color:var(--color-text-secondary)] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+        >
+          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && children}
+    </section>
   );
 }
 
@@ -290,7 +324,8 @@ function WebhookCard({ integration }: { integration: Integration }) {
   const [webhookSecret, setWebhookSecret] = useState("");
   const [maskedSecret, setMaskedSecret] = useState<string | null>(null);
   const [events, setEvents] = useState<string[]>(AUTOMATION_EVENT_OPTIONS.map((event) => event.id));
-  const [showInput, setShowInput] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -311,19 +346,9 @@ function WebhookCard({ integration }: { integration: Integration }) {
       });
   }, []);
 
-  async function handleConnect() {
-    if (!showInput) {
-      setShowInput(true);
-      return;
-    }
-    if (!webhookUrl.trim()) {
-      setError("Please enter your webhook endpoint URL.");
-      return;
-    }
-    if (!webhookUrl.trim().startsWith("https://")) {
-      setError("Endpoint URL must start with https://");
-      return;
-    }
+  async function handleSave() {
+    if (!webhookUrl.trim()) { setError("Please enter your webhook endpoint URL."); return; }
+    if (!webhookUrl.trim().startsWith("https://")) { setError("Endpoint URL must start with https://"); return; }
     setSaving(true);
     setError(null);
     try {
@@ -338,14 +363,12 @@ function WebhookCard({ integration }: { integration: Integration }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Failed to save. Please try again.");
-        return;
-      }
+      if (!res.ok) { setError(data.error ?? "Failed to save. Please try again."); return; }
       setMaskedSecret(data.webhookSecret);
       setEvents(data.subscribedEvents?.length ? data.subscribedEvents : events);
       setStatus("connected");
-      setShowInput(false);
+      setEditing(false);
+      setExpanded(false);
       setWebhookSecret(""); // clear plaintext from state
     } catch {
       setError("Network error. Please try again.");
@@ -371,43 +394,31 @@ function WebhookCard({ integration }: { integration: Integration }) {
     setWebhookUrl("");
     setWebhookSecret("");
     setMaskedSecret(null);
-    setShowInput(false);
+    setEditing(false);
+    setExpanded(false);
     setError(null);
   }
 
-  return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-sm sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="shrink-0">{integration.icon}</div>
-          <div>
-            <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">{integration.name}</p>
-            <p className="text-xs text-[color:var(--color-text-secondary)]">{CATEGORY_LABELS[integration.category]}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {status === "connected" && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-success)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
-              Connected
-            </span>
-          )}
-          {status !== "connected" && (
-            <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-text-secondary)]">
-              Not connected
-            </span>
-          )}
-        </div>
-      </div>
+  const connected = status === "connected";
+  const showForm = !connected || editing;
+  const inputCls = "w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm font-mono outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150";
+  const labelCls = "text-xs font-medium text-[color:var(--color-text-primary)]";
 
+  return (
+    <IntegrationCardShell
+      icon={integration.icon}
+      name={integration.name}
+      subtitle={CATEGORY_LABELS[integration.category]}
+      status={connected ? "connected" : "disconnected"}
+      expanded={expanded}
+      onToggle={() => setExpanded((v) => !v)}
+    >
       <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{integration.description}</p>
 
-      {/* Show saved URL when connected and not editing */}
-      {status === "connected" && !showInput && (
+      {connected && !editing && (
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">Endpoint URL</p>
           <p className="break-all font-mono text-xs text-[color:var(--color-text-primary)]">{webhookUrl}</p>
-          <EventSummary events={events} eventLabel={eventLabel} />
           {maskedSecret && (
             <>
               <p className="mt-1 text-xs font-medium text-[color:var(--color-text-secondary)]">Signing secret</p>
@@ -417,76 +428,58 @@ function WebhookCard({ integration }: { integration: Integration }) {
         </div>
       )}
 
-      {showInput && status !== "connected" && (
+      {showForm && (
         <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Endpoint URL <span className="text-red-500">*</span></label>
+            <input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://your-endpoint.com/webhook" className={inputCls} />
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className={labelCls}>Signing secret <span className="text-[color:var(--color-text-secondary)] font-normal">(optional)</span></label>
+            <input type="password" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder="Used to verify HMAC-SHA256 signature" className={inputCls} />
+            <p className="text-xs text-[color:var(--color-text-secondary)]">
+              We sign every request with <code className="font-mono">X-Asmos-Signature: sha256=&lt;hmac&gt;</code> when a secret is set.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Events — pushed to the bottom, separated from the fields above */}
+      <div className="mt-1 border-t border-[color:var(--color-border)] pt-4">
+        {showForm ? (
           <EventSelector
             options={AUTOMATION_EVENT_OPTIONS}
             selected={events}
             onToggle={(id) => setEvents((current) => current.includes(id) ? current.filter((eventId) => eventId !== id) : [...current, id])}
           />
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
-              Endpoint URL <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="url"
-              value={webhookUrl}
-              onChange={(e) => setWebhookUrl(e.target.value)}
-              placeholder="https://your-endpoint.com/webhook"
-              className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 font-mono"
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
-              Signing secret <span className="text-[color:var(--color-text-secondary)] font-normal">(optional)</span>
-            </label>
-            <input
-              type="password"
-              value={webhookSecret}
-              onChange={(e) => setWebhookSecret(e.target.value)}
-              placeholder="Used to verify HMAC-SHA256 signature"
-              className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 font-mono"
-            />
-            <p className="text-xs text-[color:var(--color-text-secondary)]">
-              We sign every request with <code className="font-mono">X-Asmos-Signature: sha256=&lt;hmac&gt;</code> when a secret is set.
-            </p>
-          </div>
-          {error && <p className="text-xs text-red-500">{error}</p>}
-        </div>
-      )}
+        ) : (
+          <EventSummary events={events} eventLabel={eventLabel} />
+        )}
+      </div>
 
-      <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[color:var(--color-border)] pt-3">
-        {status !== "connected" ? (
-          <button
-            onClick={handleConnect}
-            disabled={saving}
-            className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white transition-colors duration-150 disabled:opacity-50 cursor-pointer"
-          >
-            {saving ? "Saving..." : showInput ? "Save connection" : "Connect"}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+
+      <div className="flex flex-wrap items-center gap-2">
+        {showForm ? (
+          <button onClick={handleSave} disabled={saving}
+            className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white transition-colors duration-150 disabled:opacity-50 cursor-pointer">
+            {saving ? "Saving..." : "Save connection"}
           </button>
         ) : (
           <>
             <TestConnectionButton provider={integration.id} />
-            <button
-              onClick={() => { setShowInput(true); setStatus("disconnected"); }}
-              disabled={saving}
-              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)] hover:border-[color:var(--color-primary)] transition-colors duration-150 cursor-pointer disabled:opacity-50"
-            >
+            <button onClick={() => setEditing(true)} disabled={saving}
+              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)] hover:border-[color:var(--color-primary)] transition-colors duration-150 cursor-pointer disabled:opacity-50">
               Edit
             </button>
-            <button
-              onClick={handleDisconnect}
-              disabled={saving}
-              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-red-500 hover:border-red-200 transition-colors duration-150 cursor-pointer disabled:opacity-50"
-            >
+            <button onClick={handleDisconnect} disabled={saving}
+              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-red-500 hover:border-red-200 transition-colors duration-150 cursor-pointer disabled:opacity-50">
               {saving ? "Disconnecting..." : "Disconnect"}
             </button>
           </>
         )}
       </div>
-
-      <style>{`@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}`}</style>
-    </div>
+    </IntegrationCardShell>
   );
 }
 
@@ -604,8 +597,7 @@ export default function IntegrationsPage() {
       </p>
 
       {/* 1. Marketing — the priority for ecommerce: get leads into the tools that actually sell. */}
-      <section>
-        <SectionHeading title="Marketing" subtitle="Send captured leads straight into the email & CRM tools you sell with." />
+      <CollapsibleSection title="Marketing" subtitle="Send captured leads straight into the email & CRM tools you sell with." count={SYNC_PROVIDER_META.length}>
         {syncConns === null ? (
           <SkeletonGrid count={SYNC_PROVIDER_META.length} />
         ) : (
@@ -624,11 +616,10 @@ export default function IntegrationsPage() {
             })}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
       {/* 2. Messaging — reach the lead directly. */}
-      <section>
-        <SectionHeading title="Messaging" subtitle="Automatically email or text a lead the moment they convert." />
+      <CollapsibleSection title="Messaging" subtitle="Automatically email or text a lead the moment they convert." count={MESSAGING_PROVIDER_META.length}>
         {loading ? (
           <SkeletonGrid count={MESSAGING_PROVIDER_META.length} />
         ) : (
@@ -647,11 +638,10 @@ export default function IntegrationsPage() {
             })}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
       {/* 3. Automation — pipe events anywhere, including your own endpoint. */}
-      <section>
-        <SectionHeading title="Automation" subtitle="Pipe lead & winner events into any workflow tool — or your own endpoint." />
+      <CollapsibleSection title="Automation" subtitle="Pipe lead & winner events into any workflow tool — or your own endpoint." count={PROVIDER_META.filter((m) => m.group === "Automation").length + 1}>
         {conns === null ? (
           <SkeletonGrid count={PROVIDER_META.filter((m) => m.group === "Automation").length + 1} />
         ) : (
@@ -669,11 +659,10 @@ export default function IntegrationsPage() {
             <WebhookCard integration={WEBHOOKS_INTEGRATION} />
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
       {/* 4. Notifications — team alerts. */}
-      <section>
-        <SectionHeading title="Notifications" subtitle="Get a ping in your team chat on every new lead and test winner." />
+      <CollapsibleSection title="Notifications" subtitle="Get a ping in your team chat on every new lead and test winner." count={PROVIDER_META.filter((m) => m.group === "Notifications").length}>
         {conns === null ? (
           <SkeletonGrid count={PROVIDER_META.filter((m) => m.group === "Notifications").length} />
         ) : (
@@ -690,7 +679,7 @@ export default function IntegrationsPage() {
             })}
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
       {/* Request an integration we don't offer yet — sent to superadmins. */}
       <section>
