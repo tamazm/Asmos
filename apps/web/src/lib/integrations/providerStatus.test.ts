@@ -336,4 +336,55 @@ describe("computeProviderStatus", () => {
       expect(res.status).toBe("key_required");
     });
   });
+
+  describe("Shopify Store Platform", () => {
+    const shopifyMeta = {
+      id: "shopify",
+      type: "shopify",
+    };
+
+    it("returns 'connected' when Shopify store is connected", () => {
+      const res = computeProviderStatus({
+        meta: shopifyMeta,
+        syncConns: [],
+        webhookConns: [],
+        messagingViews: [],
+        customWebhookView: null,
+        shopifyConn: {
+          connected: true,
+          shop: {
+            shopDomain: "my-store.myshopify.com",
+            installedAt: "2026-01-01T00:00:00.000Z",
+            linkedAt: null,
+          },
+        },
+      });
+
+      expect(res.status).toBe("connected");
+      expect(res.activeEventsCount).toBe(1);
+      expect(res.conn).toEqual({
+        shopDomain: "my-store.myshopify.com",
+        installedAt: "2026-01-01T00:00:00.000Z",
+        linkedAt: null,
+      });
+    });
+
+    it("returns 'disconnected' when Shopify store is not connected", () => {
+      const res = computeProviderStatus({
+        meta: shopifyMeta,
+        syncConns: [],
+        webhookConns: [],
+        messagingViews: [],
+        customWebhookView: null,
+        shopifyConn: {
+          connected: false,
+          shop: null,
+        },
+      });
+
+      expect(res.status).toBe("disconnected");
+      expect(res.activeEventsCount).toBe(0);
+      expect(res.conn).toBeNull();
+    });
+  });
 });

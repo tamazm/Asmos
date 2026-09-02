@@ -8,7 +8,7 @@ import { EventSelector } from "./EventSelector";
 import { LEAD_EVENT_OPTIONS, AUTOMATION_EVENT_OPTIONS } from "@/lib/integrations/events";
 import { MERGE_FIELDS } from "@/lib/integrations/mergeFields";
 
-export type ModalType = "sync" | "webhook" | "custom-webhook" | "messaging";
+export type ModalType = "sync" | "webhook" | "custom-webhook" | "messaging" | "shopify";
 
 const RAW_APPS_SCRIPT =
   'function doPost(e){var s=SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();var d=JSON.parse(e.postData.contents);if(d.event!==\'lead.captured\'){return ContentService.createTextOutput(\'ok\');}var l=(d.payload&&d.payload.lead)||{};s.appendRow([new Date(),l.email||\'\',l.name||\'\',l.phone||\'\',(d.payload&&d.payload.campaign_name)||\'\']);return ContentService.createTextOutput(\'ok\');}';
@@ -137,6 +137,14 @@ export interface IntegrationConfigModalProps {
     onSave: (data: { config: Record<string, string>; secrets: Record<string, string> }) => Promise<void>;
     onDisconnect: () => Promise<void>;
   };
+  // Specific data for Shopify
+  shopifyData?: {
+    connectedShopDomain: string | null;
+    installedAt: string | null;
+    linkedAt: string | null;
+    directInstallUrl: string;
+    onDisconnect: () => Promise<void>;
+  };
 }
 
 export function IntegrationConfigModal({
@@ -159,6 +167,7 @@ export function IntegrationConfigModal({
   webhookData,
   customWebhookData,
   messagingData,
+  shopifyData,
 }: IntegrationConfigModalProps) {
   const [showGuide, setShowGuide] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
@@ -206,6 +215,7 @@ export function IntegrationConfigModal({
   const subjectRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const [activeField, setActiveField] = useState<"subject" | "body">("body");
+  const [shopifyDomainInput, setShopifyDomainInput] = useState("");
 
   // Twilio phone coverage effect
   useEffect(() => {
@@ -358,7 +368,9 @@ export function IntegrationConfigModal({
     setDisconnecting(true);
     setError(null);
     try {
-      if (type === "sync" && syncData) {
+      if (type === "shopify" && shopifyData) {
+        await shopifyData.onDisconnect();
+      } else if (type === "sync" && syncData) {
         await syncData.onDisconnect();
       } else if (type === "webhook" && webhookData) {
         await webhookData.onDisconnect();
@@ -656,6 +668,146 @@ export function IntegrationConfigModal({
                     </a>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ────────────── SHOPIFY PROVIDER FORM ────────────── */}
+        {type === "shopify" && shopifyData && (
+          <div className="space-y-4">
+            {isConnected && shopifyData.connectedShopDomain ? (
+              <div className="rounded-xl border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/20 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                        Connected Store
+                      </span>
+                    </div>
+                    <p className="mt-1 font-mono text-sm font-bold text-[color:var(--color-text-primary)]">
+                      {shopifyData.connectedShopDomain}
+                    </p>
+                    {shopifyData.installedAt && (
+                      <p className="mt-1 text-[11px] text-[color:var(--color-text-secondary)]">
+                        Connected on {new Date(shopifyData.installedAt).toLocaleDateString(undefined, { dateStyle: "medium" })}
+                      </p>
+                    )}
+                  </div>
+                  <a
+                    href="/shopify-admin"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-primary)] hover:border-[color:var(--color-primary)] transition-all shadow-xs"
+                  >
+                    Open Embedded Admin
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                  </a>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 border-t border-emerald-500/20 pt-3 text-[11px]">
+                  <div className="flex items-center gap-1.5 text-[color:var(--color-text-secondary)]">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Automatic discount sync</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[color:var(--color-text-secondary)]">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Storefront theme popups</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[color:var(--color-text-secondary)]">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Checkout & order revenue</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[color:var(--color-text-secondary)]">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <span>Live lead attribution</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* 1-Click Install Card */}
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4 text-center">
+                  <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-[#95BF47]/15">
+                    <svg viewBox="0 0 40 40" width="22" height="22" fill="none">
+                      <rect width="40" height="40" rx="8" fill="#95BF47" />
+                      <path
+                        fillRule="evenodd"
+                        clipRule="evenodd"
+                        d="M26.7 13.5c-.1-.7-.7-1.2-1.4-1.2-.2 0-.4 0-.6.1-.2-.7-.6-1.5-1.2-2.1-.9-.8-2-1.2-3.2-1.2-2.6 0-4.4 2.1-4.7 5.1l-2.4.8c-.7.2-1.2.9-1.2 1.6l1.2 13.6c.1.9.8 1.6 1.7 1.6h9c.9 0 1.6-.7 1.7-1.6l1.2-15.1c0-.4-.1-.7-.3-1zm-6.2-3c1.7 0 2.9 1.4 3 3.5l-6 1.9c.4-2.8 1.8-5.4 3-5.4zm-1.1 19.3l-5.6-1.5.8-9 4.8 1.5v9zm1.8 0v-8.7l5.2 1.6-.8 7.1h-4.4z"
+                        fill="white"
+                      />
+                    </svg>
+                  </div>
+                  <h4 className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+                    Install via Shopify Developer Dashboard
+                  </h4>
+                  <p className="mt-1 text-xs text-[color:var(--color-text-secondary)] max-w-md mx-auto mb-4">
+                    Install Asmos directly onto your development or merchant store using your partner organization access.
+                  </p>
+                  <a
+                    href={shopifyData.directInstallUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-[#008060] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[#006e52] shadow-xs"
+                  >
+                    Install App on Shopify
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                  </a>
+                </div>
+
+                {/* Or connect by store domain */}
+                <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4">
+                  <label className="block text-xs font-semibold text-[color:var(--color-text-primary)] mb-1">
+                    Or connect with your store URL
+                  </label>
+                  <p className="text-[11px] text-[color:var(--color-text-secondary)] mb-3">
+                    Enter your .myshopify.com domain to begin standard OAuth authorization.
+                  </p>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const cleaned = shopifyDomainInput.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
+                      if (cleaned) {
+                        window.location.href = `/api/shopify/install?shop=${encodeURIComponent(cleaned)}`;
+                      }
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <input
+                      type="text"
+                      value={shopifyDomainInput}
+                      onChange={(e) => setShopifyDomainInput(e.target.value)}
+                      placeholder="your-store.myshopify.com"
+                      className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1.5 text-xs text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-tertiary)] focus:border-[color:var(--color-primary)] focus:outline-none"
+                    />
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      disabled={!shopifyDomainInput.trim()}
+                      className="text-xs h-8 whitespace-nowrap"
+                    >
+                      Connect Store
+                    </Button>
+                  </form>
+                </div>
               </div>
             )}
           </div>
@@ -1183,20 +1335,22 @@ export function IntegrationConfigModal({
         {/* Primary Actions: Close & Save Connection */}
         <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center">
           <Button variant="secondary" className="h-9 px-4 text-xs justify-center whitespace-nowrap" onClick={onClose}>
-            Close
+            {type === "shopify" && isConnected ? "Done" : "Close"}
           </Button>
-          <Button
-            className="h-9 px-4 text-xs justify-center font-medium whitespace-nowrap"
-            disabled={saving}
-            onClick={() => {
-              if (type === "sync") handleSaveSync();
-              else if (type === "webhook") handleSaveWebhook();
-              else if (type === "custom-webhook") handleSaveCustomWebhook();
-              else if (type === "messaging") handleSaveMessaging();
-            }}
-          >
-            {saving ? "Saving..." : "Save Connection"}
-          </Button>
+          {type !== "shopify" && (
+            <Button
+              className="h-9 px-4 text-xs justify-center font-medium whitespace-nowrap"
+              disabled={saving}
+              onClick={() => {
+                if (type === "sync") handleSaveSync();
+                else if (type === "webhook") handleSaveWebhook();
+                else if (type === "custom-webhook") handleSaveCustomWebhook();
+                else if (type === "messaging") handleSaveMessaging();
+              }}
+            >
+              {saving ? "Saving..." : "Save Connection"}
+            </Button>
+          )}
         </div>
       </div>
     </Modal>

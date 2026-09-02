@@ -13,6 +13,7 @@ export function computeProviderStatus({
   webhookConns,
   messagingViews,
   customWebhookView,
+  shopifyConn,
 }: {
   meta: any;
   syncConns: any[] | null;
@@ -24,7 +25,26 @@ export function computeProviderStatus({
     webhookEnabled: boolean;
     subscribedEvents?: string[];
   } | null;
+  shopifyConn?: {
+    connected: boolean;
+    shop: {
+      shopDomain: string;
+      installedAt: string;
+      linkedAt: string | null;
+      websiteId?: string | null;
+    } | null;
+  } | null;
 }): ProviderStatusResult {
+  if (meta.type === "shopify") {
+    const isConnected = Boolean(shopifyConn?.connected && shopifyConn.shop);
+    return {
+      status: isConnected ? "connected" : "disconnected",
+      activeEventsCount: isConnected ? 1 : 0,
+      lastDelivery: null,
+      conn: shopifyConn?.shop || null,
+    };
+  }
+
   if (meta.type === "sync") {
     const conn = syncConns?.find((c) => c.provider === meta.id);
     const hasSecret = Boolean(conn?.maskedKey);

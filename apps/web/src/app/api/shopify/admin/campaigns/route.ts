@@ -31,24 +31,26 @@ export async function GET(request: Request): Promise<Response> {
     },
   });
 
-  // Aggregate revenue attribution across all leads for this shop's account
-  const allLeads = await prisma.lead.findMany({
-    where: {
-      variant: { campaign: { accountId: account.id } },
-    },
-    select: {
-      firstOrderId: true,
-      firstOrderAmount: true,
-      firstOrderCurrency: true,
-    },
-  });
-
+  // Aggregate revenue attribution across leads with orders for this shop's account
   let totalAttributedRevenue = 0;
   let totalAttributedOrders = 0;
   let currency = "USD";
 
-  for (const lead of allLeads) {
-    if (lead.firstOrderId) {
+  if (campaigns.length > 0) {
+    const campaignIds = campaigns.map((c) => c.id);
+    const convertedLeads = await prisma.lead.findMany({
+      where: {
+        variant: { campaignId: { in: campaignIds } },
+        firstOrderId: { not: null },
+      },
+      select: {
+        firstOrderId: true,
+        firstOrderAmount: true,
+        firstOrderCurrency: true,
+      },
+    });
+
+    for (const lead of convertedLeads) {
       totalAttributedOrders += 1;
       const amt = parseFloat(String(lead.firstOrderAmount || "0"));
       if (!isNaN(amt)) totalAttributedRevenue += amt;

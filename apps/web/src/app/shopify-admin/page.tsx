@@ -158,9 +158,9 @@ export default function ShopifyAdminHome() {
     }
   }, []);
 
-  const loadCampaigns = useCallback(async () => {
+  const loadCampaigns = useCallback(async (existingToken?: string) => {
     try {
-      const token = await window.shopify!.idToken();
+      const token = existingToken || (await window.shopify!.idToken());
       const res = await fetch("/api/shopify/admin/campaigns", {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -214,43 +214,48 @@ export default function ShopifyAdminHome() {
       }
       try {
         const token = await window.shopify.idToken();
-        const res = await fetch("/api/shopify/session", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        // The route can 500 with an empty/HTML body (e.g. missing server env,
-        // token-exchange failure) — reading it as text first avoids a cryptic
-        // "Unexpected end of JSON input" and surfaces something actionable.
-        const raw = await res.text();
+        // Parallelize session exchange and campaigns load with the single session token
+        const [sessionRes, campaignsRes] = await Promise.all([
+          fetch("/api/shopify/session", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          fetch("/api/shopify/admin/campaigns", {
+            headers: { Authorization: `Bearer ${token}` },
+          }).catch(() => null),
+        ]);
+
+        const raw = await sessionRes.text();
         const data = raw ? (() => { try { return JSON.parse(raw); } catch { return null; } })() : null;
         if (cancelled) return;
-        if (!res.ok || !data) {
+        if (!sessionRes.ok || !data) {
           setStatus("error");
           setError(
             data?.error ??
-              `Session exchange failed (HTTP ${res.status}). This usually means the app's Shopify server credentials aren't configured on the deployment.`,
+              `Session exchange failed (HTTP ${sessionRes.status}). This usually means the app's Shopify server credentials aren't configured on the deployment.`,
           );
           return;
         }
         setShop(data.shop);
         setLinked(Boolean(data.linked));
-        // Hydrate onboarding flags for this shop before we flip to "ready", so an
-        // already-onboarded merchant lands straight in the dashboard with no
-        // flash of the wizard. Keyed by shop so each store is evaluated on its
-        // own. (Setting state here, after the await, is intentionally not the
-        // synchronous-effect anti-pattern.)
         try {
           setEmbedAck(localStorage.getItem(`asmos_embed_ack_${data.shop}`) === "1");
           setOnboarded(localStorage.getItem(`asmos_onboarded_${data.shop}`) === "1");
         } catch {
           /* localStorage unavailable (privacy mode) — treat as not-yet-onboarded. */
         }
-        // Load campaigns BEFORE flipping to "ready" so the onboarding gate is
-        // decided against real data. On the first "ready" render campaigns would
-        // otherwise still be null → activeCampaign null → an already-onboarded
-        // merchant flashes the wizard for a beat before the dashboard appears.
-        // The skeleton (LoadingShell) keeps animating in the meantime.
-        await loadCampaigns();
+
+        if (campaignsRes && campaignsRes.ok) {
+          const campData = await campaignsRes.json().catch(() => null);
+          if (campData) {
+            setCampaigns(campData.campaigns ?? []);
+            if (campData.stats) setStats(campData.stats);
+          }
+        } else {
+          // Fallback if concurrent campaigns request needed the freshly exchanged session
+          await loadCampaigns(token);
+        }
+
         if (cancelled) return;
         setStatus("ready");
         // These populate dashboard-only sections (not the onboarding gate), so
@@ -829,17 +834,101 @@ function LoadingShell() {
     <div style={SHELL_WRAP}>
       {/* Keyframes for the shimmer; scoped, tiny, inline so it's on the HTML. */}
       <style>{"@keyframes asmos-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}"}</style>
-      <h1 style={SHELL_HEADING}>Asmos</h1>
-      {/* The tallest block is the LCP candidate and paints immediately. */}
-      <SkeletonCard height={72} />
-      <SkeletonCard height={188} />
-      <SkeletonCard height={140} />
-      <span
-        style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0 0 0 0)" }}
-        role="status"
+
+      {/* Hero Block — primary contentful paint candidate spanning full viewport container */}
+      <div
+        style={{
+          borderRadius: 12,
+          border: "1px solid #d4d4d8",
+          background: "#ffffff",
+          padding: "20px 24px",
+          marginBottom: 16,
+          boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        }}
       >
-        Loading your Asmos dashboard…
-      </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+          <div
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 8,
+              background: "#008060",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#ffffff",
+              fontWeight: 700,
+              fontSize: 18,
+            }}
+          >
+            A
+          </div>
+          <div>
+            <h1
+              style={{
+                fontSize: 20,
+                lineHeight: "26px",
+                fontWeight: 700,
+                color: "#202223",
+                margin: 0,
+              }}
+            >
+              Asmos: AI Popups & Conversion
+            </h1>
+            <p
+              style={{
+                fontSize: 13,
+                lineHeight: "18px",
+                color: "#6d7175",
+                margin: "2px 0 0",
+              }}
+            >
+              Connecting to your Shopify store to load active popups, conversion triggers, and lead analytics…
+            </p>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14 }}>
+          <SkeletonCard height={36} />
+        </div>
+      </div>
+
+      {/* Secondary Structured Cards with semantic text for rapid LCP recognition */}
+      <div
+        style={{
+          borderRadius: 12,
+          border: "1px solid #e3e3e3",
+          background: "#ffffff",
+          padding: "16px 20px",
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 650, color: "#202223", marginBottom: 4 }}>
+          Active Campaigns & Placement
+        </div>
+        <div style={{ fontSize: 13, color: "#6d7175", marginBottom: 12 }}>
+          Tailored exit-intent and delay popups active on your storefront.
+        </div>
+        <SkeletonCard height={100} />
+      </div>
+
+      <div
+        style={{
+          borderRadius: 12,
+          border: "1px solid #e3e3e3",
+          background: "#ffffff",
+          padding: "16px 20px",
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 650, color: "#202223", marginBottom: 4 }}>
+          Captured Leads & Attributed Revenue
+        </div>
+        <div style={{ fontSize: 13, color: "#6d7175", marginBottom: 12 }}>
+          Real-time shopper conversion and discount code attribution.
+        </div>
+        <SkeletonCard height={80} />
+      </div>
     </div>
   );
 }

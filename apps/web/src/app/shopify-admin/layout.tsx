@@ -30,7 +30,10 @@ export default function ShopifyAdminLayout({ children }: { children: React.React
           "latest App Bridge / admin performance" requirement) — do not defer it.
           eslint-disable-next-line: intentional unbundled parser-blocking script. */}
       {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-      <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" />
+      <script
+        src="https://cdn.shopify.com/shopifycloud/app-bridge.js"
+        data-api-key={process.env.NEXT_PUBLIC_SHOPIFY_API_KEY}
+      />
       {/* Polaris, by contrast, has no first-script requirement. Loading it
           `defer` unblocks the body paint (it no longer stalls the parser), which
           is the single biggest LCP win here: the plain-HTML first screen in

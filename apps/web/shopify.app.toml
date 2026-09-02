@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "e5b2175bf18f463fec0d6062e12e4c3c"
-name = "asmos"
+name = "Asmos"
 application_url = "https://app.asmos.io/shopify-admin"
 embedded = true
 

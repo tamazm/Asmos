@@ -29,20 +29,37 @@ const CUSTOM_WEBHOOK_ICON = (
   </svg>
 );
 
+const SHOPIFY_ICON = (
+  <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+    <rect width="40" height="40" rx="8" fill="#95BF47" />
+    <path
+      fillRule="evenodd"
+      clipRule="evenodd"
+      d="M26.7 13.5c-.1-.7-.7-1.2-1.4-1.2-.2 0-.4 0-.6.1-.2-.7-.6-1.5-1.2-2.1-.9-.8-2-1.2-3.2-1.2-2.6 0-4.4 2.1-4.7 5.1l-2.4.8c-.7.2-1.2.9-1.2 1.6l1.2 13.6c.1.9.8 1.6 1.7 1.6h9c.9 0 1.6-.7 1.7-1.6l1.2-15.1c0-.4-.1-.7-.3-1zm-6.2-3c1.7 0 2.9 1.4 3 3.5l-6 1.9c.4-2.8 1.8-5.4 3-5.4zm-1.1 19.3l-5.6-1.5.8-9 4.8 1.5v9zm1.8 0v-8.7l5.2 1.6-.8 7.1h-4.4z"
+      fill="white"
+    />
+  </svg>
+);
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type CategoryId = "all" | "marketing" | "messaging" | "automation" | "notifications";
+type CategoryId = "all" | "store" | "marketing" | "messaging" | "automation" | "notifications";
 
 interface ProviderBaseMeta {
   id: string;
   name: string;
-  category: "Marketing" | "Messaging" | "Automation" | "Notifications";
+  category: "Store Platform" | "Marketing" | "Messaging" | "Automation" | "Notifications";
   categoryId: CategoryId;
   description: string;
   icon: React.ReactNode;
   docsUrl?: string;
   setupSteps?: string[];
   setupGuide?: { url: string; steps: string[] };
+}
+
+interface ShopifyMeta extends ProviderBaseMeta {
+  type: "shopify";
+  directInstallUrl: string;
 }
 
 interface SyncMeta extends ProviderBaseMeta {
@@ -71,7 +88,7 @@ interface MessagingMeta extends ProviderBaseMeta {
   configFields: Array<{ key: string; label: string; placeholder: string; isSecret?: boolean }>;
 }
 
-type ProviderDefinition = SyncMeta | WebhookMeta | CustomWebhookMeta | MessagingMeta;
+type ProviderDefinition = ShopifyMeta | SyncMeta | WebhookMeta | CustomWebhookMeta | MessagingMeta;
 
 // ── Providers Catalog ──────────────────────────────────────────────────────
 
@@ -415,7 +432,37 @@ const NOTIFICATION_PROVIDERS: WebhookMeta[] = [
   },
 ];
 
+const SHOPIFY_DIRECT_INSTALL_URL =
+  "https://admin.shopify.com/?organization_id=232604728&no_redirect=true&redirect=/oauth/redirect_from_developer_dashboard?client_id%3De5b2175bf18f463fec0d6062e12e4c3c";
+
+const SHOPIFY_PROVIDER: ShopifyMeta = {
+  id: "shopify",
+  type: "shopify",
+  name: "Shopify",
+  category: "Store Platform",
+  categoryId: "store",
+  description:
+    "Core store integration for automatic discount code generation, customer cart & checkout tracking, and theme popups.",
+  icon: SHOPIFY_ICON,
+  docsUrl: "https://help.shopify.com/en/manual/apps",
+  directInstallUrl: SHOPIFY_DIRECT_INSTALL_URL,
+  setupSteps: [
+    "Install the Asmos app to your Shopify store via your developer dashboard or enter your store domain.",
+    "Approve the required permissions to sync discounts and customer conversion events.",
+    "Activate the Asmos theme app embed in your Shopify Theme Editor.",
+  ],
+  setupGuide: {
+    url: "https://admin.shopify.com",
+    steps: [
+      "Click 'Install on Shopify' to open your store's authorization screen.",
+      "Select your store and approve the Asmos application.",
+      "Enable the app embed in Online Store > Themes > Customize > App Embeds.",
+    ],
+  },
+};
+
 const ALL_PROVIDERS: ProviderDefinition[] = [
+  SHOPIFY_PROVIDER,
   ...SYNC_PROVIDERS,
   ...MESSAGING_PROVIDERS,
   ...AUTOMATION_PROVIDERS,
@@ -426,6 +473,7 @@ const ALL_PROVIDERS: ProviderDefinition[] = [
 
 const CATEGORIES: { id: CategoryId; label: string; count: number }[] = [
   { id: "all", label: "All", count: ALL_PROVIDERS.length },
+  { id: "store", label: "Store Platform", count: 1 },
   { id: "marketing", label: "Marketing", count: SYNC_PROVIDERS.length },
   { id: "messaging", label: "Messaging", count: MESSAGING_PROVIDERS.length },
   { id: "automation", label: "Automation", count: AUTOMATION_PROVIDERS.length },
@@ -441,6 +489,16 @@ export default function IntegrationsPage() {
   const [activeModalProviderId, setActiveModalProviderId] = useState<string | null>(null);
 
   // Connection data states
+  const [shopifyConn, setShopifyConn] = useState<{
+    connected: boolean;
+    shop: {
+      id: string;
+      shopDomain: string;
+      installedAt: string;
+      linkedAt: string | null;
+      websiteId?: string | null;
+    } | null;
+  } | null>(null);
   const [syncConns, setSyncConns] = useState<any[] | null>(null);
   const [webhookConns, setWebhookConns] = useState<any[] | null>(null);
   const [messagingViews, setMessagingViews] = useState<any[]>([]);
@@ -462,6 +520,15 @@ export default function IntegrationsPage() {
   // Fetch connections on mount independently so a failure in one never blocks the others
   useEffect(() => {
     let mounted = true;
+
+    fetch("/api/integrations/shopify")
+      .then((r) => r.json())
+      .then((d) => {
+        if (mounted) setShopifyConn(d);
+      })
+      .catch(() => {
+        if (mounted) setShopifyConn({ connected: false, shop: null });
+      });
 
     fetch("/api/integrations/connections")
       .then((r) => r.json())
@@ -508,6 +575,12 @@ export default function IntegrationsPage() {
   }, []);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleDisconnectShopify = async () => {
+    const res = await fetch("/api/integrations/shopify", { method: "DELETE" });
+    if (!res.ok) throw new Error("Could not disconnect Shopify store.");
+    setShopifyConn({ connected: false, shop: null });
+  };
 
   const handleSaveSync = async (provider: string, payload: any) => {
     const res = await fetch("/api/integrations/sync", {
@@ -611,8 +684,9 @@ export default function IntegrationsPage() {
         webhookConns,
         messagingViews,
         customWebhookView,
+        shopifyConn,
       }),
-    [syncConns, webhookConns, messagingViews, customWebhookView]
+    [syncConns, webhookConns, messagingViews, customWebhookView, shopifyConn]
   );
 
   // Active total connected count
@@ -867,6 +941,42 @@ export default function IntegrationsPage() {
       ) : selectedCategory === "all" && !searchQuery && !onlyConnected ? (
         /* Categorized Sections when viewing All */
         <div className="space-y-8">
+          {/* Section: Store Platform (Flagship) */}
+          <section>
+            <div className="mb-3.5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold tracking-tight text-[color:var(--color-text-primary)]">
+                  Store Platform
+                </h2>
+                <span className="rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-semibold">
+                  Flagship
+                </span>
+              </div>
+              <p className="text-xs text-[color:var(--color-text-secondary)]">
+                Connect your Shopify store to power automatic coupon generation, real-time checkout tracking, and theme popups.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {(() => {
+                const info = getProviderStatus(SHOPIFY_PROVIDER);
+                return (
+                  <IntegrationCard
+                    key={SHOPIFY_PROVIDER.id}
+                    id={SHOPIFY_PROVIDER.id}
+                    name={SHOPIFY_PROVIDER.name}
+                    category={SHOPIFY_PROVIDER.category}
+                    description={SHOPIFY_PROVIDER.description}
+                    icon={SHOPIFY_PROVIDER.icon}
+                    status={info.status}
+                    activeEventsCount={info.activeEventsCount}
+                    lastDelivery={info.lastDelivery}
+                    onClick={() => setActiveModalProviderId(SHOPIFY_PROVIDER.id)}
+                  />
+                );
+              })()}
+            </div>
+          </section>
+
           {/* Section: Marketing */}
           <section>
             <div className="mb-3.5">
@@ -1113,6 +1223,17 @@ export default function IntegrationsPage() {
                     },
                     onSave: (data) => handleSaveMessaging(p.id, data),
                     onDisconnect: () => handleDisconnectMessaging(p.id),
+                  }
+                : undefined
+            }
+            shopifyData={
+              p.type === "shopify"
+                ? {
+                    connectedShopDomain: shopifyConn?.shop?.shopDomain || null,
+                    installedAt: shopifyConn?.shop?.installedAt || null,
+                    linkedAt: shopifyConn?.shop?.linkedAt || null,
+                    directInstallUrl: p.directInstallUrl,
+                    onDisconnect: handleDisconnectShopify,
                   }
                 : undefined
             }
