@@ -4,11 +4,18 @@ import { useState } from "react";
 
 type Result = { kind: "success" | "error"; message: string } | null;
 
-export function TestConnectionButton({ provider }: { provider: string }) {
+export function TestConnectionButton({
+  provider,
+  size = "md",
+}: {
+  provider: string;
+  size?: "sm" | "md";
+}) {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<Result>(null);
 
-  async function testConnection() {
+  async function testConnection(e: React.MouseEvent) {
+    e.stopPropagation();
     setTesting(true);
     setResult(null);
     try {
@@ -31,19 +38,27 @@ export function TestConnectionButton({ provider }: { provider: string }) {
   }
 
   return (
-    <div className="flex min-w-0 flex-col items-start gap-1">
+    <div className="flex min-w-0 flex-col items-start gap-1" onClick={(e) => e.stopPropagation()}>
       <button
         type="button"
         onClick={testConnection}
         disabled={testing}
-        className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3.5 py-2 text-sm font-medium text-[color:var(--color-text-primary)] transition-colors hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+        className={
+          size === "sm"
+            ? "inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-2.5 py-1.5 text-xs font-medium text-[color:var(--color-text-secondary)] transition-colors hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+            : "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3.5 py-2 text-sm font-medium text-[color:var(--color-text-primary)] transition-colors hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] disabled:cursor-not-allowed disabled:opacity-50"
+        }
       >
-        {testing ? "Testing..." : "Test connection"}
+        {testing ? "Testing..." : size === "sm" ? "Test connection" : "Test connection"}
       </button>
       {result && (
         <span
           role="status"
-          className={result.kind === "success" ? "max-w-[180px] text-[11px] leading-4 text-[color:var(--color-success)]" : "max-w-[180px] text-[11px] leading-4 text-red-600"}
+          className={
+            result.kind === "success"
+              ? "max-w-[180px] text-[10px] leading-3 text-[color:var(--color-success)] font-medium"
+              : "max-w-[180px] text-[10px] leading-3 text-red-600 font-medium"
+          }
         >
           {result.message}
         </span>

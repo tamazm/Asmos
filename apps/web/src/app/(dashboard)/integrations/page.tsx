@@ -451,33 +451,55 @@ export default function IntegrationsPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch connections on mount
+  const [pageError, setPageError] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    return err ? decodeURIComponent(err) : null;
+  });
+
+  // Fetch connections on mount independently so a failure in one never blocks the others
   useEffect(() => {
     let mounted = true;
-    Promise.all([
-      fetch("/api/integrations/sync")
-        .then((r) => r.json())
-        .then((d) => d.connections || [])
-        .catch(() => []),
-      fetch("/api/integrations/connections")
-        .then((r) => r.json())
-        .then((d) => d.connections || [])
-        .catch(() => []),
-      fetch("/api/integrations/messaging")
-        .then((r) => r.json())
-        .then((d) => (Array.isArray(d) ? d : []))
-        .catch(() => []),
-      fetch("/api/account/webhook")
-        .then((r) => r.json())
-        .catch(() => null),
-    ]).then(([syncData, webhookData, messagingData, customWhData]) => {
-      if (!mounted) return;
-      setSyncConns(syncData);
-      setWebhookConns(webhookData);
-      setMessagingViews(messagingData);
-      setCustomWebhookView(customWhData);
-      setLoading(false);
-    });
+
+    fetch("/api/integrations/connections")
+      .then((r) => r.json())
+      .then((d) => {
+        if (mounted) setWebhookConns(d.connections || []);
+      })
+      .catch(() => {
+        if (mounted) setWebhookConns([]);
+      });
+
+    fetch("/api/integrations/sync")
+      .then((r) => r.json())
+      .then((d) => {
+        if (mounted) setSyncConns(d.connections || []);
+      })
+      .catch(() => {
+        if (mounted) setSyncConns([]);
+      });
+
+    fetch("/api/integrations/messaging")
+      .then((r) => r.json())
+      .then((d) => {
+        if (mounted) setMessagingViews(Array.isArray(d) ? d : []);
+      })
+      .catch(() => {
+        if (mounted) setMessagingViews([]);
+      });
+
+    fetch("/api/account/webhook")
+      .then((r) => r.json())
+      .then((d) => {
+        if (mounted) setCustomWebhookView(d);
+      })
+      .catch(() => {
+        if (mounted) setCustomWebhookView(null);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
 
     return () => {
       mounted = false;
@@ -728,6 +750,27 @@ export default function IntegrationsPage() {
           Privacy Policy
         </a>
       </div>
+
+      {/* Error Alert Banner */}
+      {pageError && (
+        <div className="flex items-center justify-between rounded-xl border border-red-200 bg-red-50/80 p-4 text-xs text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+          <div className="flex items-center gap-2.5">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-red-600">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span>{pageError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setPageError(null)}
+            className="ml-4 font-semibold text-red-600 hover:underline cursor-pointer"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* ── Toolbar: Category Filters & Search ─────────────────── */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">

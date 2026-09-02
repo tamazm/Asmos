@@ -168,6 +168,7 @@ export function IntegrationConfigModal({
   // Sync Form State initialized directly from props
   const [syncApiKey, setSyncApiKey] = useState("");
   const [syncConfig, setSyncConfig] = useState<Record<string, string>>(() => syncData?.initialConfig || {});
+  const [useApiKeyAuth, setUseApiKeyAuth] = useState(false);
   const [syncEvents, setSyncEvents] = useState<string[]>(() => {
     const supported = syncData?.initialEvents?.filter((ev) => LEAD_EVENT_OPTIONS.some((o) => o.id === ev)) ?? [];
     return supported.length ? supported : ["lead.captured"];
@@ -228,7 +229,7 @@ export function IntegrationConfigModal({
   // ────────────────── Save Handlers ──────────────────
   async function handleSaveSync() {
     if (!syncData) return;
-    const isOAuth = syncData.authMode === "oauth";
+    const isOAuth = syncData.authMode === "oauth" && !useApiKeyAuth;
     if (!isOAuth && !isConnected && !syncApiKey.trim()) {
       setError("API key is required.");
       return;
@@ -629,22 +630,45 @@ export function IntegrationConfigModal({
         {/* ────────────── SYNC PROVIDER FORM ────────────── */}
         {type === "sync" && syncData && (
           <div className="space-y-4">
-            {syncData.authMode === "oauth" ? (
+            {syncData.authMode === "oauth" && !useApiKeyAuth ? (
               <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-4 text-center">
                 <p className="text-xs text-[color:var(--color-text-secondary)] mb-3">
                   {isConnected
                     ? `${name} is authorized via OAuth. You can reconnect or update your configuration below.`
                     : `Connect securely through ${name}. You will not need to paste an account-wide API key into Asmos.`}
                 </p>
-                <a
-                  href={syncData.oauthUrl}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[color:var(--color-primary-dark)]"
-                >
-                  {isConnected ? `Reconnect ${name}` : `Authorize ${name} via OAuth`}
-                </a>
+                <div className="flex flex-col items-center gap-2">
+                  <a
+                    href={syncData.oauthUrl}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[color:var(--color-primary-dark)]"
+                  >
+                    {isConnected ? `Reconnect ${name}` : `Authorize ${name} via OAuth`}
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setUseApiKeyAuth(true)}
+                    className="text-[11px] text-[color:var(--color-primary)] hover:underline mt-1 cursor-pointer"
+                  >
+                    Or connect with an API key instead
+                  </button>
+                </div>
               </div>
             ) : (
               <div>
+                {syncData.authMode === "oauth" && (
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-[color:var(--color-text-primary)]">
+                      Connect via API Key
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setUseApiKeyAuth(false)}
+                      className="text-[11px] text-[color:var(--color-primary)] hover:underline cursor-pointer"
+                    >
+                      Switch to OAuth
+                    </button>
+                  </div>
+                )}
                 <label className={labelCls}>
                   {syncData.keyLabel || "API Key"} <span className="text-red-500">*</span>
                 </label>
@@ -1076,25 +1100,26 @@ export function IntegrationConfigModal({
       </div>
 
       {/* Modal Footer */}
-      <div className="flex items-center justify-between border-t border-[color:var(--color-border)] px-6 py-4 bg-[color:var(--color-surface-sunken)]/40">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col-reverse gap-3 border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)]/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
+        {/* Utilities: Test Connection & Disconnect */}
+        <div className="flex items-center justify-between gap-2 border-t border-[color:var(--color-border)]/60 pt-2.5 sm:border-0 sm:pt-0 sm:justify-start">
           {isConnected && (
-            <>
-              <TestConnectionButton provider={providerId} />
+            <div className="flex items-center gap-2">
+              <TestConnectionButton provider={providerId} size="sm" />
               {confirmDisconnect ? (
                 <div className="flex items-center gap-1.5">
                   <Button
                     variant="ghost"
-                    className="h-8 px-2.5 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                    className="h-8 px-2.5 text-xs text-red-600 hover:bg-red-50 hover:text-red-700 whitespace-nowrap"
                     onClick={handleDisconnect}
                     disabled={disconnecting}
                   >
-                    {disconnecting ? "Disconnecting..." : "Confirm Disconnect"}
+                    {disconnecting ? "Disconnecting..." : "Confirm"}
                   </Button>
                   <button
                     type="button"
                     onClick={() => setConfirmDisconnect(false)}
-                    className="text-xs text-[color:var(--color-text-secondary)] hover:underline"
+                    className="text-xs text-[color:var(--color-text-secondary)] hover:underline cursor-pointer whitespace-nowrap"
                   >
                     Cancel
                   </button>
@@ -1102,27 +1127,28 @@ export function IntegrationConfigModal({
               ) : (
                 <Button
                   variant="ghost"
-                  className="h-8 px-2.5 text-xs text-[color:var(--color-text-secondary)] hover:text-red-600"
+                  className="h-8 px-2 text-xs text-[color:var(--color-text-secondary)] hover:text-red-600 cursor-pointer whitespace-nowrap"
                   onClick={() => setConfirmDisconnect(true)}
                 >
                   Disconnect
                 </Button>
               )}
-            </>
+            </div>
           )}
           {lastDelivery && (
-            <span className="hidden sm:inline-block text-[11px] text-[color:var(--color-text-secondary)]">
+            <span className="text-[11px] text-[color:var(--color-text-secondary)]">
               Last sync: {lastDelivery.status}
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" className="h-9 px-4 text-xs" onClick={onClose}>
+        {/* Primary Actions: Close & Save Connection */}
+        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto sm:flex sm:items-center">
+          <Button variant="secondary" className="h-9 px-4 text-xs justify-center whitespace-nowrap" onClick={onClose}>
             Close
           </Button>
           <Button
-            className="h-9 px-4 text-xs"
+            className="h-9 px-4 text-xs justify-center font-medium whitespace-nowrap"
             disabled={saving}
             onClick={() => {
               if (type === "sync") handleSaveSync();
