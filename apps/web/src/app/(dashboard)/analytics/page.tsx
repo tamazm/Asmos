@@ -14,18 +14,21 @@ function MetricCard({
   sub,
   disabled,
   badge,
+  href,
 }: {
   label: string;
   value: string;
   sub?: string;
   disabled?: boolean;
   badge?: React.ReactNode;
+  href?: string;
 }) {
-  return (
+  const card = (
     <div
       className={cn(
-        "relative rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm transition-all",
+        "group relative overflow-hidden rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm transition-all",
         disabled && "border-dashed bg-[color:var(--color-surface-sunken)]/60 text-[color:var(--color-text-secondary)]",
+        href && "hover:border-emerald-500/50 hover:bg-emerald-500/[0.02] hover:shadow-md cursor-pointer",
       )}
     >
       {badge}
@@ -36,6 +39,16 @@ function MetricCard({
       </div>
     </div>
   );
+
+  if (href) {
+    return (
+      <Link href={href} className="block no-underline">
+        {card}
+      </Link>
+    );
+  }
+
+  return card;
 }
 
 function BarRow({ label, value, max, color, sub }: { label: string; value: number; max: number; color: string; sub?: string }) {
@@ -260,28 +273,42 @@ export default async function AnalyticsPage() {
           }
           sub={attributedLeads.length > 0 ? `${attributedLeads.length} order${attributedLeads.length === 1 ? "" : "s"} attributed` : "Via popup discounts"}
           disabled={!isShopifyLinked}
+          href={!isShopifyLinked ? "/integrations" : undefined}
           badge={
             !isShopifyLinked ? (
-              <Link
-                href="/integrations"
-                className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 transition-all hover:bg-emerald-500/20 hover:scale-105 active:scale-95 dark:text-emerald-300 shadow-xs"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Link Shopify
-                <svg
-                  width="9"
-                  height="9"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M5 12h14m-7-7 7 7-7 7" />
-                </svg>
-              </Link>
+              <div className="absolute top-0 right-0 z-10">
+                <div className="inline-flex items-center gap-1.5 rounded-bl-xl rounded-tr-2xl bg-gradient-to-r from-emerald-600 to-emerald-500 px-3 py-1 text-[11px] font-semibold text-white shadow-xs transition-all group-hover:from-emerald-500 group-hover:to-emerald-400 group-hover:shadow-sm select-none">
+                  <svg
+                    width="11"
+                    height="11"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="opacity-90"
+                  >
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <path d="M16 10a4 4 0 0 1-8 0" />
+                  </svg>
+                  <span>Link Shopify</span>
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="transition-transform group-hover:translate-x-0.5"
+                  >
+                    <path d="M5 12h14m-7-7 7 7-7 7" />
+                  </svg>
+                </div>
+              </div>
             ) : undefined
           }
         />
