@@ -26,11 +26,10 @@ export async function setCampaignPhoneCollection(campaignId: string, collect: bo
     const alreadyCollects = Array.isArray(v.formFields) && (v.formFields as unknown[]).includes("phone");
     if (alreadyCollects === collect) continue;
 
-    const data: { formFields: string[]; generatedCode?: string } = {
-      formFields: withPhoneField(v.formFields, collect),
-    };
+    const nextFields = withPhoneField(v.formFields, collect);
+    const data: { formFields: string[]; generatedCode?: string } = { formFields: nextFields };
     if (v.generatedCode) {
-      data.generatedCode = renderVariantGeneratedCode(v, { collectPhone: collect, goal, couponCode });
+      data.generatedCode = renderVariantGeneratedCode(v, { captureFields: nextFields, goal, couponCode });
     }
     await prisma.variant.update({ where: { id: v.id }, data });
     changed++;

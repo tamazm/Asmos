@@ -69,13 +69,15 @@ export interface PopupTemplateProps {
    */
   redirectUrl?: string | null;
   /**
-   * When true, the capture form renders an optional phone `<input type="tel">`
-   * alongside email. Derived from the variant's `formFields` including "phone"
-   * (the single source of truth) — turned on per-popup via the campaign page
-   * toggle or the Twilio card's "add phone to my live popups" action. Phone is
-   * never `required`, so it can't drag down email opt-in rate.
+   * Extra lead-capture inputs beyond the always-present email field - e.g.
+   * `["name"]` or `["name", "phone"]`. See OPTIONAL_CAPTURE_FIELDS in
+   * runtime.ts for the closed set of allowed values and
+   * sanitizeCaptureFields for how an invalid/legacy value degrades to "email
+   * only" rather than crashing. Merchant-set only (Visual Editor / campaign
+   * creation), same rationale as redirectUrl above - the model has no basis
+   * for deciding a store needs a phone number.
    */
-  collectPhone?: boolean;
+  captureFields?: string[] | null;
 }
 
 /** Props after normalization - what each template actually receives. */

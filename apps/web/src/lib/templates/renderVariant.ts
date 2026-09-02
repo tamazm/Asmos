@@ -1,5 +1,5 @@
 import { renderPopupTemplate } from ".";
-import { sanitizeRedirectUrl } from "./runtime";
+import { sanitizeRedirectUrl, sanitizeCaptureFields } from "./runtime";
 
 type VariantDesign = {
   headline?: string;
@@ -20,16 +20,17 @@ type VariantSpec = {
 
 /**
  * Re-render a variant's stored HTML (`generatedCode`) from its persisted
- * `design` + `popupSpec`, honoring whether the popup collects a phone number.
+ * `design` + `popupSpec`, for a given set of capture fields.
  *
  * Live popups render from `generatedCode` (a baked HTML blob), not from
- * `formFields`, so toggling phone must regenerate this. Centralizes the
- * spec→HTML mapping shared by manual design edits, the campaign-page phone
- * toggle, and the Twilio "add phone to my live popups" action.
+ * `formFields`, so changing which fields a popup collects must regenerate this.
+ * Centralizes the spec→HTML mapping shared by the campaign-page phone toggle and
+ * the Twilio "add phone to my live popups" action. `captureFields` is sanitized
+ * to the optional-field set (name/phone); email is always rendered.
  */
 export function renderVariantGeneratedCode(
   variant: { design: unknown; popupSpec: unknown },
-  opts: { collectPhone: boolean; goal?: "EMAIL" | "DISCOUNT" | "BOTH"; couponCode?: string | null },
+  opts: { captureFields: unknown; goal?: "EMAIL" | "DISCOUNT" | "BOTH"; couponCode?: string | null },
 ): string {
   const design = (variant.design ?? {}) as VariantDesign;
   const spec = (variant.popupSpec ?? {}) as VariantSpec;
@@ -48,19 +49,18 @@ export function renderVariantGeneratedCode(
     palette: spec.design_tokens?.palette ?? null,
     discountPercent: spec.discount_percent ?? null,
     redirectUrl: sanitizeRedirectUrl(design.redirectUrl ?? undefined),
-    collectPhone: opts.collectPhone,
+    captureFields: sanitizeCaptureFields(opts.captureFields),
   });
 }
 
-/** Ensure "phone" is in a form-field list iff includePhone; strips it otherwise. */
+/** Ensure "phone" is in a capture-field list iff includePhone; strips it otherwise. */
 export function withPhoneField(fields: unknown, includePhone: boolean): string[] {
   const base = Array.isArray(fields) ? fields.filter((f): f is string => typeof f === "string") : [];
-  const list = base.length ? base : ["email"];
-  const withoutPhone = list.filter((f) => f !== "phone");
+  const withoutPhone = base.filter((f) => f !== "phone");
   return includePhone ? [...withoutPhone, "phone"] : withoutPhone;
 }
 
-/** True when a form-field list collects a phone number. */
+/** True when a capture-field list collects a phone number. */
 export function fieldsCollectPhone(fields: unknown): boolean {
   return Array.isArray(fields) && fields.includes("phone");
 }

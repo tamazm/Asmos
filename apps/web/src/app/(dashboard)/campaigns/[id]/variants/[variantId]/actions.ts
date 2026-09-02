@@ -3,8 +3,8 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { renderPopupTemplate } from "@/lib/templates";
-import { sanitizeRedirectUrl } from "@/lib/templates/runtime";
-import { fieldsCollectPhone } from "@/lib/templates/renderVariant";
+import { sanitizeRedirectUrl, sanitizeCaptureFields } from "@/lib/templates/runtime";
+import type { Prisma } from ".prisma/client";
 
 export async function updateVariantDesign(
   campaignId: string,
@@ -16,6 +16,7 @@ export async function updateVariantDesign(
     primaryColor: string;
     imageUrl: string;
     redirectUrl: string;
+    captureFields: string[];
   }
 ) {
   const variant = await prisma.variant.findUnique({
@@ -37,6 +38,9 @@ export async function updateVariantDesign(
   // dropped to null (closes the popup instead) rather than persisted as
   // something that will never actually take effect.
   const redirectUrl = sanitizeRedirectUrl(design.redirectUrl);
+  // Same gate as redirectUrl: an unrecognised value degrades to "email only"
+  // rather than being persisted as something the runtime will never render.
+  const captureFields = sanitizeCaptureFields(design.captureFields);
   // Preserve whichever template/layout the AI originally chose for this
   // variant (see popupSpec.template_id) - a manual copy/color edit shouldn't
   // silently reset it back to the default split-screen template.
@@ -70,9 +74,7 @@ export async function updateVariantDesign(
     palette: existingSpec.design_tokens?.palette ?? null,
     discountPercent: existingSpec.discount_percent ?? null,
     redirectUrl,
-    // Preserve phone collection across a manual copy/color edit — otherwise
-    // editing a headline would silently drop the popup's phone field.
-    collectPhone: fieldsCollectPhone(variant.formFields),
+    captureFields,
   });
 
   await prisma.variant.update({
@@ -87,6 +89,7 @@ export async function updateVariantDesign(
         imageUrl: design.imageUrl,
         redirectUrl,
       },
+      formFields: captureFields as unknown as Prisma.InputJsonValue,
       generatedCode,
     },
   });

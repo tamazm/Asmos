@@ -60,6 +60,43 @@ export function sanitizeRedirectUrl(raw: string | null | undefined): string | nu
   }
 }
 
+// ─── Capture fields ──────────────────────────────────────────────────────────
+
+/**
+ * Extra lead-capture inputs a merchant can add beyond the always-present email
+ * field. A small closed set, not an arbitrary/unbounded list - each one needs
+ * an actual rendered input, a runtime submit-handler read, and somewhere on
+ * `Lead` to land (see `Lead.name`/`Lead.phone` in schema.prisma, and
+ * `/api/widget/leads`, which already accepts and stores both - this was the
+ * only piece missing). Merchant-set only, same as `redirectUrl`: the model has
+ * no basis for deciding a store needs a phone number, so this is never part of
+ * AI generation.
+ */
+export const OPTIONAL_CAPTURE_FIELDS = ["name", "phone"] as const;
+export type OptionalCaptureField = (typeof OPTIONAL_CAPTURE_FIELDS)[number];
+
+/**
+ * Coerces whatever a Variant.formFields column or a client payload holds into
+ * the closed set above - same defensive posture as normalizeDna in
+ * popupDna.ts: unrecognised values (a stale `["email"]` from before this
+ * existed, AI-authored noise in `PopupSpec.fields`, anything else) are simply
+ * dropped rather than rejected, since email is implicit and always rendered.
+ */
+export function sanitizeCaptureFields(raw: unknown): OptionalCaptureField[] {
+  if (!Array.isArray(raw)) return [];
+  const out: OptionalCaptureField[] = [];
+  for (const value of raw) {
+    if (
+      typeof value === "string" &&
+      (OPTIONAL_CAPTURE_FIELDS as readonly string[]).includes(value) &&
+      !out.includes(value as OptionalCaptureField)
+    ) {
+      out.push(value as OptionalCaptureField);
+    }
+  }
+  return out;
+}
+
 // ─── Flow resolution ─────────────────────────────────────────────────────────
 
 export type ResolvedFlow = {
@@ -214,21 +251,28 @@ export function closeMarkup(dna: PopupDna): string {
   return `<button type="button" class="asmos-close" id="asmosPopupClose" aria-label="Close">&times;</button>`;
 }
 
-function formMarkup(dna: PopupDna, submitLabel: string, collectPhone: boolean): string {
+function formMarkup(dna: PopupDna, submitLabel: string, captureFields: OptionalCaptureField[]): string {
   const label = dna.show_field_label
     ? `<label class="asmos-field-label" for="asmosPopupEmail">${esc(dna.field_label)}</label>`
     : `<label class="visually-hidden" for="asmosPopupEmail">${esc(dna.field_label)}</label>`;
 
-  // Optional phone field: not `required`, so shoppers who skip it still convert
-  // as email leads. Rendered only when the popup collects phone (see
-  // PopupTemplateProps.collectPhone). Read + submitted by the runtime script.
-  const phoneField = collectPhone
-    ? `<label class="visually-hidden" for="asmosPopupPhone">Phone number (optional)</label>
+  // Optional, not required: a merchant opting into more fields still shouldn't
+  // block the one conversion that matters (see form_friction in the design
+  // guide - every extra required field is measured friction, not just a nicety).
+  const nameField = captureFields.includes("name")
+    ? `<label class="visually-hidden" for="asmosPopupName">Your name</label>
+      <input type="text" id="asmosPopupName" name="name" class="asmos-email-input asmos-name-input"
+             placeholder="Your name" autocomplete="name" />`
+    : "";
+
+  const phoneField = captureFields.includes("phone")
+    ? `<label class="visually-hidden" for="asmosPopupPhone">Phone number</label>
       <input type="tel" id="asmosPopupPhone" name="phone" class="asmos-email-input asmos-phone-input"
-             placeholder="Phone number (optional)" autocomplete="tel" />`
+             placeholder="Phone number" autocomplete="tel" />`
     : "";
 
   return `<form class="asmos-form" id="asmosPopupForm" novalidate>
+      ${nameField}
       ${label}
       <input type="email" id="asmosPopupEmail" name="email" class="asmos-email-input"
              placeholder="${esc(dna.email_placeholder)}" autocomplete="email" required />
@@ -255,6 +299,7 @@ export function stepsMarkup(props: PopupTemplateProps, dna: PopupDna, flow: Reso
   // behaviour exactly as before.
   const redirectUrl = sanitizeRedirectUrl(props.redirectUrl);
   const exitCtaAttr = redirectUrl ? `data-redirect="${esc(redirectUrl)}"` : "data-dismiss";
+  const captureFields = sanitizeCaptureFields(props.captureFields);
 
   const teaser = flow.hasTeaser
     ? `<section class="popup-step" data-step="1" ${flow.startingStep !== 1 ? "hidden" : ""}>
@@ -284,7 +329,7 @@ export function stepsMarkup(props: PopupTemplateProps, dna: PopupDna, flow: Reso
         ${captureIsPrimary ? offer : ""}
         <h2 ${captureIsPrimary ? 'id="asmosPopupHeadline"' : ""} class="asmos-headline">${esc(captureHeadline)}</h2>
         <p class="asmos-sub">${esc(captureSubhead)}</p>
-        ${formMarkup(dna, captureCta, props.collectPhone ?? false)}
+        ${formMarkup(dna, captureCta, captureFields)}
         ${privacyMarkup(dna)}
         ${captureIsPrimary ? proofMarkup(dna) : ""}
         ${dismissMarkup(dna)}
@@ -403,7 +448,7 @@ export function runtimeScript(opts: RuntimeOptions): string {
   var form = root.querySelector('#asmosPopupForm');
   var copyBtn = root.querySelector('#asmosPopupCopy');
   var emailInput = root.querySelector('#asmosPopupEmail');
-  // Optional — only present when the popup collects phone. Read at submit time.
+  var nameInput = root.querySelector('#asmosPopupName');
   var phoneInput = root.querySelector('#asmosPopupPhone');
 
   var openedAt = null;
@@ -777,9 +822,8 @@ export function runtimeScript(opts: RuntimeOptions): string {
         ? window.__asmos_behavioral_context()
         : {};
       var payload = { variantId: variant.id, email: email, consentGiven: true };
-      // Optional phone - included only when the popup collects it and the
-      // shopper filled it in. The leads endpoint already accepts a phone field.
-      if (phoneInput) { var phoneVal = phoneInput.value.trim(); if (phoneVal) payload.phone = phoneVal; }
+      if (nameInput && nameInput.value.trim()) payload.name = nameInput.value.trim();
+      if (phoneInput && phoneInput.value.trim()) payload.phone = phoneInput.value.trim();
       for (var k in behavioral) { if (Object.prototype.hasOwnProperty.call(behavioral, k)) payload[k] = behavioral[k]; }
       payload.timeToFirstKeystrokeMs = telemetry.timeToFirstKeystrokeMs;
       payload.fieldFocusCount = telemetry.fieldFocusCount;

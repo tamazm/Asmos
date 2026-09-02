@@ -14,6 +14,7 @@ export function VisualEditor({
   variantId,
   defaultColor,
   initialDesign,
+  initialFormFields,
   initialRewards,
 }: {
   campaignId: string;
@@ -30,6 +31,10 @@ export function VisualEditor({
     imageUrl?: string;
     redirectUrl?: string;
   };
+  // Extra lead-capture fields beyond email - see OPTIONAL_CAPTURE_FIELDS in
+  // lib/templates/runtime.ts. Whatever isn't in that set (a legacy AI-authored
+  // value, junk) is simply ignored by the checkboxes below.
+  initialFormFields?: string[] | null;
   initialRewards?: { id: string; label: string; couponCode: string | null }[];
 }) {
   const [headline, setHeadline] = useState(initialDesign.headline || "");
@@ -38,6 +43,8 @@ export function VisualEditor({
   const [primaryColor, setPrimaryColor] = useState(initialDesign.primaryColor || defaultColor);
   const [imageUrl, setImageUrl] = useState(initialDesign.imageUrl || "");
   const [redirectUrl, setRedirectUrl] = useState(initialDesign.redirectUrl || "");
+  const [collectName, setCollectName] = useState(Boolean(initialFormFields?.includes("name")));
+  const [collectPhone, setCollectPhone] = useState(Boolean(initialFormFields?.includes("phone")));
   const [rewards, setRewards] = useState(initialRewards || []);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -45,6 +52,10 @@ export function VisualEditor({
     e.preventDefault();
     setIsSaving(true);
     try {
+      const captureFields = [
+        ...(collectName ? ["name"] : []),
+        ...(collectPhone ? ["phone"] : []),
+      ];
       await updateVariantDesign(campaignId, variantId, {
         headline,
         body,
@@ -52,6 +63,7 @@ export function VisualEditor({
         primaryColor,
         imageUrl,
         redirectUrl,
+        captureFields,
       });
       alert("Design updated successfully! The preview will reflect your changes.");
     } catch (err) {
@@ -132,6 +144,38 @@ export function VisualEditor({
           />
           <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">
             Where the popup&apos;s final button sends shoppers. Leave blank to just close the popup.
+          </p>
+        </div>
+        <div>
+          <label className="mb-2 block text-xs font-medium uppercase tracking-wide text-[color:var(--color-text-secondary)]">
+            Info to collect
+          </label>
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 text-sm text-[color:var(--color-text-secondary)]">
+              <input type="checkbox" checked disabled className="rounded border-gray-300" />
+              Email address (always collected)
+            </label>
+            <label className="flex items-center gap-2 text-sm text-black cursor-pointer">
+              <input
+                type="checkbox"
+                checked={collectName}
+                onChange={(e) => setCollectName(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              Name
+            </label>
+            <label className="flex items-center gap-2 text-sm text-black cursor-pointer">
+              <input
+                type="checkbox"
+                checked={collectPhone}
+                onChange={(e) => setCollectPhone(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              Phone number
+            </label>
+          </div>
+          <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">
+            Extra fields add friction - only turn these on if you actually use the data.
           </p>
         </div>
         <div>

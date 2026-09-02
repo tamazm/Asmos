@@ -15,8 +15,7 @@ import {
 } from "@/lib/popupGeneration";
 import { buildVariantBriefs, hashSeed } from "@/lib/designBrief";
 import { renderPopupTemplate } from "@/lib/templates";
-import { fieldsCollectPhone } from "@/lib/templates/renderVariant";
-import { sanitizeRedirectUrl } from "@/lib/templates/runtime";
+import { sanitizeRedirectUrl, sanitizeCaptureFields } from "@/lib/templates/runtime";
 import { brandTokensFromStoreProfile, computedStylesFromStoreProfile } from "@/lib/storeProfile";
 import type { CampaignGenerationStageCode } from "@/lib/campaignGenerationStages";
 import { generateCouponCode } from "@/lib/reward";
@@ -264,6 +263,11 @@ async function runGeneration(
     const redirectUrl = sanitizeRedirectUrl(
       typeof context.redirectUrl === "string" ? context.redirectUrl : null,
     );
+    // Same merchant-set-once-at-creation treatment as redirectUrl above - the
+    // AI's own `spec.fields` is never consulted for this (see
+    // sanitizeCaptureFields's doc comment), so a merchant's field choice isn't
+    // silently overwritten by whatever the model happened to put there.
+    const captureFields = sanitizeCaptureFields(context.formFields);
 
     // Cold start (no analytics yet): 2 variants alongside control, so a fresh
     // campaign already explores three genuinely different regions of the
@@ -337,7 +341,7 @@ async function runGeneration(
             imageUrl: output.baseline.spec.image_url,
             redirectUrl,
           },
-          formFields: output.baseline.spec.fields,
+          formFields: captureFields,
           targeting: {
             trigger: output.baseline.spec.trigger,
             delaySeconds: output.baseline.spec.delay_seconds,
@@ -366,7 +370,7 @@ async function runGeneration(
             palette: output.baseline.spec.design_tokens.palette,
             discountPercent: output.baseline.spec.discount_percent,
             redirectUrl,
-            collectPhone: fieldsCollectPhone(output.baseline.spec.fields),
+            captureFields,
           }),
         },
         ...output.variants.map((v, idx) => ({
@@ -381,7 +385,7 @@ async function runGeneration(
             imageUrl: v.spec.image_url,
             redirectUrl,
           },
-          formFields: v.spec.fields,
+          formFields: captureFields,
           targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds, pages: pageTargeting },
           popupSpec: v.spec as unknown as Prisma.InputJsonValue,
           generatedCode: renderPopupTemplate(v.spec.template_id, {
@@ -398,7 +402,7 @@ async function runGeneration(
             palette: v.spec.design_tokens.palette,
             discountPercent: v.spec.discount_percent,
             redirectUrl,
-            collectPhone: fieldsCollectPhone(v.spec.fields),
+            captureFields,
           }),
           testAxis: v.test_axis,
           hypothesis: v.hypothesis,

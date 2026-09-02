@@ -8,6 +8,7 @@ import { inngest } from "@/lib/inngest/client";
 import { AI_GENERATION_LIMITS } from "@/lib/limits";
 import { normalizeHost } from "@/lib/host";
 import { renderPopupTemplate } from "@/lib/templates";
+import { sanitizeCaptureFields } from "@/lib/templates/runtime";
 import { after } from "next/server";
 import { emitIntegrationEvent } from "@/lib/integrations/emit";
 
@@ -90,9 +91,13 @@ export async function POST(request: Request) {
       }
     : body.design;
 
-  const controlFormFields: Prisma.InputJsonValue = hasPopupSpec && spec
-    ? spec.fields
-    : body.formFields;
+  // Merchant's own field choice (manual wizard's body.formFields) wins over
+  // the AI's spec.fields - see sanitizeCaptureFields's doc comment for why
+  // the model's output there was never a real signal to begin with.
+  const captureFields = sanitizeCaptureFields(
+    hasPopupSpec && spec ? body.formFields ?? spec.fields : body.formFields,
+  );
+  const controlFormFields: Prisma.InputJsonValue = captureFields;
 
   const controlTargeting: Prisma.InputJsonValue = hasPopupSpec && spec
     ? { trigger: spec.trigger, delaySeconds: null }
@@ -119,6 +124,7 @@ export async function POST(request: Request) {
           brandFonts: spec.design_tokens,
           palette: spec.design_tokens.palette,
           discountPercent: spec.discount_percent,
+          captureFields,
         })
       : undefined;
 

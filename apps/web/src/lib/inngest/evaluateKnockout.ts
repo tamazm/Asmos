@@ -16,7 +16,7 @@ import {
 } from "@/lib/popupGeneration";
 import { briefFromSpec, buildVariantBriefs, hashSeed } from "@/lib/designBrief";
 import { renderPopupTemplate } from "@/lib/templates";
-import { fieldsCollectPhone, withPhoneField } from "@/lib/templates/renderVariant";
+import { sanitizeRedirectUrl, sanitizeCaptureFields } from "@/lib/templates/runtime";
 import { brandTokensFromStoreProfile, computedStylesFromStoreProfile } from "@/lib/storeProfile";
 import {
   detectSampleRatioMismatch,
@@ -237,10 +237,16 @@ export const evaluateKnockout = inngest.createFunction(
     // "only show on /product/*" back to "show everywhere".
     const controlTargeting = (controlVariant?.targeting ?? {}) as { pages?: unknown };
     const pageTargeting = controlTargeting.pages;
-    // Carry the popup's phone-collection preference onto evolved challengers so
-    // a merchant who turned phone on doesn't lose it when the tournament breeds
-    // a new variant. Source of truth is the surviving control's formFields.
-    const campaignCollectsPhone = fieldsCollectPhone(controlVariant?.formFields);
+    // Same carry-forward rationale as pageTargeting above - both are
+    // merchant-set-once choices that live on the control variant, not
+    // something the AI decides per round. Previously neither redirectUrl nor
+    // formFields were threaded through this path at all, so a merchant's
+    // "send shoppers to /collections/sale" or "also collect a phone number"
+    // silently vanished the moment the bandit generated a fresh challenger.
+    const redirectUrl = sanitizeRedirectUrl(
+      typeof controlDesign.redirectUrl === "string" ? controlDesign.redirectUrl : null,
+    );
+    const captureFields = sanitizeCaptureFields(controlVariant?.formFields);
 
     // The brand, carried forward.
     //
@@ -366,8 +372,9 @@ export const evaluateKnockout = inngest.createFunction(
                 body: v.spec.subhead,
                 primaryColor: v.spec.design_tokens.palette[0] ?? fallbackColor,
                 ctaText: v.spec.cta,
+                redirectUrl,
               },
-              formFields: withPhoneField(v.spec.fields, campaignCollectsPhone),
+              formFields: captureFields,
               targeting: { trigger: v.spec.trigger, delaySeconds: v.spec.delay_seconds, pages: pageTargeting },
               testAxis: v.test_axis,
               hypothesis: v.hypothesis,
@@ -386,7 +393,8 @@ export const evaluateKnockout = inngest.createFunction(
                 brandFonts: v.spec.design_tokens,
                 palette: v.spec.design_tokens.palette,
                 discountPercent: v.spec.discount_percent,
-                collectPhone: campaignCollectsPhone,
+                redirectUrl,
+                captureFields,
               }),
             },
           });
