@@ -14,9 +14,15 @@ import { PrismaPg } from "@prisma/adapter-pg";
 // that needs 2-3. Under a handful of concurrent users hitting different
 // routes (= different function instances warming up), that adds up fast
 // against a free-tier Postgres connection cap and produces exactly the
-// intermittent "Error in Server Components render" / self-resolving-on-retry
-// symptom this was causing. Keep this small; raise only with a measured need.
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 3 });
+// Keep the pool compact and release idle connections rapidly so serverless
+// lambdas on Vercel do not hold onto Postgres slots while waiting.
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 2,
+  idleTimeoutMillis: 5000,
+  connectionTimeoutMillis: 3000,
+  allowExitOnIdle: true,
+});
 const adapter = new PrismaPg(pool);
 
 export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter });
