@@ -1,9 +1,13 @@
 import { auth } from "@/lib/auth-adapter";
 import { resolveAccountForRequest } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
+import { syncRewardDiscountToShopify } from "@/lib/shopify/discounts";
 import type { RewardType } from ".prisma/client";
 
 const VALID_TYPES: RewardType[] = ["COUPON", "DISCOUNT_PERCENT", "DISCOUNT_FIXED", "FREE_SHIPPING", "GIFT"];
+// Types that carry a redeemable code (and, for the two discount types, a value).
+const CODE_TYPES: RewardType[] = ["COUPON", "DISCOUNT_PERCENT", "DISCOUNT_FIXED"];
+const DISCOUNT_TYPES: RewardType[] = ["DISCOUNT_PERCENT", "DISCOUNT_FIXED"];
 
 // Manual reward creation - the rewards page previously only ever showed
 // rewards the AI had created as a side effect of generating a campaign.
@@ -23,6 +27,7 @@ export async function POST(request: Request) {
     description?: string;
     category?: string;
     couponCode?: string;
+    discountValue?: number | null;
     maxRedemptions?: number | null;
     weight?: number;
     accountId?: string;
@@ -65,6 +70,19 @@ export async function POST(request: Request) {
 
   const weight = Number.isFinite(Number(body.weight)) ? Math.max(0, Math.floor(Number(body.weight))) : 1;
 
+  // Discount value: required shape only for the two discount types; ignored otherwise.
+  let discountValue: number | null = null;
+  if (DISCOUNT_TYPES.includes(type) && body.discountValue !== undefined && body.discountValue !== null) {
+    const v = Math.floor(Number(body.discountValue));
+    if (!Number.isFinite(v) || v < 1) {
+      return Response.json({ error: "discountValue must be a positive whole number" }, { status: 400 });
+    }
+    if (type === "DISCOUNT_PERCENT" && v > 100) {
+      return Response.json({ error: "A percentage discount can't exceed 100." }, { status: 400 });
+    }
+    discountValue = v;
+  }
+
   const reward = await prisma.rewardRule.create({
     data: {
       campaignId: campaign.id,
@@ -72,11 +90,20 @@ export async function POST(request: Request) {
       type,
       description: body.description?.trim() || null,
       category: body.category?.trim() || null,
-      couponCode: type === "COUPON" ? (body.couponCode?.trim() || null) : null,
+      couponCode: CODE_TYPES.includes(type) ? (body.couponCode?.trim() || null) : null,
+      discountValue,
       maxRedemptions,
       weight,
     },
   });
+
+  // Best-effort: mirror a coded discount into Shopify so the code actually works
+  // at checkout. Never let a Shopify hiccup fail the reward creation.
+  try {
+    await syncRewardDiscountToShopify(account.id, reward);
+  } catch (e) {
+    console.warn("Shopify discount sync failed (reward still created):", e instanceof Error ? e.message : e);
+  }
 
   return Response.json({ reward });
 }

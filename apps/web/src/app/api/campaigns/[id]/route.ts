@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth-adapter";
 import { getOrCreateAccount } from "@/lib/account";
 import { prisma } from "@/lib/prisma";
 import { after } from "next/server";
-import { dispatchWebhook } from "@/lib/webhook";
+import { emitIntegrationEvent } from "@/lib/integrations/emit";
 import { inngest } from "@/lib/inngest/client";
 
 export async function GET(
@@ -57,9 +57,7 @@ export async function PATCH(
       variants: { select: { id: true, name: true } },
       account: {
         select: {
-          webhookUrl: true,
-          webhookSecret: true,
-          webhookEnabled: true,
+          id: true,
         },
       },
     },
@@ -115,28 +113,45 @@ export async function PATCH(
     data,
   });
 
-  // Fire variant.winner_declared webhook when a winner is set (fire-and-forget).
+  // Keep low-volume lifecycle changes available to webhook and notification
+  // integrations without emitting duplicates when a status is unchanged.
+  if (body.status !== undefined && body.status !== campaign.status) {
+    after(async () => {
+      try {
+        await emitIntegrationEvent(campaign.account.id, {
+          event: body.status === "ACTIVE" ? "campaign.activated" : "campaign.paused",
+          payload: {
+            campaign_id: campaign.id,
+            campaign_name: campaign.name,
+            changed_at: new Date().toISOString(),
+          },
+        });
+      } catch (err) {
+        console.error(`[integrations] campaign.${body.status === "ACTIVE" ? "activated" : "paused"} emit failed`, err);
+      }
+    });
+  }
+
+  // Emit variant.winner_declared through the integration bus when a winner is set (fire-and-forget).
   if (body.winningVariantId && body.winningVariantId !== null) {
     after(async () => {
       try {
         const acc = campaign.account;
-        if (acc.webhookEnabled && acc.webhookUrl) {
-          const winningVariant = campaign.variants.find(
-            (v) => v.id === body.winningVariantId,
-          );
-          await dispatchWebhook(acc.webhookUrl, acc.webhookSecret ?? null, {
-            event: "variant.winner_declared",
-            payload: {
-              campaign_id: campaign.id,
-              campaign_name: campaign.name,
-              winning_variant_id: body.winningVariantId!,
-              winning_variant_name: winningVariant?.name ?? body.winningVariantId!,
-              declared_at: new Date().toISOString(),
-            },
-          });
-        }
+        const winningVariant = campaign.variants.find(
+          (v) => v.id === body.winningVariantId,
+        );
+        await emitIntegrationEvent(acc.id, {
+          event: "variant.winner_declared",
+          payload: {
+            campaign_id: campaign.id,
+            campaign_name: campaign.name,
+            winning_variant_id: body.winningVariantId!,
+            winning_variant_name: winningVariant?.name ?? body.winningVariantId!,
+            declared_at: new Date().toISOString(),
+          },
+        });
       } catch (err) {
-        console.error("[webhook] variant.winner_declared dispatch failed", err);
+        console.error("[integrations] variant.winner_declared emit failed", err);
       }
     });
   }

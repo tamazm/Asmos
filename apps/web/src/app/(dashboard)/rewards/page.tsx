@@ -36,6 +36,7 @@ export default async function RewardsPage() {
     description: r.description,
     type: r.type,
     couponCode: r.couponCode,
+    discountValue: r.discountValue,
     weight: r.weight,
     active: r.active,
     maxRedemptions: r.maxRedemptions,

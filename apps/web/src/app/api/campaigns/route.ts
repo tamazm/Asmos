@@ -9,6 +9,8 @@ import { AI_GENERATION_LIMITS } from "@/lib/limits";
 import { normalizeHost } from "@/lib/host";
 import { renderPopupTemplate } from "@/lib/templates";
 import { sanitizeCaptureFields } from "@/lib/templates/runtime";
+import { after } from "next/server";
+import { emitIntegrationEvent } from "@/lib/integrations/emit";
 
 export async function POST(request: Request) {
   const { userId } = await auth();
@@ -194,6 +196,23 @@ export async function POST(request: Request) {
         include: { variants: true },
       });
     }
+  }
+
+  if (responseCampaign.status === "ACTIVE") {
+    after(async () => {
+      try {
+        await emitIntegrationEvent(account.id, {
+          event: "campaign.activated",
+          payload: {
+            campaign_id: created.id,
+            campaign_name: created.name,
+            changed_at: new Date().toISOString(),
+          },
+        });
+      } catch (err) {
+        console.error("[integrations] campaign.activated emit failed", err);
+      }
+    });
   }
 
   return Response.json(

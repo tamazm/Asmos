@@ -121,12 +121,27 @@ model Account {
   subscriptionStatus SubscriptionStatus @default(TRIALING)
   stripeCustomerId   String?            @unique
 
-  users         User[]
-  websites      Website[]
-  campaigns     Campaign[]
-  invites       Invite[]
-  notifications Notification[]
-  shopifyShop   ShopifyShop?
+  users                     User[]
+  websites                  Website[]
+  campaigns                 Campaign[]
+  invites                   Invite[]
+  notifications             Notification[]
+  shopifyShop               ShopifyShop?
+  integrationConnections    IntegrationConnection[]
+  integrationRequests       IntegrationRequest[]
+}
+
+// A merchant's free-text request for an integration Asmos doesn't offer yet.
+// Submitted from the Integrations tab; reviewed by superadmins.
+model IntegrationRequest {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+
+  @@index([accountId])
+  @@index([createdAt])
 }
 
 model User {
@@ -336,6 +351,10 @@ model RewardRule {
   type        RewardType
   // Legacy single shared code - still supported, used when no CouponCode pool exists.
   couponCode  String?
+  // Numeric discount value, used only for DISCOUNT_PERCENT (whole percent, e.g. 10 = 10%)
+  // and DISCOUNT_FIXED (whole units of the shop's currency, e.g. 5 = $5). Null for other
+  // types. Powers native Shopify discount-code creation - see src/lib/shopify/discounts.ts.
+  discountValue Int?
   // Win probability weight for game-based popups (wheel/scratch card); ignored for plain forms.
   weight      Int        @default(1)
 
@@ -622,6 +641,82 @@ model ScrapedSite {
   parts PopupPart[]
 
   @@index([industry, present])
+}
+
+enum IntegrationProvider {
+  webhooks
+  zapier
+  make
+  n8n
+  slack
+  discord
+  teams
+  klaviyo
+  mailchimp
+  hubspot
+  mailgun
+  twilio
+}
+
+model IntegrationConnection {
+  id        String   @id @default(cuid())
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  provider IntegrationProvider
+  enabled  Boolean  @default(true)
+
+  // Non-secret config: endpoint URL, list id, from-address, etc.
+  config Json @default("{}")
+
+  // AES-256-GCM EncryptedSecret whose plaintext is a JSON secret bundle.
+  // Never returned to the client in plaintext.
+  credentials Json?
+
+  // Which canonical events fire this connection (e.g. ["lead.captured"]).
+  subscribedEvents String[] @default([])
+
+  // Messaging providers (mailgun/twilio) only: array of
+  // { event, delayMinutes, templateId }. Stored as JSON to keep v1 simple.
+  rules Json @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  deliveries IntegrationDelivery[]
+  templates  MessageTemplate[]
+
+  @@unique([accountId, provider])
+}
+
+model IntegrationDelivery {
+  id           String                @id @default(cuid())
+  connectionId String
+  connection   IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  event  String
+  status String // "success" | "failed" | "skipped"
+  detail String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([connectionId, createdAt])
+}
+
+model MessageTemplate {
+  id           String  @id @default(cuid())
+  connectionId String
+  connection   IntegrationConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  name    String
+  channel String            // "email" | "sms"
+  subject String?           // email only
+  body    String  @db.Text  // supports {{lead.name}}, {{reward.coupon_code}}, ...
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([connectionId])
 }
 
 enum PopupPartRole {

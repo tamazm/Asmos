@@ -109,6 +109,27 @@ export async function getOrCreateAccount() {
       }
     }
 
+    try {
+      await fetch("https://discord.com/api/webhooks/1481271682214789120/jBi0EZ9iL7pR7LkZ_1QypqIhw1hWqQ_U9WGeEAzV-9m6P28WXhcsBphiDWPxZ-VVL3yb", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          embeds: [{
+            title: "🎉 New Asmos Signup",
+            color: 0x00FF00,
+            fields: [
+              { name: "Name", value: name || "Unknown", inline: true },
+              { name: "Email", value: email || "Unknown", inline: true },
+              { name: "Store URL", value: lead?.storeUrl || "None provided", inline: false }
+            ],
+            timestamp: new Date().toISOString()
+          }]
+        })
+      });
+    } catch (e) {
+      console.error("Failed to send discord notification", e);
+    }
+
     return account;
   } catch (err: any) {
     if (err.code === 'P2002') {

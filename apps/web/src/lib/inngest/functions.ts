@@ -4,6 +4,8 @@ import { sweepStaleCampaigns } from "./sweepStaleCampaigns";
 import { mineCrossAccountPatterns } from "./mineCrossAccountPatterns";
 import { scrapePopupBatch } from "./scrapePopupBatch";
 import { shopifyOrderPaid, shopifyCustomerCreated } from "./shopifyWebhooks";
+import { deliverIntegration } from "./deliverIntegration";
+import { pruneIntegrationDeliveries } from "./pruneIntegrationDeliveries";
 
 export const functions = [
   generateCampaign,
@@ -13,4 +15,6 @@ export const functions = [
   scrapePopupBatch,
   shopifyOrderPaid,
   shopifyCustomerCreated,
+  deliverIntegration,
+  pruneIntegrationDeliveries,
 ];

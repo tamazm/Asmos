@@ -2,6 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { ProviderWebhookCard, type ProviderCardProps } from "@/components/integrations/ProviderWebhookCard";
+import { SyncProviderCard, type SyncCardProps } from "@/components/integrations/SyncProviderCard";
+import { RequestIntegrationCard } from "@/components/integrations/RequestIntegrationCard";
+import { MessagingProviderCard, type MessagingProviderMeta } from "@/components/integrations/MessagingProviderCard";
+import { TestConnectionButton } from "@/components/integrations/TestConnectionButton";
+import { EventSelector, EventSummary } from "@/components/integrations/EventSelector";
+import { AUTOMATION_EVENT_OPTIONS, eventLabel } from "@/lib/integrations/events";
 
 type IntegrationStatus = "disconnected" | "connecting" | "connected" | "error";
 
@@ -14,72 +21,10 @@ interface Integration {
   icon: React.ReactNode;
 }
 
-// ── Disabled facade integrations ────────────────────────────────────────────
-// Klaviyo, Mailchimp, HubSpot, Zapier: the "Connect" flow genuinely saved an
-// API key, but no background job ever read it back out to forward leads -
-// so from a merchant's perspective, clicking Connect did nothing. Commented
-// out (not deleted) until the sync job exists. See IntegrationCard below,
-// still used if any of these come back.
-//
-// const DISABLED_INTEGRATIONS: Integration[] = [
-//   {
-//     id: "klaviyo",
-//     name: "Klaviyo",
-//     description: "Sync captured leads directly into Klaviyo lists and trigger email flows.",
-//     category: "email",
-//     docsUrl: "https://www.klaviyo.com/",
-//     icon: (
-//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-//         <rect width="40" height="40" rx="8" fill="#1A1A1A" />
-//         <text x="8" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">K</text>
-//       </svg>
-//     ),
-//   },
-//   {
-//     id: "mailchimp",
-//     name: "Mailchimp",
-//     description: "Add email submissions to Mailchimp audiences automatically.",
-//     category: "email",
-//     docsUrl: "https://mailchimp.com/",
-//     icon: (
-//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-//         <rect width="40" height="40" rx="8" fill="#FFE01B" />
-//         <text x="9" y="27" fontSize="18" fontWeight="bold" fill="#1A1A1A" fontFamily="serif">M</text>
-//       </svg>
-//     ),
-//   },
-//   {
-//     id: "zapier",
-//     name: "Zapier",
-//     description: "Connect Asmos to 5000+ apps. Trigger zaps on lead capture events.",
-//     category: "automation",
-//     docsUrl: "https://zapier.com/",
-//     icon: (
-//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-//         <rect width="40" height="40" rx="8" fill="#FF4A00" />
-//         <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">Z</text>
-//       </svg>
-//     ),
-//   },
-//   {
-//     id: "hubspot",
-//     name: "HubSpot",
-//     description: "Send leads to HubSpot CRM contacts and lists.",
-//     category: "email",
-//     docsUrl: "https://hubspot.com/",
-//     icon: (
-//       <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-//         <rect width="40" height="40" rx="8" fill="#FF7A59" />
-//         <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">H</text>
-//       </svg>
-//     ),
-//   },
-// ];
-
 const WEBHOOKS_INTEGRATION: Integration = {
   id: "webhooks",
   name: "Webhooks",
-  description: "Receive real-time POST notifications on lead captured and variant winner events.",
+  description: "Receive real-time POST notifications for leads, winners, and campaign lifecycle changes.",
   category: "automation",
   icon: (
     <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
@@ -89,12 +34,157 @@ const WEBHOOKS_INTEGRATION: Integration = {
   ),
 };
 
-const INTEGRATIONS: Integration[] = [WEBHOOKS_INTEGRATION];
-
 const CATEGORY_LABELS = {
   email: "Email marketing",
   automation: "Automation",
 } as const;
+
+/** Category heading with a plain-language subtitle so merchants know what the group is for. */
+function SectionHeading({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="mb-3">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">{title}</h2>
+      <p className="mt-1 text-xs text-[color:var(--color-text-secondary)] opacity-80">{subtitle}</p>
+    </div>
+  );
+}
+
+/** Placeholder shown while a section's connection state is still loading. */
+function SkeletonCard() {
+  const bar = "rounded bg-[color:var(--color-surface-sunken)]";
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="h-7 w-7 rounded-lg bg-[color:var(--color-surface-sunken)]" />
+        <div className="flex-1 space-y-2">
+          <div className={`h-3 w-24 ${bar}`} />
+          <div className={`h-2.5 w-16 ${bar}`} />
+        </div>
+        <div className="h-5 w-20 rounded-full bg-[color:var(--color-surface-sunken)]" />
+      </div>
+      <div className={`h-2.5 w-full ${bar}`} />
+      <div className={`h-2.5 w-3/4 ${bar}`} />
+      <div className="h-9 w-28 rounded-lg bg-[color:var(--color-surface-sunken)]" />
+    </div>
+  );
+}
+
+/** A grid of skeleton cards, used per-section during initial load. */
+function SkeletonGrid({ count }: { count: number }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: count }).map((_, i) => (
+        <SkeletonCard key={i} />
+      ))}
+    </div>
+  );
+}
+
+// ── Provider cards (Zapier/Make/n8n/Slack/Discord/Teams) ───────────────────
+
+type ConnState = { provider: string; connected: boolean; url: string | null; subscribedEvents: string[]; maskedSecret: string | null; lastDelivery: { status: string; at: string } | null };
+
+const PROVIDER_META: Array<Omit<ProviderCardProps, "initialUrl" | "initialEvents" | "initialMaskedSecret" | "initialLastDelivery"> & { group: "Automation" | "Notifications" }> = [
+  { provider: "zapier", name: "Zapier", category: "Automation", group: "Automation", supportsSigning: true, docsUrl: "https://zapier.com/help/create/basics/create-webhooks-from-scratch", setupSteps: [
+      "Log in to Zapier and click Create, then Zaps to start a new Zap.",
+      "For the trigger, search for and choose 'Webhooks by Zapier', then pick the 'Catch Hook' event.",
+      "Zapier shows a 'Custom Webhook URL' that starts with https://hooks.zapier.com/ — click Copy.",
+      "Paste it into the field above and click Save.",
+    ], urlLabel: "Zapier Catch Hook URL", urlPlaceholder: "https://hooks.zapier.com/hooks/catch/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#FF4A00"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">Z</text></svg> },
+  { provider: "make", name: "Make", category: "Automation", group: "Automation", supportsSigning: true, docsUrl: "https://www.make.com/en/help/tools/webhooks", setupSteps: [
+      "Log in to Make and open (or create) the scenario you want to trigger.",
+      "Add a module, search for 'Webhooks', then choose 'Custom webhook'.",
+      "Click Add, give it a name and click Save — Make shows a web address; click 'Copy address to clipboard'.",
+      "Paste it into the field above and click Save.",
+    ], urlLabel: "Make Custom Webhook URL", urlPlaceholder: "https://hook.eu1.make.com/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#6D00CC"/><text x="8" y="27" fontSize="18" fontWeight="bold" fill="#fff">M</text></svg> },
+  { provider: "n8n", name: "n8n", category: "Automation", group: "Automation", supportsSigning: true, docsUrl: "https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/", setupSteps: [
+      "In n8n, open the workflow you want to run and add a new 'Webhook' node.",
+      "Set the method to POST, then copy the 'Production URL' shown on the node.",
+      "Click Save and turn the workflow Active so the web address stays live.",
+      "Paste the web address into the field above and click Save.",
+    ], urlLabel: "n8n Webhook URL", urlPlaceholder: "https://<your-n8n>/webhook/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#EA4B71"/><text x="9" y="27" fontSize="15" fontWeight="bold" fill="#fff">n8</text></svg> },
+  { provider: "slack", name: "Slack", category: "Notifications", group: "Notifications", docsUrl: "https://api.slack.com/messaging/webhooks", setupSteps: [
+      "Go to api.slack.com/apps and click 'Create New App' (choose 'From scratch'), then pick your workspace.",
+      "In the app's left menu, open 'Incoming Webhooks' and switch the toggle On.",
+      "Click 'Add New Webhook to Workspace', choose the channel for alerts, and click Allow.",
+      "Copy the Webhook URL Slack gives you (it starts with https://hooks.slack.com/).",
+      "Paste it into the field above and click Save.",
+    ], urlLabel: "Slack Incoming Webhook URL", urlPlaceholder: "https://hooks.slack.com/services/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#4A154B"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">S</text></svg> },
+  { provider: "discord", name: "Discord", category: "Notifications", group: "Notifications", docsUrl: "https://support.discord.com/hc/en-us/articles/228383668", setupSteps: [
+      "In Discord, open the channel where you want alerts and click the gear icon ('Edit Channel').",
+      "Go to 'Integrations', then 'Webhooks', and click 'New Webhook'.",
+      "Give it a name, then click 'Copy Webhook URL'.",
+      "Paste it into the field above and click Save.",
+    ], urlLabel: "Discord Channel Webhook URL", urlPlaceholder: "https://discord.com/api/webhooks/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#5865F2"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">D</text></svg> },
+  { provider: "teams", name: "Microsoft Teams", category: "Notifications", group: "Notifications", docsUrl: "https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook", setupSteps: [
+      "In Teams, find the channel where you want alerts and click the '...' menu next to its name.",
+      "Choose 'Workflows' and pick the 'Post to a channel when a webhook request is received' template.",
+      "Follow the prompts to add it, then copy the web address (URL) it creates for you.",
+      "Paste it into the field above and click Save.",
+    ], urlLabel: "Teams Incoming Webhook URL", urlPlaceholder: "https://outlook.office.com/webhook/...", icon: <svg viewBox="0 0 40 40" width="28" height="28"><rect width="40" height="40" rx="8" fill="#4B53BC"/><text x="10" y="27" fontSize="18" fontWeight="bold" fill="#fff">T</text></svg> },
+];
+
+type SyncConnState = { provider: string; connected: boolean; maskedKey: string | null; authType: "apiKey" | "oauth" | null; config: Record<string, string>; subscribedEvents: string[]; lastDelivery: { status: string; at: string } | null };
+
+const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initialConfig" | "initialEvents" | "initialLastDelivery" | "category"> & { group: "Marketing sync" }> = [
+  {
+    provider: "klaviyo",
+    name: "Klaviyo",
+    group: "Marketing sync",
+    docsUrl: "https://developers.klaviyo.com/en/docs/retrieve_api_credentials",
+    setupGuide: {
+      url: "https://developers.klaviyo.com/en/docs/retrieve_api_credentials",
+      steps: [
+        "Log in to Klaviyo and click your account name (bottom-left), then 'Settings'.",
+        "Open the 'API keys' tab, click 'Create Private API Key', choose 'Custom Key', and select only Lists: read, Lists: write, Profiles: write, Subscriptions: write, and Events: write. Do not use Full Access. Then copy the key (it starts with pk_).",
+        "For the List ID, go to 'Audience' → 'Lists & Segments', open the list you want, and copy the List ID shown under its name.",
+        "Paste the API key and List ID into the fields above and click Save connection.",
+      ],
+    },
+    keyLabel: "Klaviyo Private API Key",
+    keyPlaceholder: "pk_...",
+    configFields: [{ key: "listId", label: "List ID", placeholder: "e.g. XyzAbc" }],
+    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#1A1A1A" /><text x="8" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="serif">K</text></svg>
+  },
+  {
+    provider: "mailchimp",
+    name: "Mailchimp",
+    group: "Marketing sync",
+    authMode: "oauth",
+    oauthUrl: "/api/integrations/mailchimp/authorize",
+    docsUrl: "https://mailchimp.com/developer/marketing/guides/access-user-data-oauth-2/",
+    setupGuide: {
+      url: "https://mailchimp.com/developer/marketing/guides/access-user-data-oauth-2/",
+      steps: [
+        "Click 'Connect Mailchimp' and authorize Asmos in Mailchimp. Asmos uses OAuth, so you do not need to paste an account-wide API key.",
+        "For the Audience ID, go to 'Audience' → 'Audience dashboard' → 'Settings' → 'Audience name and defaults' and copy the 'Audience ID'.",
+        "After authorization, click Edit on this card, enter the Audience ID, and click Save connection.",
+      ],
+    },
+    configFields: [{ key: "audienceId", label: "Audience ID", placeholder: "e.g. abc123def4" }],
+    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#FFE01B" /><text x="9" y="27" fontSize="18" fontWeight="bold" fill="#1A1A1A" fontFamily="serif">M</text></svg>
+  },
+  {
+    provider: "hubspot",
+    name: "HubSpot",
+    group: "Marketing sync",
+    docsUrl: "https://knowledge.hubspot.com/integrations/how-do-i-get-my-hubspot-api-key",
+    setupGuide: {
+      url: "https://knowledge.hubspot.com/integrations/how-do-i-get-my-hubspot-api-key",
+      steps: [
+        "In HubSpot, click the gear icon (Settings), then in the left menu go to 'Integrations' → 'Private Apps'.",
+        "Click 'Create a private app', give it a name, and open the 'Scopes' tab.",
+        "Tick the CRM contacts read and write permissions, then click 'Create app' and confirm.",
+        "Copy the access token it shows (it starts with pat-).",
+        "Paste it into the field above and click Save connection.",
+      ],
+    },
+    keyLabel: "HubSpot Private App Token",
+    keyPlaceholder: "pat-...",
+    icon: <svg viewBox="0 0 40 40" width="28" height="28" fill="none"><rect width="40" height="40" rx="8" fill="#FF7A59" /><text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">H</text></svg>
+  },
+];
+
 
 // ── Webhook card (real API) ────────────────────────────────────────────────
 
@@ -103,6 +193,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
   const [webhookUrl, setWebhookUrl] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [maskedSecret, setMaskedSecret] = useState<string | null>(null);
+  const [events, setEvents] = useState<string[]>(AUTOMATION_EVENT_OPTIONS.map((event) => event.id));
   const [showInput, setShowInput] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -111,10 +202,11 @@ function WebhookCard({ integration }: { integration: Integration }) {
   useEffect(() => {
     fetch("/api/account/webhook")
       .then((r) => r.json())
-      .then((data: { webhookUrl: string | null; webhookSecret: string | null; webhookEnabled: boolean }) => {
+      .then((data: { webhookUrl: string | null; webhookSecret: string | null; webhookEnabled: boolean; subscribedEvents?: string[] }) => {
         if (data.webhookEnabled && data.webhookUrl) {
           setWebhookUrl(data.webhookUrl);
           setMaskedSecret(data.webhookSecret);
+          setEvents(data.subscribedEvents?.length ? data.subscribedEvents : AUTOMATION_EVENT_OPTIONS.map((event) => event.id));
           setStatus("connected");
         }
       })
@@ -146,6 +238,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
           webhookUrl: webhookUrl.trim(),
           webhookSecret: webhookSecret.trim() || undefined,
           webhookEnabled: true,
+          subscribedEvents: events,
         }),
       });
       const data = await res.json();
@@ -154,6 +247,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
         return;
       }
       setMaskedSecret(data.webhookSecret);
+      setEvents(data.subscribedEvents?.length ? data.subscribedEvents : events);
       setStatus("connected");
       setShowInput(false);
       setWebhookSecret(""); // clear plaintext from state
@@ -186,7 +280,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-sm sm:p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="shrink-0">{integration.icon}</div>
@@ -217,6 +311,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
         <div className="flex flex-col gap-1">
           <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">Endpoint URL</p>
           <p className="break-all font-mono text-xs text-[color:var(--color-text-primary)]">{webhookUrl}</p>
+          <EventSummary events={events} eventLabel={eventLabel} />
           {maskedSecret && (
             <>
               <p className="mt-1 text-xs font-medium text-[color:var(--color-text-secondary)]">Signing secret</p>
@@ -228,6 +323,11 @@ function WebhookCard({ integration }: { integration: Integration }) {
 
       {showInput && status !== "connected" && (
         <div className="flex flex-col gap-3">
+          <EventSelector
+            options={AUTOMATION_EVENT_OPTIONS}
+            selected={events}
+            onToggle={(id) => setEvents((current) => current.includes(id) ? current.filter((eventId) => eventId !== id) : [...current, id])}
+          />
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
               Endpoint URL <span className="text-red-500">*</span>
@@ -259,7 +359,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2">
+      <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-[color:var(--color-border)] pt-3">
         {status !== "connected" ? (
           <button
             onClick={handleConnect}
@@ -270,6 +370,7 @@ function WebhookCard({ integration }: { integration: Integration }) {
           </button>
         ) : (
           <>
+            <TestConnectionButton provider={integration.id} />
             <button
               onClick={() => { setShowInput(true); setStatus("disconnected"); }}
               disabled={saving}
@@ -293,210 +394,111 @@ function WebhookCard({ integration }: { integration: Integration }) {
   );
 }
 
-// ── Generic facade card (Klaviyo, Mailchimp, etc.) ─────────────────────────
-// The API key is genuinely saved (PATCH /api/account/integrations) and
-// survives reloads. What doesn't exist yet is a background job that reads
-// this key back out and actually pushes leads to the provider - hence the
-// "sync is still manual" note rather than claiming full automation.
-
-function IntegrationCard({ integration }: { integration: Integration }) {
-  const [status, setStatus] = useState<IntegrationStatus>("disconnected");
-  const [apiKey, setApiKey] = useState("");
-  const [maskedKey, setMaskedKey] = useState<string | null>(null);
-  const [showInput, setShowInput] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  // Load existing connection state on mount.
-  useEffect(() => {
-    fetch("/api/account/integrations")
-      .then((r) => r.json())
-      .then((data: { integrations: Record<string, { connected: boolean; maskedKey: string | null }> }) => {
-        const entry = data.integrations?.[integration.id];
-        if (entry?.connected) {
-          setStatus("connected");
-          setMaskedKey(entry.maskedKey);
-        }
-      })
-      .catch(() => {
-        // Non-fatal: card still works, just starts from "not connected"
-      });
-  }, [integration.id]);
-
-  async function handleConnect() {
-    if (!showInput) {
-      setShowInput(true);
-      return;
-    }
-    if (!apiKey.trim()) {
-      setError("Please enter your API key.");
-      return;
-    }
-    setStatus("connecting");
-    setError(null);
-    try {
-      const res = await fetch("/api/account/integrations", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ integrationId: integration.id, apiKey: apiKey.trim(), connected: true }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? "Failed to save. Please try again.");
-        setStatus("disconnected");
-        return;
-      }
-      setMaskedKey(data.maskedKey);
-      setStatus("connected");
-      setShowInput(false);
-      setApiKey(""); // clear plaintext from state
-    } catch {
-      setError("Network error. Please try again.");
-      setStatus("disconnected");
-    }
-  }
-
-  async function handleDisconnect() {
-    setStatus("disconnected");
-    setMaskedKey(null);
-    setApiKey("");
-    setShowInput(false);
-    setError(null);
-    try {
-      await fetch("/api/account/integrations", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ integrationId: integration.id, connected: false }),
-      });
-    } catch {
-      // Best-effort; UI already reflects disconnected
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="shrink-0">{integration.icon}</div>
-          <div>
-            <p className="text-sm font-semibold text-[color:var(--color-text-primary)]">{integration.name}</p>
-            <p className="text-xs text-[color:var(--color-text-secondary)]">{CATEGORY_LABELS[integration.category]}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {status === "connected" && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-success)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
-              Connected
-            </span>
-          )}
-          {status === "disconnected" && (
-            <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-text-secondary)]">
-              Not connected
-            </span>
-          )}
-          {status === "connecting" && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--color-primary-light)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-primary)]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-primary)]" style={{ animation: "pulse 1s ease-in-out infinite" }} />
-              Connecting...
-            </span>
-          )}
-        </div>
-      </div>
-
-      <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{integration.description}</p>
-
-      {/* Automatic lead-forwarding isn't built yet - the key is genuinely
-          saved, but nothing reads it back out to push leads to the provider. */}
-      <p className="text-xs text-[color:var(--color-text-secondary)] italic">
-        {status === "connected"
-          ? "Key saved. Automatic lead sync is still being built - export leads manually or use Webhooks + Zapier for now."
-          : "Automatic lead sync is still being built. Use Webhooks + Zapier in the meantime."}
-      </p>
-
-      {status === "connected" && !showInput && maskedKey && (
-        <div className="flex flex-col gap-1">
-          <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">API key</p>
-          <p className="font-mono text-xs text-[color:var(--color-text-primary)]">{maskedKey}</p>
-        </div>
-      )}
-
-      {showInput && (
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium text-[color:var(--color-text-primary)]">
-            {status === "connected" ? "New API key" : "API key"}
-          </label>
-          <input
-            type="text"
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            placeholder="Paste your API key here"
-            className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150 font-mono"
-          />
-          {error && <p className="text-xs text-red-500">{error}</p>}
-        </div>
-      )}
-
-      <div className="flex items-center gap-2">
-        {status !== "connected" ? (
-          <button
-            onClick={handleConnect}
-            disabled={status === "connecting"}
-            className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white transition-colors duration-150 disabled:opacity-50 cursor-pointer"
-          >
-            {status === "connecting" ? "Connecting..." : showInput ? "Save connection" : "Connect"}
-          </button>
-        ) : showInput ? (
-          <>
-            <button
-              onClick={handleConnect}
-              className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white transition-colors duration-150 cursor-pointer"
-            >
-              Save new key
-            </button>
-            <button
-              onClick={() => { setShowInput(false); setApiKey(""); setError(null); }}
-              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)] hover:border-[color:var(--color-primary)] transition-colors duration-150 cursor-pointer"
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              onClick={() => setShowInput(true)}
-              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)] hover:border-[color:var(--color-primary)] transition-colors duration-150 cursor-pointer"
-            >
-              Edit
-            </button>
-            <button
-              onClick={handleDisconnect}
-              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-red-500 hover:border-red-200 transition-colors duration-150 cursor-pointer"
-            >
-              Disconnect
-            </button>
-          </>
-        )}
-        {integration.docsUrl && (
-          <a
-            href={integration.docsUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-[color:var(--color-primary)] hover:underline"
-          >
-            Docs
-          </a>
-        )}
-      </div>
-
-      <style>{`@keyframes pulse{0%,100%{opacity:.4}50%{opacity:1}}`}</style>
-    </div>
-  );
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────
 
+const MESSAGING_PROVIDER_META: MessagingProviderMeta[] = [
+  {
+    id: "mailgun",
+    name: "Mailgun",
+    description: "Send automated emails to captured leads based on rules and delays.",
+    docsUrl: "https://documentation.mailgun.com/en/latest/api-sending.html#sending",
+    setupSteps: [
+      "Log in to Mailgun and open 'Send' → 'Domains'; copy your sending domain (it looks like mg.example.com).",
+      "Note the region shown next to that domain — type 'us' or 'eu' in the Region field.",
+      "For the From Address, use a sender at your domain, like Acme <noreply@mg.example.com>.",
+      "Get your API key from the profile menu → 'API Keys' (or 'API security') and copy the sending key.",
+      "Paste the domain, region, from address, and API key into the fields above and click Save Connection.",
+    ],
+    icon: (
+      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+        <rect width="40" height="40" rx="8" fill="#F03F35" />
+        <text x="10" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">M</text>
+      </svg>
+    ),
+    configFields: [
+      { key: "domain", label: "Domain", placeholder: "e.g. mg.example.com" },
+      { key: "region", label: "Region", placeholder: "us or eu" },
+      { key: "fromAddress", label: "From Address", placeholder: "Acme <noreply@example.com>" },
+      { key: "apiKey", label: "API Key", placeholder: "key-...", isSecret: true },
+    ]
+  },
+  {
+    id: "twilio",
+    name: "Twilio",
+    description: "Send automated SMS to captured leads based on rules and delays.",
+    requiresRestrictedKey: true,
+    docsUrl: "https://www.twilio.com/docs/sms/api/message-resource",
+    setupSteps: [
+      "Log in to the Twilio Console at console.twilio.com.",
+      "Open Account Security and create a Restricted API Key. Allow only the permission to create messages, then copy the Key SID and secret.",
+      "Go to 'Phone Numbers' → 'Manage' → 'Active numbers' and copy the number you'll text from (in +15551234567 format).",
+      "Paste the Account SID, Restricted API Key SID, secret, and sending number into the fields above and click Save Connection.",
+    ],
+    icon: (
+      <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+        <rect width="40" height="40" rx="8" fill="#F22F46" />
+        <text x="12" y="27" fontSize="18" fontWeight="bold" fill="white" fontFamily="sans-serif">T</text>
+      </svg>
+    ),
+    configFields: [
+      { key: "fromNumber", label: "From Phone Number", placeholder: "+15551234567" },
+      { key: "accountSid", label: "Account SID", placeholder: "AC..." },
+      { key: "apiKeySid", label: "Restricted API Key SID", placeholder: "SK..." },
+      { key: "apiKeySecret", label: "Restricted API Key Secret", placeholder: "...", isSecret: true },
+    ]
+  }
+];
+
 export default function IntegrationsPage() {
-  const categories = Array.from(new Set(INTEGRATIONS.map((i) => i.category)));
+  const [messagingViews, setMessagingViews] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Load saved messaging (Mailgun/Twilio) connection state. Independent and
+    // resilient: a failure must not block the rest of the page from rendering.
+    fetch("/api/integrations/messaging")
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setMessagingViews(data);
+      })
+      .catch(() => {
+        // Non-fatal: cards still render, just starting from "not connected".
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleMessagingSave = async (provider: string, data: any) => {
+    const res = await fetch("/api/integrations/messaging", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, ...data }),
+    });
+    if (!res.ok) {
+      const e = await res.json();
+      throw new Error(e.error);
+    }
+    const newData = await fetch("/api/integrations/messaging").then((r) => r.json());
+    setMessagingViews(newData);
+  };
+
+  const handleMessagingRemove = async (provider: string) => {
+    await fetch(`/api/integrations/messaging?provider=${provider}`, { method: "DELETE" });
+    const newData = await fetch("/api/integrations/messaging").then((r) => r.json());
+    setMessagingViews(newData);
+  };
+
+  const [conns, setConns] = useState<ConnState[] | null>(null);
+  const [syncConns, setSyncConns] = useState<SyncConnState[] | null>(null);
+
+  useEffect(() => {
+    fetch("/api/integrations/connections").then((r) => r.json())
+      .then((d: { connections: ConnState[] }) => setConns(d.connections))
+      .catch(() => setConns([]));
+
+    fetch("/api/integrations/sync").then((r) => r.json())
+      .then((d: { connections: SyncConnState[] }) => setSyncConns(d.connections))
+      .catch(() => setSyncConns([]));
+  }, []);
 
   return (
     <div className="flex flex-col gap-8">
@@ -504,22 +506,110 @@ export default function IntegrationsPage() {
       <p className="text-sm text-[color:var(--color-text-secondary)]">
         Connect Asmos to your marketing stack. Leads and events sync automatically once a connection is active.
       </p>
+      <p className="-mt-5 text-xs text-[color:var(--color-text-secondary)]">
+        See how integration data and credentials are handled in our{" "}
+        <a
+          href="https://asmos.io/privacy-policy"
+          className="text-[color:var(--color-primary)] underline underline-offset-2 hover:text-[color:var(--color-primary-dark)]"
+        >
+          Privacy Policy
+        </a>
+        .
+      </p>
 
-      {categories.map((cat) => (
-        <section key={cat}>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">
-            {CATEGORY_LABELS[cat]}
-          </h2>
+      {/* 1. Marketing — the priority for ecommerce: get leads into the tools that actually sell. */}
+      <section>
+        <SectionHeading title="Marketing" subtitle="Send captured leads straight into the email & CRM tools you sell with." />
+        {syncConns === null ? (
+          <SkeletonGrid count={SYNC_PROVIDER_META.length} />
+        ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {INTEGRATIONS.filter((i) => i.category === cat).map((integration) => {
-              if (integration.id === "webhooks") {
-                return <WebhookCard key={integration.id} integration={integration} />;
-              }
-              return <IntegrationCard key={integration.id} integration={integration} />;
+            {SYNC_PROVIDER_META.map((m) => {
+              const c = syncConns?.find((x) => x.provider === m.provider);
+              return (
+                <SyncProviderCard key={m.provider} {...m}
+                  category={m.group}
+                  initialMaskedKey={c?.maskedKey ?? null}
+                  initialAuthType={c?.authType ?? null}
+                  initialConfig={c?.config ?? {}}
+                  initialEvents={c?.subscribedEvents ?? []}
+                  initialLastDelivery={c?.lastDelivery ?? null} />
+              );
             })}
           </div>
-        </section>
-      ))}
+        )}
+      </section>
+
+      {/* 2. Messaging — reach the lead directly. */}
+      <section>
+        <SectionHeading title="Messaging" subtitle="Automatically email or text a lead the moment they convert." />
+        {loading ? (
+          <SkeletonGrid count={MESSAGING_PROVIDER_META.length} />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {MESSAGING_PROVIDER_META.map((meta) => {
+              const view = messagingViews.find((v) => v.provider === meta.id);
+              return (
+                <MessagingProviderCard
+                  key={meta.id}
+                  meta={meta}
+                  view={view}
+                  onSave={(data) => handleMessagingSave(meta.id, data)}
+                  onRemove={() => handleMessagingRemove(meta.id)}
+                />
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* 3. Automation — pipe events anywhere, including your own endpoint. */}
+      <section>
+        <SectionHeading title="Automation" subtitle="Pipe lead & winner events into any workflow tool — or your own endpoint." />
+        {conns === null ? (
+          <SkeletonGrid count={PROVIDER_META.filter((m) => m.group === "Automation").length + 1} />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {PROVIDER_META.filter((m) => m.group === "Automation").map((m) => {
+              const c = conns?.find((x) => x.provider === m.provider);
+              return (
+                <ProviderWebhookCard key={m.provider} {...m}
+                  initialUrl={c?.url ?? null}
+                  initialEvents={c?.subscribedEvents ?? []}
+                  initialMaskedSecret={c?.maskedSecret ?? null}
+                  initialLastDelivery={c?.lastDelivery ?? null} />
+              );
+            })}
+            <WebhookCard integration={WEBHOOKS_INTEGRATION} />
+          </div>
+        )}
+      </section>
+
+      {/* 4. Notifications — team alerts. */}
+      <section>
+        <SectionHeading title="Notifications" subtitle="Get a ping in your team chat on every new lead and test winner." />
+        {conns === null ? (
+          <SkeletonGrid count={PROVIDER_META.filter((m) => m.group === "Notifications").length} />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {PROVIDER_META.filter((m) => m.group === "Notifications").map((m) => {
+              const c = conns?.find((x) => x.provider === m.provider);
+              return (
+                <ProviderWebhookCard key={m.provider} {...m}
+                  initialUrl={c?.url ?? null}
+                  initialEvents={c?.subscribedEvents ?? []}
+                  initialMaskedSecret={c?.maskedSecret ?? null}
+                  initialLastDelivery={c?.lastDelivery ?? null} />
+              );
+            })}
+          </div>
+        )}
+      </section>
+
+      {/* Request an integration we don't offer yet — sent to superadmins. */}
+      <section>
+        <RequestIntegrationCard />
+      </section>
     </div>
   );
 }

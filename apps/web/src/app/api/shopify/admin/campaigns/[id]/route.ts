@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getEmbeddedAccount } from "@/lib/shopify/embeddedAuth";
+import { emitIntegrationEvent } from "@/lib/integrations/emit";
 
 // Embedded admin — manage one campaign (activate/pause + placement). Authed by
 // the shop session (getEmbeddedAccount), NOT Clerk, like every /api/shopify/
@@ -56,7 +57,7 @@ export async function PATCH(
 
   const campaign = await prisma.campaign.findFirst({
     where: { id, accountId: account.id },
-    select: { id: true, websiteId: true, status: true },
+    select: { id: true, accountId: true, name: true, websiteId: true, status: true },
   });
   if (!campaign) return Response.json({ error: "Campaign not found" }, { status: 404 });
 
@@ -113,9 +114,37 @@ export async function PATCH(
       prisma.campaign.update({ where: { id: campaign.id }, data: { status: "ACTIVE" } }),
     ]);
     status = "ACTIVE";
+    if (campaign.status !== "ACTIVE") {
+      try {
+        await emitIntegrationEvent(campaign.accountId, {
+          event: "campaign.activated",
+          payload: {
+            campaign_id: campaign.id,
+            campaign_name: campaign.name,
+            changed_at: new Date().toISOString(),
+          },
+        });
+      } catch (err) {
+        console.error("[integrations] Shopify campaign.activated emit failed", err);
+      }
+    }
   } else if (body.action === "pause") {
     await prisma.campaign.update({ where: { id: campaign.id }, data: { status: "PAUSED" } });
     status = "PAUSED";
+    if (campaign.status !== "PAUSED") {
+      try {
+        await emitIntegrationEvent(campaign.accountId, {
+          event: "campaign.paused",
+          payload: {
+            campaign_id: campaign.id,
+            campaign_name: campaign.name,
+            changed_at: new Date().toISOString(),
+          },
+        });
+      } catch (err) {
+        console.error("[integrations] Shopify campaign.paused emit failed", err);
+      }
+    }
   }
 
   return Response.json({ id: campaign.id, status });

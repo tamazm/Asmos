@@ -22,7 +22,7 @@ export default async function SuperadminPage({
   }
 
   const selection = parseSuperadminAnalyticsSelection(await searchParams);
-  const [campaigns, analytics] = await Promise.all([
+  const [campaigns, analytics, integrationRequests] = await Promise.all([
     prisma.campaign.findMany({
       include: {
         account: {
@@ -35,6 +35,11 @@ export default async function SuperadminPage({
       orderBy: { createdAt: "desc" },
     }),
     getSuperadminAnalytics(selection),
+    prisma.integrationRequest.findMany({
+      include: { account: { include: { users: { select: { email: true } } } } },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    }),
   ]);
 
   return (
@@ -48,6 +53,48 @@ export default async function SuperadminPage({
       </div>
 
       <AnalyticsExplorer data={analytics} />
+
+      <div>
+        <h2 className="mb-2 text-lg font-semibold text-[color:var(--color-text-primary)]">
+          Integration Requests <span className="text-sm font-normal text-[color:var(--color-text-secondary)]">({integrationRequests.length})</span>
+        </h2>
+        <div className="overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)]">
+                <tr>
+                  <th className="px-4 py-3 font-semibold text-[color:var(--color-text-secondary)]">Requested</th>
+                  <th className="px-4 py-3 font-semibold text-[color:var(--color-text-secondary)]">Request</th>
+                  <th className="px-4 py-3 font-semibold text-[color:var(--color-text-secondary)]">Account</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[color:var(--color-border)]">
+                {integrationRequests.map((r) => (
+                  <tr key={r.id} className="hover:bg-[color:var(--color-surface-sunken)]/50 transition-colors">
+                    <td className="whitespace-nowrap px-4 py-3 text-xs text-[color:var(--color-text-secondary)]">
+                      {r.createdAt.toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 max-w-[420px] whitespace-pre-wrap text-[color:var(--color-text-primary)]">
+                      {r.text}
+                    </td>
+                    <td className="px-4 py-3 text-xs">
+                      <div className="font-medium text-[color:var(--color-text-primary)]">{r.account.name}</div>
+                      <div className="text-[color:var(--color-text-secondary)]">{r.account.users[0]?.email ?? r.accountId}</div>
+                    </td>
+                  </tr>
+                ))}
+                {integrationRequests.length === 0 && (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-8 text-center text-[color:var(--color-text-secondary)]">
+                      No integration requests yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
 
       <div className="overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm">
         <div className="overflow-x-auto">

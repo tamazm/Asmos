@@ -5,7 +5,7 @@ import { corsJson, corsPreflight } from "@/lib/cors";
 import { pickWeightedReward, generateCouponCode } from "@/lib/reward";
 import { sendRewardEmail } from "@/lib/email";
 import { recomputeCampaignAllocation } from "@/lib/bandit";
-import { dispatchWebhook } from "@/lib/webhook";
+import { emitIntegrationEvent } from "@/lib/integrations/emit";
 import { capturePostHogEvents, isPostHogCaptureConfigured } from "@/lib/posthog-server";
 import { classifyUserIntent } from "@/lib/userIntent";
 import { upsertShopifyCustomer } from "@/lib/shopify/customers";
@@ -54,10 +54,8 @@ export async function POST(request: Request) {
           rewards: { include: { couponCodes: { where: { usedAt: null }, select: { id: true } } } },
           account: {
             select: {
+              id: true,
               name: true,
-              webhookUrl: true,
-              webhookSecret: true,
-              webhookEnabled: true,
               // Present only for Shopify-connected accounts — lets us write the
               // captured lead back into the shop's admin as a Customer.
               shopifyShop: { select: { shopDomain: true, uninstalledAt: true } },
@@ -167,38 +165,36 @@ export async function POST(request: Request) {
     }
   });
 
-  // Fire outbound webhook if configured (fire-and-forget via after()).
+  // Emit lead.captured through the integration bus (fire-and-forget via after()).
   // A slow or dead customer endpoint must never delay or break the widget's lead ack.
   after(async () => {
     try {
       const account = variant.campaign.account;
-      if (account.webhookEnabled && account.webhookUrl) {
-        await dispatchWebhook(account.webhookUrl, account.webhookSecret ?? null, {
-          event: "lead.captured",
-          payload: {
-            campaign_id: variant.campaign.id,
-            campaign_name: variant.campaign.name,
-            variant_id: variant.id,
-            variant_name: variant.name,
-            lead: {
-              email: body.email ?? null,
-              name: body.name ?? null,
-              phone: body.phone ?? null,
-              consent_given: Boolean(body.consentGiven),
-              captured_at: new Date().toISOString(),
-            },
-            reward: reward
-              ? {
-                  label: reward.label,
-                  type: reward.type,
-                  coupon_code: couponCode,
-                }
-              : null,
+      await emitIntegrationEvent(account.id, {
+        event: "lead.captured",
+        payload: {
+          campaign_id: variant.campaign.id,
+          campaign_name: variant.campaign.name,
+          variant_id: variant.id,
+          variant_name: variant.name,
+          lead: {
+            email: body.email ?? null,
+            name: body.name ?? null,
+            phone: body.phone ?? null,
+            consent_given: Boolean(body.consentGiven),
+            captured_at: new Date().toISOString(),
           },
-        });
-      }
+          reward: reward
+            ? {
+                label: reward.label,
+                type: reward.type,
+                coupon_code: couponCode,
+              }
+            : null,
+        },
+      });
     } catch (err) {
-      console.error("[webhook] lead.captured dispatch failed", err);
+      console.error("[integrations] lead.captured emit failed", err);
     }
   });
 

@@ -14,6 +14,7 @@ export type RewardRow = {
   description: string | null;
   type: string;
   couponCode: string | null;
+  discountValue: number | null;
   weight: number;
   active: boolean;
   maxRedemptions: number | null;
@@ -132,9 +133,14 @@ function NewRewardForm({ campaigns, onDone, overrideAccountId }: { campaigns: Ca
   const [type, setType] = useState<(typeof REWARD_TYPES)[number]>("FREE_SHIPPING");
   const [label, setLabel] = useState("");
   const [description, setDescription] = useState("");
+  const [couponCode, setCouponCode] = useState("");
+  const [discountValue, setDiscountValue] = useState("");
   const [maxRedemptions, setMaxRedemptions] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isCoded = type === "COUPON" || type === "DISCOUNT_PERCENT" || type === "DISCOUNT_FIXED";
+  const isDiscount = type === "DISCOUNT_PERCENT" || type === "DISCOUNT_FIXED";
 
   async function submit() {
     if (!campaignId) {
@@ -156,6 +162,8 @@ function NewRewardForm({ campaigns, onDone, overrideAccountId }: { campaigns: Ca
           type,
           label: label.trim(),
           description: description.trim() || undefined,
+          couponCode: isCoded && couponCode.trim() ? couponCode.trim() : undefined,
+          discountValue: isDiscount && discountValue.trim() ? Number(discountValue) : undefined,
           maxRedemptions: maxRedemptions.trim() ? Number(maxRedemptions) : undefined,
           accountId: overrideAccountId,
         }),
@@ -230,6 +238,38 @@ function NewRewardForm({ campaigns, onDone, overrideAccountId }: { campaigns: Ca
             className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
           />
         </div>
+        {isCoded && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[color:var(--color-text-secondary)]">
+              Coupon code <span className="font-normal">(optional)</span>
+            </label>
+            <input
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              placeholder="e.g. WELCOME10"
+              className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]"
+            />
+          </div>
+        )}
+        {isDiscount && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[color:var(--color-text-secondary)]">
+              Discount value {type === "DISCOUNT_PERCENT" ? "(%)" : "(whole currency units)"}
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={type === "DISCOUNT_PERCENT" ? 100 : undefined}
+              value={discountValue}
+              onChange={(e) => setDiscountValue(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder={type === "DISCOUNT_PERCENT" ? "e.g. 10" : "e.g. 5"}
+              className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+            />
+            <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">
+              With a linked Shopify store, saving creates a matching, redeemable discount code.
+            </p>
+          </div>
+        )}
         <div className="sm:col-span-2">
           <label className="mb-1 block text-xs font-medium text-[color:var(--color-text-secondary)]">
             Description <span className="font-normal">(optional)</span>
@@ -570,6 +610,11 @@ function EditRewardPanel({
   const [maxRedemptions, setMaxRedemptions] = useState(row.maxRedemptions === null ? "" : String(row.maxRedemptions));
   const [active, setActive] = useState(row.active);
   const [campaignId, setCampaignId] = useState(row.campaignId);
+  const [couponCode, setCouponCode] = useState(row.couponCode ?? "");
+  const [discountValue, setDiscountValue] = useState(row.discountValue == null ? "" : String(row.discountValue));
+
+  const isCoded = row.type === "COUPON" || row.type === "DISCOUNT_PERCENT" || row.type === "DISCOUNT_FIXED";
+  const isDiscount = row.type === "DISCOUNT_PERCENT" || row.type === "DISCOUNT_FIXED";
 
   async function save() {
     setBusy(true);
@@ -585,6 +630,8 @@ function EditRewardPanel({
           category: category.trim() || null,
           weight: Number(weight) || 0,
           maxRedemptions: maxRedemptions.trim() ? Number(maxRedemptions) : null,
+          couponCode: isCoded ? (couponCode.trim() || null) : undefined,
+          discountValue: isDiscount ? (discountValue.trim() ? Number(discountValue) : null) : undefined,
           active,
           campaignId,
           accountId: overrideAccountId,
@@ -656,6 +703,33 @@ function EditRewardPanel({
             className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
           />
         </div>
+        {isCoded && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[color:var(--color-text-secondary)]">Coupon code</label>
+            <input
+              value={couponCode}
+              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+              placeholder="e.g. WELCOME10"
+              className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm font-mono outline-none focus:border-[color:var(--color-primary)]"
+            />
+          </div>
+        )}
+        {isDiscount && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-[color:var(--color-text-secondary)]">
+              Discount value {row.type === "DISCOUNT_PERCENT" ? "(%)" : "(whole currency units)"}
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={row.type === "DISCOUNT_PERCENT" ? 100 : undefined}
+              value={discountValue}
+              onChange={(e) => setDiscountValue(e.target.value.replace(/[^0-9]/g, ""))}
+              placeholder={row.type === "DISCOUNT_PERCENT" ? "e.g. 10" : "e.g. 5"}
+              className="w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+            />
+          </div>
+        )}
         <div>
           <label className="mb-1 block text-xs font-medium text-[color:var(--color-text-secondary)]">
             Assigned campaign
