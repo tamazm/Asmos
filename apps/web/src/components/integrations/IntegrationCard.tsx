@@ -126,7 +126,7 @@ export function IntegrationCard({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {isConnected && !isReconnect && !isKeyRequired && (
+          {isConnected && !isReconnect && !isKeyRequired && id !== "shopify" && (
             <TestConnectionButton provider={id} size="sm" />
           )}
 

@@ -679,20 +679,18 @@ export function IntegrationConfigModal({
         {type === "shopify" && shopifyData && (
           <div className="space-y-4">
             {isConnected && shopifyData.connectedShopDomain ? (
-              <div className="rounded-xl border border-emerald-500/20 bg-emerald-50/50 dark:bg-emerald-950/20 p-4">
+              <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-xs">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                        Connected Store
-                      </span>
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400" />
+                      Connected Store
                     </div>
-                    <p className="mt-1 font-mono text-sm font-bold text-[color:var(--color-text-primary)]">
+                    <p className="mt-2 font-mono text-base font-bold text-[color:var(--color-text-primary)]">
                       {shopifyData.connectedShopDomain}
                     </p>
                     {shopifyData.installedAt && (
-                      <p className="mt-1 text-[11px] text-[color:var(--color-text-secondary)]">
+                      <p className="mt-0.5 text-xs text-[color:var(--color-text-secondary)]">
                         Connected on {new Date(shopifyData.installedAt).toLocaleDateString(undefined, { dateStyle: "medium" })}
                       </p>
                     )}
@@ -701,7 +699,7 @@ export function IntegrationConfigModal({
                     href="/shopify-admin"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-primary)] hover:border-[color:var(--color-primary)] transition-all shadow-xs"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1.5 text-xs font-medium text-[color:var(--color-text-primary)] hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-primary)] transition-all shadow-xs"
                   >
                     Open Embedded Admin
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -712,30 +710,30 @@ export function IntegrationConfigModal({
                   </a>
                 </div>
 
-                <div className="mt-4 grid grid-cols-2 gap-2 border-t border-emerald-500/20 pt-3 text-[11px]">
-                  <div className="flex items-center gap-1.5 text-[color:var(--color-text-secondary)]">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600">
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5 border-t border-[color:var(--color-border)] pt-4 text-xs">
+                  <div className="flex items-center gap-2 text-[color:var(--color-text-primary)]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600 shrink-0">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    <span>Automatic discount sync</span>
+                    <span className="font-medium">Automatic discount sync</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[color:var(--color-text-secondary)]">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600">
+                  <div className="flex items-center gap-2 text-[color:var(--color-text-primary)]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600 shrink-0">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    <span>Storefront theme popups</span>
+                    <span className="font-medium">Storefront theme popups</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[color:var(--color-text-secondary)]">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600">
+                  <div className="flex items-center gap-2 text-[color:var(--color-text-primary)]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600 shrink-0">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    <span>Checkout & order revenue</span>
+                    <span className="font-medium">Checkout & order revenue</span>
                   </div>
-                  <div className="flex items-center gap-1.5 text-[color:var(--color-text-secondary)]">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600">
+                  <div className="flex items-center gap-2 text-[color:var(--color-text-primary)]">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-600 shrink-0">
                       <polyline points="20 6 9 17 4 12" />
                     </svg>
-                    <span>Live lead attribution</span>
+                    <span className="font-medium">Live lead attribution</span>
                   </div>
                 </div>
               </div>
@@ -743,22 +741,20 @@ export function IntegrationConfigModal({
               <div className="space-y-4">
                 {/* Detected Installed Store Card */}
                 {shopifyData.availableShops && shopifyData.availableShops.length > 0 && (
-                  <div className="rounded-xl border border-emerald-500/30 bg-emerald-50/60 dark:bg-emerald-950/20 p-4">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300">
-                        Installed Store Detected
-                      </span>
+                  <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-xs">
+                    <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-0.5 text-xs font-semibold text-emerald-800 dark:text-emerald-300 mb-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 animate-pulse" />
+                      Installed Store Detected
                     </div>
-                    <p className="text-[11px] text-[color:var(--color-text-secondary)] mb-3">
+                    <p className="text-xs text-[color:var(--color-text-secondary)] mb-3">
                       The Asmos Shopify app is installed and ready to link to this account:
                     </p>
                     <div className="flex flex-col gap-2">
                       {shopifyData.availableShops.map((s) => (
-                        <div key={s.shopDomain} className="flex items-center justify-between gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-2.5 shadow-xs">
+                        <div key={s.shopDomain} className="flex items-center justify-between gap-2 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-2.5">
                           <div>
-                            <span className="font-mono text-xs font-semibold text-[color:var(--color-text-primary)]">{s.shopDomain}</span>
-                            <span className="block text-[10px] text-[color:var(--color-text-secondary)]">Installed via Shopify</span>
+                            <span className="font-mono text-xs font-bold text-[color:var(--color-text-primary)]">{s.shopDomain}</span>
+                            <span className="block text-[11px] text-[color:var(--color-text-secondary)]">Installed via Shopify</span>
                           </div>
                           <Button
                             type="button"
@@ -781,7 +777,7 @@ export function IntegrationConfigModal({
                                 setSaving(false);
                               }
                             }}
-                            className="text-xs h-7 whitespace-nowrap"
+                            className="text-xs h-7 whitespace-nowrap font-medium"
                           >
                             {saving ? "Connecting…" : "Connect This Store"}
                           </Button>
@@ -1366,7 +1362,9 @@ export function IntegrationConfigModal({
         <div className="flex items-center justify-between gap-2 border-t border-[color:var(--color-border)]/60 pt-2.5 sm:border-0 sm:pt-0 sm:justify-start">
           {(isConnected || isKeyRequired || isReconnect) && (
             <div className="flex items-center gap-2">
-              {isConnected && <TestConnectionButton provider={providerId} size="sm" />}
+              {isConnected && type !== "shopify" && providerId !== "shopify" && (
+                <TestConnectionButton provider={providerId} size="sm" />
+              )}
               {confirmDisconnect ? (
                 <div className="flex items-center gap-1.5">
                   <Button
