@@ -48,7 +48,7 @@ type CategoryId = "all" | "store" | "marketing" | "messaging" | "automation" | "
 interface ProviderBaseMeta {
   id: string;
   name: string;
-  category: "Store Platform" | "Marketing" | "Messaging" | "Automation" | "Notifications";
+  category: "Stores" | "Marketing" | "Messaging" | "Automation" | "Notifications";
   categoryId: CategoryId;
   description: string;
   icon: React.ReactNode;
@@ -439,7 +439,7 @@ const SHOPIFY_PROVIDER: ShopifyMeta = {
   id: "shopify",
   type: "shopify",
   name: "Shopify",
-  category: "Store Platform",
+  category: "Stores",
   categoryId: "store",
   description:
     "Core store integration for automatic discount code generation, customer cart & checkout tracking, and theme popups.",
@@ -473,7 +473,7 @@ const ALL_PROVIDERS: ProviderDefinition[] = [
 
 const CATEGORIES: { id: CategoryId; label: string; count: number }[] = [
   { id: "all", label: "All", count: ALL_PROVIDERS.length },
-  { id: "store", label: "Store Platform", count: 1 },
+  { id: "store", label: "Stores", count: 1 },
   { id: "marketing", label: "Marketing", count: SYNC_PROVIDERS.length },
   { id: "messaging", label: "Messaging", count: MESSAGING_PROVIDERS.length },
   { id: "automation", label: "Automation", count: AUTOMATION_PROVIDERS.length },
@@ -693,7 +693,7 @@ export default function IntegrationsPage() {
   const totalConnectedCount = useMemo(() => {
     let count = 0;
     for (const provider of ALL_PROVIDERS) {
-      if (getProviderStatus(provider).status === "connected") {
+      if (getProviderStatus(provider).status !== "disconnected") {
         count++;
       }
     }
@@ -712,7 +712,7 @@ export default function IntegrationsPage() {
       // "Connected only" filter
       if (onlyConnected) {
         const { status } = getProviderStatus(p);
-        if (status !== "connected") return false;
+        if (status === "disconnected") return false;
       }
       // Text search
       if (q) {
@@ -834,20 +834,22 @@ export default function IntegrationsPage() {
         </div>
 
         {/* Right Toolbar Controls: Connected Filter & Search */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 shrink-0">
           {/* Connected Only Toggle */}
           <button
             type="button"
             onClick={() => setOnlyConnected((v) => !v)}
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer ${
+            className={`inline-flex items-center gap-2 rounded-xl border h-9 px-3.5 text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-150 cursor-pointer ${
               onlyConnected
-                ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
-                : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
+                ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold shadow-xs"
+                : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] hover:border-[color:var(--color-border-hover)]"
             }`}
           >
             <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                onlyConnected ? "bg-[color:var(--color-primary)]" : "bg-[color:var(--color-text-secondary)]/50"
+              className={`h-2 w-2 rounded-full transition-colors ${
+                onlyConnected
+                  ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"
+                  : "bg-[color:var(--color-text-secondary)]/40"
               }`}
             />
             Connected only
@@ -941,15 +943,15 @@ export default function IntegrationsPage() {
       ) : selectedCategory === "all" && !searchQuery && !onlyConnected ? (
         /* Categorized Sections when viewing All */
         <div className="space-y-8">
-          {/* Section: Store Platform (Flagship) */}
+          {/* Section: Stores */}
           <section>
             <div className="mb-3.5">
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold tracking-tight text-[color:var(--color-text-primary)]">
-                  Store Platform
+                  Stores
                 </h2>
-                <span className="rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 text-[10px] font-semibold">
-                  Flagship
+                <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--color-text-secondary)]">
+                  1
                 </span>
               </div>
               <p className="text-xs text-[color:var(--color-text-secondary)]">

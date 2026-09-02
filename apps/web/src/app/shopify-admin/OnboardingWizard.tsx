@@ -27,8 +27,6 @@ export function OnboardingWizard({
   onConnect,
   campaigns,
   hasActiveCampaign,
-  creating,
-  onCreateStarter,
   onSelectActive,
   onOpenBuilder,
   embedAcknowledged,
@@ -41,8 +39,6 @@ export function OnboardingWizard({
   onConnect: () => void;
   campaigns: Campaign[];
   hasActiveCampaign: boolean;
-  creating: boolean;
-  onCreateStarter: () => void;
   onSelectActive: (id: string) => void;
   onOpenBuilder: () => void;
   embedAcknowledged: boolean;
@@ -112,14 +108,12 @@ export function OnboardingWizard({
                 ? "A popup is live and ready to show on your store."
                 : campaigns.length > 0
                   ? "You have popups — choose which one runs on your store."
-                  : "Asmos generates a lead-capture popup tailored to your store in about a minute. You can customize it any time."
+                  : "Create and customize your lead-capture popup in the Asmos dashboard, then choose it here to run on your store."
             }
           >
             {step2 === "active" && (
               <Step2Body
                 campaigns={campaigns}
-                creating={creating}
-                onCreateStarter={onCreateStarter}
                 onSelectActive={onSelectActive}
                 onOpenBuilder={onOpenBuilder}
               />
@@ -172,41 +166,29 @@ export function OnboardingWizard({
   );
 }
 
-// ── Step 2 body: generate a starter, pick an existing popup, or build in Asmos ─
+// ── Step 2 body: pick an existing popup, or build in Asmos ─
 function Step2Body({
   campaigns,
-  creating,
-  onCreateStarter,
   onSelectActive,
   onOpenBuilder,
 }: {
   campaigns: Campaign[];
-  creating: boolean;
-  onCreateStarter: () => void;
   onSelectActive: (id: string) => void;
   onOpenBuilder: () => void;
 }) {
-  // "Generating" covers both the in-flight create request (creating) and a popup
-  // that's landed in GENERATING — so the animated card appears the instant the
-  // button is clicked and stays until the popup is actually ready.
-  const generating = creating || campaigns.some((c) => c.status === "GENERATING");
   const selectable = campaigns.filter((c) => c.status !== "GENERATING" && c.status !== "FAILED");
 
-  if (generating) {
-    return <GeneratingCard />;
-  }
-
-  // No popups yet → generate one, or jump into the full Asmos builder.
+  // No popups yet → jump into the full Asmos builder.
   if (campaigns.length === 0) {
     return (
       <s-stack direction="block" gap="small-300">
         <s-box>
-          <s-button variant="primary" onClick={onCreateStarter}>
-            Generate my popup
+          <s-button variant="primary" onClick={onOpenBuilder}>
+            Create popup in Asmos
           </s-button>
         </s-box>
         <s-text tone="subdued">
-          Prefer to design it yourself? <s-link onClick={onOpenBuilder}>Build one in Asmos</s-link>.
+          Popups are generated and tailored in your Asmos dashboard, then synced here to run on your store.
         </s-text>
       </s-stack>
     );
@@ -226,10 +208,9 @@ function Step2Body({
           </s-stack>
         </s-box>
       ))}
-      <s-stack direction="inline" gap="small-300" alignItems="center">
-        <s-button onClick={onCreateStarter}>Generate a new one</s-button>
-        <s-button onClick={onOpenBuilder}>Build one in Asmos</s-button>
-      </s-stack>
+      <s-box>
+        <s-button onClick={onOpenBuilder}>Create another in Asmos</s-button>
+      </s-box>
     </s-stack>
   );
 }

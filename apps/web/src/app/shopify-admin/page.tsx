@@ -117,7 +117,6 @@ export default function ShopifyAdminHome() {
   const [error, setError] = useState<string | null>(null);
   const [granted, setGranted] = useState<string[]>([]);
   const [busyScope, setBusyScope] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -356,29 +355,6 @@ export default function ShopifyAdminHome() {
     await patchCampaign(id, { action: "activate" });
   }
 
-  async function createStarterPopup() {
-    setCreating(true);
-    try {
-      const token = await window.shopify!.idToken();
-      const res = await fetch("/api/shopify/admin/campaigns", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ goal: "BOTH" }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        window.shopify?.toast?.show(data.error ?? "Could not create popup", { isError: true });
-        return;
-      }
-      window.shopify?.toast?.show("Popup is generating — activate it once it's ready.");
-      await loadCampaigns();
-    } catch (err) {
-      window.shopify?.toast?.show((err as Error).message, { isError: true });
-    } finally {
-      setCreating(false);
-    }
-  }
-
   async function patchCampaign(id: string, body: Record<string, unknown>): Promise<boolean> {
     const token = await window.shopify!.idToken();
     const res = await fetch(`/api/shopify/admin/campaigns/${id}`, {
@@ -478,8 +454,6 @@ export default function ShopifyAdminHome() {
         onConnect={connectAccount}
         campaigns={list}
         hasActiveCampaign={Boolean(activeCampaign)}
-        creating={creating}
-        onCreateStarter={createStarterPopup}
         onSelectActive={setActivePopup}
         onOpenBuilder={openAsmosBuilder}
         embedAcknowledged={embedAck}
@@ -520,7 +494,7 @@ export default function ShopifyAdminHome() {
             the "turn on the embed" action exactly when a popup is live. */}
         {!hasCampaigns ? (
           <s-banner tone="info">
-            <s-text>Generate your first popup below — it takes about a minute.</s-text>
+            <s-text>Create your first popup in Asmos to run it on your store.</s-text>
           </s-banner>
         ) : activeCampaign ? (
           <s-banner tone="success" heading={`“${activeCampaign.name}” is live`}>
@@ -591,23 +565,13 @@ export default function ShopifyAdminHome() {
               <s-text tone="subdued">
                 {hasCampaigns
                   ? "Choose which popup runs on your store, and control when and where it appears."
-                  : linked
-                    ? "Build a popup in Asmos, then choose it here to run it on your store."
-                    : "Asmos generates a lead-capture popup tailored to your store. Customize it any time."}
+                  : "Build your popup in Asmos, then choose it here to run it on your store."}
               </s-text>
               <s-button
                 variant={hasCampaigns ? undefined : "primary"}
-                loading={!linked && creating}
-                disabled={!linked && creating}
-                onClick={linked ? openAsmosBuilder : createStarterPopup}
+                onClick={openAsmosBuilder}
               >
-                {linked
-                  ? hasCampaigns
-                    ? "Create another in Asmos"
-                    : "Create a popup in Asmos"
-                  : hasCampaigns
-                    ? "Generate another"
-                    : "Generate popup"}
+                {hasCampaigns ? "Create another in Asmos" : "Create popup in Asmos"}
               </s-button>
             </s-stack>
 
