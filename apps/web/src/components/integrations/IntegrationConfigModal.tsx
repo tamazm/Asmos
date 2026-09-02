@@ -92,6 +92,7 @@ export interface IntegrationConfigModalProps {
   setupGuide?: { url: string; steps: string[] };
   // Connection states
   isConnected: boolean;
+  isKeyRequired?: boolean;
   isReconnect?: boolean;
   lastDelivery?: { status: string; at: string } | null;
   // Specific data for Sync
@@ -151,6 +152,7 @@ export function IntegrationConfigModal({
   setupSteps,
   setupGuide,
   isConnected,
+  isKeyRequired,
   isReconnect,
   lastDelivery,
   syncData,
@@ -545,6 +547,26 @@ export function IntegrationConfigModal({
               <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--color-text-secondary)]">
                 {category}
               </span>
+              {isConnected ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--color-success-bg)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--color-success)]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)] animate-pulse" />
+                  Connected
+                </span>
+              ) : isKeyRequired ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
+                  Key required
+                </span>
+              ) : isReconnect ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  Reconnect
+                </span>
+              ) : (
+                <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--color-text-secondary)]">
+                  Not connected
+                </span>
+              )}
             </div>
             <p className="text-xs font-normal text-[color:var(--color-text-secondary)] line-clamp-1">{description}</p>
           </div>
@@ -564,6 +586,18 @@ export function IntegrationConfigModal({
         {success && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs font-medium text-emerald-800">
             {success}
+          </div>
+        )}
+        {isKeyRequired && !error && !success && (
+          <div className="flex items-center gap-2.5 rounded-xl border border-amber-500/30 bg-amber-50/80 dark:bg-amber-950/30 p-3.5 text-xs text-amber-800 dark:text-amber-300">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-amber-600 dark:text-amber-400" aria-hidden="true">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            <span>
+              Additional credentials or configuration keys are required before this integration can be active. Please complete the required fields below.
+            </span>
           </div>
         )}
 
@@ -635,6 +669,8 @@ export function IntegrationConfigModal({
                 <p className="text-xs text-[color:var(--color-text-secondary)] mb-3">
                   {isConnected
                     ? `${name} is authorized via OAuth. You can reconnect or update your configuration below.`
+                    : isKeyRequired && syncData.initialMaskedKey
+                    ? `${name} is authorized via OAuth, but additional required configuration keys are needed below.`
                     : `Connect securely through ${name}. You will not need to paste an account-wide API key into Asmos.`}
                 </p>
                 <div className="flex flex-col items-center gap-2">
@@ -642,7 +678,9 @@ export function IntegrationConfigModal({
                     href={syncData.oauthUrl}
                     className="inline-flex items-center justify-center gap-2 rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-[color:var(--color-primary-dark)]"
                   >
-                    {isConnected ? `Reconnect ${name}` : `Authorize ${name} via OAuth`}
+                    {isConnected || (isKeyRequired && syncData.initialMaskedKey)
+                      ? `Reconnect ${name}`
+                      : `Authorize ${name} via OAuth`}
                   </a>
                   <button
                     type="button"
@@ -1103,9 +1141,9 @@ export function IntegrationConfigModal({
       <div className="flex flex-col-reverse gap-3 border-t border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)]/40 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6 sm:py-4">
         {/* Utilities: Test Connection & Disconnect */}
         <div className="flex items-center justify-between gap-2 border-t border-[color:var(--color-border)]/60 pt-2.5 sm:border-0 sm:pt-0 sm:justify-start">
-          {isConnected && (
+          {(isConnected || isKeyRequired || isReconnect) && (
             <div className="flex items-center gap-2">
-              <TestConnectionButton provider={providerId} size="sm" />
+              {isConnected && <TestConnectionButton provider={providerId} size="sm" />}
               {confirmDisconnect ? (
                 <div className="flex items-center gap-1.5">
                   <Button

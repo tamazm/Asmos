@@ -12,15 +12,18 @@ import { emitIntegrationEvent } from "@/lib/integrations/emit";
 // variants (see public/widget/asmos-widget.js matchesPageTargeting/setupTriggers
 // and generateCampaign.ts, which carries it through unchanged).
 type PageMode = "all" | "include" | "exclude";
-type Trigger = "time_delay" | "exit_intent" | "scroll_depth";
+type Trigger = "time_delay" | "exit_intent" | "scroll_depth" | "cart_threshold";
 
 interface Placement {
   trigger: Trigger;
   delaySeconds: number;
+  minCartSubtotal?: number | null;
+  suppressIfCustomer?: boolean;
+  autoApplyDiscount?: boolean;
   pages: { mode: PageMode; patterns: string[] };
 }
 
-const TRIGGERS: Trigger[] = ["time_delay", "exit_intent", "scroll_depth"];
+const TRIGGERS: Trigger[] = ["time_delay", "exit_intent", "scroll_depth", "cart_threshold"];
 const PAGE_MODES: PageMode[] = ["all", "include", "exclude"];
 
 // Normalize whatever the client sent into a safe, widget-compatible Placement.
@@ -34,6 +37,14 @@ function normalizePlacement(raw: unknown): Placement {
   if (!Number.isFinite(delaySeconds)) delaySeconds = 5;
   delaySeconds = Math.min(120, Math.max(0, Math.round(delaySeconds)));
 
+  let minCartSubtotal: number | null = null;
+  if (typeof r.minCartSubtotal === "number" && Number.isFinite(r.minCartSubtotal) && r.minCartSubtotal > 0) {
+    minCartSubtotal = Math.round(r.minCartSubtotal * 100) / 100;
+  }
+
+  const suppressIfCustomer = Boolean(r.suppressIfCustomer);
+  const autoApplyDiscount = r.autoApplyDiscount !== false;
+
   const pagesRaw = (r.pages && typeof r.pages === "object" ? r.pages : {}) as Record<string, unknown>;
   const mode = PAGE_MODES.includes(pagesRaw.mode as PageMode) ? (pagesRaw.mode as PageMode) : "all";
   const patterns = Array.isArray(pagesRaw.patterns)
@@ -43,7 +54,7 @@ function normalizePlacement(raw: unknown): Placement {
         .slice(0, 100)
     : [];
 
-  return { trigger, delaySeconds, pages: { mode, patterns } };
+  return { trigger, delaySeconds, minCartSubtotal, suppressIfCustomer, autoApplyDiscount, pages: { mode, patterns } };
 }
 
 export async function PATCH(
@@ -85,6 +96,9 @@ export async function PATCH(
               ...((v.targeting && typeof v.targeting === "object" ? v.targeting : {}) as object),
               trigger: placement.trigger,
               delaySeconds: placement.delaySeconds,
+              minCartSubtotal: placement.minCartSubtotal,
+              suppressIfCustomer: placement.suppressIfCustomer,
+              autoApplyDiscount: placement.autoApplyDiscount,
               pages: placement.pages,
             },
           },

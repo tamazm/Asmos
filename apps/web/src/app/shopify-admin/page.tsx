@@ -23,13 +23,23 @@ const EMBED_HANDLE = "asmos-popup";
 // embeds panel — graceful fallback, never worse than before.
 const EMBED_UUID = process.env.NEXT_PUBLIC_SHOPIFY_THEME_EXTENSION_UUID;
 
-type Trigger = "time_delay" | "exit_intent" | "scroll_depth";
+type Trigger = "time_delay" | "exit_intent" | "scroll_depth" | "cart_threshold";
 type PageMode = "all" | "include" | "exclude";
 
 interface Placement {
   trigger: Trigger;
   delaySeconds: number;
+  minCartSubtotal?: number | null;
+  suppressIfCustomer?: boolean;
+  autoApplyDiscount?: boolean;
   pages: { mode: PageMode; patterns: string[] };
+}
+
+interface Stats {
+  totalRevenue: number;
+  totalOrders: number;
+  convertedLeads: number;
+  currency: string;
 }
 
 interface Campaign {
@@ -78,6 +88,7 @@ const TRIGGER_LABELS: Record<Trigger, string> = {
   time_delay: "After a delay",
   exit_intent: "On exit intent",
   scroll_depth: "After scrolling halfway",
+  cart_threshold: "When cart reaches amount",
 };
 
 const STATUS_TONE: Record<Campaign["status"], "success" | "info" | "warning" | "neutral" | "critical"> = {
@@ -108,6 +119,7 @@ export default function ShopifyAdminHome() {
   const [busyScope, setBusyScope] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[] | null>(null);
+  const [stats, setStats] = useState<Stats | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [billingPlan, setBillingPlan] = useState<string | null>(null);
@@ -155,6 +167,7 @@ export default function ShopifyAdminHome() {
       if (!res.ok) return;
       const data = await res.json();
       setCampaigns(data.campaigns ?? []);
+      if (data.stats) setStats(data.stats);
     } catch {
       /* Non-fatal: manager still renders, list just stays as-is. */
     }
@@ -361,24 +374,21 @@ export default function ShopifyAdminHome() {
     }
   }
 
-  const patchCampaign = useCallback(
-    async (id: string, body: Record<string, unknown>): Promise<boolean> => {
-      const token = await window.shopify!.idToken();
-      const res = await fetch(`/api/shopify/admin/campaigns/${id}`, {
-        method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        window.shopify?.toast?.show(data.error ?? "Update failed", { isError: true });
-        return false;
-      }
-      await loadCampaigns();
-      return true;
-    },
-    [loadCampaigns],
-  );
+  async function patchCampaign(id: string, body: Record<string, unknown>): Promise<boolean> {
+    const token = await window.shopify!.idToken();
+    const res = await fetch(`/api/shopify/admin/campaigns/${id}`, {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      window.shopify?.toast?.show(data.error ?? "Update failed", { isError: true });
+      return false;
+    }
+    await loadCampaigns();
+    return true;
+  }
 
   async function exportLeads() {
     setExporting(true);
@@ -523,6 +533,50 @@ export default function ShopifyAdminHome() {
           <s-banner tone="warning">
             <s-text>You have popups, but none are live. Activate one below to start showing it.</s-text>
           </s-banner>
+        )}
+
+        {/* ── Revenue Attribution Banner (Sales Driven by Asmos) ─────────── */}
+        {stats && (stats.totalRevenue > 0 || stats.totalOrders > 0 || stats.convertedLeads > 0) && (
+          <s-section heading="Sales Attributed by Asmos">
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 12,
+              }}
+            >
+              <s-box border="base" borderRadius="base" padding="base" background="subdued">
+                <s-stack direction="block" gap="small-100">
+                  <s-text tone="subdued">Attributed Revenue</s-text>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#108043" }}>
+                    {stats.currency === "USD" ? "$" : stats.currency + " "}
+                    {stats.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <s-text tone="subdued">From popup-driven orders</s-text>
+                </s-stack>
+              </s-box>
+
+              <s-box border="base" borderRadius="base" padding="base" background="subdued">
+                <s-stack direction="block" gap="small-100">
+                  <s-text tone="subdued">Attributed Orders</s-text>
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>
+                    {stats.totalOrders.toLocaleString()}
+                  </div>
+                  <s-text tone="subdued">Orders using popup codes</s-text>
+                </s-stack>
+              </s-box>
+
+              <s-box border="base" borderRadius="base" padding="base" background="subdued">
+                <s-stack direction="block" gap="small-100">
+                  <s-text tone="subdued">Shoppers Converted</s-text>
+                  <div style={{ fontSize: 22, fontWeight: 700 }}>
+                    {stats.convertedLeads.toLocaleString()}
+                  </div>
+                  <s-text tone="subdued">Total leads captured</s-text>
+                </s-stack>
+              </s-box>
+            </div>
+          </s-section>
         )}
 
         {/* ── Popups: the core surface ─────────────────────────────────────── */}
@@ -1027,6 +1081,11 @@ function PlacementEditor({
 }) {
   const [trigger, setTrigger] = useState<Trigger>(campaign.placement.trigger);
   const [delaySeconds, setDelaySeconds] = useState(String(campaign.placement.delaySeconds));
+  const [minCartSubtotal, setMinCartSubtotal] = useState(
+    campaign.placement.minCartSubtotal != null ? String(campaign.placement.minCartSubtotal) : "50",
+  );
+  const [suppressIfCustomer, setSuppressIfCustomer] = useState(Boolean(campaign.placement.suppressIfCustomer));
+  const [autoApplyDiscount, setAutoApplyDiscount] = useState(campaign.placement.autoApplyDiscount !== false);
   const [mode, setMode] = useState<PageMode>(campaign.placement.pages.mode);
   const [patterns, setPatterns] = useState(campaign.placement.pages.patterns.join(", "));
   const [saving, setSaving] = useState(false);
@@ -1037,6 +1096,9 @@ function PlacementEditor({
       await onSave({
         trigger,
         delaySeconds: Math.max(0, Math.min(120, Number(delaySeconds) || 0)),
+        minCartSubtotal: trigger === "cart_threshold" ? Number(minCartSubtotal) || 0 : null,
+        suppressIfCustomer,
+        autoApplyDiscount,
         pages: {
           mode,
           patterns: mode === "all" ? [] : patterns.split(",").map((p) => p.trim()).filter(Boolean),
@@ -1085,6 +1147,42 @@ function PlacementEditor({
           </div>
         )}
 
+        {trigger === "cart_threshold" && (
+          <div>
+            <label style={labelStyle}>Cart subtotal threshold ($)</label>
+            <input
+              style={fieldStyle}
+              type="number"
+              min={0}
+              step="any"
+              placeholder="50"
+              value={minCartSubtotal}
+              onChange={(e) => setMinCartSubtotal(e.target.value)}
+            />
+            <s-text tone="subdued">Popup triggers when the shopper’s cart subtotal reaches this amount.</s-text>
+          </div>
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={autoApplyDiscount}
+              onChange={(e) => setAutoApplyDiscount(e.target.checked)}
+            />
+            <span>Auto-apply discount code at checkout (1-click, no typing needed)</span>
+          </label>
+
+          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+            <input
+              type="checkbox"
+              checked={suppressIfCustomer}
+              onChange={(e) => setSuppressIfCustomer(e.target.checked)}
+            />
+            <span>Hide popup for logged-in or existing customers</span>
+          </label>
+        </div>
+
         <div>
           <label style={labelStyle}>Which pages</label>
           <select style={fieldStyle} value={mode} onChange={(e) => setMode(e.target.value as PageMode)}>
@@ -1127,12 +1225,18 @@ function placementSummary(p: Placement): string {
       ? `after ${p.delaySeconds}s`
       : p.trigger === "exit_intent"
         ? "on exit intent"
-        : "after scrolling";
+        : p.trigger === "cart_threshold"
+          ? `when cart reaches $${p.minCartSubtotal ?? 50}`
+          : "after scrolling";
   const where =
     p.pages.mode === "all" || p.pages.patterns.length === 0
       ? "all pages"
       : p.pages.mode === "include"
         ? `${p.pages.patterns.length} page${p.pages.patterns.length > 1 ? "s" : ""}`
         : `all except ${p.pages.patterns.length}`;
-  return `Shows ${when} · ${where}`;
+  const extras = [
+    p.autoApplyDiscount !== false ? "auto-apply" : null,
+    p.suppressIfCustomer ? "suppress customers" : null,
+  ].filter(Boolean);
+  return `Shows ${when} · ${where}${extras.length ? ` · ${extras.join(" · ")}` : ""}`;
 }

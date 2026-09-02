@@ -243,7 +243,19 @@ export function MessagingProviderCard({
 
   const isConnected = view?.connected;
   const needsRestrictedKey = Boolean(isConnected && meta.requiresRestrictedKey && view?.authType === "authToken");
-  const cardStatus = needsRestrictedKey ? "reconnect" : isConnected ? "connected" : "disconnected";
+  const missingConfig = meta.configFields
+    .filter((f) => !f.isSecret)
+    .some((f) => !config[f.key]?.trim());
+  const hasSomeConfig = Object.values(config).some((v) => typeof v === "string" && v.trim().length > 0);
+  const cardStatus = needsRestrictedKey
+    ? "key_required"
+    : isConnected && missingConfig
+      ? "key_required"
+      : isConnected
+        ? "connected"
+        : hasSomeConfig
+          ? "key_required"
+          : "disconnected";
   const subtitle = meta.id === "twilio" ? "SMS" : "Email";
 
   return (

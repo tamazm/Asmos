@@ -31,6 +31,31 @@ export async function GET(request: Request): Promise<Response> {
     },
   });
 
+  // Aggregate revenue attribution across all leads for this shop's account
+  const allLeads = await prisma.lead.findMany({
+    where: {
+      variant: { campaign: { accountId: account.id } },
+    },
+    select: {
+      firstOrderId: true,
+      firstOrderAmount: true,
+      firstOrderCurrency: true,
+    },
+  });
+
+  let totalAttributedRevenue = 0;
+  let totalAttributedOrders = 0;
+  let currency = "USD";
+
+  for (const lead of allLeads) {
+    if (lead.firstOrderId) {
+      totalAttributedOrders += 1;
+      const amt = parseFloat(String(lead.firstOrderAmount || "0"));
+      if (!isNaN(amt)) totalAttributedRevenue += amt;
+      if (lead.firstOrderCurrency) currency = lead.firstOrderCurrency;
+    }
+  }
+
   // Flatten the representative variant's targeting into a `placement` field so
   // the embedded UI never has to know popups are stored per-variant.
   const shaped = campaigns.map((c: { variants: { targeting: unknown }[] } & Record<string, unknown>) => {
@@ -42,6 +67,9 @@ export async function GET(request: Request): Promise<Response> {
       placement: {
         trigger: (t.trigger as string) ?? "time_delay",
         delaySeconds: typeof t.delaySeconds === "number" ? t.delaySeconds : 5,
+        minCartSubtotal: typeof t.minCartSubtotal === "number" ? t.minCartSubtotal : null,
+        suppressIfCustomer: Boolean(t.suppressIfCustomer),
+        autoApplyDiscount: t.autoApplyDiscount !== false,
         pages: {
           mode: (pages.mode as string) ?? "all",
           patterns: Array.isArray(pages.patterns) ? pages.patterns.map(String) : [],
@@ -50,7 +78,15 @@ export async function GET(request: Request): Promise<Response> {
     };
   });
 
-  return Response.json({ campaigns: shaped });
+  return Response.json({
+    campaigns: shaped,
+    stats: {
+      totalRevenue: Math.round(totalAttributedRevenue * 100) / 100,
+      totalOrders: totalAttributedOrders,
+      convertedLeads: allLeads.length,
+      currency,
+    },
+  });
 }
 
 export async function POST(request: Request): Promise<Response> {

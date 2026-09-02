@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-export type IntegrationStatusKind = "connected" | "reconnect" | "disconnected";
+export type IntegrationStatusKind = "connected" | "key_required" | "reconnect" | "disconnected";
 
 /** Consistent status pill used across every integration card. */
 export function StatusBadge({ status }: { status: IntegrationStatusKind }) {
@@ -11,6 +11,14 @@ export function StatusBadge({ status }: { status: IntegrationStatusKind }) {
       <span className="inline-flex items-center gap-1 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-medium text-[color:var(--color-success)]">
         <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
         Connected
+      </span>
+    );
+  }
+  if (status === "key_required") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 border border-amber-500/20 px-2.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+        Key required
       </span>
     );
   }

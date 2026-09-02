@@ -103,6 +103,59 @@
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────────
+  // Shopify discount auto-apply: triggers Shopify's native checkout discount
+  // session so the shopper never has to copy/paste the coupon code manually.
+  function autoApplyShopifyDiscount(coupon) {
+    if (!coupon || !SHOP_DOMAIN) return;
+    try {
+      fetch("/discount/" + encodeURIComponent(coupon), {
+        method: "GET",
+        credentials: "same-origin",
+        headers: { Accept: "application/json" }
+      }).catch(function () {});
+
+      if (typeof window.CustomEvent === "function") {
+        window.dispatchEvent(
+          new CustomEvent("asmos:reward_claimed", {
+            detail: { code: coupon, shop: SHOP_DOMAIN }
+          })
+        );
+      }
+    } catch (e) { /* best-effort */ }
+  }
+  window.__asmos_apply_discount = autoApplyShopifyDiscount;
+
+  function getShopifyCustomerId() {
+    try {
+      if (window.__st && window.__st.cid) return String(window.__st.cid);
+      if (
+        window.ShopifyAnalytics &&
+        window.ShopifyAnalytics.meta &&
+        window.ShopifyAnalytics.meta.page &&
+        window.ShopifyAnalytics.meta.page.customerId
+      ) {
+        return String(window.ShopifyAnalytics.meta.page.customerId);
+      }
+    } catch (e) {}
+    return null;
+  }
+
+  function getShopifyCart(cb) {
+    if (!SHOP_DOMAIN) {
+      if (cb) cb(null);
+      return;
+    }
+    fetch("/cart.js", { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (c) {
+        window.__asmos_cart = c;
+        if (cb) cb(c);
+      })
+      .catch(function () {
+        if (cb) cb(null);
+      });
+  }
+
   function fetchConfig() {
     var query = SHOP_DOMAIN
       ? "shop=" + encodeURIComponent(SHOP_DOMAIN)
@@ -481,6 +534,9 @@
   // ─── Success state (legacy card fallback) ──────────────────────────────────
   function showSuccess(rewards) {
     var coupon = (rewards && rewards[0] && rewards[0].couponCode) ? rewards[0].couponCode : null;
+    if (coupon) {
+      autoApplyShopifyDiscount(coupon);
+    }
     var card = document.getElementById("asmos-card");
     if (!card) return;
 
@@ -730,11 +786,50 @@
 
       if (!matchesPageTargeting(targeting.pages)) return;
 
-      showConsentBanner(data.consent, function () {
-        if (data.tracking) loadPostHog(data.tracking);
-        markSeen();
-        setupTriggers(Object.assign({ trigger: "time_delay", delaySeconds: 5 }, c, targeting));
-      });
+      // Intelligent suppression: skip promotional popups for logged-in customers
+      if (targeting.suppressIfCustomer && getShopifyCustomerId()) {
+        return;
+      }
+
+      function proceedWithTriggers() {
+        showConsentBanner(data.consent, function () {
+          if (data.tracking) loadPostHog(data.tracking);
+          markSeen();
+          setupTriggers(Object.assign({ trigger: "time_delay", delaySeconds: 5 }, c, targeting));
+        });
+      }
+
+      var hasMinSubtotal = typeof targeting.minCartSubtotal === "number" && targeting.minCartSubtotal > 0;
+      var hasMaxSubtotal = typeof targeting.maxCartSubtotal === "number" && targeting.maxCartSubtotal > 0;
+      var isCartTrigger = targeting.trigger === "cart_threshold";
+
+      if (SHOP_DOMAIN && (hasMinSubtotal || hasMaxSubtotal || isCartTrigger)) {
+        getShopifyCart(function (cart) {
+          var subtotal = cart ? (cart.total_price / 100) : 0;
+          if (hasMinSubtotal && subtotal < targeting.minCartSubtotal) {
+            function onCartChange() {
+              getShopifyCart(function (updated) {
+                var newSubtotal = updated ? (updated.total_price / 100) : 0;
+                if (newSubtotal >= targeting.minCartSubtotal) {
+                  document.removeEventListener("cart:updated", onCartChange);
+                  document.removeEventListener("cart:change", onCartChange);
+                  proceedWithTriggers();
+                }
+              });
+            }
+            document.addEventListener("cart:updated", onCartChange);
+            document.addEventListener("cart:change", onCartChange);
+            return;
+          }
+          if (hasMaxSubtotal && subtotal > targeting.maxCartSubtotal) {
+            return;
+          }
+          proceedWithTriggers();
+        });
+        return;
+      }
+
+      proceedWithTriggers();
     });
   }
 

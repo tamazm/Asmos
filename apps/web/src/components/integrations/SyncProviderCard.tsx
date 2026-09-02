@@ -111,11 +111,15 @@ export function SyncProviderCard(props: SyncCardProps) {
   }
 
   const showForm = (editing || !connected) && !oauthSetup;
-  const status: "connected" | "reconnect" | "disconnected" = needsOAuth
+  const status: "connected" | "key_required" | "reconnect" | "disconnected" = needsOAuth
     ? "reconnect"
-    : connected
-      ? "connected"
-      : "disconnected";
+    : connected && missingRequiredConfig
+      ? "key_required"
+      : connected
+        ? "connected"
+        : Object.keys(config).length > 0
+          ? "key_required"
+          : "disconnected";
 
   const labelCls = "text-xs font-medium text-[color:var(--color-text-primary)] mb-1 block";
   const inputCls = "w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]";

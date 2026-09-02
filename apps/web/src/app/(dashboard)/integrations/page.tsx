@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { IntegrationCard } from "@/components/integrations/IntegrationCard";
+import { IntegrationCard, type IntegrationStatus } from "@/components/integrations/IntegrationCard";
 import { IntegrationConfigModal } from "@/components/integrations/IntegrationConfigModal";
 import { RequestIntegrationCard } from "@/components/integrations/RequestIntegrationCard";
+import { computeProviderStatus } from "@/lib/integrations/providerStatus";
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 
@@ -603,60 +604,14 @@ export default function IntegrationsPage() {
   // ── Compute Status for Any Provider ───────────────────────────────────────
 
   const getProviderStatus = useCallback(
-    (meta: ProviderDefinition) => {
-      if (meta.type === "sync") {
-        const conn = syncConns?.find((c) => c.provider === meta.id);
-        const isConnected = Boolean(conn?.maskedKey);
-        const isReconnect = meta.authMode === "oauth" && conn?.authType === "apiKey";
-        return {
-          status: (isReconnect ? "reconnect" : isConnected ? "connected" : "disconnected") as
-            | "connected"
-            | "reconnect"
-            | "disconnected",
-          activeEventsCount: conn?.subscribedEvents?.length || (isConnected ? 1 : 0),
-          lastDelivery: conn?.lastDelivery || null,
-          conn,
-        };
-      }
-
-      if (meta.type === "webhook") {
-        const conn = webhookConns?.find((c) => c.provider === meta.id);
-        const isConnected = Boolean(conn?.url);
-        return {
-          status: (isConnected ? "connected" : "disconnected") as "connected" | "disconnected",
-          activeEventsCount: conn?.subscribedEvents?.length || 0,
-          lastDelivery: conn?.lastDelivery || null,
-          conn,
-        };
-      }
-
-      if (meta.type === "custom-webhook") {
-        const isConnected = Boolean(customWebhookView?.webhookEnabled && customWebhookView?.webhookUrl);
-        return {
-          status: (isConnected ? "connected" : "disconnected") as "connected" | "disconnected",
-          activeEventsCount: customWebhookView?.subscribedEvents?.length || 0,
-          lastDelivery: null,
-          conn: customWebhookView,
-        };
-      }
-
-      if (meta.type === "messaging") {
-        const view = messagingViews.find((v) => v.provider === meta.id);
-        const isConnected = Boolean(view?.connected);
-        const isReconnect = Boolean(isConnected && meta.requiresRestrictedKey && view?.authType === "authToken");
-        return {
-          status: (isReconnect ? "reconnect" : isConnected ? "connected" : "disconnected") as
-            | "connected"
-            | "reconnect"
-            | "disconnected",
-          activeEventsCount: view?.rules?.length || (isConnected ? 1 : 0),
-          lastDelivery: null,
-          conn: view,
-        };
-      }
-
-      return { status: "disconnected" as const, activeEventsCount: 0, lastDelivery: null, conn: null };
-    },
+    (meta: ProviderDefinition) =>
+      computeProviderStatus({
+        meta,
+        syncConns,
+        webhookConns,
+        messagingViews,
+        customWebhookView,
+      }),
     [syncConns, webhookConns, messagingViews, customWebhookView]
   );
 
@@ -1104,6 +1059,7 @@ export default function IntegrationsPage() {
             setupSteps={p.setupSteps}
             setupGuide={p.setupGuide}
             isConnected={info.status === "connected"}
+            isKeyRequired={info.status === "key_required"}
             isReconnect={info.status === "reconnect"}
             lastDelivery={info.lastDelivery}
             syncData={

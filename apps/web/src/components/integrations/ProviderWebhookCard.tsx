@@ -86,7 +86,7 @@ export function ProviderWebhookCard(props: ProviderCardProps) {
       icon={props.icon}
       name={props.name}
       subtitle={props.category}
-      status={connected ? "connected" : "disconnected"}
+      status={connected ? "connected" : maskedSecret ? "key_required" : "disconnected"}
       expanded={expanded}
       onToggle={() => setExpanded((v) => !v)}
     >

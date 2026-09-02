@@ -842,6 +842,9 @@ export function runtimeScript(opts: RuntimeOptions): string {
           if (data && data.reward && data.reward.couponCode) {
             var codeEl = root.querySelector('#asmosPopupCodeValue');
             if (codeEl) codeEl.textContent = data.reward.couponCode;
+            if (typeof window.__asmos_apply_discount === 'function') {
+              window.__asmos_apply_discount(data.reward.couponCode);
+            }
           }
           finish();
         })
@@ -859,6 +862,9 @@ export function runtimeScript(opts: RuntimeOptions): string {
       if (!codeEl) return;
       var original = copyBtn.textContent;
       try { navigator.clipboard.writeText(codeEl.textContent); } catch (e) {}
+      if (typeof window.__asmos_apply_discount === 'function' && codeEl.textContent) {
+        window.__asmos_apply_discount(codeEl.textContent.trim());
+      }
       copyBtn.textContent = 'Copied';
       track('INTERACTION', { step: 'code_copied' });
       setTimeout(function () { copyBtn.textContent = original; }, 2000);

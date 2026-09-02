@@ -115,6 +115,25 @@ export default async function AnalyticsPage() {
     where: { variant: { campaign: { accountId: account.id } }, email: { not: null } },
   });
 
+  const attributedLeads = await prisma.lead.findMany({
+    where: {
+      variant: { campaign: { accountId: account.id } },
+      firstOrderId: { not: null },
+    },
+    select: {
+      firstOrderAmount: true,
+      firstOrderCurrency: true,
+    },
+  });
+
+  let totalAttributedRevenue = 0;
+  let currency = "USD";
+  for (const lead of attributedLeads) {
+    const amt = parseFloat(String(lead.firstOrderAmount || "0"));
+    if (!isNaN(amt)) totalAttributedRevenue += amt;
+    if (lead.firstOrderCurrency) currency = lead.firstOrderCurrency;
+  }
+
   // Funnel totals across all campaigns
   const funnelGrouped = await prisma.campaignEvent.groupBy({
     by: ["type"],
@@ -126,8 +145,7 @@ export default async function AnalyticsPage() {
     funnelCounts[row.type] = row._count._all;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rows: CampaignRow[] = campaigns.map((campaign: any) => {
+  const rows: CampaignRow[] = campaigns.map((campaign) => {
     const impressions = countFor(campaign.id, "IMPRESSION");
     const submissions = countFor(campaign.id, "SUBMISSION");
     return {
@@ -186,7 +204,7 @@ export default async function AnalyticsPage() {
       pct: funnelInteractions > 0 ? (funnelSubmissions / funnelInteractions) * 100 : 0,
     },
     {
-      label: "Leads",
+      label: "Leads with email",
       count: funnelLeads,
       pct: funnelSubmissions > 0 ? (funnelLeads / funnelSubmissions) * 100 : 0,
     },
@@ -198,7 +216,7 @@ export default async function AnalyticsPage() {
       <PageHeader title="Analytics" />
 
       {/* Summary metrics */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <MetricCard label="Total impressions" value={totals.impressions.toLocaleString()} />
         <MetricCard label="Total submissions" value={totals.submissions.toLocaleString()} />
         <MetricCard label="Emails captured" value={emailsCaptured.toLocaleString()} />
@@ -206,6 +224,15 @@ export default async function AnalyticsPage() {
           label="Conversion rate"
           value={`${overallCvr.toFixed(1)}%`}
           sub={totals.impressions > 0 ? `${totals.submissions} / ${totals.impressions}` : undefined}
+        />
+        <MetricCard
+          label="Attributed sales"
+          value={
+            totalAttributedRevenue > 0
+              ? `${currency === "USD" ? "$" : currency + " "}${totalAttributedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+              : "$0.00"
+          }
+          sub={attributedLeads.length > 0 ? `${attributedLeads.length} order${attributedLeads.length === 1 ? "" : "s"} attributed` : "Via popup discounts"}
         />
       </div>
 
