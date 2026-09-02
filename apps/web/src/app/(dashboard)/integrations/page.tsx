@@ -29,17 +29,7 @@ const CUSTOM_WEBHOOK_ICON = (
   </svg>
 );
 
-const SHOPIFY_ICON = (
-  <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-    <rect width="40" height="40" rx="8" fill="#95BF47" />
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M26.7 13.5c-.1-.7-.7-1.2-1.4-1.2-.2 0-.4 0-.6.1-.2-.7-.6-1.5-1.2-2.1-.9-.8-2-1.2-3.2-1.2-2.6 0-4.4 2.1-4.7 5.1l-2.4.8c-.7.2-1.2.9-1.2 1.6l1.2 13.6c.1.9.8 1.6 1.7 1.6h9c.9 0 1.6-.7 1.7-1.6l1.2-15.1c0-.4-.1-.7-.3-1zm-6.2-3c1.7 0 2.9 1.4 3 3.5l-6 1.9c.4-2.8 1.8-5.4 3-5.4zm-1.1 19.3l-5.6-1.5.8-9 4.8 1.5v9zm1.8 0v-8.7l5.2 1.6-.8 7.1h-4.4z"
-      fill="white"
-    />
-  </svg>
-);
+const SHOPIFY_ICON = <LogoIcon provider="shopify" name="Shopify" />;
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -582,6 +572,23 @@ export default function IntegrationsPage() {
     setShopifyConn({ connected: false, shop: null });
   };
 
+  const handleConnectShopifyDomain = async (domain: string) => {
+    const res = await fetch("/api/integrations/shopify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ shopDomain: domain }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(d.error || "Could not connect store.");
+    }
+    if (d.connected && d.shop) {
+      setShopifyConn({ connected: true, shop: d.shop });
+      return { connected: true };
+    }
+    return { connected: false, installUrl: d.installUrl, message: d.message };
+  };
+
   const handleSaveSync = async (provider: string, payload: any) => {
     const res = await fetch("/api/integrations/sync", {
       method: "PATCH",
@@ -737,30 +744,58 @@ export default function IntegrationsPage() {
   return (
     <div className="flex flex-col gap-7">
       {/* ── Page Header ────────────────────────────────────────── */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[color:var(--color-border)] pb-6">
+      {/* ── Page Header ────────────────────────────────────────── */}
+      <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-[color:var(--color-border)] pb-5">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
-              Integrations
-            </h1>
-            {totalConnectedCount > 0 && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-semibold text-[color:var(--color-success)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
-                {totalConnectedCount} Active
-              </span>
-            )}
+          <div className="flex items-center justify-between gap-3 sm:justify-start">
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
+                Integrations
+              </h1>
+              {totalConnectedCount > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-semibold text-[color:var(--color-success)]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
+                  {totalConnectedCount} Active
+                </span>
+              )}
+            </div>
+
+            {/* Mobile Privacy Policy Button */}
+            <a
+              href="https://asmos.io/privacy-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sm:hidden inline-flex items-center gap-1.5 shrink-0 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-2.5 py-1 text-[11px] text-[color:var(--color-text-secondary)] transition-colors hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-text-primary)]"
+            >
+              <svg
+                width="11"
+                height="11"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              Privacy Policy
+            </a>
           </div>
+
           <p className="mt-1 text-xs text-[color:var(--color-text-secondary)] sm:text-sm">
             Connect Asmos to your marketing tools, messaging channels, and workflow automations.
           </p>
         </div>
 
-        {/* Security / Privacy Trust Link */}
+        {/* Desktop Privacy Policy Button */}
         <a
           href="https://asmos.io/privacy-policy"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-xs text-[color:var(--color-text-secondary)] transition-colors hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-text-primary)]"
+          className="hidden sm:inline-flex items-center gap-1.5 shrink-0 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1.5 text-xs text-[color:var(--color-text-secondary)] transition-colors hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-text-primary)]"
         >
           <svg
             width="12"
@@ -804,7 +839,10 @@ export default function IntegrationsPage() {
       {/* ── Toolbar: Category Filters & Search ─────────────────── */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         {/* Category Pill Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+          className="flex items-center gap-1.5 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:pb-0 sm:flex-wrap"
+        >
           {CATEGORIES.map((cat) => {
             const isSelected = selectedCategory === cat.id;
             return (
@@ -812,9 +850,9 @@ export default function IntegrationsPage() {
                 key={cat.id}
                 type="button"
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer ${
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer ${
                   isSelected
-                    ? "bg-[color:var(--color-primary)] text-white shadow-xs"
+                    ? "bg-[color:var(--color-primary)] text-white shadow-xs font-semibold"
                     : "border border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]"
                 }`}
               >
@@ -834,12 +872,12 @@ export default function IntegrationsPage() {
         </div>
 
         {/* Right Toolbar Controls: Connected Filter & Search */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex items-center gap-2 w-full lg:w-auto">
           {/* Connected Only Toggle */}
           <button
             type="button"
             onClick={() => setOnlyConnected((v) => !v)}
-            className={`inline-flex items-center gap-2 rounded-xl border h-9 px-3.5 text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-150 cursor-pointer ${
+            className={`inline-flex items-center gap-1.5 rounded-xl border h-9 px-3 text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-150 cursor-pointer ${
               onlyConnected
                 ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-semibold shadow-xs"
                 : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)] hover:border-[color:var(--color-border-hover)]"
@@ -856,7 +894,7 @@ export default function IntegrationsPage() {
           </button>
 
           {/* Search Input */}
-          <div className="relative min-w-[220px]">
+          <div className="relative flex-1 min-w-0 lg:w-64 lg:flex-initial">
             <svg
               width="14"
               height="14"
@@ -866,7 +904,7 @@ export default function IntegrationsPage() {
               strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-secondary)]"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-secondary)] pointer-events-none"
             >
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -876,7 +914,7 @@ export default function IntegrationsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search integrations..."
-              className="w-full rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] py-1.5 pl-9 pr-8 text-xs text-[color:var(--color-text-primary)] outline-none transition-colors placeholder:text-[color:var(--color-text-secondary)]/60 focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20"
+              className="w-full h-9 rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] pl-9 pr-8 text-xs text-[color:var(--color-text-primary)] outline-none transition-colors placeholder:text-[color:var(--color-text-secondary)]/60 focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20"
             />
             {searchQuery && (
               <button
@@ -1236,6 +1274,7 @@ export default function IntegrationsPage() {
                     linkedAt: shopifyConn?.shop?.linkedAt || null,
                     directInstallUrl: p.directInstallUrl,
                     onDisconnect: handleDisconnectShopify,
+                    onConnectDomain: handleConnectShopifyDomain,
                   }
                 : undefined
             }

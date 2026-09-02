@@ -44,7 +44,7 @@ export function IntegrationCard({
         }
       }}
       className={cn(
-        "group relative flex flex-col justify-between rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 text-left transition-all duration-200",
+        "group relative flex flex-col justify-between rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 sm:p-5 text-left transition-all duration-200",
         "hover:-translate-y-0.5 hover:border-[color:var(--color-primary)]/40 hover:shadow-md cursor-pointer",
         isConnected && "border-[color:var(--color-border)]/80 shadow-xs",
         isKeyRequired && "border-amber-400/60 bg-amber-500/[0.02]",

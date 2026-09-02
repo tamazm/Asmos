@@ -144,6 +144,7 @@ export interface IntegrationConfigModalProps {
     linkedAt: string | null;
     directInstallUrl: string;
     onDisconnect: () => Promise<void>;
+    onConnectDomain?: (domain: string) => Promise<{ connected: boolean; installUrl?: string; message?: string }>;
   };
 }
 
@@ -782,11 +783,29 @@ export function IntegrationConfigModal({
                     Enter your .myshopify.com domain to begin standard OAuth authorization.
                   </p>
                   <form
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault();
                       const cleaned = shopifyDomainInput.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
-                      if (cleaned) {
+                      if (!cleaned) return;
+                      setSaving(true);
+                      setError(null);
+                      try {
+                        if (shopifyData.onConnectDomain) {
+                          const res = await shopifyData.onConnectDomain(cleaned);
+                          if (res.connected) {
+                            setSuccess("Shopify store connected successfully!");
+                            setTimeout(() => setSuccess(null), 3000);
+                            return;
+                          } else if (res.installUrl) {
+                            window.location.href = res.installUrl;
+                            return;
+                          }
+                        }
                         window.location.href = `/api/shopify/install?shop=${encodeURIComponent(cleaned)}`;
+                      } catch (err) {
+                        setError((err as Error).message || "Could not detect or connect store.");
+                      } finally {
+                        setSaving(false);
                       }
                     }}
                     className="flex items-center gap-2"
@@ -796,15 +815,16 @@ export function IntegrationConfigModal({
                       value={shopifyDomainInput}
                       onChange={(e) => setShopifyDomainInput(e.target.value)}
                       placeholder="your-store.myshopify.com"
+                      disabled={saving}
                       className="flex-1 rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] px-3 py-1.5 text-xs text-[color:var(--color-text-primary)] placeholder:text-[color:var(--color-text-tertiary)] focus:border-[color:var(--color-primary)] focus:outline-none"
                     />
                     <Button
                       type="submit"
                       variant="primary"
-                      disabled={!shopifyDomainInput.trim()}
+                      disabled={saving || !shopifyDomainInput.trim()}
                       className="text-xs h-8 whitespace-nowrap"
                     >
-                      Connect Store
+                      {saving ? "Connecting…" : "Connect Store"}
                     </Button>
                   </form>
                 </div>

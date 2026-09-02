@@ -1,5 +1,6 @@
+import { cookies } from "next/headers";
 import { shopify } from "@/lib/shopify/client";
-import { getOrCreateAccountForShop } from "@/lib/shopify/tenant";
+import { getOrCreateAccountForShop, linkShopToAccount } from "@/lib/shopify/tenant";
 
 // GET /api/shopify/callback - OAuth callback Shopify redirects to after the
 // merchant approves scopes on the /api/shopify/install redirect. Exchanges
@@ -24,6 +25,21 @@ export async function GET(request: Request): Promise<Response> {
     refreshToken: session.refreshToken ?? null,
     refreshTokenExpiresAt: session.refreshTokenExpires ?? null,
   });
+
+  // If this install was started by a signed-in Asmos user, automatically link
+  // this shop directly to their Asmos account.
+  try {
+    const cookieStore = await cookies();
+    const installAccountId = cookieStore.get("asmos_install_account_id")?.value;
+    if (installAccountId) {
+      cookieStore.delete("asmos_install_account_id");
+      await linkShopToAccount(session.shop, installAccountId).catch((err) => {
+        console.warn("[shopify/callback] auto-link to install account failed", err);
+      });
+    }
+  } catch {
+    /* Non-fatal: shop remains on throwaway account until linked */
+  }
 
   const embeddedAppUrl = await shopify.auth.getEmbeddedAppUrl({ rawRequest: request });
 
