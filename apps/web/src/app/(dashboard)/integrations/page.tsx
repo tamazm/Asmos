@@ -1,126 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { ProviderWebhookCard, type ProviderCardProps } from "@/components/integrations/ProviderWebhookCard";
-import { SyncProviderCard, type SyncCardProps } from "@/components/integrations/SyncProviderCard";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { IntegrationCard } from "@/components/integrations/IntegrationCard";
+import { IntegrationConfigModal } from "@/components/integrations/IntegrationConfigModal";
 import { RequestIntegrationCard } from "@/components/integrations/RequestIntegrationCard";
-import { MessagingProviderCard, type MessagingProviderMeta } from "@/components/integrations/MessagingProviderCard";
-import { IntegrationCardShell } from "@/components/integrations/IntegrationCardShell";
-import { TestConnectionButton } from "@/components/integrations/TestConnectionButton";
-import { EventSelector, EventSummary } from "@/components/integrations/EventSelector";
-import { AUTOMATION_EVENT_OPTIONS, eventLabel } from "@/lib/integrations/events";
 
-type IntegrationStatus = "disconnected" | "connecting" | "connected" | "error";
+// ── Icons ──────────────────────────────────────────────────────────────────
 
-interface Integration {
-  id: string;
-  name: string;
-  description: string;
-  category: "email" | "automation";
-  docsUrl?: string;
-  icon: React.ReactNode;
-}
-
-const WEBHOOKS_INTEGRATION: Integration = {
-  id: "webhooks",
-  name: "Webhooks",
-  description: "Receive real-time POST notifications for leads, winners, and campaign lifecycle changes.",
-  category: "automation",
-  icon: (
-    <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
-      <rect width="40" height="40" rx="8" fill="#6366F1" />
-      <path d="M12 28l4-8 4 4 4-6 4 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  ),
-};
-
-const CATEGORY_LABELS = {
-  email: "Email marketing",
-  automation: "Automation",
-} as const;
-
-/** Category heading with a plain-language subtitle so merchants know what the group is for. */
-/** A whole integration category: a collapsible header + its grid of cards. */
-function CollapsibleSection({
-  title,
-  subtitle,
-  count,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  count?: number;
-  children: React.ReactNode;
-}) {
-  const [open, setOpen] = useState(true);
-  return (
-    <section>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="mb-3 flex w-full items-start justify-between gap-3 text-left"
-      >
-        <span>
-          <span className="flex items-center gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-[color:var(--color-text-secondary)]">{title}</span>
-            {typeof count === "number" && (
-              <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2 py-0.5 text-[10px] font-medium text-[color:var(--color-text-secondary)]">{count}</span>
-            )}
-          </span>
-          <span className="mt-1 block text-xs text-[color:var(--color-text-secondary)] opacity-80">{subtitle}</span>
-        </span>
-        <svg
-          width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"
-          className={`mt-0.5 shrink-0 text-[color:var(--color-text-secondary)] transition-transform duration-200 ${open ? "rotate-180" : ""}`}
-        >
-          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-      {open && children}
-    </section>
-  );
-}
-
-/** Placeholder shown while a section's connection state is still loading. */
-function SkeletonCard() {
-  const bar = "rounded bg-[color:var(--color-surface-sunken)]";
-  return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm animate-pulse">
-      <div className="flex items-center gap-3">
-        <div className="h-7 w-7 rounded-lg bg-[color:var(--color-surface-sunken)]" />
-        <div className="flex-1 space-y-2">
-          <div className={`h-3 w-24 ${bar}`} />
-          <div className={`h-2.5 w-16 ${bar}`} />
-        </div>
-        <div className="h-5 w-20 rounded-full bg-[color:var(--color-surface-sunken)]" />
-      </div>
-      <div className={`h-2.5 w-full ${bar}`} />
-      <div className={`h-2.5 w-3/4 ${bar}`} />
-      <div className="h-9 w-28 rounded-lg bg-[color:var(--color-surface-sunken)]" />
-    </div>
-  );
-}
-
-/** A grid of skeleton cards, used per-section during initial load. */
-function SkeletonGrid({ count }: { count: number }) {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {Array.from({ length: count }).map((_, i) => (
-        <SkeletonCard key={i} />
-      ))}
-    </div>
-  );
-}
-
-// ── Provider cards (Zapier/Make/n8n/Slack/Discord/Teams) ───────────────────
-
-type ConnState = { provider: string; connected: boolean; url: string | null; subscribedEvents: string[]; maskedSecret: string | null; lastDelivery: { status: string; at: string } | null };
-
-// Actual brand logos (optimized webp in /public/integrations), replacing the
-// old colored letter tiles. Rendered in a fixed 28px box; object-contain keeps
-// both full-bleed color tiles and transparent marks looking right.
 function LogoIcon({ provider, name }: { provider: string; name: string }) {
   return (
     // eslint-disable-next-line @next/next/no-img-element
@@ -135,368 +21,222 @@ function LogoIcon({ provider, name }: { provider: string; name: string }) {
   );
 }
 
-const PROVIDER_META: Array<Omit<ProviderCardProps, "initialUrl" | "initialEvents" | "initialMaskedSecret" | "initialLastDelivery"> & { group: "Automation" | "Notifications" }> = [
-  { provider: "zapier", name: "Zapier", category: "Automation", group: "Automation", supportsSigning: true, docsUrl: "https://zapier.com/help/create/basics/create-webhooks-from-scratch", setupSteps: [
-      "Log in to Zapier and click Create, then Zaps to start a new Zap.",
-      "For the trigger, search for and choose 'Webhooks by Zapier', then pick the 'Catch Hook' event.",
-      "Zapier shows a 'Custom Webhook URL' that starts with https://hooks.zapier.com/ — click Copy.",
-      "Paste it into the field above and click Save.",
-    ], urlLabel: "Zapier Catch Hook URL", urlPlaceholder: "https://hooks.zapier.com/hooks/catch/...", icon: <LogoIcon provider="zapier" name="Zapier" /> },
-  { provider: "make", name: "Make", category: "Automation", group: "Automation", supportsSigning: true, docsUrl: "https://www.make.com/en/help/tools/webhooks", setupSteps: [
-      "Log in to Make and open (or create) the scenario you want to trigger.",
-      "Add a module, search for 'Webhooks', then choose 'Custom webhook'.",
-      "Click Add, give it a name and click Save — Make shows a web address; click 'Copy address to clipboard'.",
-      "Paste it into the field above and click Save.",
-    ], urlLabel: "Make Custom Webhook URL", urlPlaceholder: "https://hook.eu1.make.com/...", icon: <LogoIcon provider="make" name="Make" /> },
-  { provider: "n8n", name: "n8n", category: "Automation", group: "Automation", supportsSigning: true, docsUrl: "https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/", setupSteps: [
-      "In n8n, open the workflow you want to run and add a new 'Webhook' node.",
-      "Set the method to POST, then copy the 'Production URL' shown on the node.",
-      "Click Save and turn the workflow Active so the web address stays live.",
-      "Paste the web address into the field above and click Save.",
-    ], urlLabel: "n8n Webhook URL", urlPlaceholder: "https://<your-n8n>/webhook/...", icon: <LogoIcon provider="n8n" name="n8n" /> },
-  { provider: "googlesheets", name: "Google Sheets", category: "Automation", group: "Automation", docsUrl: "https://developers.google.com/apps-script/guides/web", setupSteps: [
-      "Create a Google Sheet, then open 'Extensions' → 'Apps Script'.",
-      "Delete any starter code and paste this, then click Save: function doPost(e){var s=SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();var d=JSON.parse(e.postData.contents);if(d.event!=='lead.captured'){return ContentService.createTextOutput('ok');}var l=(d.payload&&d.payload.lead)||{};s.appendRow([new Date(),l.email||'',l.name||'',l.phone||'',(d.payload&&d.payload.campaign_name)||'']);return ContentService.createTextOutput('ok');}",
-      "Click 'Deploy' → 'New deployment'. For type choose 'Web app'. Set 'Execute as: Me' and 'Who has access: Anyone', then click 'Deploy' and authorize.",
-      "Copy the 'Web app' URL it shows (it ends in /exec).",
-      "Paste that URL into the field above and click Save. Keep only 'Lead captured' selected so the sheet fills with leads.",
-    ], urlLabel: "Apps Script Web App URL", urlPlaceholder: "https://script.google.com/macros/s/.../exec", icon: <LogoIcon provider="googlesheets" name="Google Sheets" /> },
-  { provider: "slack", name: "Slack", category: "Notifications", group: "Notifications", docsUrl: "https://api.slack.com/messaging/webhooks", setupSteps: [
-      "Go to api.slack.com/apps and click 'Create New App' (choose 'From scratch'), then pick your workspace.",
-      "In the app's left menu, open 'Incoming Webhooks' and switch the toggle On.",
-      "Click 'Add New Webhook to Workspace', choose the channel for alerts, and click Allow.",
-      "Copy the Webhook URL Slack gives you (it starts with https://hooks.slack.com/).",
-      "Paste it into the field above and click Save.",
-    ], urlLabel: "Slack Incoming Webhook URL", urlPlaceholder: "https://hooks.slack.com/services/...", icon: <LogoIcon provider="slack" name="Slack" /> },
-  { provider: "discord", name: "Discord", category: "Notifications", group: "Notifications", docsUrl: "https://support.discord.com/hc/en-us/articles/228383668", setupSteps: [
-      "In Discord, open the channel where you want alerts and click the gear icon ('Edit Channel').",
-      "Go to 'Integrations', then 'Webhooks', and click 'New Webhook'.",
-      "Give it a name, then click 'Copy Webhook URL'.",
-      "Paste it into the field above and click Save.",
-    ], urlLabel: "Discord Channel Webhook URL", urlPlaceholder: "https://discord.com/api/webhooks/...", icon: <LogoIcon provider="discord" name="Discord" /> },
-  { provider: "teams", name: "Microsoft Teams", category: "Notifications", group: "Notifications", docsUrl: "https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook", setupSteps: [
-      "In Teams, find the channel where you want alerts and click the '...' menu next to its name.",
-      "Choose 'Workflows' and pick the 'Post to a channel when a webhook request is received' template.",
-      "Follow the prompts to add it, then copy the web address (URL) it creates for you.",
-      "Paste it into the field above and click Save.",
-    ], urlLabel: "Teams Incoming Webhook URL", urlPlaceholder: "https://outlook.office.com/webhook/...", icon: <LogoIcon provider="teams" name="Microsoft Teams" /> },
-];
+const CUSTOM_WEBHOOK_ICON = (
+  <svg viewBox="0 0 40 40" width="28" height="28" fill="none">
+    <rect width="40" height="40" rx="8" fill="#6366F1" />
+    <path d="M12 28l4-8 4 4 4-6 4 6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
 
-type SyncConnState = { provider: string; connected: boolean; maskedKey: string | null; authType: "apiKey" | "oauth" | null; config: Record<string, string>; subscribedEvents: string[]; lastDelivery: { status: string; at: string } | null };
+// ── Types ──────────────────────────────────────────────────────────────────
 
-const SYNC_PROVIDER_META: Array<Omit<SyncCardProps, "initialMaskedKey" | "initialConfig" | "initialEvents" | "initialLastDelivery" | "category"> & { group: "Marketing sync" }> = [
+type CategoryId = "all" | "marketing" | "messaging" | "automation" | "notifications";
+
+interface ProviderBaseMeta {
+  id: string;
+  name: string;
+  category: "Marketing" | "Messaging" | "Automation" | "Notifications";
+  categoryId: CategoryId;
+  description: string;
+  icon: React.ReactNode;
+  docsUrl?: string;
+  setupSteps?: string[];
+  setupGuide?: { url: string; steps: string[] };
+}
+
+interface SyncMeta extends ProviderBaseMeta {
+  type: "sync";
+  authMode?: "apiKey" | "oauth";
+  oauthUrl?: string;
+  keyLabel?: string;
+  keyPlaceholder?: string;
+  configFields?: Array<{ key: string; label: string; placeholder: string }>;
+}
+
+interface WebhookMeta extends ProviderBaseMeta {
+  type: "webhook";
+  urlLabel: string;
+  urlPlaceholder: string;
+  supportsSigning?: boolean;
+}
+
+interface CustomWebhookMeta extends ProviderBaseMeta {
+  type: "custom-webhook";
+}
+
+interface MessagingMeta extends ProviderBaseMeta {
+  type: "messaging";
+  requiresRestrictedKey?: boolean;
+  configFields: Array<{ key: string; label: string; placeholder: string; isSecret?: boolean }>;
+}
+
+type ProviderDefinition = SyncMeta | WebhookMeta | CustomWebhookMeta | MessagingMeta;
+
+// ── Providers Catalog ──────────────────────────────────────────────────────
+
+const SYNC_PROVIDERS: SyncMeta[] = [
   {
-    provider: "klaviyo",
+    id: "klaviyo",
     name: "Klaviyo",
-    group: "Marketing sync",
+    category: "Marketing",
+    categoryId: "marketing",
+    type: "sync",
+    description: "Sync captured leads automatically into Klaviyo lists and segments.",
     docsUrl: "https://developers.klaviyo.com/en/docs/retrieve_api_credentials",
     setupGuide: {
       url: "https://developers.klaviyo.com/en/docs/retrieve_api_credentials",
       steps: [
         "Log in to Klaviyo and click your account name (bottom-left), then 'Settings'.",
-        "Open the 'API keys' tab, click 'Create Private API Key', choose 'Custom Key', and select only Lists: read, Lists: write, Profiles: write, Subscriptions: write, and Events: write. Do not use Full Access. Then copy the key (it starts with pk_).",
-        "For the List ID, go to 'Audience' → 'Lists & Segments', open the list you want, and copy the List ID shown under its name.",
-        "Paste the API key and List ID into the fields above and click Save connection.",
+        "Open 'API keys', click 'Create Private API Key', and select Lists: read/write, Profiles: write, Subscriptions: write, and Events: write.",
+        "For List ID, go to 'Audience' → 'Lists & Segments', open your list, and copy the List ID under its title.",
+        "Paste the API key and List ID into the fields and save.",
       ],
     },
     keyLabel: "Klaviyo Private API Key",
     keyPlaceholder: "pk_...",
     configFields: [{ key: "listId", label: "List ID", placeholder: "e.g. XyzAbc" }],
-    icon: <LogoIcon provider="klaviyo" name="Klaviyo" />
+    icon: <LogoIcon provider="klaviyo" name="Klaviyo" />,
   },
   {
-    provider: "mailchimp",
+    id: "mailchimp",
     name: "Mailchimp",
-    group: "Marketing sync",
+    category: "Marketing",
+    categoryId: "marketing",
+    type: "sync",
     authMode: "oauth",
     oauthUrl: "/api/integrations/mailchimp/authorize",
+    description: "Add leads to your Mailchimp audiences automatically via secure OAuth.",
     docsUrl: "https://mailchimp.com/developer/marketing/guides/access-user-data-oauth-2/",
     setupGuide: {
       url: "https://mailchimp.com/developer/marketing/guides/access-user-data-oauth-2/",
       steps: [
-        "Click 'Connect Mailchimp' and authorize Asmos in Mailchimp. Asmos uses OAuth, so you do not need to paste an account-wide API key.",
-        "For the Audience ID, go to 'Audience' → 'Audience dashboard' → 'Settings' → 'Audience name and defaults' and copy the 'Audience ID'.",
-        "After authorization, click Edit on this card, enter the Audience ID, and click Save connection.",
+        "Click 'Authorize Mailchimp via OAuth' and grant permissions. Asmos uses OAuth so you don't need account-wide keys.",
+        "For Audience ID, open 'Audience' → 'Settings' → 'Audience name and defaults' and copy the Audience ID.",
+        "Enter your Audience ID and save your connection.",
       ],
     },
     configFields: [{ key: "audienceId", label: "Audience ID", placeholder: "e.g. abc123def4" }],
-    icon: <LogoIcon provider="mailchimp" name="Mailchimp" />
+    icon: <LogoIcon provider="mailchimp" name="Mailchimp" />,
   },
   {
-    provider: "hubspot",
+    id: "hubspot",
     name: "HubSpot",
-    group: "Marketing sync",
+    category: "Marketing",
+    categoryId: "marketing",
+    type: "sync",
+    description: "Sync captured leads into HubSpot CRM contacts with full form attribution.",
     docsUrl: "https://knowledge.hubspot.com/integrations/how-do-i-get-my-hubspot-api-key",
     setupGuide: {
       url: "https://knowledge.hubspot.com/integrations/how-do-i-get-my-hubspot-api-key",
       steps: [
-        "In HubSpot, click the gear icon (Settings), then in the left menu go to 'Integrations' → 'Private Apps'.",
-        "Click 'Create a private app', give it a name, and open the 'Scopes' tab.",
-        "Tick the CRM contacts read and write permissions, then click 'Create app' and confirm.",
-        "Copy the access token it shows (it starts with pat-).",
-        "Paste it into the field above and click Save connection.",
+        "In HubSpot, go to Settings (gear icon) → 'Integrations' → 'Private Apps'.",
+        "Click 'Create a private app' and under 'Scopes', tick CRM contacts read and write permissions.",
+        "Click 'Create app', copy the access token (starts with pat-), and paste it below.",
       ],
     },
     keyLabel: "HubSpot Private App Token",
     keyPlaceholder: "pat-...",
-    icon: <LogoIcon provider="hubspot" name="HubSpot" />
+    icon: <LogoIcon provider="hubspot" name="HubSpot" />,
   },
   {
-    provider: "omnisend",
+    id: "omnisend",
     name: "Omnisend",
-    group: "Marketing sync",
+    category: "Marketing",
+    categoryId: "marketing",
+    type: "sync",
+    description: "Push leads directly into your Omnisend ecommerce email & SMS automation flows.",
     docsUrl: "https://api-docs.omnisend.com/reference/intro",
     setupGuide: {
       url: "https://api-docs.omnisend.com/reference/intro",
       steps: [
         "Log in to Omnisend and open 'Store settings' → 'Integrations & API' → 'API keys'.",
-        "Click 'Create API key', give it a name, and copy the key it shows.",
-        "Paste the API key into the field above and click Save connection. New leads become subscribed contacts tagged 'asmos'.",
+        "Click 'Create API key', name it 'Asmos', and copy the generated key.",
+        "Paste the key below and save. New leads become subscribed contacts tagged 'asmos'.",
       ],
     },
     keyLabel: "Omnisend API Key",
     keyPlaceholder: "e.g. 6543ab...",
-    icon: <LogoIcon provider="omnisend" name="Omnisend" />
+    icon: <LogoIcon provider="omnisend" name="Omnisend" />,
   },
   {
-    provider: "brevo",
+    id: "brevo",
     name: "Brevo",
-    group: "Marketing sync",
+    category: "Marketing",
+    categoryId: "marketing",
+    type: "sync",
+    description: "Sync leads into Brevo (Sendinblue) contact lists for automated email marketing.",
     docsUrl: "https://developers.brevo.com/docs/getting-started",
     setupGuide: {
       url: "https://developers.brevo.com/docs/getting-started",
       steps: [
-        "Log in to Brevo, click your account name (top-right), then 'SMTP & API' → the 'API Keys' tab.",
-        "Click 'Generate a new API key', name it, and copy it (it starts with xkeysib-).",
-        "For the List ID, go to 'Contacts' → 'Lists' and copy the numeric ID shown next to the list you want.",
-        "Paste the API key and List ID into the fields above and click Save connection.",
+        "Log in to Brevo, click your account menu → 'SMTP & API' → 'API Keys' tab.",
+        "Click 'Generate a new API key' (starts with xkeysib-) and copy it.",
+        "Under 'Contacts' → 'Lists', copy the numeric List ID you want to sync into.",
+        "Paste the API key and List ID below and save.",
       ],
     },
     keyLabel: "Brevo API Key",
     keyPlaceholder: "xkeysib-...",
     configFields: [{ key: "listId", label: "List ID", placeholder: "e.g. 3" }],
-    icon: <LogoIcon provider="brevo" name="Brevo" />
+    icon: <LogoIcon provider="brevo" name="Brevo" />,
   },
   {
-    provider: "mailerlite",
+    id: "mailerlite",
     name: "MailerLite",
-    group: "Marketing sync",
+    category: "Marketing",
+    categoryId: "marketing",
+    type: "sync",
+    description: "Add new leads directly to your MailerLite subscriber lists upon form completion.",
     docsUrl: "https://developers.mailerlite.com/docs",
     setupGuide: {
       url: "https://developers.mailerlite.com/docs",
       steps: [
-        "Log in to MailerLite and open 'Integrations' from the top menu.",
+        "Log in to MailerLite and navigate to 'Integrations'.",
         "Find 'MailerLite API', click 'Use', then 'Generate new token'.",
-        "Name the token and copy it.",
-        "Paste it into the field above and click Save connection. New leads are added to your subscribers.",
+        "Name the token, copy it, and paste it below.",
       ],
     },
     keyLabel: "MailerLite API Key",
     keyPlaceholder: "eyJ0eXAi...",
-    icon: <LogoIcon provider="mailerlite" name="MailerLite" />
+    icon: <LogoIcon provider="mailerlite" name="MailerLite" />,
   },
   {
-    provider: "drip",
+    id: "drip",
     name: "Drip",
-    group: "Marketing sync",
+    category: "Marketing",
+    categoryId: "marketing",
+    type: "sync",
+    description: "Sync leads into Drip for smart ecommerce marketing automation and segmentation.",
     docsUrl: "https://developer.drip.com/",
     setupGuide: {
       url: "https://developer.drip.com/",
       steps: [
-        "Log in to Drip, click the user menu (top-right) → 'Settings' → 'User Settings', and copy your API token.",
-        "For the Account ID, go to 'Settings' → 'Account' → 'General info' and copy the numeric Account ID.",
-        "Paste the token and Account ID into the fields above and click Save connection. New leads are tagged 'Asmos'.",
+        "In Drip, click your user menu → 'Settings' → 'User Settings' to copy your API token.",
+        "Under 'Settings' → 'Account' → 'General info', copy your numeric Account ID.",
+        "Paste the token and Account ID below and save.",
       ],
     },
     keyLabel: "Drip API Token",
     keyPlaceholder: "e.g. 1a2b3c...",
     configFields: [{ key: "accountId", label: "Account ID", placeholder: "e.g. 1234567" }],
-    icon: <LogoIcon provider="drip" name="Drip" />
+    icon: <LogoIcon provider="drip" name="Drip" />,
   },
 ];
 
-
-// ── Webhook card (real API) ────────────────────────────────────────────────
-
-function WebhookCard({ integration }: { integration: Integration }) {
-  const [status, setStatus] = useState<IntegrationStatus>("disconnected");
-  const [webhookUrl, setWebhookUrl] = useState("");
-  const [webhookSecret, setWebhookSecret] = useState("");
-  const [maskedSecret, setMaskedSecret] = useState<string | null>(null);
-  const [events, setEvents] = useState<string[]>(AUTOMATION_EVENT_OPTIONS.map((event) => event.id));
-  const [editing, setEditing] = useState(false);
-  const [expanded, setExpanded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
-
-  // Load existing config on mount
-  useEffect(() => {
-    fetch("/api/account/webhook")
-      .then((r) => r.json())
-      .then((data: { webhookUrl: string | null; webhookSecret: string | null; webhookEnabled: boolean; subscribedEvents?: string[] }) => {
-        if (data.webhookEnabled && data.webhookUrl) {
-          setWebhookUrl(data.webhookUrl);
-          setMaskedSecret(data.webhookSecret);
-          setEvents(data.subscribedEvents?.length ? data.subscribedEvents : AUTOMATION_EVENT_OPTIONS.map((event) => event.id));
-          setStatus("connected");
-        }
-      })
-      .catch(() => {
-        // Non-fatal: page still works without pre-loaded state
-      });
-  }, []);
-
-  async function handleSave() {
-    if (!webhookUrl.trim()) { setError("Please enter your webhook endpoint URL."); return; }
-    if (!webhookUrl.trim().startsWith("https://")) { setError("Endpoint URL must start with https://"); return; }
-    setSaving(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/account/webhook", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          webhookUrl: webhookUrl.trim(),
-          webhookSecret: webhookSecret.trim() || undefined,
-          webhookEnabled: true,
-          subscribedEvents: events,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Failed to save. Please try again."); return; }
-      setMaskedSecret(data.webhookSecret);
-      setEvents(data.subscribedEvents?.length ? data.subscribedEvents : events);
-      setStatus("connected");
-      setEditing(false);
-      setExpanded(false);
-      setWebhookSecret(""); // clear plaintext from state
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDisconnect() {
-    setSaving(true);
-    try {
-      await fetch("/api/account/webhook", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ webhookEnabled: false }),
-      });
-    } catch {
-      // Best-effort; flip UI state regardless
-    } finally {
-      setSaving(false);
-    }
-    setStatus("disconnected");
-    setWebhookUrl("");
-    setWebhookSecret("");
-    setMaskedSecret(null);
-    setEditing(false);
-    setExpanded(false);
-    setError(null);
-  }
-
-  const connected = status === "connected";
-  const showForm = !connected || editing;
-  const inputCls = "w-full rounded-lg border border-[color:var(--color-border)] px-3 py-2.5 text-sm font-mono outline-none focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20 transition-colors duration-150";
-  const labelCls = "text-xs font-medium text-[color:var(--color-text-primary)]";
-
-  return (
-    <IntegrationCardShell
-      icon={integration.icon}
-      name={integration.name}
-      subtitle={CATEGORY_LABELS[integration.category]}
-      status={connected ? "connected" : "disconnected"}
-      expanded={expanded}
-      onToggle={() => setExpanded((v) => !v)}
-    >
-      <p className="text-sm text-[color:var(--color-text-secondary)] leading-relaxed">{integration.description}</p>
-
-      {connected && !editing && (
-        <div className="flex flex-col gap-1">
-          <p className="text-xs font-medium text-[color:var(--color-text-secondary)]">Endpoint URL</p>
-          <p className="break-all font-mono text-xs text-[color:var(--color-text-primary)]">{webhookUrl}</p>
-          {maskedSecret && (
-            <>
-              <p className="mt-1 text-xs font-medium text-[color:var(--color-text-secondary)]">Signing secret</p>
-              <p className="font-mono text-xs text-[color:var(--color-text-primary)]">{maskedSecret}</p>
-            </>
-          )}
-        </div>
-      )}
-
-      {showForm && (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className={labelCls}>Endpoint URL <span className="text-red-500">*</span></label>
-            <input type="url" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} placeholder="https://your-endpoint.com/webhook" className={inputCls} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className={labelCls}>Signing secret <span className="text-[color:var(--color-text-secondary)] font-normal">(optional)</span></label>
-            <input type="password" value={webhookSecret} onChange={(e) => setWebhookSecret(e.target.value)} placeholder="Used to verify HMAC-SHA256 signature" className={inputCls} />
-            <p className="text-xs text-[color:var(--color-text-secondary)]">
-              We sign every request with <code className="font-mono">X-Asmos-Signature: sha256=&lt;hmac&gt;</code> when a secret is set.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Events — pushed to the bottom, separated from the fields above */}
-      <div className="mt-1 border-t border-[color:var(--color-border)] pt-4">
-        {showForm ? (
-          <EventSelector
-            options={AUTOMATION_EVENT_OPTIONS}
-            selected={events}
-            onToggle={(id) => setEvents((current) => current.includes(id) ? current.filter((eventId) => eventId !== id) : [...current, id])}
-          />
-        ) : (
-          <EventSummary events={events} eventLabel={eventLabel} />
-        )}
-      </div>
-
-      {error && <p className="text-xs text-red-500">{error}</p>}
-
-      <div className="flex flex-wrap items-center gap-2">
-        {showForm ? (
-          <button onClick={handleSave} disabled={saving}
-            className="rounded-lg border border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-medium text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white transition-colors duration-150 disabled:opacity-50 cursor-pointer">
-            {saving ? "Saving..." : "Save connection"}
-          </button>
-        ) : (
-          <>
-            <TestConnectionButton provider={integration.id} />
-            <button onClick={() => setEditing(true)} disabled={saving}
-              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-primary)] hover:border-[color:var(--color-primary)] transition-colors duration-150 cursor-pointer disabled:opacity-50">
-              Edit
-            </button>
-            <button onClick={handleDisconnect} disabled={saving}
-              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-sm font-medium text-[color:var(--color-text-secondary)] hover:text-red-500 hover:border-red-200 transition-colors duration-150 cursor-pointer disabled:opacity-50">
-              {saving ? "Disconnecting..." : "Disconnect"}
-            </button>
-          </>
-        )}
-      </div>
-    </IntegrationCardShell>
-  );
-}
-
-// ── Page ──────────────────────────────────────────────────────────────────
-
-const MESSAGING_PROVIDER_META: MessagingProviderMeta[] = [
+const MESSAGING_PROVIDERS: MessagingMeta[] = [
   {
     id: "mailgun",
     name: "Mailgun",
-    description: "Send automated emails to captured leads based on rules and delays.",
+    category: "Messaging",
+    categoryId: "messaging",
+    type: "messaging",
+    description: "Send automated, personalized transactional emails to new leads with dynamic templates.",
     docsUrl: "https://documentation.mailgun.com/en/latest/api-sending.html#sending",
     setupSteps: [
-      "Log in to Mailgun and open 'Send' → 'Domains'; copy your sending domain (it looks like mg.example.com).",
-      "Note the region shown next to that domain — type 'us' or 'eu' in the Region field.",
-      "For the From Address, use a sender at your domain, like Acme <noreply@mg.example.com>.",
-      "Get your API key from the profile menu → 'API Keys' (or 'API security') and copy the sending key.",
-      "Paste the domain, region, from address, and API key into the fields above and click Save Connection.",
+      "In Mailgun, go to 'Send' → 'Domains' and copy your sending domain (e.g. mg.yourdomain.com).",
+      "Enter the region ('us' or 'eu') and your From Address (e.g. Acme <hello@mg.yourdomain.com>).",
+      "In your profile menu → 'API Security', create or copy a Sending API key.",
+      "Paste your credentials and save to begin sending emails.",
     ],
     icon: <LogoIcon provider="mailgun" name="Mailgun" />,
     configFields: [
@@ -504,19 +244,22 @@ const MESSAGING_PROVIDER_META: MessagingProviderMeta[] = [
       { key: "region", label: "Region", placeholder: "us or eu" },
       { key: "fromAddress", label: "From Address", placeholder: "Acme <noreply@example.com>" },
       { key: "apiKey", label: "API Key", placeholder: "key-...", isSecret: true },
-    ]
+    ],
   },
   {
     id: "twilio",
     name: "Twilio",
-    description: "Send automated SMS to captured leads based on rules and delays.",
+    category: "Messaging",
+    categoryId: "messaging",
+    type: "messaging",
     requiresRestrictedKey: true,
+    description: "Send automated SMS text messages to captured leads with instant or delayed triggers.",
     docsUrl: "https://www.twilio.com/docs/sms/api/message-resource",
     setupSteps: [
-      "Log in to the Twilio Console at console.twilio.com.",
-      "Open Account Security and create a Restricted API Key. Allow only the permission to create messages, then copy the Key SID and secret.",
-      "Go to 'Phone Numbers' → 'Manage' → 'Active numbers' and copy the number you'll text from (in +15551234567 format).",
-      "Paste the Account SID, Restricted API Key SID, secret, and sending number into the fields above and click Save Connection.",
+      "In Twilio Console, open 'Account Security' and create a Restricted API Key with messaging permissions.",
+      "Copy your Account SID, the Restricted API Key SID, and secret.",
+      "Under 'Phone Numbers' → 'Active numbers', copy your sending phone number (e.g. +15551234567).",
+      "Paste your credentials below. If your popups don't collect phone numbers yet, you can add the field with one click.",
     ],
     icon: <LogoIcon provider="twilio" name="Twilio" />,
     configFields: [
@@ -524,167 +267,859 @@ const MESSAGING_PROVIDER_META: MessagingProviderMeta[] = [
       { key: "accountSid", label: "Account SID", placeholder: "AC..." },
       { key: "apiKeySid", label: "Restricted API Key SID", placeholder: "SK..." },
       { key: "apiKeySecret", label: "Restricted API Key Secret", placeholder: "...", isSecret: true },
-    ]
-  }
+    ],
+  },
 ];
 
+const AUTOMATION_PROVIDERS: (WebhookMeta | CustomWebhookMeta)[] = [
+  {
+    id: "zapier",
+    name: "Zapier",
+    category: "Automation",
+    categoryId: "automation",
+    type: "webhook",
+    supportsSigning: true,
+    description: "Trigger Zaps and connect to 5,000+ apps when leads are captured or tests conclude.",
+    docsUrl: "https://zapier.com/help/create/basics/create-webhooks-from-scratch",
+    setupSteps: [
+      "In Zapier, click 'Create' → 'Zaps' to start a new Zap.",
+      "For trigger, choose 'Webhooks by Zapier' and select the 'Catch Hook' event.",
+      "Copy the 'Custom Webhook URL' provided by Zapier (starts with https://hooks.zapier.com/).",
+      "Paste it into the endpoint URL field below and save.",
+    ],
+    urlLabel: "Zapier Catch Hook URL",
+    urlPlaceholder: "https://hooks.zapier.com/hooks/catch/...",
+    icon: <LogoIcon provider="zapier" name="Zapier" />,
+  },
+  {
+    id: "make",
+    name: "Make",
+    category: "Automation",
+    categoryId: "automation",
+    type: "webhook",
+    supportsSigning: true,
+    description: "Run automated multi-step scenarios in Make when leads are captured in Asmos.",
+    docsUrl: "https://www.make.com/en/help/tools/webhooks",
+    setupSteps: [
+      "In Make, open or create a scenario.",
+      "Add a module, search for 'Webhooks', and choose 'Custom webhook'.",
+      "Click Add, give it a name, save, and copy the generated address.",
+      "Paste it into the endpoint URL field below and save.",
+    ],
+    urlLabel: "Make Custom Webhook URL",
+    urlPlaceholder: "https://hook.eu1.make.com/...",
+    icon: <LogoIcon provider="make" name="Make" />,
+  },
+  {
+    id: "n8n",
+    name: "n8n",
+    category: "Automation",
+    categoryId: "automation",
+    type: "webhook",
+    supportsSigning: true,
+    description: "Send lead and campaign webhook payloads to self-hosted or cloud n8n workflows.",
+    docsUrl: "https://docs.n8n.io/integrations/builtin/core-nodes/n8n-nodes-base.webhook/",
+    setupSteps: [
+      "In n8n, open your workflow and add a new 'Webhook' node.",
+      "Set the method to POST, then copy the 'Production URL'.",
+      "Activate the workflow and paste the URL below.",
+    ],
+    urlLabel: "n8n Webhook URL",
+    urlPlaceholder: "https://<your-n8n>/webhook/...",
+    icon: <LogoIcon provider="n8n" name="n8n" />,
+  },
+  {
+    id: "googlesheets",
+    name: "Google Sheets",
+    category: "Automation",
+    categoryId: "automation",
+    type: "webhook",
+    description: "Automatically append new leads and conversion data into your Google spreadsheet.",
+    docsUrl: "https://developers.google.com/apps-script/guides/web",
+    setupSteps: [
+      "Create a Google Sheet, then open 'Extensions' → 'Apps Script'.",
+      "Delete any starter code and paste this script:\nfunction doPost(e){\n  var s = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();\n  var d = JSON.parse(e.postData.contents);\n  if (d.event !== 'lead.captured') {\n    return ContentService.createTextOutput('ok');\n  }\n  var l = (d.payload && d.payload.lead) || {};\n  s.appendRow([\n    new Date(),\n    l.email || '',\n    l.name || '',\n    l.phone || '',\n    (d.payload && d.payload.campaign_name) || ''\n  ]);\n  return ContentService.createTextOutput('ok');\n}",
+      "Click 'Deploy' → 'New deployment'. For type choose 'Web app'. Set 'Execute as: Me' and 'Who has access: Anyone', then click 'Deploy' and authorize access.",
+      "Copy the 'Web app' URL it shows (it ends in /exec).",
+      "Paste that URL into the Webhook URL field below and click Save. Keep only 'Lead captured' selected.",
+    ],
+    urlLabel: "Apps Script Web App URL",
+    urlPlaceholder: "https://script.google.com/macros/s/.../exec",
+    icon: <LogoIcon provider="googlesheets" name="Google Sheets" />,
+  },
+  {
+    id: "webhooks",
+    name: "Custom Webhooks",
+    category: "Automation",
+    categoryId: "automation",
+    type: "custom-webhook",
+    description: "Receive real-time signed HTTP POST notifications for leads, winners, and lifecycle changes.",
+    icon: CUSTOM_WEBHOOK_ICON,
+  },
+];
+
+const NOTIFICATION_PROVIDERS: WebhookMeta[] = [
+  {
+    id: "slack",
+    name: "Slack",
+    category: "Notifications",
+    categoryId: "notifications",
+    type: "webhook",
+    description: "Get instant notifications in your team Slack channels on leads and winning variants.",
+    docsUrl: "https://api.slack.com/messaging/webhooks",
+    setupSteps: [
+      "Go to api.slack.com/apps and create a new app 'From scratch'.",
+      "Under 'Incoming Webhooks', toggle the switch On and click 'Add New Webhook to Workspace'.",
+      "Select your alert channel, click Allow, and copy the Webhook URL (starts with https://hooks.slack.com/).",
+      "Paste the URL below and save.",
+    ],
+    urlLabel: "Slack Incoming Webhook URL",
+    urlPlaceholder: "https://hooks.slack.com/services/...",
+    icon: <LogoIcon provider="slack" name="Slack" />,
+  },
+  {
+    id: "discord",
+    name: "Discord",
+    category: "Notifications",
+    categoryId: "notifications",
+    type: "webhook",
+    description: "Post real-time event updates and conversion alerts to your Discord channels.",
+    docsUrl: "https://support.discord.com/hc/en-us/articles/228383668",
+    setupSteps: [
+      "In Discord, open channel settings (gear icon) for the alert channel.",
+      "Go to 'Integrations' → 'Webhooks' and click 'New Webhook'.",
+      "Copy the Webhook URL and paste it below.",
+    ],
+    urlLabel: "Discord Channel Webhook URL",
+    urlPlaceholder: "https://discord.com/api/webhooks/...",
+    icon: <LogoIcon provider="discord" name="Discord" />,
+  },
+  {
+    id: "teams",
+    name: "Microsoft Teams",
+    category: "Notifications",
+    categoryId: "notifications",
+    type: "webhook",
+    description: "Send channel messages in Microsoft Teams on new leads and campaign updates.",
+    docsUrl: "https://learn.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook",
+    setupSteps: [
+      "In Teams, find the channel for alerts and click '...' → 'Workflows'.",
+      "Choose 'Post to a channel when a webhook request is received'.",
+      "Complete the setup and copy the web address created for you.",
+      "Paste the URL below and save.",
+    ],
+    urlLabel: "Teams Incoming Webhook URL",
+    urlPlaceholder: "https://outlook.office.com/webhook/...",
+    icon: <LogoIcon provider="teams" name="Microsoft Teams" />,
+  },
+];
+
+const ALL_PROVIDERS: ProviderDefinition[] = [
+  ...SYNC_PROVIDERS,
+  ...MESSAGING_PROVIDERS,
+  ...AUTOMATION_PROVIDERS,
+  ...NOTIFICATION_PROVIDERS,
+];
+
+// ── Categories List ────────────────────────────────────────────────────────
+
+const CATEGORIES: { id: CategoryId; label: string; count: number }[] = [
+  { id: "all", label: "All", count: ALL_PROVIDERS.length },
+  { id: "marketing", label: "Marketing", count: SYNC_PROVIDERS.length },
+  { id: "messaging", label: "Messaging", count: MESSAGING_PROVIDERS.length },
+  { id: "automation", label: "Automation", count: AUTOMATION_PROVIDERS.length },
+  { id: "notifications", label: "Notifications", count: NOTIFICATION_PROVIDERS.length },
+];
+
+// ── Main Page Component ────────────────────────────────────────────────────
+
 export default function IntegrationsPage() {
+  const [selectedCategory, setSelectedCategory] = useState<CategoryId>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [onlyConnected, setOnlyConnected] = useState(false);
+  const [activeModalProviderId, setActiveModalProviderId] = useState<string | null>(null);
+
+  // Connection data states
+  const [syncConns, setSyncConns] = useState<any[] | null>(null);
+  const [webhookConns, setWebhookConns] = useState<any[] | null>(null);
   const [messagingViews, setMessagingViews] = useState<any[]>([]);
+  const [customWebhookView, setCustomWebhookView] = useState<{
+    webhookUrl: string | null;
+    webhookSecret: string | null;
+    webhookEnabled: boolean;
+    subscribedEvents?: string[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Fetch connections on mount
   useEffect(() => {
-    // Load saved messaging (Mailgun/Twilio) connection state. Independent and
-    // resilient: a failure must not block the rest of the page from rendering.
-    fetch("/api/integrations/messaging")
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) setMessagingViews(data);
-      })
-      .catch(() => {
-        // Non-fatal: cards still render, just starting from "not connected".
-      })
-      .finally(() => setLoading(false));
+    let mounted = true;
+    Promise.all([
+      fetch("/api/integrations/sync")
+        .then((r) => r.json())
+        .then((d) => d.connections || [])
+        .catch(() => []),
+      fetch("/api/integrations/connections")
+        .then((r) => r.json())
+        .then((d) => d.connections || [])
+        .catch(() => []),
+      fetch("/api/integrations/messaging")
+        .then((r) => r.json())
+        .then((d) => (Array.isArray(d) ? d : []))
+        .catch(() => []),
+      fetch("/api/account/webhook")
+        .then((r) => r.json())
+        .catch(() => null),
+    ]).then(([syncData, webhookData, messagingData, customWhData]) => {
+      if (!mounted) return;
+      setSyncConns(syncData);
+      setWebhookConns(webhookData);
+      setMessagingViews(messagingData);
+      setCustomWebhookView(customWhData);
+      setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const handleMessagingSave = async (provider: string, data: any) => {
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleSaveSync = async (provider: string, payload: any) => {
+    const res = await fetch("/api/integrations/sync", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, ...payload }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || "Failed to save sync connection.");
+    }
+    const updated = await fetch("/api/integrations/sync").then((r) => r.json());
+    setSyncConns(updated.connections || []);
+  };
+
+  const handleDisconnectSync = async (provider: string) => {
+    await fetch("/api/integrations/sync", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider }),
+    });
+    const updated = await fetch("/api/integrations/sync").then((r) => r.json());
+    setSyncConns(updated.connections || []);
+  };
+
+  const handleSaveWebhook = async (provider: string, payload: any) => {
+    const res = await fetch("/api/integrations/connections", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, ...payload }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || "Failed to save webhook connection.");
+    }
+    const updated = await fetch("/api/integrations/connections").then((r) => r.json());
+    setWebhookConns(updated.connections || []);
+  };
+
+  const handleDisconnectWebhook = async (provider: string) => {
+    await fetch("/api/integrations/connections", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider }),
+    });
+    const updated = await fetch("/api/integrations/connections").then((r) => r.json());
+    setWebhookConns(updated.connections || []);
+  };
+
+  const handleSaveCustomWebhook = async (payload: any) => {
+    const res = await fetch("/api/account/webhook", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || "Failed to save custom webhook.");
+    }
+    const updated = await fetch("/api/account/webhook").then((r) => r.json());
+    setCustomWebhookView(updated);
+  };
+
+  const handleDisconnectCustomWebhook = async () => {
+    await fetch("/api/account/webhook", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ webhookEnabled: false }),
+    });
+    const updated = await fetch("/api/account/webhook").then((r) => r.json());
+    setCustomWebhookView(updated);
+  };
+
+  const handleSaveMessaging = async (provider: string, data: any) => {
     const res = await fetch("/api/integrations/messaging", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider, ...data }),
     });
     if (!res.ok) {
-      const e = await res.json();
-      throw new Error(e.error);
+      const d = await res.json().catch(() => ({}));
+      throw new Error(d.error || "Failed to save messaging connection.");
     }
-    const newData = await fetch("/api/integrations/messaging").then((r) => r.json());
-    setMessagingViews(newData);
+    const updated = await fetch("/api/integrations/messaging").then((r) => r.json());
+    setMessagingViews(updated || []);
   };
 
-  const handleMessagingRemove = async (provider: string) => {
+  const handleDisconnectMessaging = async (provider: string) => {
     await fetch(`/api/integrations/messaging?provider=${provider}`, { method: "DELETE" });
-    const newData = await fetch("/api/integrations/messaging").then((r) => r.json());
-    setMessagingViews(newData);
+    const updated = await fetch("/api/integrations/messaging").then((r) => r.json());
+    setMessagingViews(updated || []);
   };
 
-  const [conns, setConns] = useState<ConnState[] | null>(null);
-  const [syncConns, setSyncConns] = useState<SyncConnState[] | null>(null);
+  // ── Compute Status for Any Provider ───────────────────────────────────────
 
-  useEffect(() => {
-    fetch("/api/integrations/connections").then((r) => r.json())
-      .then((d: { connections: ConnState[] }) => setConns(d.connections))
-      .catch(() => setConns([]));
+  const getProviderStatus = useCallback(
+    (meta: ProviderDefinition) => {
+      if (meta.type === "sync") {
+        const conn = syncConns?.find((c) => c.provider === meta.id);
+        const isConnected = Boolean(conn?.maskedKey);
+        const isReconnect = meta.authMode === "oauth" && conn?.authType === "apiKey";
+        return {
+          status: (isReconnect ? "reconnect" : isConnected ? "connected" : "disconnected") as
+            | "connected"
+            | "reconnect"
+            | "disconnected",
+          activeEventsCount: conn?.subscribedEvents?.length || (isConnected ? 1 : 0),
+          lastDelivery: conn?.lastDelivery || null,
+          conn,
+        };
+      }
 
-    fetch("/api/integrations/sync").then((r) => r.json())
-      .then((d: { connections: SyncConnState[] }) => setSyncConns(d.connections))
-      .catch(() => setSyncConns([]));
-  }, []);
+      if (meta.type === "webhook") {
+        const conn = webhookConns?.find((c) => c.provider === meta.id);
+        const isConnected = Boolean(conn?.url);
+        return {
+          status: (isConnected ? "connected" : "disconnected") as "connected" | "disconnected",
+          activeEventsCount: conn?.subscribedEvents?.length || 0,
+          lastDelivery: conn?.lastDelivery || null,
+          conn,
+        };
+      }
+
+      if (meta.type === "custom-webhook") {
+        const isConnected = Boolean(customWebhookView?.webhookEnabled && customWebhookView?.webhookUrl);
+        return {
+          status: (isConnected ? "connected" : "disconnected") as "connected" | "disconnected",
+          activeEventsCount: customWebhookView?.subscribedEvents?.length || 0,
+          lastDelivery: null,
+          conn: customWebhookView,
+        };
+      }
+
+      if (meta.type === "messaging") {
+        const view = messagingViews.find((v) => v.provider === meta.id);
+        const isConnected = Boolean(view?.connected);
+        const isReconnect = Boolean(isConnected && meta.requiresRestrictedKey && view?.authType === "authToken");
+        return {
+          status: (isReconnect ? "reconnect" : isConnected ? "connected" : "disconnected") as
+            | "connected"
+            | "reconnect"
+            | "disconnected",
+          activeEventsCount: view?.rules?.length || (isConnected ? 1 : 0),
+          lastDelivery: null,
+          conn: view,
+        };
+      }
+
+      return { status: "disconnected" as const, activeEventsCount: 0, lastDelivery: null, conn: null };
+    },
+    [syncConns, webhookConns, messagingViews, customWebhookView]
+  );
+
+  // Active total connected count
+  const totalConnectedCount = useMemo(() => {
+    let count = 0;
+    for (const provider of ALL_PROVIDERS) {
+      if (getProviderStatus(provider).status === "connected") {
+        count++;
+      }
+    }
+    return count;
+  }, [getProviderStatus]);
+
+  // ── Filtered Providers ────────────────────────────────────────────────────
+
+  const filteredProviders = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return ALL_PROVIDERS.filter((p) => {
+      // Category filter
+      if (selectedCategory !== "all" && p.categoryId !== selectedCategory) {
+        return false;
+      }
+      // "Connected only" filter
+      if (onlyConnected) {
+        const { status } = getProviderStatus(p);
+        if (status !== "connected") return false;
+      }
+      // Text search
+      if (q) {
+        const matchName = p.name.toLowerCase().includes(q);
+        const matchCategory = p.category.toLowerCase().includes(q);
+        const matchDesc = p.description.toLowerCase().includes(q);
+        const matchId = p.id.toLowerCase().includes(q);
+        if (!matchName && !matchCategory && !matchDesc && !matchId) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [selectedCategory, searchQuery, onlyConnected, getProviderStatus]);
+
+  // Active provider for modal
+  const activeModalProvider = useMemo(() => {
+    if (!activeModalProviderId) return null;
+    return ALL_PROVIDERS.find((p) => p.id === activeModalProviderId) || null;
+  }, [activeModalProviderId]);
 
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader title="Integrations" />
-      <p className="text-sm text-[color:var(--color-text-secondary)]">
-        Connect Asmos to your marketing stack. Leads and events sync automatically once a connection is active.
-      </p>
-      <p className="-mt-5 text-xs text-[color:var(--color-text-secondary)]">
-        See how integration data and credentials are handled in our{" "}
+    <div className="flex flex-col gap-7">
+      {/* ── Page Header ────────────────────────────────────────── */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[color:var(--color-border)] pb-6">
+        <div>
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold tracking-tight text-[color:var(--color-text-primary)]">
+              Integrations
+            </h1>
+            {totalConnectedCount > 0 && (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--color-success-bg)] px-2.5 py-0.5 text-xs font-semibold text-[color:var(--color-success)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[color:var(--color-success)]" />
+                {totalConnectedCount} Active
+              </span>
+            )}
+          </div>
+          <p className="mt-1 text-xs text-[color:var(--color-text-secondary)] sm:text-sm">
+            Connect Asmos to your marketing tools, messaging channels, and workflow automations.
+          </p>
+        </div>
+
+        {/* Security / Privacy Trust Link */}
         <a
           href="https://asmos.io/privacy-policy"
-          className="text-[color:var(--color-primary)] underline underline-offset-2 hover:text-[color:var(--color-primary-dark)]"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-1 text-xs text-[color:var(--color-text-secondary)] transition-colors hover:border-[color:var(--color-primary)] hover:text-[color:var(--color-text-primary)]"
         >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+          </svg>
           Privacy Policy
         </a>
-        .
-      </p>
+      </div>
 
-      {/* 1. Marketing — the priority for ecommerce: get leads into the tools that actually sell. */}
-      <CollapsibleSection title="Marketing" subtitle="Send captured leads straight into the email & CRM tools you sell with." count={SYNC_PROVIDER_META.length}>
-        {syncConns === null ? (
-          <SkeletonGrid count={SYNC_PROVIDER_META.length} />
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {SYNC_PROVIDER_META.map((m) => {
-              const c = syncConns?.find((x) => x.provider === m.provider);
-              return (
-                <SyncProviderCard key={m.provider} {...m}
-                  category={m.group}
-                  initialMaskedKey={c?.maskedKey ?? null}
-                  initialAuthType={c?.authType ?? null}
-                  initialConfig={c?.config ?? {}}
-                  initialEvents={c?.subscribedEvents ?? []}
-                  initialLastDelivery={c?.lastDelivery ?? null} />
-              );
-            })}
+      {/* ── Toolbar: Category Filters & Search ─────────────────── */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        {/* Category Pill Tabs */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {CATEGORIES.map((cat) => {
+            const isSelected = selectedCategory === cat.id;
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer ${
+                  isSelected
+                    ? "bg-[color:var(--color-primary)] text-white shadow-xs"
+                    : "border border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:bg-[color:var(--color-surface-sunken)] hover:text-[color:var(--color-text-primary)]"
+                }`}
+              >
+                <span>{cat.label}</span>
+                <span
+                  className={`rounded-full px-1.5 py-0.2 text-[10px] font-semibold ${
+                    isSelected
+                      ? "bg-white/20 text-white"
+                      : "bg-[color:var(--color-neutral-badge)] text-[color:var(--color-text-secondary)]"
+                  }`}
+                >
+                  {cat.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Right Toolbar Controls: Connected Filter & Search */}
+        <div className="flex items-center gap-2.5">
+          {/* Connected Only Toggle */}
+          <button
+            type="button"
+            onClick={() => setOnlyConnected((v) => !v)}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-medium transition-all duration-150 cursor-pointer ${
+              onlyConnected
+                ? "border-[color:var(--color-primary)] bg-[color:var(--color-primary-light)] text-[color:var(--color-primary)]"
+                : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
+            }`}
+          >
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                onlyConnected ? "bg-[color:var(--color-primary)]" : "bg-[color:var(--color-text-secondary)]/50"
+              }`}
+            />
+            Connected only
+          </button>
+
+          {/* Search Input */}
+          <div className="relative min-w-[220px]">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[color:var(--color-text-secondary)]"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search integrations..."
+              className="w-full rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] py-1.5 pl-9 pr-8 text-xs text-[color:var(--color-text-primary)] outline-none transition-colors placeholder:text-[color:var(--color-text-secondary)]/60 focus:border-[color:var(--color-primary)] focus:ring-2 focus:ring-[color:var(--color-primary)]/20"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
+              >
+                ✕
+              </button>
+            )}
           </div>
-        )}
-      </CollapsibleSection>
+        </div>
+      </div>
 
-      {/* 2. Messaging — reach the lead directly. */}
-      <CollapsibleSection title="Messaging" subtitle="Automatically email or text a lead the moment they convert." count={MESSAGING_PROVIDER_META.length}>
-        {loading ? (
-          <SkeletonGrid count={MESSAGING_PROVIDER_META.length} />
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {MESSAGING_PROVIDER_META.map((meta) => {
-              const view = messagingViews.find((v) => v.provider === meta.id);
-              return (
-                <MessagingProviderCard
-                  key={meta.id}
-                  meta={meta}
-                  view={view}
-                  onSave={(data) => handleMessagingSave(meta.id, data)}
-                  onRemove={() => handleMessagingRemove(meta.id)}
-                />
-              );
-            })}
+      {/* ── Integrations Grid ──────────────────────────────────── */}
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div
+              key={i}
+              className="flex flex-col gap-4 rounded-2xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-xs animate-pulse"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-[color:var(--color-surface-sunken)]" />
+                <div className="space-y-2 flex-1">
+                  <div className="h-3.5 w-24 rounded bg-[color:var(--color-surface-sunken)]" />
+                  <div className="h-2.5 w-16 rounded bg-[color:var(--color-surface-sunken)]" />
+                </div>
+              </div>
+              <div className="h-3 w-full rounded bg-[color:var(--color-surface-sunken)]" />
+              <div className="h-3 w-3/4 rounded bg-[color:var(--color-surface-sunken)]" />
+            </div>
+          ))}
+        </div>
+      ) : filteredProviders.length === 0 ? (
+        /* Empty Search / Filter State */
+        <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-10 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[color:var(--color-surface-sunken)] text-[color:var(--color-text-secondary)] mb-3">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
           </div>
-        )}
-      </CollapsibleSection>
-
-      {/* 3. Automation — pipe events anywhere, including your own endpoint. */}
-      <CollapsibleSection title="Automation" subtitle="Pipe lead & winner events into any workflow tool — or your own endpoint." count={PROVIDER_META.filter((m) => m.group === "Automation").length + 1}>
-        {conns === null ? (
-          <SkeletonGrid count={PROVIDER_META.filter((m) => m.group === "Automation").length + 1} />
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {PROVIDER_META.filter((m) => m.group === "Automation").map((m) => {
-              const c = conns?.find((x) => x.provider === m.provider);
-              return (
-                <ProviderWebhookCard key={m.provider} {...m}
-                  initialUrl={c?.url ?? null}
-                  initialEvents={c?.subscribedEvents ?? []}
-                  initialMaskedSecret={c?.maskedSecret ?? null}
-                  initialLastDelivery={c?.lastDelivery ?? null} />
-              );
-            })}
-            <WebhookCard integration={WEBHOOKS_INTEGRATION} />
+          <h3 className="text-sm font-semibold text-[color:var(--color-text-primary)]">No integrations found</h3>
+          <p className="mt-1 max-w-sm text-xs text-[color:var(--color-text-secondary)]">
+            {searchQuery
+              ? `We couldn't find any integrations matching "${searchQuery}".`
+              : "No integrations match your current filter settings."}
+          </p>
+          <div className="mt-4 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setSelectedCategory("all");
+                setOnlyConnected(false);
+              }}
+              className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3.5 py-1.5 text-xs font-medium text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] cursor-pointer"
+            >
+              Reset Filters
+            </button>
           </div>
-        )}
-      </CollapsibleSection>
+        </div>
+      ) : selectedCategory === "all" && !searchQuery && !onlyConnected ? (
+        /* Categorized Sections when viewing All */
+        <div className="space-y-8">
+          {/* Section: Marketing */}
+          <section>
+            <div className="mb-3.5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold tracking-tight text-[color:var(--color-text-primary)]">
+                  Marketing Sync
+                </h2>
+                <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--color-text-secondary)]">
+                  {SYNC_PROVIDERS.length}
+                </span>
+              </div>
+              <p className="text-xs text-[color:var(--color-text-secondary)]">
+                Sync captured leads directly into the email and CRM systems you sell with.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {SYNC_PROVIDERS.map((provider) => {
+                const info = getProviderStatus(provider);
+                return (
+                  <IntegrationCard
+                    key={provider.id}
+                    id={provider.id}
+                    name={provider.name}
+                    category={provider.category}
+                    description={provider.description}
+                    icon={provider.icon}
+                    status={info.status}
+                    activeEventsCount={info.activeEventsCount}
+                    lastDelivery={info.lastDelivery}
+                    onClick={() => setActiveModalProviderId(provider.id)}
+                  />
+                );
+              })}
+            </div>
+          </section>
 
-      {/* 4. Notifications — team alerts. */}
-      <CollapsibleSection title="Notifications" subtitle="Get a ping in your team chat on every new lead and test winner." count={PROVIDER_META.filter((m) => m.group === "Notifications").length}>
-        {conns === null ? (
-          <SkeletonGrid count={PROVIDER_META.filter((m) => m.group === "Notifications").length} />
-        ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {PROVIDER_META.filter((m) => m.group === "Notifications").map((m) => {
-              const c = conns?.find((x) => x.provider === m.provider);
-              return (
-                <ProviderWebhookCard key={m.provider} {...m}
-                  initialUrl={c?.url ?? null}
-                  initialEvents={c?.subscribedEvents ?? []}
-                  initialMaskedSecret={c?.maskedSecret ?? null}
-                  initialLastDelivery={c?.lastDelivery ?? null} />
-              );
-            })}
-          </div>
-        )}
-      </CollapsibleSection>
+          {/* Section: Messaging */}
+          <section>
+            <div className="mb-3.5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold tracking-tight text-[color:var(--color-text-primary)]">
+                  Direct Messaging
+                </h2>
+                <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--color-text-secondary)]">
+                  {MESSAGING_PROVIDERS.length}
+                </span>
+              </div>
+              <p className="text-xs text-[color:var(--color-text-secondary)]">
+                Automatically send transactional emails or SMS text messages the moment a lead converts.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {MESSAGING_PROVIDERS.map((provider) => {
+                const info = getProviderStatus(provider);
+                return (
+                  <IntegrationCard
+                    key={provider.id}
+                    id={provider.id}
+                    name={provider.name}
+                    category={provider.category}
+                    description={provider.description}
+                    icon={provider.icon}
+                    status={info.status}
+                    activeEventsCount={info.activeEventsCount}
+                    lastDelivery={info.lastDelivery}
+                    onClick={() => setActiveModalProviderId(provider.id)}
+                  />
+                );
+              })}
+            </div>
+          </section>
 
-      {/* Request an integration we don't offer yet — sent to superadmins. */}
-      <section>
-        <RequestIntegrationCard />
-      </section>
+          {/* Section: Automation */}
+          <section>
+            <div className="mb-3.5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold tracking-tight text-[color:var(--color-text-primary)]">
+                  Automation & Workflows
+                </h2>
+                <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--color-text-secondary)]">
+                  {AUTOMATION_PROVIDERS.length}
+                </span>
+              </div>
+              <p className="text-xs text-[color:var(--color-text-secondary)]">
+                Pipe leads and winner events into Zapier, Make, n8n, Google Sheets, or custom endpoints.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {AUTOMATION_PROVIDERS.map((provider) => {
+                const info = getProviderStatus(provider);
+                return (
+                  <IntegrationCard
+                    key={provider.id}
+                    id={provider.id}
+                    name={provider.name}
+                    category={provider.category}
+                    description={provider.description}
+                    icon={provider.icon}
+                    status={info.status}
+                    activeEventsCount={info.activeEventsCount}
+                    lastDelivery={info.lastDelivery}
+                    onClick={() => setActiveModalProviderId(provider.id)}
+                  />
+                );
+              })}
+            </div>
+          </section>
+
+          {/* Section: Notifications */}
+          <section>
+            <div className="mb-3.5">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold tracking-tight text-[color:var(--color-text-primary)]">
+                  Team Notifications
+                </h2>
+                <span className="rounded-full bg-[color:var(--color-neutral-badge)] px-2 py-0.5 text-[10px] font-semibold text-[color:var(--color-text-secondary)]">
+                  {NOTIFICATION_PROVIDERS.length}
+                </span>
+              </div>
+              <p className="text-xs text-[color:var(--color-text-secondary)]">
+                Send real-time alerts into Slack, Discord, or Microsoft Teams whenever a lead converts.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {NOTIFICATION_PROVIDERS.map((provider) => {
+                const info = getProviderStatus(provider);
+                return (
+                  <IntegrationCard
+                    key={provider.id}
+                    id={provider.id}
+                    name={provider.name}
+                    category={provider.category}
+                    description={provider.description}
+                    icon={provider.icon}
+                    status={info.status}
+                    activeEventsCount={info.activeEventsCount}
+                    lastDelivery={info.lastDelivery}
+                    onClick={() => setActiveModalProviderId(provider.id)}
+                  />
+                );
+              })}
+            </div>
+          </section>
+        </div>
+      ) : (
+        /* Uniform Grid when filtered or searched */
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredProviders.map((provider) => {
+            const info = getProviderStatus(provider);
+            return (
+              <IntegrationCard
+                key={provider.id}
+                id={provider.id}
+                name={provider.name}
+                category={provider.category}
+                description={provider.description}
+                icon={provider.icon}
+                status={info.status}
+                activeEventsCount={info.activeEventsCount}
+                lastDelivery={info.lastDelivery}
+                onClick={() => setActiveModalProviderId(provider.id)}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Request an Integration Footer Banner ───────────────── */}
+      <div className="pt-2">
+        <RequestIntegrationCard prefilledText={searchQuery ? searchQuery : ""} />
+      </div>
+
+      {/* ── Focused Configuration Modal ────────────────────────── */}
+      {activeModalProvider && (() => {
+        const info = getProviderStatus(activeModalProvider);
+        const p = activeModalProvider;
+
+        return (
+          <IntegrationConfigModal
+            key={activeModalProvider.id}
+            open={Boolean(activeModalProvider)}
+            onClose={() => setActiveModalProviderId(null)}
+            type={p.type}
+            providerId={p.id}
+            name={p.name}
+            category={p.category}
+            description={p.description}
+            icon={p.icon}
+            docsUrl={p.docsUrl}
+            setupSteps={p.setupSteps}
+            setupGuide={p.setupGuide}
+            isConnected={info.status === "connected"}
+            isReconnect={info.status === "reconnect"}
+            lastDelivery={info.lastDelivery}
+            syncData={
+              p.type === "sync"
+                ? {
+                    authMode: p.authMode,
+                    oauthUrl: p.oauthUrl,
+                    keyLabel: p.keyLabel,
+                    keyPlaceholder: p.keyPlaceholder,
+                    configFields: p.configFields,
+                    initialMaskedKey: info.conn?.maskedKey ?? null,
+                    initialConfig: info.conn?.config ?? {},
+                    initialEvents: info.conn?.subscribedEvents ?? [],
+                    onSave: (payload) => handleSaveSync(p.id, payload),
+                    onDisconnect: () => handleDisconnectSync(p.id),
+                  }
+                : undefined
+            }
+            webhookData={
+              p.type === "webhook"
+                ? {
+                    urlLabel: p.urlLabel,
+                    urlPlaceholder: p.urlPlaceholder,
+                    supportsSigning: p.supportsSigning,
+                    initialUrl: info.conn?.url ?? null,
+                    initialEvents: info.conn?.subscribedEvents ?? [],
+                    initialMaskedSecret: info.conn?.maskedSecret ?? null,
+                    onSave: (payload) => handleSaveWebhook(p.id, payload),
+                    onDisconnect: () => handleDisconnectWebhook(p.id),
+                  }
+                : undefined
+            }
+            customWebhookData={
+              p.type === "custom-webhook"
+                ? {
+                    initialUrl: customWebhookView?.webhookUrl ?? null,
+                    initialEvents: customWebhookView?.subscribedEvents ?? [],
+                    initialMaskedSecret: customWebhookView?.webhookSecret ?? null,
+                    onSave: handleSaveCustomWebhook,
+                    onDisconnect: handleDisconnectCustomWebhook,
+                  }
+                : undefined
+            }
+            messagingData={
+              p.type === "messaging"
+                ? {
+                    view: info.conn,
+                    meta: {
+                      configFields: p.configFields,
+                      requiresRestrictedKey: p.requiresRestrictedKey,
+                    },
+                    onSave: (data) => handleSaveMessaging(p.id, data),
+                    onDisconnect: () => handleDisconnectMessaging(p.id),
+                  }
+                : undefined
+            }
+          />
+        );
+      })()}
     </div>
   );
 }
