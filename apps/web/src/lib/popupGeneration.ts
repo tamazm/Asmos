@@ -1354,7 +1354,16 @@ async function generateWithBedrock(
 // forever with no error surfaced. Bounding each provider attempt keeps the
 // worst case (all three time out) well under that limit, so a real failure
 // always reaches the caller's catch block and marks the campaign FAILED fast.
-const PROVIDER_TIMEOUT_MS = 45_000;
+// Bedrock and Anthropic always have a further fallback waiting behind them
+// (Gemini is attempted unconditionally, last), so a struggling call there
+// should fail over fast rather than sit on the same budget as a call with
+// nowhere left to go. Previously every provider shared one 45s timeout, so a
+// single misconfigured/rate-limited provider silently taxed *every*
+// generation by up to 45 dead seconds before the fallback chain ever reached
+// one that actually worked - worst case (all three) was over two minutes.
+const FALLBACK_TIMEOUT_MS = 15_000;
+/** Gemini's budget: the last resort, so a genuinely slow-but-working call still gets to finish. */
+const FINAL_TIMEOUT_MS = 45_000;
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
@@ -1633,11 +1642,26 @@ export async function generatePopupWithVariants(
   // and so a missing-coverage failure never costs an AI call. IMAGE is the
   // one role allowed to come back empty - "no image" is a valid choice, not
   // a missing-coverage failure.
-  const [cardCandidates, typographyCandidates, buttonCandidates, imageCandidates] = await Promise.all([
+  //
+  // The two prompt-section builders below (learned patterns, scraped copy
+  // examples) don't depend on the part candidates or on each other - they
+  // used to run as two more sequential `await`s after this batch resolved,
+  // which was two DB round trips of pure dead time on the way to the model
+  // call. Batched into the same Promise.all so they overlap with it instead.
+  const [
+    cardCandidates,
+    typographyCandidates,
+    buttonCandidates,
+    imageCandidates,
+    learnedPatternsSection,
+    scrapedExamplesSection,
+  ] = await Promise.all([
     pickPartCandidates<CardPartStyle>("CARD", input.store.category, queryColor, (s) => s.backgroundColor, candidateCount),
     pickPartCandidates<TypographyPartStyle>("TYPOGRAPHY", input.store.category, queryColor, (s) => s.textColor, candidateCount),
     pickPartCandidates<ButtonPartStyle>("BUTTON", input.store.category, queryColor, (s) => s.accentColor, candidateCount),
     pickPartCandidates<ImagePartStyle>("IMAGE", input.store.category, queryColor, () => null, candidateCount),
+    getLearnedPatternsSection(),
+    getScrapedExamplesSection(input.store?.category),
   ]);
   if (cardCandidates.length === 0 || typographyCandidates.length === 0 || buttonCandidates.length === 0) {
     throw new Error(
@@ -1672,8 +1696,8 @@ export async function generatePopupWithVariants(
 
   const systemPrompt =
     POPUP_GENERATION_SYSTEM_PROMPT +
-    (await getLearnedPatternsSection()) +
-    (await getScrapedExamplesSection(input.store?.category)) +
+    learnedPatternsSection +
+    scrapedExamplesSection +
     partCandidateSection;
   const userMessage = buildUserMessage(input, briefs);
   // Whatever the merchant configured (or DEFAULT_MAX_DISCOUNT_PERCENT if
@@ -1709,7 +1733,7 @@ export async function generatePopupWithVariants(
   if (HAS_AWS_KEY) {
     try {
       return finish(
-        await withTimeout(generateWithBedrock(input, systemPrompt, userMessage), PROVIDER_TIMEOUT_MS, "Bedrock"),
+        await withTimeout(generateWithBedrock(input, systemPrompt, userMessage), FALLBACK_TIMEOUT_MS, "Bedrock"),
       );
     } catch (err) {
       console.warn("[popupGeneration] Bedrock failed, falling back to next provider:", err);
@@ -1720,7 +1744,7 @@ export async function generatePopupWithVariants(
   if (HAS_ANTHROPIC_KEY) {
     try {
       return finish(
-        await withTimeout(generateWithClaude(input, systemPrompt, userMessage), PROVIDER_TIMEOUT_MS, "Anthropic"),
+        await withTimeout(generateWithClaude(input, systemPrompt, userMessage), FALLBACK_TIMEOUT_MS, "Anthropic"),
       );
     } catch (err) {
       console.warn("[popupGeneration] Anthropic failed, falling back to Gemini:", err);
@@ -1730,7 +1754,7 @@ export async function generatePopupWithVariants(
 
   try {
     return finish(
-      await withTimeout(generateWithGemini(input, systemPrompt, userMessage), PROVIDER_TIMEOUT_MS, "Gemini"),
+      await withTimeout(generateWithGemini(input, systemPrompt, userMessage), FINAL_TIMEOUT_MS, "Gemini"),
     );
   } catch (err) {
     console.error("[popupGeneration] Gemini failed too.", err);

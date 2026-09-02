@@ -807,7 +807,11 @@ export function sharedComponentCss(dna: PopupDna): string {
       display: flex;
       ${
         dna.form_layout === "inline"
-          ? "gap: 8px; align-items: stretch;"
+          // flex-wrap: a merchant who adds a name/phone field on top of the
+          // default email input can put 3 inputs + a button in this row -
+          // without wrap, that overflows the popup card on inline layouts
+          // instead of dropping to a second line.
+          ? "gap: 8px; align-items: stretch; flex-wrap: wrap;"
           : `flex-direction: column; align-items: ${dna.text_align === "left" ? "flex-start" : "stretch"};`
       }
     }

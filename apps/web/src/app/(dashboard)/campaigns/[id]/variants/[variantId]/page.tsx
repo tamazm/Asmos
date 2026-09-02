@@ -142,11 +142,12 @@ export default async function VariantDetailPage(props: {
       </div>
 
       {/* Variant Design Editor */}
-      <VisualEditor 
+      <VisualEditor
         campaignId={campaignId}
         variantId={variantId}
         defaultColor="#111827"
         initialDesign={design}
+        initialFormFields={variant.formFields as string[] | null}
       />
 
       {/* Popup Preview */}

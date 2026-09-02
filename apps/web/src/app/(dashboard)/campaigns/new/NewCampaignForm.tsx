@@ -39,6 +39,8 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
   const [pageTargetMode, setPageTargetMode] = useState<PageTargetMode>("all");
   const [pageTargetPatterns, setPageTargetPatterns] = useState("");
   const [redirectUrl, setRedirectUrl] = useState("");
+  const [collectName, setCollectName] = useState(false);
+  const [collectPhone, setCollectPhone] = useState(false);
   const [scrapedPages, setScrapedPages] = useState<string[] | null>(null);
   const [scrapingPages, setScrapingPages] = useState(false);
   const [scrapeError, setScrapeError] = useState<string | null>(null);
@@ -141,6 +143,10 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                 : undefined,
             pageTargeting,
             redirectUrl: redirectUrl.trim() || undefined,
+            formFields: [
+              ...(collectName ? ["name"] : []),
+              ...(collectPhone ? ["phone"] : []),
+            ],
           },
         }),
       });
@@ -525,6 +531,40 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                           ))}
                         </div>
                       )}
+                    </div>
+
+                    {/* What to collect, beyond email */}
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-[color:var(--color-text-primary)]">
+                        Info to collect <span className="font-normal text-[color:var(--color-text-secondary)]">(optional)</span>
+                      </label>
+                      <div className="flex flex-col gap-2">
+                        <label className="flex items-center gap-2 text-sm text-[color:var(--color-text-secondary)]">
+                          <input type="checkbox" checked disabled className="rounded border-[color:var(--color-border)]" />
+                          Email address (always collected)
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-[color:var(--color-text-primary)] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={collectName}
+                            onChange={(e) => setCollectName(e.target.checked)}
+                            className="rounded border-[color:var(--color-border)]"
+                          />
+                          Name
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-[color:var(--color-text-primary)] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={collectPhone}
+                            onChange={(e) => setCollectPhone(e.target.checked)}
+                            className="rounded border-[color:var(--color-border)]"
+                          />
+                          Phone number
+                        </label>
+                      </div>
+                      <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">
+                        Extra fields add friction - only ask for what you&apos;ll actually use.
+                      </p>
                     </div>
                   </div>
                 )}

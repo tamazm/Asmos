@@ -857,6 +857,16 @@ async function handler(req: NextRequest) {
     normalizedUrl = "https://" + normalizedUrl;
   }
 
+  // Neither of these depends on the screenshot below - kicked off now, before
+  // the screenshot/CRO-vision chain even starts, so a full second Browserless
+  // session (extractDom) and a plain HTML fetch (extractBrandMeta) run
+  // concurrently with it instead of only starting after it. Safe to leave
+  // in flight and abandon on the early-return below: both catch their own
+  // errors internally and never reject (see their definitions above), so
+  // there's no unhandled-rejection risk from not awaiting them there.
+  const domPromise = extractDom(normalizedUrl);
+  const brandMetaPromise = extractBrandMeta(normalizedUrl);
+
   // 1. Screenshot
   const screenshotBase64 = await takeScreenshot(normalizedUrl);
 
@@ -896,13 +906,21 @@ async function handler(req: NextRequest) {
   // the things none of those can answer. Previously all of it was one vision
   // guess with an HTML regex as backup, which is why the store name was the
   // only field that came out right.
-  const [dom, brandMeta] = await Promise.all([
-    extractDom(normalizedUrl),
-    extractBrandMeta(normalizedUrl),
-  ]);
-
+  //
+  // brandMeta is awaited alone, not Promise.all'd with dom, so the catalogue
+  // fetch just below can start the moment it's ready instead of waiting for
+  // whichever of the two happens to be slower - dom (a full browser session)
+  // usually is, and catalogue never needed it in the first place.
+  const brandMeta = await brandMetaPromise;
   const { brandColor: htmlBrandColor, logoUrl: ogImage, description, fontStack, commonBorderRadius, rawHtml } =
     brandMeta;
+
+  // Depends only on brandMeta.rawHtml, just resolved above - started here
+  // rather than at its old call site further down, so it overlaps with `dom`
+  // (still in flight since before the screenshot) instead of stacking after it.
+  const cataloguePromise = fetchCatalogue(normalizedUrl, rawHtml);
+
+  const dom = await domPromise; // usually already resolved by this point
 
   // ── Ground the found/missing checklist in what we can actually verify ─────
   // The AI's screenshot narrative above is not trustworthy for this: asked
@@ -944,7 +962,7 @@ async function handler(req: NextRequest) {
     ? `No ${SIGNAL_LABELS[missingSignal]} detected - this is the biggest gap.`
     : "Store looks reasonably well-optimized.";
 
-  const catalogue: CatalogueSummary | null = await fetchCatalogue(normalizedUrl, rawHtml);
+  const catalogue: CatalogueSummary | null = await cataloguePromise;
 
   const sources: Provenance = {};
   const note = (field: string, source: Provenance[string]["source"], confidence: number) => {
