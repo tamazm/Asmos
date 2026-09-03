@@ -3,6 +3,7 @@ import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { prisma } from "@/lib/prisma";
 import { getTierByStripePriceId } from "@/lib/stripe/pricing";
 import { SubscriptionStatus, PlanTier } from "@prisma/client";
+import { canStartStripeCheckout } from "@/lib/billing/source";
 import Stripe from "stripe";
 
 // Helper to map Stripe subscription status to our internal enum
@@ -91,6 +92,21 @@ export async function POST(req: NextRequest) {
         // be billed via Shopify without a stale STRIPE flag blocking them.
         const stripeOwns =
           mappedStatus === "ACTIVE" || mappedStatus === "TRIALING" || mappedStatus === "PAST_DUE";
+
+        // Symmetric with the Shopify side (applyShopifySubscription): never let a
+        // stray/reactivated Stripe event clobber an account that Shopify actively
+        // owns — that would bill the merchant on both rails. stripeCustomerId is
+        // unique, so this resolves at most one account.
+        const owner = await prisma.account.findUnique({
+          where: { stripeCustomerId: customerId },
+          select: { billingSource: true, planTier: true, subscriptionStatus: true },
+        });
+        if (owner && !canStartStripeCheckout(owner)) {
+          console.warn(
+            `[stripe/webhook] ignoring Stripe sub ${event.type} for customer ${customerId}: account is actively billed by Shopify`,
+          );
+          break;
+        }
         await prisma.account.updateMany({
           where: { stripeCustomerId: customerId },
           data: {
