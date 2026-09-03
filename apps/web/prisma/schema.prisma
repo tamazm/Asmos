@@ -30,6 +30,16 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+// Which billing rail currently "owns" an account. An account is billed through
+// exactly one rail at a time: STRIPE for web-acquired merchants, SHOPIFY for
+// merchants billed via the Shopify Billing API (App Store requirement). NONE =
+// no paid subscription on either rail (free plan).
+enum BillingSource {
+  NONE
+  STRIPE
+  SHOPIFY
+}
+
 enum CampaignType {
   WHEEL
   SCRATCH_CARD
@@ -120,6 +130,15 @@ model Account {
   planTier           PlanTier           @default(FREE)
   subscriptionStatus SubscriptionStatus @default(TRIALING)
   stripeCustomerId   String?            @unique
+
+  // The rail that currently owns this account's paid plan. Guards against
+  // double-billing (see src/lib/billing/source.ts) and tells the settings UI
+  // which controls to show. Shopify billing writes this via the
+  // app_subscriptions/update webhook; Stripe billing writes it via its webhook.
+  billingSource         BillingSource @default(NONE)
+  // The Shopify AppSubscription GID (admin_graphql_api_id) when billingSource is
+  // SHOPIFY. Lets the uninstall/downgrade path and reconciliation match the sub.
+  shopifySubscriptionId String? @unique
 
   users                     User[]
   websites                  Website[]
