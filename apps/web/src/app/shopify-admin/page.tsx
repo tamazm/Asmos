@@ -838,29 +838,37 @@ function LoadingShell() {
           boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 10 }}>
           <div
             style={{
-              width: 38,
-              height: 38,
-              borderRadius: 8,
+              width: 48,
+              height: 48,
+              flex: "0 0 auto",
+              borderRadius: 10,
               background: "#008060",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               color: "#ffffff",
               fontWeight: 700,
-              fontSize: 18,
+              fontSize: 26,
             }}
           >
             A
           </div>
           <div>
+            {/* The LCP element. Deliberately large and rendered with the system
+                font stack (inherited from SHELL_WRAP) so it is contentful and
+                paints with the static HTML — no web-font wait, no dependence on
+                the App Bridge session round-trip that gates the real dashboard.
+                Sized larger than any text in the post-load Polaris UI so LCP
+                settles here at first paint instead of moving to later content. */}
             <h1
               style={{
-                fontSize: 20,
-                lineHeight: "26px",
+                fontSize: 30,
+                lineHeight: "36px",
                 fontWeight: 700,
+                letterSpacing: "-0.02em",
                 color: "#202223",
                 margin: 0,
               }}
