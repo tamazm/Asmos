@@ -211,11 +211,12 @@ export async function linkShopToAccount(
     throw new ShopLinkError("That Asmos account is already connected to a different Shopify store.");
   }
 
-  // Double-billing guard: if the shop's current account is actively billed by
-  // Shopify AND the target account is actively billed by Stripe, merging would
-  // leave the merchant paying on both rails. Refuse and tell them how to fix it.
+  // Double-billing guard: refuse to merge when BOTH the shop's current account
+  // and the target account have an active paid subscription (on either rail).
+  // Merging either direction would leave the merchant paying twice; they must
+  // cancel one subscription first.
   const shopRailActive =
-    shop.account &&
+    !!shop.account &&
     isRailActive({
       billingSource: shop.account.billingSource,
       planTier: "FREE",
@@ -226,14 +227,9 @@ export async function linkShopToAccount(
     planTier: "FREE",
     subscriptionStatus: target.subscriptionStatus,
   });
-  if (
-    shop.account?.billingSource === "SHOPIFY" &&
-    shopRailActive &&
-    target.billingSource === "STRIPE" &&
-    targetRailActive
-  ) {
+  if (shopRailActive && targetRailActive) {
     throw new ShopLinkError(
-      "This store has an active Shopify subscription and the Asmos account you're connecting to is billed by card. Cancel the Shopify subscription first so you aren't charged twice.",
+      "Both this store's current Asmos account and the account you're connecting to have an active paid subscription. Cancel one before connecting so you aren't charged twice.",
     );
   }
 
@@ -261,6 +257,25 @@ export async function linkShopToAccount(
     where: { id: shop.id },
     data: { accountId: targetAccountId, websiteId, linkedAt: new Date() },
   });
+
+  // The shop's Shopify subscription is shop-scoped and follows the shop to the
+  // target account (future app_subscriptions/update webhooks now resolve there).
+  // Clear a stale SHOPIFY billing flag off the old account so it isn't left
+  // falsely entitled — and permanently blocked from Stripe — after losing its
+  // shop. A STRIPE flag is account-scoped and correctly stays put.
+  if (oldAccountId !== targetAccountId && shop.account?.billingSource === "SHOPIFY") {
+    await prisma.account
+      .update({
+        where: { id: oldAccountId },
+        data: {
+          billingSource: "NONE",
+          planTier: "FREE",
+          subscriptionStatus: "CANCELED",
+          shopifySubscriptionId: null,
+        },
+      })
+      .catch((err) => console.error("[shopify/link] failed to clear old account Shopify billing", oldAccountId, err));
+  }
 
   // 2) Migrate the campaigns the merchant built while the shop was on its old
   //    (throwaway) account. Campaigns on the shop's OWN website move to the

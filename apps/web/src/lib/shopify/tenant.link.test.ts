@@ -8,7 +8,7 @@ vi.mock("./client", () => ({ shopify: {} }));
 vi.mock("@/lib/prisma", () => {
   const prisma = {
     shopifyShop: { findUnique: vi.fn(), update: vi.fn() },
-    account: { findUnique: vi.fn(), delete: vi.fn() },
+    account: { findUnique: vi.fn(), delete: vi.fn(), update: vi.fn() },
     website: { create: vi.fn() },
     campaign: { updateMany: vi.fn(), count: vi.fn() },
     user: { count: vi.fn() },
@@ -26,6 +26,7 @@ const p = prisma as any;
 beforeEach(() => {
   Object.values(p).forEach((m: any) => Object.values(m).forEach((fn: any) => fn.mockReset?.()));
   p.website.create.mockResolvedValue({ id: "web_target" });
+  p.account.update.mockResolvedValue({});
   p.shopifyShop.update.mockResolvedValue({});
   p.campaign.updateMany.mockResolvedValue({ count: 2 });
   p.campaign.count.mockResolvedValue(0);
@@ -46,6 +47,38 @@ describe("linkShopToAccount billing conflict", () => {
     });
     await expect(linkShopToAccount("s.myshopify.com", "target")).rejects.toBeInstanceOf(ShopLinkError);
     expect(p.shopifyShop.update).not.toHaveBeenCalled();
+  });
+
+  it("also refuses the reverse conflict (shop billed by Stripe, target by Shopify)", async () => {
+    p.shopifyShop.findUnique.mockResolvedValue({
+      id: "shop_1", accountId: "throwaway", uninstalledAt: null, websiteId: "old_web",
+      account: { billingSource: "STRIPE", subscriptionStatus: "ACTIVE" },
+    });
+    p.account.findUnique.mockResolvedValue({
+      id: "target", billingSource: "SHOPIFY", subscriptionStatus: "ACTIVE",
+      shopifyShop: null, websites: [],
+    });
+    await expect(linkShopToAccount("s.myshopify.com", "target")).rejects.toBeInstanceOf(ShopLinkError);
+    expect(p.shopifyShop.update).not.toHaveBeenCalled();
+  });
+
+  it("clears the old account's Shopify billing flag when its shop is linked away", async () => {
+    p.shopifyShop.findUnique.mockResolvedValue({
+      id: "shop_1", accountId: "throwaway", uninstalledAt: null, websiteId: "old_web",
+      account: { billingSource: "SHOPIFY", subscriptionStatus: "ACTIVE" },
+    });
+    p.account.findUnique.mockResolvedValue({
+      id: "target", billingSource: "NONE", subscriptionStatus: "TRIALING",
+      shopifyShop: null, websites: [{ id: "web_target", url: "s.myshopify.com" }],
+    });
+    p.integrationConnection.count.mockResolvedValue(1); // keep throwaway so the reset is observable, not deleted
+
+    await linkShopToAccount("s.myshopify.com", "target");
+
+    expect(p.account.update).toHaveBeenCalledWith({
+      where: { id: "throwaway" },
+      data: { billingSource: "NONE", planTier: "FREE", subscriptionStatus: "CANCELED", shopifySubscriptionId: null },
+    });
   });
 });
 
