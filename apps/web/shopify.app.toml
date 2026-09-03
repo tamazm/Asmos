@@ -32,6 +32,10 @@ uri = "https://app.asmos.io/api/shopify/webhooks"
 topics = ["app/uninstalled"]
 uri = "https://app.asmos.io/api/shopify/webhooks"
 
+[[webhooks.subscriptions]]
+topics = ["app_subscriptions/update"]
+uri = "https://app.asmos.io/api/shopify/webhooks"
+
 # Data-tracking webhooks (orders/paid -> read_orders, customers/create ->
 # read_customers) are NOT declared here: their scopes are optional, and
 # Shopify's config validator only allows static webhook subscriptions whose

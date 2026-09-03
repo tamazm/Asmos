@@ -43,7 +43,11 @@ export default async function SettingsPage() {
     <TeamManagement members={members} invites={invites} />
   );
 
-  const isShopify = await prisma.shopifyShop.count({ where: { accountId: account.id } }) > 0;
+  // Show the read-only "managed by Shopify" state ONLY when Shopify is the
+  // active billing rail — NOT merely because a store is connected. A web-first
+  // merchant who paid by card and later connected Shopify keeps full Stripe
+  // controls here (their rail is STRIPE, not SHOPIFY).
+  const isShopify = account.billingSource === "SHOPIFY";
 
   const billingTab = (
     <BillingControls

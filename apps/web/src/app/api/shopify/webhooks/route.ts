@@ -2,6 +2,7 @@ import { shopify } from "@/lib/shopify/client";
 import { prisma } from "@/lib/prisma";
 import { inngest } from "@/lib/inngest/client";
 import { redactCustomer, collectCustomerData, redactShop } from "@/lib/shopify/compliance";
+import { applyShopifySubscription } from "@/lib/shopify/billingSync";
 
 // POST /api/shopify/webhooks
 // Handles the four mandatory compliance topics every listed Shopify app
@@ -34,6 +35,14 @@ export async function POST(request: Request): Promise<Response> {
         where: { shopDomain },
         data: { uninstalledAt: new Date() },
       });
+      // Defensive downgrade: Shopify auto-cancels the app subscription on
+      // uninstall and should also fire app_subscriptions/update, but if that
+      // event is missed we must not leave the account entitled to a plan it no
+      // longer pays for. Only touch accounts this shop was billing.
+      await prisma.account.updateMany({
+        where: { shopifyShop: { shopDomain }, billingSource: "SHOPIFY" },
+        data: { billingSource: "NONE", planTier: "FREE", subscriptionStatus: "CANCELED", shopifySubscriptionId: null },
+      });
       break;
     }
     case "customers/data_request": {
@@ -61,6 +70,10 @@ export async function POST(request: Request): Promise<Response> {
     }
     case "customers/create": {
       await inngest.send({ name: "shopify/customer.created", data: { shopDomain, customer: payload } });
+      break;
+    }
+    case "app_subscriptions/update": {
+      await applyShopifySubscription(shopDomain, payload?.app_subscription ?? {});
       break;
     }
     default: {

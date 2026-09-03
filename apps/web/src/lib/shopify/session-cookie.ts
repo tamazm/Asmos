@@ -81,6 +81,24 @@ export async function setShopSessionCookie(session: ShopSession): Promise<void> 
   store.set(COOKIE_NAME, encodeShopSession(session), cookieOptions() as never);
 }
 
+// First-party variant used by the SSO handoff (/api/shopify/sso). The embedded
+// cookie set by setShopSessionCookie is SameSite=None + Partitioned (CHIPS),
+// keyed to the Shopify-admin partition — so it is NOT sent when the merchant
+// navigates top-frame to app.asmos.io. This sets the same signed value as a
+// normal first-party cookie (SameSite=Lax, unpartitioned) so getOrCreateAccount
+// resolves the shop's account on the web dashboard without a Clerk sign-in.
+export async function setFirstPartyShopSessionCookie(session: ShopSession): Promise<void> {
+  const { cookies } = await import("next/headers");
+  const store = await cookies();
+  store.set(COOKIE_NAME, encodeShopSession(session), {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    path: "/",
+    maxAge: MAX_AGE_SECONDS,
+  });
+}
+
 export async function readShopSessionFromCookies(): Promise<ShopSession | null> {
   const { cookies } = await import("next/headers");
   const store = await cookies();

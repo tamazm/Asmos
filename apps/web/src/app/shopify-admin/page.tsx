@@ -122,6 +122,7 @@ export default function ShopifyAdminHome() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [billingPlan, setBillingPlan] = useState<string | null>(null);
+  const [billingManagedElsewhere, setBillingManagedElsewhere] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
   const [leads, setLeads] = useState<Lead[] | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -197,6 +198,7 @@ export default function ShopifyAdminHome() {
       const data = await res.json();
       setSubscription(data.subscription ?? null);
       setPlans(data.plans ?? []);
+      setBillingManagedElsewhere(Boolean(data.managedElsewhere));
     } catch {
       /* Non-fatal: billing section just won't render its plans. */
     }
@@ -342,10 +344,30 @@ export default function ShopifyAdminHome() {
     }
   }
 
-  // Send a linked merchant to the full Asmos popup builder (top-frame). The embed
-  // is served from the app origin, so window.location.origin is app.asmos.io.
+  // Open a web-dashboard path in the TOP frame, authenticated as this shop's
+  // account via the SSO handoff — no Clerk login wall for a Shopify-first
+  // merchant. Falls back to a plain top-frame open if minting fails.
+  async function openInAsmos(path: string) {
+    try {
+      const token = await window.shopify!.idToken();
+      const res = await fetch("/api/shopify/admin/handoff", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.url) {
+        window.open(data.url, "_top");
+        return;
+      }
+      window.shopify?.toast?.show(data?.error ?? "Could not open Asmos", { isError: true });
+    } catch (err) {
+      window.shopify?.toast?.show((err as Error).message, { isError: true });
+    }
+  }
+
   function openAsmosBuilder() {
-    window.open(`${window.location.origin}/campaigns/new`, "_top");
+    void openInAsmos("/campaigns/new");
   }
 
   // The dropdown's "which popup is live" control: activating one campaign pauses
@@ -683,7 +705,13 @@ export default function ShopifyAdminHome() {
         {/* ── Plan (de-emphasized: no paywall today) ───────────────────────── */}
         <s-section heading="Plan">
           <s-stack direction="block" gap="base">
-            {subscription ? (
+            {billingManagedElsewhere ? (
+              <s-banner tone="info">
+                <s-text>
+                  Your plan is billed by card and managed in Asmos. To change or cancel it, open Asmos on the web.
+                </s-text>
+              </s-banner>
+            ) : subscription ? (
               <s-stack direction="inline" gap="small-300" alignItems="center">
                 <s-text type="strong">{subscription.name}</s-text>
                 <s-badge tone={subscription.status === "ACTIVE" ? "success" : "warning"}>
