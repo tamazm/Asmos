@@ -86,16 +86,22 @@ export async function POST(req: NextRequest) {
         const mappedStatus = mapStripeStatus(subscription.status);
 
         // Update the account based on stripeCustomerId
+        // An active/trialing/past_due Stripe sub makes Stripe the owning rail;
+        // a terminal status relinquishes ownership so the merchant could later
+        // be billed via Shopify without a stale STRIPE flag blocking them.
+        const stripeOwns =
+          mappedStatus === "ACTIVE" || mappedStatus === "TRIALING" || mappedStatus === "PAST_DUE";
         await prisma.account.updateMany({
           where: { stripeCustomerId: customerId },
           data: {
             subscriptionStatus: mappedStatus,
             ...(mappedTier && { planTier: mappedTier }), // Only update tier if we successfully mapped it
+            billingSource: stripeOwns ? "STRIPE" : "NONE",
           },
         });
         break;
       }
-      
+
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
         const customerId = subscription.customer as string;
@@ -106,6 +112,7 @@ export async function POST(req: NextRequest) {
           data: {
             subscriptionStatus: "CANCELED",
             planTier: "FREE",
+            billingSource: "NONE",
           },
         });
         break;

@@ -3,6 +3,7 @@ import { getOrCreateAccount } from "@/lib/account";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/client";
 import { getStripePriceId, BillingInterval } from "@/lib/stripe/pricing";
 import { PlanTier } from "@prisma/client";
+import { canStartStripeCheckout } from "@/lib/billing/source";
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,6 +28,19 @@ export async function POST(req: NextRequest) {
     }
 
     const account = await getOrCreateAccount();
+
+    // One rail per account: refuse card checkout while Shopify actively bills
+    // this merchant. They must change their plan from the Shopify admin.
+    if (!canStartStripeCheckout(account)) {
+      return NextResponse.json(
+        {
+          error:
+            "Your plan is billed through Shopify. Open your Shopify admin to change or cancel it.",
+        },
+        { status: 409 },
+      );
+    }
+
     const priceId = getStripePriceId(tier as Exclude<PlanTier, "FREE">, interval);
     const stripe = getStripe();
 
