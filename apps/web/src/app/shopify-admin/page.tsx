@@ -122,6 +122,7 @@ export default function ShopifyAdminHome() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [billingPlan, setBillingPlan] = useState<string | null>(null);
+  const [billingManagedElsewhere, setBillingManagedElsewhere] = useState(false);
   const [showPlans, setShowPlans] = useState(false);
   const [leads, setLeads] = useState<Lead[] | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -197,6 +198,7 @@ export default function ShopifyAdminHome() {
       const data = await res.json();
       setSubscription(data.subscription ?? null);
       setPlans(data.plans ?? []);
+      setBillingManagedElsewhere(Boolean(data.managedElsewhere));
     } catch {
       /* Non-fatal: billing section just won't render its plans. */
     }
@@ -683,7 +685,13 @@ export default function ShopifyAdminHome() {
         {/* ── Plan (de-emphasized: no paywall today) ───────────────────────── */}
         <s-section heading="Plan">
           <s-stack direction="block" gap="base">
-            {subscription ? (
+            {billingManagedElsewhere ? (
+              <s-banner tone="info">
+                <s-text>
+                  Your plan is billed by card and managed in Asmos. To change or cancel it, open Asmos on the web.
+                </s-text>
+              </s-banner>
+            ) : subscription ? (
               <s-stack direction="inline" gap="small-300" alignItems="center">
                 <s-text type="strong">{subscription.name}</s-text>
                 <s-badge tone={subscription.status === "ACTIVE" ? "success" : "warning"}>
