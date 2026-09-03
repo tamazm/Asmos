@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { encryptSecret, decryptSecret } from "@/lib/crypto";
 import { shopify } from "./client";
+import { isRailActive } from "@/lib/billing/source";
 
 // The token bundle produced by an expiring-offline-token exchange (see
 // /api/shopify/session). `expiresAt`/`refreshToken` are absent only for legacy
@@ -160,10 +161,17 @@ export class ShopLinkError extends Error {}
 // Links an installed shop to a merchant's existing (Clerk-backed) Asmos account:
 // re-points the ShopifyShop off its auto-provisioned throwaway account and onto
 // `targetAccountId`, picking which of that account's websites serves on the
-// storefront. Non-destructive: the orphaned throwaway account is deleted only
-// when it holds nothing worth keeping (no Clerk users AND no captured leads);
-// otherwise it's left in place (detached from the shop) so no lead data is ever
-// silently lost.
+// storefront, then migrates the campaigns for the shop's OWN website (and their
+// leads, transitively) off the throwaway account onto the target. Campaigns the
+// merchant may have created for a DIFFERENT website on the throwaway (possible
+// via SSO dashboard access) are left untouched — never forcibly re-homed to
+// this shop's domain. Non-destructive: the orphaned throwaway account is
+// deleted only when it holds nothing worth keeping (no Clerk users, no
+// integration connections, AND no remaining campaigns); otherwise it's left in
+// place (detached from the shop) so no data is ever silently lost or corrupted.
+// Refuses the merge outright if the shop is actively billed via Shopify and the
+// target account is actively billed via Stripe, to avoid double-billing the
+// merchant.
 //
 // Ordering matters: we re-point the shop FIRST, then touch the old account —
 // ShopifyShop cascades on account delete, so deleting the old account while the
@@ -173,7 +181,10 @@ export async function linkShopToAccount(
   targetAccountId: string,
   opts: { websiteId?: string | null; expectedFromAccountId?: string } = {},
 ): Promise<{ websiteId: string }> {
-  const shop = await prisma.shopifyShop.findUnique({ where: { shopDomain } });
+  const shop = await prisma.shopifyShop.findUnique({
+    where: { shopDomain },
+    include: { account: { select: { billingSource: true, subscriptionStatus: true } } },
+  });
   if (!shop) throw new ShopLinkError("This store isn't installed anymore.");
   if (shop.uninstalledAt) throw new ShopLinkError("This store has uninstalled the app.");
 
@@ -186,12 +197,44 @@ export async function linkShopToAccount(
 
   const target = await prisma.account.findUnique({
     where: { id: targetAccountId },
-    include: { shopifyShop: { select: { id: true } }, websites: { select: { id: true, url: true } } },
+    select: {
+      id: true,
+      billingSource: true,
+      subscriptionStatus: true,
+      shopifyShop: { select: { id: true } },
+      websites: { select: { id: true, url: true } },
+    },
   });
   if (!target) throw new ShopLinkError("That Asmos account no longer exists.");
   // One shop per account: refuse if the target already has a *different* shop.
   if (target.shopifyShop && target.shopifyShop.id !== shop.id) {
     throw new ShopLinkError("That Asmos account is already connected to a different Shopify store.");
+  }
+
+  // Double-billing guard: if the shop's current account is actively billed by
+  // Shopify AND the target account is actively billed by Stripe, merging would
+  // leave the merchant paying on both rails. Refuse and tell them how to fix it.
+  const shopRailActive =
+    shop.account &&
+    isRailActive({
+      billingSource: shop.account.billingSource,
+      planTier: "FREE",
+      subscriptionStatus: shop.account.subscriptionStatus,
+    });
+  const targetRailActive = isRailActive({
+    billingSource: target.billingSource,
+    planTier: "FREE",
+    subscriptionStatus: target.subscriptionStatus,
+  });
+  if (
+    shop.account?.billingSource === "SHOPIFY" &&
+    shopRailActive &&
+    target.billingSource === "STRIPE" &&
+    targetRailActive
+  ) {
+    throw new ShopLinkError(
+      "This store has an active Shopify subscription and the Asmos account you're connecting to is billed by card. Cancel the Shopify subscription first so you aren't charged twice.",
+    );
   }
 
   // Resolve the website this store maps to under the target account.
@@ -211,6 +254,7 @@ export async function linkShopToAccount(
   }
 
   const oldAccountId = shop.accountId;
+  const oldShopWebsiteId = shop.websiteId;
 
   // 1) Re-point the shop (and its storefront website mapping).
   await prisma.shopifyShop.update({
@@ -218,19 +262,48 @@ export async function linkShopToAccount(
     data: { accountId: targetAccountId, websiteId, linkedAt: new Date() },
   });
 
-  // 2) Clean up the orphaned throwaway account — only if safe.
+  // 2) Migrate the campaigns the merchant built while the shop was on its old
+  //    (throwaway) account. Campaigns on the shop's OWN website move to the
+  //    target account + resolved target website. Campaigns the merchant may have
+  //    created for a DIFFERENT website (possible via SSO dashboard access) are
+  //    left untouched on the old account — never forcibly re-homed to this
+  //    shop's domain, which would corrupt their storefront mapping. Leads follow
+  //    their campaigns (Lead -> Variant -> Campaign), so lead/revenue data moves
+  //    with them.
   if (oldAccountId !== targetAccountId) {
-    const [userCount, leadCount] = await Promise.all([
+    if (oldShopWebsiteId) {
+      await prisma.campaign.updateMany({
+        where: { accountId: oldAccountId, websiteId: oldShopWebsiteId },
+        data: { accountId: targetAccountId, websiteId },
+      });
+    } else {
+      // Degenerate: the shop had no website mapping — nothing to scope by, so
+      // migrate all of the old account's campaigns wholesale.
+      await prisma.campaign.updateMany({
+        where: { accountId: oldAccountId },
+        data: { accountId: targetAccountId, websiteId },
+      });
+    }
+  }
+
+  // 3) Delete the orphaned throwaway account — only when it holds nothing worth
+  //    keeping. Block deletion if it still has Clerk users, integration
+  //    connections (a Shopify-first merchant can now reach the dashboard via SSO
+  //    and connect integrations under the throwaway), or campaigns for OTHER
+  //    websites that were deliberately left in place above.
+  if (oldAccountId !== targetAccountId) {
+    const [userCount, connCount, remainingCampaigns] = await Promise.all([
       prisma.user.count({ where: { accountId: oldAccountId } }),
-      prisma.lead.count({ where: { variant: { campaign: { accountId: oldAccountId } } } }),
+      prisma.integrationConnection.count({ where: { accountId: oldAccountId } }),
+      prisma.campaign.count({ where: { accountId: oldAccountId } }),
     ]);
-    if (userCount === 0 && leadCount === 0) {
+    if (userCount === 0 && connCount === 0 && remainingCampaigns === 0) {
       await prisma.account.delete({ where: { id: oldAccountId } }).catch((err) => {
         console.error("[shopify/link] throwaway account delete failed", oldAccountId, err);
       });
     } else {
       console.warn(
-        `[shopify/link] kept old account ${oldAccountId} (users=${userCount}, leads=${leadCount}) after linking ${shopDomain}`,
+        `[shopify/link] kept old account ${oldAccountId} (users=${userCount}, connections=${connCount}, campaigns=${remainingCampaigns}) after linking ${shopDomain}`,
       );
     }
   }
