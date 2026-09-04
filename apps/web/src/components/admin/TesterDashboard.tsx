@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { formatEstimatedCost } from "@/lib/testing/genTiming";
 import type { Device, Intent } from "@/lib/testing/trafficSim";
@@ -9,10 +9,21 @@ import type {
   DiversityResult,
   RenderedPopup,
   TimedGenerationStatus,
+  TimingRunDTO,
 } from "@/lib/testing/testingActions";
+
+const TIMING_PAGE_SIZE = 10;
 
 type CampaignOption = { id: string; name: string; variants: { id: string; name: string }[] };
 type Tab = "traffic" | "diversity" | "timing";
+type DiversityGoal = "BOTH" | "EMAIL" | "DISCOUNT" | "MIXED";
+
+const GOAL_OPTIONS: { id: DiversityGoal; label: string; hint: string }[] = [
+  { id: "BOTH", label: "Capture & offer", hint: "Collect an email and reveal a discount" },
+  { id: "EMAIL", label: "Email only", hint: "Collect an email, no coupon" },
+  { id: "DISCOUNT", label: "Discount only", hint: "Reveal a coupon, no email field" },
+  { id: "MIXED", label: "All three mixed", hint: "Cycle through all three goals" },
+];
 
 const DEVICE_PROFILES: Record<string, Record<Device, number>> = {
   "Mobile-heavy": { mobile: 70, desktop: 25, tablet: 5 },
@@ -54,12 +65,16 @@ export function TesterDashboard() {
   // Diversity
   const [diversityN, setDiversityN] = useState(100);
   const [aiSampleCount, setAiSampleCount] = useState(0);
+  const [diversityGoal, setDiversityGoal] = useState<DiversityGoal>("BOTH");
   const [diversityResult, setDiversityResult] = useState<DiversityResult | null>(null);
 
   // Timing
-  const [timedCampaignId, setTimedCampaignId] = useState<string | null>(null);
   const [timedStatus, setTimedStatus] = useState<string | null>(null);
   const [timing, setTiming] = useState<TimedGenerationStatus | null>(null);
+  const [runs, setRuns] = useState<TimingRunDTO[]>([]);
+  const [runsTotal, setRunsTotal] = useState(0);
+  const [runsPage, setRunsPage] = useState(0);
+  const [runsLoading, setRunsLoading] = useState(false);
 
   useEffect(() => {
     fetch("/api/campaigns")
@@ -72,6 +87,17 @@ export function TesterDashboard() {
       .catch(() => setError("Failed to load campaigns"))
       .finally(() => setLoadingCampaigns(false));
   }, []);
+
+  // Load timing history the first time the Generation-timing tab is opened
+  // (triggered from the tab button's onClick, not an effect).
+  const runsLoadedRef = useRef(false);
+  function openTab(next: Tab) {
+    setTab(next);
+    if (next === "timing" && !runsLoadedRef.current) {
+      runsLoadedRef.current = true;
+      loadRuns(0);
+    }
+  }
 
   async function post<T>(payload: Record<string, unknown>): Promise<T> {
     const res = await fetch("/api/testing", {
@@ -135,8 +161,9 @@ export function TesterDashboard() {
     try {
       const data = await post<{ diversity: DiversityResult }>({
         action: "analyze_diversity",
-        campaignId: campaignId || undefined,
-        diversity: { n: diversityN, aiSampleCount },
+        // No campaignId: Diversity generates standalone tester popups with no
+        // brand context, so it never reads or mutates a real campaign.
+        diversity: { n: diversityN, aiSampleCount, goal: diversityGoal },
       });
       setDiversityResult(data.diversity);
     } catch (e) {
@@ -146,29 +173,57 @@ export function TesterDashboard() {
     }
   }
 
+  async function loadRuns(page = runsPage) {
+    setRunsLoading(true);
+    try {
+      const data = await post<{ runs: TimingRunDTO[]; total: number; page: number }>({
+        action: "list_timing_runs",
+        page,
+        pageSize: TIMING_PAGE_SIZE,
+      });
+      setRuns(data.runs);
+      setRunsTotal(data.total);
+      setRunsPage(data.page);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load history");
+    } finally {
+      setRunsLoading(false);
+    }
+  }
+
   async function runTimedGeneration() {
     if (!campaignId) return;
     setBusy("timedgen");
     setError(null);
     setNotice(null);
     setTiming(null);
-    setTimedCampaignId(null);
     setTimedStatus("Starting…");
     try {
       const start = await post<{ campaignId: string }>({ action: "run_timed_generation", campaignId });
       const testId = start.campaignId;
-      setTimedCampaignId(testId);
       const startedAt = Date.now();
+      let finished = false;
       while (Date.now() - startedAt < 180_000) {
         await new Promise((r) => setTimeout(r, 2000));
         const s = await post<TimedGenerationStatus>({ action: "timed_generation_status", campaignId: testId });
-        setTimedStatus(s.trace ? "Done" : `${s.status}${s.generationStage ? ` · ${s.generationStage}` : ""}…`);
+        setTimedStatus(s.trace ? "Logging result…" : `${s.status}${s.generationStage ? ` · ${s.generationStage}` : ""}…`);
         if (s.trace || s.status === "FAILED") {
           setTiming(s);
           if (s.status === "FAILED") setError(`Generation failed: ${s.lastError ?? "unknown"}`);
+          finished = true;
           break;
         }
       }
+      if (!finished) {
+        setError("Timed out waiting for generation (180s).");
+      }
+      // Log the run to durable history and delete the throwaway campaign.
+      const fin = await post<{ done: boolean }>({ action: "finalize_timed_generation", campaignId: testId });
+      if (fin.done) {
+        setTimedStatus("Done · logged & cleaned up");
+        await loadRuns(0);
+      }
+      router.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -176,14 +231,27 @@ export function TesterDashboard() {
     }
   }
 
-  async function deleteTest() {
-    if (!timedCampaignId) return;
-    setBusy("deltest");
+  async function deleteRun(id: string) {
+    setBusy("delrun");
     try {
-      await post({ action: "delete_test_campaign", campaignId: timedCampaignId });
-      setNotice("Test campaign deleted.");
-      setTimedCampaignId(null);
-      router.refresh();
+      await post({ action: "delete_timing_run", runId: id });
+      // Reload the current page, stepping back if it just emptied.
+      const remaining = runsTotal - 1;
+      const lastPage = Math.max(0, Math.ceil(remaining / TIMING_PAGE_SIZE) - 1);
+      await loadRuns(Math.min(runsPage, lastPage));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function clearRuns() {
+    setBusy("clearruns");
+    try {
+      const data = await post<{ removed: number }>({ action: "clear_timing_runs" });
+      setNotice(`Cleared ${data.removed} logged run${data.removed === 1 ? "" : "s"}.`);
+      await loadRuns(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -201,7 +269,7 @@ export function TesterDashboard() {
           <button
             key={t.id}
             type="button"
-            onClick={() => setTab(t.id)}
+            onClick={() => openTab(t.id)}
             className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
               tab === t.id
                 ? "bg-[color:var(--color-primary)] text-white"
@@ -214,27 +282,30 @@ export function TesterDashboard() {
       </div>
       {activeBlurb && <p className="text-sm text-[color:var(--color-text-secondary)]">{activeBlurb}</p>}
 
-      {/* Campaign selector */}
-      <Card>
-        <div className="flex flex-col gap-1.5">
-          <Label>{tab === "timing" ? "Campaign to clone (generation template)" : tab === "diversity" ? "Brand context (optional)" : "Campaign"}</Label>
-          {loadingCampaigns ? (
-            <p className="text-sm text-[color:var(--color-text-secondary)]">Loading campaigns…</p>
-          ) : campaigns.length === 0 ? (
-            <p className="text-sm text-[color:var(--color-text-secondary)]">No campaigns on this account yet.</p>
-          ) : (
-            <select
-              value={campaignId}
-              onChange={(e) => setCampaignId(e.target.value)}
-              className="w-full max-w-md rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
-            >
-              {campaigns.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          )}
-        </div>
-      </Card>
+      {/* Campaign selector — not shown for Diversity, which generates
+          standalone tester popups with no brand context. */}
+      {tab !== "diversity" && (
+        <Card>
+          <div className="flex flex-col gap-1.5">
+            <Label>{tab === "timing" ? "Campaign to clone (generation template)" : "Campaign"}</Label>
+            {loadingCampaigns ? (
+              <p className="text-sm text-[color:var(--color-text-secondary)]">Loading campaigns…</p>
+            ) : campaigns.length === 0 ? (
+              <p className="text-sm text-[color:var(--color-text-secondary)]">No campaigns on this account yet.</p>
+            ) : (
+              <select
+                value={campaignId}
+                onChange={(e) => setCampaignId(e.target.value)}
+                className="w-full max-w-md rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-3 py-2 text-sm outline-none focus:border-[color:var(--color-primary)]"
+              >
+                {campaigns.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        </Card>
+      )}
 
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">{error}</div>
@@ -261,6 +332,7 @@ export function TesterDashboard() {
         <DiversitySection
           diversityN={diversityN} setDiversityN={setDiversityN}
           aiSampleCount={aiSampleCount} setAiSampleCount={setAiSampleCount}
+          diversityGoal={diversityGoal} setDiversityGoal={setDiversityGoal}
           busy={busy} onRun={runDiversity} result={diversityResult}
         />
       )}
@@ -268,8 +340,10 @@ export function TesterDashboard() {
       {tab === "timing" && (
         <TimingSection
           busy={busy} campaignId={campaignId} timedStatus={timedStatus}
-          timedCampaignId={timedCampaignId} timing={timing}
-          onRun={runTimedGeneration} onDelete={deleteTest}
+          timing={timing} onRun={runTimedGeneration}
+          runs={runs} runsTotal={runsTotal} runsPage={runsPage} runsLoading={runsLoading}
+          pageSize={TIMING_PAGE_SIZE}
+          onLoadRuns={loadRuns} onDeleteRun={deleteRun} onClearRuns={clearRuns}
         />
       )}
     </div>
@@ -343,7 +417,7 @@ function VariantCard({
   const series = waves.map((w) => w.allocation.find((a) => a.id === variant.id)?.trafficPercent ?? 0);
   return (
     <div className="overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm">
-      <PopupFrame code={variant.generatedCode} height={300} />
+      <PopupFrame code={variant.generatedCode} />
       <div className="border-t border-[color:var(--color-border)] p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <span className="truncate text-sm font-semibold text-[color:var(--color-text-primary)]">{variant.name}</span>
@@ -376,25 +450,63 @@ const AI_MAX_CALLS = 12;
 function DiversitySection(p: {
   diversityN: number; setDiversityN: (v: number) => void;
   aiSampleCount: number; setAiSampleCount: (v: number) => void;
+  diversityGoal: DiversityGoal; setDiversityGoal: (v: DiversityGoal) => void;
   busy: string | null; onRun: () => void; result: DiversityResult | null;
 }) {
+  const aiOff = p.aiSampleCount === 0;
   return (
     <>
       <Card>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Slider label={`Structural variants (free): ${p.diversityN}`} min={10} max={300} step={10} value={p.diversityN} onChange={p.setDiversityN} />
+          <div>
+            <Slider label={`Structural variants (free): ${p.diversityN}`} min={10} max={300} step={10} value={p.diversityN} onChange={p.setDiversityN} />
+            <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">
+              <b>Free generation</b> draws {p.diversityN} popup <i>blueprints</i> the exact way the real engine does — same design-knob sampler, same 15-deep novelty avoid-list — but stops before any AI writes copy or renders HTML. No API calls, no cost. It answers <i>“does the structure repeat?”</i> via the metrics below; it does <b>not</b> produce viewable popups.
+            </p>
+          </div>
           <div>
             <Slider label={`Real AI popups: ${p.aiSampleCount} call${p.aiSampleCount === 1 ? "" : "s"}`} min={0} max={AI_MAX_CALLS} step={1} value={p.aiSampleCount} onChange={p.setAiSampleCount} />
             <p className="mt-1 text-xs text-[color:var(--color-text-secondary)]">
-              {p.aiSampleCount === 0
-                ? "Structural only — no AI calls, no cost."
+              {aiOff
+                ? "Structural only — no AI calls, no cost. Raise this to render real, viewable popups."
                 : <>Renders <b>{p.aiSampleCount * 2}</b> real popups · rough (over)estimated cost <b className="text-[color:var(--color-text-primary)]">{formatEstimatedCost(p.aiSampleCount)}</b></>}
             </p>
           </div>
         </div>
+
+        {/* Goal: what kind of popup to actually generate */}
+        <div className="mt-4">
+          <Label>Generate popups for</Label>
+          <div className="mt-1.5 flex flex-wrap gap-2">
+            {GOAL_OPTIONS.map((g) => (
+              <button
+                key={g.id}
+                type="button"
+                title={g.hint}
+                onClick={() => p.setDiversityGoal(g.id)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                  p.diversityGoal === g.id
+                    ? "bg-[color:var(--color-primary)] text-white"
+                    : "border border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
+                }`}
+              >
+                {g.label}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1.5 text-xs text-[color:var(--color-text-secondary)]">
+            {GOAL_OPTIONS.find((g) => g.id === p.diversityGoal)?.hint}
+            {aiOff && " · applies once you render real AI popups above"}
+          </p>
+        </div>
+
         <div className="mt-4">
           <PrimaryButton disabled={p.busy !== null} onClick={p.onRun}>
-            {p.busy === "diversity" ? "Analyzing…" : "Analyze diversity"}
+            {p.busy === "diversity"
+              ? "Analyzing…"
+              : aiOff
+                ? "Analyze diversity (free)"
+                : `Generate ${p.aiSampleCount * 2} popups`}
           </PrimaryButton>
         </div>
       </Card>
@@ -434,9 +546,15 @@ function DiversitySection(p: {
 
           {p.result.popups.length > 0 && (
             <div>
-              <h3 className="mb-3 text-sm font-semibold text-[color:var(--color-text-primary)]">
+              <h3 className="mb-1 text-sm font-semibold text-[color:var(--color-text-primary)]">
                 The actual generated popups — look for repetition
               </h3>
+              <p className="mb-3 text-xs text-[color:var(--color-text-secondary)]">
+                {p.result.goal === "MIXED"
+                  ? "Goal: all three mixed — each card is tagged with the goal it was generated for."
+                  : `Goal: ${GOAL_OPTIONS.find((g) => g.id === p.result!.goal)?.label ?? p.result.goal}.`}{" "}
+                Previews are scaled to fit; use “Open full size” to inspect one at real browser size.
+              </p>
               <PopupGrid popups={p.result.popups} />
             </div>
           )}
@@ -450,93 +568,317 @@ function DiversitySection(p: {
 
 function TimingSection(p: {
   busy: string | null; campaignId: string; timedStatus: string | null;
-  timedCampaignId: string | null; timing: TimedGenerationStatus | null;
-  onRun: () => void; onDelete: () => void;
+  timing: TimedGenerationStatus | null; onRun: () => void;
+  runs: TimingRunDTO[]; runsTotal: number; runsPage: number; runsLoading: boolean;
+  pageSize: number;
+  onLoadRuns: (page: number) => void; onDeleteRun: (id: string) => void; onClearRuns: () => void;
 }) {
-  const trace = p.timing?.trace ?? null;
-  const stages: { label: string; ms: number | null }[] = trace
-    ? [
-        { label: "Queue wait", ms: trace.queueMs },
-        { label: "Initialize", ms: trace.initializeMs },
-        { label: "AI thinking", ms: trace.aiThinkingMs },
-        { label: "Saving", ms: trace.savingMs },
-      ]
-    : [];
-  const maxMs = Math.max(1, ...stages.map((s) => s.ms ?? 0));
+  const running = p.busy === "timedgen";
+  const pageCount = Math.max(1, Math.ceil(p.runsTotal / p.pageSize));
 
   return (
     <>
       <Card>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-3">
           <PrimaryButton disabled={p.busy !== null || !p.campaignId} onClick={p.onRun}>
-            {p.busy === "timedgen" ? "Generating & timing…" : "Time a fresh generation"}
+            {running ? "Generating & timing…" : "Time a fresh generation"}
           </PrimaryButton>
-          {p.timedCampaignId && p.busy !== "timedgen" && (
-            <GhostButton disabled={p.busy !== null} onClick={p.onDelete}>
-              {p.busy === "deltest" ? "Deleting…" : "Delete this test campaign"}
-            </GhostButton>
+          {running && (
+            <span className="flex items-center gap-2 text-sm text-[color:var(--color-text-secondary)]">
+              <Spinner /> {p.timedStatus}
+            </span>
           )}
-          {p.busy === "timedgen" && p.timedStatus && (
+          {!running && p.timedStatus && (
             <span className="text-sm text-[color:var(--color-text-secondary)]">{p.timedStatus}</span>
           )}
         </div>
+        <p className="mt-2 text-xs text-[color:var(--color-text-secondary)]">
+          Each run clones the selected campaign, times the real generation pipeline, logs the result to the
+          history below, then deletes the throwaway <code>[⏱ timing test]</code> campaign automatically.
+        </p>
       </Card>
 
-      {trace && (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <div className="mb-3 flex items-baseline justify-between">
-              <h3 className="text-sm font-semibold text-[color:var(--color-text-primary)]">Where the time went</h3>
-              <span className="text-lg font-bold text-[color:var(--color-text-primary)]">{secs(trace.totalMs)} total</span>
-            </div>
-            <div className="flex flex-col gap-2.5">
-              {stages.map((s) => (
-                <div key={s.label}>
-                  <div className="mb-1 flex items-center justify-between text-xs">
-                    <span className="text-[color:var(--color-text-secondary)]">{s.label}</span>
-                    <span className="font-mono font-medium text-[color:var(--color-text-primary)]">{secs(s.ms)}</span>
-                  </div>
-                  <div className="h-2 overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
-                    <div className="h-full rounded-full bg-[color:var(--color-primary)]" style={{ width: `${((s.ms ?? 0) / maxMs) * 100}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+      {/* Just-completed run (immediate feedback before it's just another history row). */}
+      {p.timing?.trace && <LatestRunBreakdown timing={p.timing} />}
 
-          {p.timing && p.timing.popups.length > 0 && (
-            <div className="overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm">
-              <PopupFrame code={p.timing.popups[0].generatedCode} height={340} />
-              <div className="border-t border-[color:var(--color-border)] p-3 text-sm font-medium text-[color:var(--color-text-primary)]">
-                {p.timing.popups[0].headline || "Generated popup"}
-              </div>
-            </div>
+      {/* Durable history */}
+      <div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+            Generation-timing history{p.runsTotal > 0 && ` · ${p.runsTotal} run${p.runsTotal === 1 ? "" : "s"}`}
+          </h3>
+          {p.runsTotal > 0 && (
+            <ConfirmButton
+              label="Clear ALL"
+              confirmLabel="Delete all history?"
+              busy={p.busy === "clearruns"}
+              disabled={p.busy !== null}
+              onConfirm={p.onClearRuns}
+              tone="danger"
+            />
           )}
         </div>
-      )}
+
+        {p.runsLoading && p.runs.length === 0 ? (
+          <Card><div className="flex items-center gap-2 text-sm text-[color:var(--color-text-secondary)]"><Spinner /> Loading history…</div></Card>
+        ) : p.runs.length === 0 ? (
+          <Card><p className="text-sm text-[color:var(--color-text-secondary)]">No timed runs yet. Run one above to start the log.</p></Card>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {p.runs.map((run, i) => (
+              <RunRow
+                key={run.id}
+                run={run}
+                runNumber={p.runsTotal - (p.runsPage * p.pageSize + i)}
+                busy={p.busy}
+                onDelete={() => p.onDeleteRun(run.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        {pageCount > 1 && (
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <GhostButton disabled={p.busy !== null || p.runsPage <= 0} onClick={() => p.onLoadRuns(p.runsPage - 1)}>
+              ← Newer
+            </GhostButton>
+            <span className="text-xs text-[color:var(--color-text-secondary)]">
+              Page {p.runsPage + 1} of {pageCount}
+            </span>
+            <GhostButton disabled={p.busy !== null || p.runsPage >= pageCount - 1} onClick={() => p.onLoadRuns(p.runsPage + 1)}>
+              Older →
+            </GhostButton>
+          </div>
+        )}
+      </div>
     </>
+  );
+}
+
+function stageRows(t: {
+  queueMs: number | null; initializeMs: number | null; aiThinkingMs: number | null; savingMs: number | null;
+}): { label: string; ms: number | null }[] {
+  return [
+    { label: "Queue wait", ms: t.queueMs },
+    { label: "Initialize", ms: t.initializeMs },
+    { label: "AI thinking", ms: t.aiThinkingMs },
+    { label: "Saving", ms: t.savingMs },
+  ];
+}
+
+function LatestRunBreakdown({ timing }: { timing: TimedGenerationStatus }) {
+  const trace = timing.trace!;
+  const stages = stageRows(trace);
+  const maxMs = Math.max(1, ...stages.map((s) => s.ms ?? 0));
+  return (
+    <div className="grid gap-4 lg:grid-cols-2">
+      <Card>
+        <div className="mb-3 flex items-baseline justify-between">
+          <h3 className="text-sm font-semibold text-[color:var(--color-text-primary)]">Latest run — where the time went</h3>
+          <span className="text-lg font-bold text-[color:var(--color-text-primary)]">{secs(trace.totalMs)} total</span>
+        </div>
+        <div className="flex flex-col gap-2.5">
+          {stages.map((s) => (
+            <div key={s.label}>
+              <div className="mb-1 flex items-center justify-between text-xs">
+                <span className="text-[color:var(--color-text-secondary)]">{s.label}</span>
+                <span className="font-mono font-medium text-[color:var(--color-text-primary)]">{secs(s.ms)}</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
+                <div className="h-full rounded-full bg-[color:var(--color-primary)]" style={{ width: `${((s.ms ?? 0) / maxMs) * 100}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </Card>
+      {timing.popups.length > 0 && (
+        <div className="overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm">
+          <PopupFrame code={timing.popups[0].generatedCode} />
+          <div className="flex items-center justify-between gap-2 border-t border-[color:var(--color-border)] p-3">
+            <span className="truncate text-sm font-medium text-[color:var(--color-text-primary)]">
+              {timing.popups[0].headline || "Generated popup"}
+            </span>
+            <OpenFullButton code={timing.popups[0].generatedCode} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RunRow({
+  run,
+  runNumber,
+  busy,
+  onDelete,
+}: {
+  run: TimingRunDTO;
+  runNumber: number;
+  busy: string | null;
+  onDelete: () => void;
+}) {
+  const stages = stageRows(run);
+  const maxMs = Math.max(1, ...stages.map((s) => s.ms ?? 0));
+  return (
+    <Card>
+      <div className="flex flex-col gap-4 sm:flex-row">
+        {/* Popup thumbnail */}
+        <div className="w-full shrink-0 overflow-hidden rounded-lg border border-[color:var(--color-border)] sm:w-44">
+          <PopupFrame code={run.generatedCode ?? ""} />
+        </div>
+
+        {/* Meta + timing */}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="rounded-md bg-[color:var(--color-surface-sunken)] px-2 py-0.5 text-xs font-bold text-[color:var(--color-text-primary)]">
+                Run #{runNumber}
+              </span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  run.succeeded ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                }`}
+              >
+                {run.succeeded ? "success" : "failed"}
+              </span>
+              {run.totalMs != null && (
+                <span className="text-sm font-bold text-[color:var(--color-text-primary)]">{secs(run.totalMs)} total</span>
+              )}
+            </div>
+            <ConfirmButton
+              label="Delete"
+              confirmLabel="Confirm delete?"
+              busy={busy === "delrun"}
+              disabled={busy !== null}
+              onConfirm={onDelete}
+              tone="danger"
+              small
+            />
+          </div>
+
+          <p className="mt-1 truncate text-xs text-[color:var(--color-text-secondary)]">
+            {formatTimestamp(run.createdAt)} · {run.templateName}
+          </p>
+          {run.headline && (
+            <p className="mt-0.5 truncate text-sm font-medium text-[color:var(--color-text-primary)]">{run.headline}</p>
+          )}
+          {run.errorMessage && (
+            <p className="mt-1 truncate text-xs text-red-600" title={run.errorMessage}>{run.errorMessage}</p>
+          )}
+
+          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+            {stages.map((s) => (
+              <div key={s.label}>
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="text-[color:var(--color-text-secondary)]">{s.label}</span>
+                  <span className="font-mono text-[color:var(--color-text-primary)]">{secs(s.ms)}</span>
+                </div>
+                <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
+                  <div className="h-full rounded-full bg-[color:var(--color-primary)]" style={{ width: `${((s.ms ?? 0) / maxMs) * 100}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2">
+            <OpenFullButton code={run.generatedCode ?? ""} />
+          </div>
+        </div>
+      </div>
+    </Card>
   );
 }
 
 // ─── Shared bits ─────────────────────────────────────────────────────────────
 
-function PopupFrame({ code, height = 320 }: { code: string; height?: number }) {
+/**
+ * Renders a popup the way it actually appears: the generated HTML is a
+ * full-viewport overlay with a centered modal, so we render it into a real
+ * desktop-sized viewport and scale that whole viewport down to fit the card.
+ * That shows the entire popup (dimmed backdrop + modal, nothing clipped)
+ * instead of cropping a corner of a squished full-screen overlay.
+ */
+function PopupFrame({
+  code,
+  naturalWidth = 900,
+  naturalHeight = 620,
+}: {
+  code: string;
+  naturalWidth?: number;
+  naturalHeight?: number;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      setWidth(entries[0]?.contentRect.width ?? 0);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const scale = width > 0 ? width / naturalWidth : 0;
+
   if (!code) {
     return (
-      <div className="grid place-items-center bg-[color:var(--color-surface-sunken)] text-xs text-[color:var(--color-text-secondary)]" style={{ height }}>
+      <div
+        className="grid place-items-center bg-[color:var(--color-surface-sunken)] text-xs text-[color:var(--color-text-secondary)]"
+        style={{ aspectRatio: `${naturalWidth} / ${naturalHeight}` }}
+      >
         No preview available
       </div>
     );
   }
+
   return (
-    <iframe
-      srcDoc={code}
-      title="Popup preview"
-      sandbox="allow-scripts allow-same-origin"
-      scrolling="no"
-      className="pointer-events-none w-full border-0 bg-white"
-      style={{ height }}
-    />
+    <div
+      ref={containerRef}
+      className="relative w-full overflow-hidden bg-white"
+      style={{ aspectRatio: `${naturalWidth} / ${naturalHeight}` }}
+    >
+      {scale > 0 && (
+        <iframe
+          srcDoc={code}
+          title="Popup preview"
+          sandbox="allow-scripts allow-same-origin"
+          scrolling="no"
+          className="pointer-events-none border-0 bg-white"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: naturalWidth,
+            height: naturalHeight,
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Opens a generated popup's raw HTML in a new tab at real browser size. */
+function openFullSize(code: string) {
+  if (!code) return;
+  const blob = new Blob([code], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  window.open(url, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+function OpenFullButton({ code }: { code: string }) {
+  if (!code) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => openFullSize(code)}
+      className="text-[11px] font-medium text-[color:var(--color-primary)] hover:underline"
+    >
+      Open full size ↗
+    </button>
   );
 }
 
@@ -545,9 +887,19 @@ function PopupGrid({ popups }: { popups: RenderedPopup[] }) {
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {popups.map((pop, i) => (
         <div key={i} className="overflow-hidden rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] shadow-sm">
-          <PopupFrame code={pop.generatedCode} height={280} />
+          <div className="relative">
+            <PopupFrame code={pop.generatedCode} />
+            {pop.testAxis && (
+              <span className="absolute left-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white">
+                {pop.testAxis}
+              </span>
+            )}
+          </div>
           <div className="border-t border-[color:var(--color-border)] p-2.5">
-            <p className="truncate text-xs font-semibold text-[color:var(--color-text-primary)]">{pop.headline || "—"}</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="truncate text-xs font-semibold text-[color:var(--color-text-primary)]">{pop.headline || "—"}</p>
+              <OpenFullButton code={pop.generatedCode} />
+            </div>
             <p className="truncate text-[11px] text-[color:var(--color-text-secondary)]">{pop.subhead}</p>
           </div>
         </div>
@@ -626,6 +978,80 @@ function GhostButton({ children, disabled, onClick }: { children: React.ReactNod
       {children}
     </button>
   );
+}
+
+function Spinner() {
+  return (
+    <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-[color:var(--color-border)] border-t-[color:var(--color-primary)]" />
+  );
+}
+
+/**
+ * Two-step delete: first click arms (turns red + shows confirmLabel), second
+ * click within 4s fires onConfirm. Avoids native confirm() dialogs while still
+ * guarding destructive actions.
+ */
+function ConfirmButton({
+  label,
+  confirmLabel,
+  busy,
+  disabled,
+  onConfirm,
+  tone,
+  small,
+}: {
+  label: string;
+  confirmLabel: string;
+  busy?: boolean;
+  disabled?: boolean;
+  onConfirm: () => void;
+  tone?: "danger";
+  small?: boolean;
+}) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [armed]);
+
+  const size = small ? "px-2.5 py-1 text-xs" : "px-4 py-2 text-sm";
+  return (
+    <button
+      type="button"
+      disabled={disabled || busy}
+      onClick={() => {
+        if (armed) {
+          setArmed(false);
+          onConfirm();
+        } else {
+          setArmed(true);
+        }
+      }}
+      className={`rounded-lg font-semibold transition-colors disabled:opacity-50 ${size} ${
+        armed
+          ? "bg-red-600 text-white hover:bg-red-700"
+          : tone === "danger"
+            ? "border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+            : "border border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)]"
+      }`}
+    >
+      {busy ? "Working…" : armed ? confirmLabel : label}
+    </button>
+  );
+}
+
+function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 function pct(v: number): string {

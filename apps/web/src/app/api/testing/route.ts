@@ -11,6 +11,10 @@ import {
   runTimedGeneration,
   timedGenerationStatus,
   deleteTestCampaign,
+  finalizeTimedGeneration,
+  listTimingRuns,
+  deleteTimingRun,
+  clearTimingRuns,
 } from "@/lib/testing/testingActions";
 import type { SimConfig, Device, Intent } from "@/lib/testing/trafficSim";
 
@@ -37,10 +41,17 @@ type Body = {
     | "gen_timing"
     | "run_timed_generation"
     | "timed_generation_status"
+    | "finalize_timed_generation"
+    | "list_timing_runs"
+    | "delete_timing_run"
+    | "clear_timing_runs"
     | "delete_test_campaign";
   variantId?: string;
   mockCount?: number;
   campaignId?: string;
+  runId?: string;
+  page?: number;
+  pageSize?: number;
   sim?: Partial<{
     volume: number;
     baseCvr: number;
@@ -51,8 +62,10 @@ type Body = {
     intentMix: Record<Intent, number>;
     waves: number;
   }>;
-  diversity?: { n?: number; aiSampleCount?: number };
+  diversity?: { n?: number; aiSampleCount?: number; goal?: string };
 };
+
+const DIVERSITY_GOALS = new Set(["BOTH", "EMAIL", "DISCOUNT", "MIXED"]);
 
 const clamp = (v: unknown, lo: number, hi: number, fallback: number): number => {
   const n = Number(v);
@@ -71,10 +84,15 @@ export async function POST(request: Request) {
 
   // ── Diversity + timing: campaign-optional, handle before the variant gate ──
   if (body.action === "analyze_diversity") {
+    const rawGoal = body.diversity?.goal;
+    const goal = (typeof rawGoal === "string" && DIVERSITY_GOALS.has(rawGoal)
+      ? rawGoal
+      : "BOTH") as "BOTH" | "EMAIL" | "DISCOUNT" | "MIXED";
     const result = await runDiversityAnalysis({
       n: clamp(body.diversity?.n, 2, 500, 100),
       aiSampleCount: clamp(body.diversity?.aiSampleCount, 0, 50, 0),
       campaignId: body.campaignId,
+      goal,
     });
     return Response.json({ ok: true, diversity: result });
   }
@@ -112,6 +130,39 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
+  }
+
+  if (body.action === "finalize_timed_generation") {
+    if (!body.campaignId) {
+      return Response.json({ error: "campaignId is required" }, { status: 400 });
+    }
+    try {
+      const result = await finalizeTimedGeneration(body.campaignId);
+      return Response.json({ ok: true, ...result });
+    } catch (err) {
+      return Response.json(
+        { error: err instanceof Error ? err.message : "Finalize failed" },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (body.action === "list_timing_runs") {
+    const result = await listTimingRuns({ page: body.page, pageSize: body.pageSize });
+    return Response.json({ ok: true, ...result });
+  }
+
+  if (body.action === "delete_timing_run") {
+    if (!body.runId) {
+      return Response.json({ error: "runId is required" }, { status: 400 });
+    }
+    const result = await deleteTimingRun(body.runId);
+    return Response.json({ ok: true, ...result });
+  }
+
+  if (body.action === "clear_timing_runs") {
+    const result = await clearTimingRuns();
+    return Response.json({ ok: true, ...result });
   }
 
   if (body.action === "delete_test_campaign") {

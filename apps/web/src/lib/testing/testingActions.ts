@@ -46,21 +46,44 @@ import {
 } from "@/lib/popupGeneration";
 import { renderPopupTemplate } from "@/lib/templates";
 
+export type PopupGoal = "EMAIL" | "DISCOUNT" | "BOTH";
+
+/** The three concrete goals a "mixed" run cycles through, in order. */
+const MIXED_GOAL_CYCLE: PopupGoal[] = ["BOTH", "EMAIL", "DISCOUNT"];
+
+const GOAL_LABELS: Record<PopupGoal, string> = {
+  BOTH: "Capture & offer",
+  EMAIL: "Email only",
+  DISCOUNT: "Discount only",
+};
+
+export function goalLabel(goal: PopupGoal): string {
+  return GOAL_LABELS[goal];
+}
+
 /**
  * Turns a generated popup spec into the same self-contained HTML the widget
  * ships, so the Tester dashboard can render it in an iframe instead of dumping
  * JSON. Mirrors the mapping generateCampaign.ts uses when it persists a variant.
+ *
+ * The `goal` drives which steps the template renders (see resolveFlow):
+ *   - BOTH     → capture email *and* reveal a coupon
+ *   - EMAIL    → capture email, no coupon reveal
+ *   - DISCOUNT → reveal a coupon, no email field
+ * so we also derive couponCode / captureFields from it rather than hardcoding.
  */
 // PopupSpec is a broad generated shape; we read a known subset defensively.
-function renderSpecToHtml(spec: any): string {
+function renderSpecToHtml(spec: any, goal: PopupGoal = "BOTH"): string {
   try {
+    const wantsCoupon = goal === "BOTH" || goal === "DISCOUNT";
+    const wantsEmail = goal === "BOTH" || goal === "EMAIL";
     return renderPopupTemplate(spec?.template_id, {
       headline: spec?.headline,
       subhead: spec?.subhead,
       cta: spec?.cta,
       primaryColor: spec?.design_tokens?.palette?.[0],
-      couponCode: spec?.coupon_code,
-      goal: "BOTH",
+      couponCode: wantsCoupon ? (spec?.coupon_code ?? "SAVE15") : null,
+      goal,
       layoutStyle: spec?.layout_style,
       imageUrl: spec?.image_url,
       dna: spec?.dna,
@@ -68,7 +91,7 @@ function renderSpecToHtml(spec: any): string {
       palette: spec?.design_tokens?.palette,
       discountPercent: spec?.discount_percent,
       redirectUrl: null,
-      captureFields: ["email"],
+      captureFields: wantsEmail ? ["email"] : [],
     });
   } catch (err) {
     console.error("[testing] renderSpecToHtml failed", err);
@@ -310,6 +333,8 @@ export type DiversityResult = {
   /** Real rendered popups from the AI tier - the whole point of the visual page. */
   popups: RenderedPopup[];
   aiCallsRequested: number;
+  /** Which goal(s) the rendered popups were generated for. "MIXED" = all three. */
+  goal: PopupGoal | "MIXED";
 };
 
 /**
@@ -325,9 +350,15 @@ export async function runDiversityAnalysis(opts: {
   aiSampleCount: number;
   seed?: number;
   campaignId?: string;
+  goal?: PopupGoal | "MIXED";
 }): Promise<DiversityResult> {
   const n = Math.max(2, Math.min(500, Math.floor(opts.n)));
   const baseSeed = opts.seed ?? hashSeed("diversity", Date.now());
+  const goal: PopupGoal | "MIXED" = opts.goal ?? "BOTH";
+  // For a concrete goal every call uses it; "MIXED" cycles the three so the
+  // grid shows a spread of capture&offer / email-only / discount-only popups.
+  const goalForCall = (i: number): PopupGoal =>
+    goal === "MIXED" ? MIXED_GOAL_CYCLE[i % MIXED_GOAL_CYCLE.length] : goal;
 
   // ── Tier A: structural ──
   const fingerprints: string[] = [];
@@ -377,6 +408,7 @@ export async function runDiversityAnalysis(opts: {
     let generationErrors = 0;
 
     for (let i = 0; i < aiCalls; i++) {
+      const callGoal = goalForCall(i);
       try {
         const briefs = buildVariantBriefs({
           seed: hashSeed(baseSeed, "ai", i),
@@ -393,6 +425,7 @@ export async function runDiversityAnalysis(opts: {
           analyticsVariants: [],
           variantCount: 1,
           multivariate: false,
+          goal: callGoal,
           testingMode: "explore",
           novelty,
         });
@@ -404,11 +437,12 @@ export async function runDiversityAnalysis(opts: {
             cta: String(spec.cta ?? ""),
           });
           popups.push({
-            generatedCode: renderSpecToHtml(spec),
+            generatedCode: renderSpecToHtml(spec, callGoal),
             headline: String(spec.headline ?? ""),
             subhead: String(spec.subhead ?? ""),
             cta: String(spec.cta ?? ""),
             primaryColor: String(spec.design_tokens?.palette?.[0] ?? "#111827"),
+            testAxis: goalLabel(callGoal),
           });
         }
       } catch (err) {
@@ -420,7 +454,7 @@ export async function runDiversityAnalysis(opts: {
     copy = { ...copyStats(samples), generationErrors };
   }
 
-  return { n, structural, knobs, copy, popups, aiCallsRequested: aiCalls };
+  return { n, structural, knobs, copy, popups, aiCallsRequested: aiCalls, goal };
 }
 
 async function resolveDiversityContext(
@@ -569,6 +603,121 @@ export async function deleteTestCampaign(campaignId: string): Promise<{ deleted:
   }
   await prisma.campaign.delete({ where: { id: campaignId } });
   return { deleted: true };
+}
+
+// ─── Timing history (durable runs) ───────────────────────────────────────────
+
+export type TimingRunDTO = {
+  id: string;
+  templateName: string;
+  succeeded: boolean;
+  errorMessage: string | null;
+  queueMs: number | null;
+  initializeMs: number | null;
+  aiThinkingMs: number | null;
+  structuringMs: number | null;
+  savingMs: number | null;
+  totalMs: number | null;
+  headline: string | null;
+  generatedCode: string | null;
+  createdAt: string;
+};
+
+function toTimingRunDTO(r: {
+  id: string; templateName: string; succeeded: boolean; errorMessage: string | null;
+  queueMs: number | null; initializeMs: number | null; aiThinkingMs: number | null;
+  structuringMs: number | null; savingMs: number | null; totalMs: number | null;
+  headline: string | null; generatedCode: string | null; createdAt: Date;
+}): TimingRunDTO {
+  return { ...r, createdAt: r.createdAt.toISOString() };
+}
+
+/**
+ * Called once a timed generation has finished (trace landed, or it failed):
+ * copies the result into the durable TesterTimingRun log, then hard-deletes the
+ * throwaway campaign so probes never accumulate. Returns the saved run, or null
+ * if the campaign isn't done yet (caller keeps polling). Refuses to touch a
+ * campaign that isn't one of our own timing probes.
+ */
+export async function finalizeTimedGeneration(
+  campaignId: string,
+): Promise<{ done: boolean; run: TimingRunDTO | null }> {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    select: { name: true, status: true, lastError: true },
+  });
+  if (!campaign) return { done: true, run: null };
+  if (!campaign.name.startsWith(TIMING_TEST_PREFIX)) {
+    throw new Error("Refusing to finalize a campaign that is not a timing-test probe");
+  }
+
+  const trace = await prisma.generationTrace.findFirst({
+    where: { campaignId },
+    orderBy: { createdAt: "desc" },
+  });
+  const failed = campaign.status === "FAILED";
+  // Not finished yet: no trace and not in a terminal state -> keep polling.
+  if (!trace && !failed) return { done: false, run: null };
+
+  const variant = await prisma.variant.findFirst({
+    where: { campaignId, status: "ACTIVE" },
+    select: { name: true, generatedCode: true, design: true },
+    orderBy: { createdAt: "asc" },
+  });
+  const design = (variant?.design ?? {}) as { headline?: string };
+
+  const run = await prisma.testerTimingRun.create({
+    data: {
+      templateName: campaign.name.replace(TIMING_TEST_PREFIX, "").trim() || "Untitled",
+      succeeded: trace?.succeeded ?? !failed,
+      errorMessage: failed ? campaign.lastError : null,
+      queueMs: trace?.queueMs ?? null,
+      initializeMs: trace?.initializeMs ?? null,
+      aiThinkingMs: trace?.aiThinkingMs ?? null,
+      structuringMs: trace?.structuringMs ?? null,
+      savingMs: trace?.savingMs ?? null,
+      totalMs: trace?.totalMs ?? null,
+      headline: design.headline ?? variant?.name ?? null,
+      generatedCode: variant?.generatedCode ?? null,
+    },
+  });
+
+  // Copy captured; drop the throwaway campaign (cascades its trace + variants).
+  await prisma.campaign.delete({ where: { id: campaignId } }).catch((err) => {
+    console.error("[testing] finalize: campaign delete failed", err);
+  });
+
+  return { done: true, run: toTimingRunDTO(run) };
+}
+
+/** One page of timing-run history, newest first, plus the total for numbering. */
+export async function listTimingRuns(opts: {
+  page?: number;
+  pageSize?: number;
+}): Promise<{ runs: TimingRunDTO[]; total: number; page: number; pageSize: number }> {
+  const pageSize = Math.max(1, Math.min(50, Math.floor(opts.pageSize ?? 10)));
+  const page = Math.max(0, Math.floor(opts.page ?? 0));
+  const [rows, total] = await Promise.all([
+    prisma.testerTimingRun.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: page * pageSize,
+      take: pageSize,
+    }),
+    prisma.testerTimingRun.count(),
+  ]);
+  return { runs: rows.map(toTimingRunDTO), total, page, pageSize };
+}
+
+/** Deletes a single logged timing run. */
+export async function deleteTimingRun(id: string): Promise<{ deleted: boolean }> {
+  await prisma.testerTimingRun.delete({ where: { id } }).catch(() => {});
+  return { deleted: true };
+}
+
+/** Clears the entire timing-run history. */
+export async function clearTimingRuns(): Promise<{ removed: number }> {
+  const { count } = await prisma.testerTimingRun.deleteMany({});
+  return { removed: count };
 }
 
 // ─── Generation timing (history) ─────────────────────────────────────────────

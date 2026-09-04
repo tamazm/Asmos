@@ -532,6 +532,35 @@ model GenerationTrace {
   @@index([campaignId, createdAt])
 }
 
+// Durable log of a superadmin Tester Toolkit "time a fresh generation" run.
+// Deliberately has NO relation to Campaign: the timing test clones a campaign,
+// times the real pipeline, copies the result here, then deletes the throwaway
+// campaign - so this row (and its GenerationTrace-equivalent timings) must
+// survive that deletion. Powers the Generation-timing history + Runs manager.
+model TesterTimingRun {
+  id           String  @id @default(cuid())
+  // Free-form label of the campaign whose generationContext was cloned.
+  templateName String
+  succeeded    Boolean @default(true)
+  errorMessage String? @db.Text
+
+  // Per-stage timings (ms), copied from the run's GenerationTrace.
+  queueMs       Int?
+  initializeMs  Int?
+  aiThinkingMs  Int?
+  structuringMs Int?
+  savingMs      Int?
+  totalMs       Int?
+
+  // The popup the run produced, so history can re-render it after cleanup.
+  headline      String?
+  generatedCode String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // A Shopify shop that has installed the app. accountId is unique - one
 // Account per shop; the tenant is auto-provisioned on first install, no
 // Clerk sign-up involved (this is what "well integrated app" requires).
