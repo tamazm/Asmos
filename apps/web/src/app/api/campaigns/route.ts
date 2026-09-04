@@ -4,7 +4,6 @@ import { prisma } from "@/lib/prisma";
 import type { GeneratedCampaign } from "@/lib/campaignGeneration";
 import type { Prisma } from ".prisma/client";
 import type { PopupSpec } from "@/lib/popupGeneration";
-import { inngest } from "@/lib/inngest/client";
 import { AI_GENERATION_LIMITS } from "@/lib/limits";
 import { normalizeHost } from "@/lib/host";
 import { renderPopupTemplate } from "@/lib/templates";
@@ -12,24 +11,95 @@ import { sanitizeCaptureFields } from "@/lib/templates/runtime";
 import { after } from "next/server";
 import { emitIntegrationEvent } from "@/lib/integrations/emit";
 
+type TimingName = "auth" | "parse" | "account" | "website" | "campaign" | "total";
+type InitTimings = Record<TimingName, number>;
+type CreateCampaignBody = GeneratedCampaign & {
+  popupSpec?: {
+    spec: PopupSpec;
+    code: string;
+    popup_id: string;
+  };
+  status?: string;
+  generationContext?: Record<string, unknown>;
+};
+
+function elapsedMs(startedAt: number): number {
+  return Math.round((performance.now() - startedAt) * 10) / 10;
+}
+
+function timingHeaders(timings: InitTimings): HeadersInit {
+  const serverTiming = Object.entries(timings)
+    .map(([name, duration]) => `${name};dur=${duration}`)
+    .join(", ");
+  return {
+    "Server-Timing": serverTiming,
+    "X-Asmos-Campaign-Init-Ms": String(timings.total),
+  };
+}
+
+function queueCampaignGeneration(campaignId: string, enqueuedAt: number) {
+  after(async () => {
+    const startedAt = performance.now();
+    try {
+      // Keep Inngest and its transitive dependencies out of the initialization
+      // path. Next/Vercel keeps `after` work alive via waitUntil after the 202
+      // response has already reached the browser.
+      const { inngest } = await import("@/lib/inngest/client");
+      await inngest.send({
+        name: "campaign.generate",
+        data: { campaignId, enqueuedAt },
+      });
+      console.info("[campaigns/route] generation queued", {
+        campaignId,
+        queueDispatchMs: elapsedMs(startedAt),
+      });
+    } catch (err) {
+      console.error("[campaigns/route] inngest.send failed for campaign.generate", err);
+      await prisma.campaign
+        .update({
+          where: { id: campaignId },
+          data: {
+            status: "FAILED",
+            lastError: "Failed to queue campaign generation. Please retry.",
+          },
+        })
+        .catch((updateErr) => {
+          console.error("[campaigns/route] failed to mark unqueued campaign as FAILED", updateErr);
+        });
+    }
+  });
+}
+
 export async function POST(request: Request) {
-  const { userId } = await auth();
+  const requestStartedAt = performance.now();
+  let authMs = 0;
+  let parseMs = 0;
+
+  // Authentication and body parsing are independent. Starting both together
+  // removes one full await from every campaign initialization.
+  const authPromise: Promise<string | null> = (async () => {
+    const startedAt = performance.now();
+    const { userId } = await auth();
+    authMs = elapsedMs(startedAt);
+    return userId ? String(userId) : null;
+  })();
+  const bodyPromise: Promise<CreateCampaignBody> = (async () => {
+    const startedAt = performance.now();
+    const result = (await request.json()) as CreateCampaignBody;
+    parseMs = elapsedMs(startedAt);
+    return result;
+  })();
+
+  const [userId, body] = await Promise.all([authPromise, bodyPromise]);
   if (!userId) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = (await request.json()) as GeneratedCampaign & {
-    // Optional: AI-generated popup spec from /api/analyze/generate-popup
-    popupSpec?: {
-      spec: PopupSpec;
-      code: string;
-      popup_id: string;
-    };
-    status?: string;
-    generationContext?: Record<string, unknown>;
-  };
-
-  const account = await getOrCreateAccount();
+  const accountStartedAt = performance.now();
+  // `auth()` already established the user identity. Passing it through lets
+  // existing accounts skip a second, much slower Clerk `currentUser()` call.
+  const account = await getOrCreateAccount(userId);
+  const accountMs = elapsedMs(accountStartedAt);
 
   // Find-or-create the Website for THIS campaign's own store URL - every
   // campaign creation call (AI wizard via generationContext.storeUrl, manual
@@ -53,9 +123,10 @@ export async function POST(request: Request) {
     `pending-setup-${account.id}.invalid`;
   const url = normalizeHost(rawUrl);
 
-  let website = await prisma.website.findFirst({
-    where: { accountId: account.id, url },
-  });
+  const websiteStartedAt = performance.now();
+  // getOrCreateAccount already includes websites. Reuse that result instead
+  // of paying for a second database round trip on every campaign creation.
+  let website = account.websites.find((candidate) => candidate.url === url);
   if (!website) {
     website = await prisma.website.create({
       data: {
@@ -65,6 +136,7 @@ export async function POST(request: Request) {
       },
     });
   }
+  const websiteMs = elapsedMs(websiteStartedAt);
 
   // Spend Protection Check
   const isGeneratingAI = body.status === "GENERATING" || Boolean(body.popupSpec?.spec);
@@ -128,6 +200,7 @@ export async function POST(request: Request) {
         })
       : undefined;
 
+  const campaignStartedAt = performance.now();
   const created = await prisma.campaign.create({
     data: {
       accountId: account.id,
@@ -171,34 +244,16 @@ export async function POST(request: Request) {
     },
     include: { variants: true },
   });
+  const campaignMs = elapsedMs(campaignStartedAt);
 
-  let responseCampaign = created;
-
-  if (isGeneratingAI) {
-    // Send background task to Inngest instead of waiting for a cron.
-    // If this fails (no local Inngest Dev Server, or missing
-    // INNGEST_EVENT_KEY/SIGNING_KEY in production), the campaign row
-    // already exists in the DB - mark it FAILED instead of leaving it
-    // stuck in GENERATING forever, and don't 500 the whole request.
-    try {
-      await inngest.send({
-        name: "campaign.generate",
-        data: { campaignId: created.id, enqueuedAt: Date.now() },
-      });
-    } catch (err) {
-      console.error("[campaigns/route] inngest.send failed for campaign.generate", err);
-      responseCampaign = await prisma.campaign.update({
-        where: { id: created.id },
-        data: {
-          status: "FAILED",
-          lastError: "Failed to queue campaign generation. Please retry.",
-        },
-        include: { variants: true },
-      });
-    }
+  if (body.status === "GENERATING") {
+    // The durable campaign row is the initialization boundary. Queue delivery
+    // is background work; if it fails, mark the row FAILED so polling surfaces
+    // a retry instead of leaving it stuck forever.
+    queueCampaignGeneration(created.id, Date.now());
   }
 
-  if (responseCampaign.status === "ACTIVE") {
+  if (created.status === "ACTIVE") {
     after(async () => {
       try {
         await emitIntegrationEvent(account.id, {
@@ -215,9 +270,27 @@ export async function POST(request: Request) {
     });
   }
 
+  const timings: InitTimings = {
+    auth: authMs,
+    parse: parseMs,
+    account: accountMs,
+    website: websiteMs,
+    campaign: campaignMs,
+    total: elapsedMs(requestStartedAt),
+  };
+  const log = timings.total > 3000 ? console.warn : console.info;
+  log("[campaigns/route] campaign initialized", {
+    campaignId: created.id,
+    timings,
+    overBudget: timings.total > 3000,
+  });
+
   return Response.json(
-    { campaign: responseCampaign },
-    { status: body.status === "GENERATING" ? 202 : 200 },
+    { campaign: created },
+    {
+      status: body.status === "GENERATING" ? 202 : 200,
+      headers: timingHeaders(timings),
+    },
   );
 }
 

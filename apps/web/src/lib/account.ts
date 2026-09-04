@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { inngest } from "@/lib/inngest/client";
 import { isSuperadminEmail } from "@/lib/superadmin";
 import { readShopSessionFromCookies } from "@/lib/shopify/session-cookie";
+import type { Account, Website } from ".prisma/client";
+
+type AccountWithWebsites = Account & { websites: Website[] };
 
 // Lets a verified superadmin act on a specific account (e.g. editing that
 // account's rewards from /admin/accounts/[id]) by passing an explicit
@@ -24,7 +27,24 @@ export async function resolveAccountForRequest(explicitAccountId?: string | null
   return getOrCreateAccount();
 }
 
-export async function getOrCreateAccount() {
+/**
+ * Resolve the current account, creating it only for a genuinely new user.
+ *
+ * API routes that already called `auth()` should pass its userId. Existing
+ * users can then be resolved with one local database lookup instead of making
+ * a second Clerk request through `currentUser()`. The slower full-user lookup
+ * remains the fallback for first-time account creation, where we need the
+ * user's email and name.
+ */
+export async function getOrCreateAccount(authenticatedUserId?: string): Promise<AccountWithWebsites> {
+  if (authenticatedUserId) {
+    const authenticatedUser = await prisma.user.findUnique({
+      where: { clerkUserId: authenticatedUserId },
+      include: { account: { include: { websites: true } } },
+    });
+    if (authenticatedUser) return authenticatedUser.account;
+  }
+
   const user = await currentUser();
   if (!user) {
     // Embedded Shopify context — no Clerk user. Resolve the shop's Account
