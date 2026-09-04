@@ -8,6 +8,9 @@ import {
   clearSimData,
   runDiversityAnalysis,
   getGenTimingSummary,
+  runTimedGeneration,
+  timedGenerationStatus,
+  deleteTestCampaign,
 } from "@/lib/testing/testingActions";
 import type { SimConfig, Device, Intent } from "@/lib/testing/trafficSim";
 
@@ -31,7 +34,10 @@ type Body = {
     | "simulate_traffic"
     | "clear_sim_data"
     | "analyze_diversity"
-    | "gen_timing";
+    | "gen_timing"
+    | "run_timed_generation"
+    | "timed_generation_status"
+    | "delete_test_campaign";
   variantId?: string;
   mockCount?: number;
   campaignId?: string;
@@ -76,6 +82,51 @@ export async function POST(request: Request) {
   if (body.action === "gen_timing") {
     const result = await getGenTimingSummary(body.campaignId);
     return Response.json({ ok: true, timing: result });
+  }
+
+  if (body.action === "run_timed_generation") {
+    if (!body.campaignId) {
+      return Response.json({ error: "campaignId (a campaign to clone context from) is required" }, { status: 400 });
+    }
+    try {
+      const result = await runTimedGeneration(body.campaignId);
+      return Response.json({ ok: true, ...result });
+    } catch (err) {
+      return Response.json(
+        { error: err instanceof Error ? err.message : "Failed to start timed generation" },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (body.action === "timed_generation_status") {
+    if (!body.campaignId) {
+      return Response.json({ error: "campaignId is required" }, { status: 400 });
+    }
+    try {
+      const result = await timedGenerationStatus(body.campaignId);
+      return Response.json({ ok: true, ...result });
+    } catch (err) {
+      return Response.json(
+        { error: err instanceof Error ? err.message : "Status lookup failed" },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (body.action === "delete_test_campaign") {
+    if (!body.campaignId) {
+      return Response.json({ error: "campaignId is required" }, { status: 400 });
+    }
+    try {
+      const result = await deleteTestCampaign(body.campaignId);
+      return Response.json({ ok: true, ...result });
+    } catch (err) {
+      return Response.json(
+        { error: err instanceof Error ? err.message : "Delete failed" },
+        { status: 400 },
+      );
+    }
   }
 
   // ── Campaign-scoped simulation ──

@@ -339,7 +339,107 @@ async function resolveDiversityContext(
   };
 }
 
-// ─── Generation timing ───────────────────────────────────────────────────────
+// ─── Live timed generation ───────────────────────────────────────────────────
+
+const TIMING_TEST_PREFIX = "[⏱ timing test]";
+
+/**
+ * Actually times a FRESH generation, rather than reading past traces. Clones a
+ * chosen campaign's generationContext into a brand-new throwaway campaign and
+ * kicks the real generateCampaign pipeline; the client then polls
+ * timedGenerationStatus until the GenerationTrace lands. The clone is named with
+ * TIMING_TEST_PREFIX so deleteTestCampaign can only ever remove our own probes.
+ *
+ * This is a real generation: it creates variants + a reward and counts one unit
+ * of the account's AI budget. Superadmin-only, and cleaned up by the caller.
+ */
+export async function runTimedGeneration(templateCampaignId: string): Promise<{ campaignId: string }> {
+  const template = await prisma.campaign.findUnique({
+    where: { id: templateCampaignId },
+    select: { accountId: true, websiteId: true, generationContext: true, name: true },
+  });
+  if (!template) throw new Error("Template campaign not found");
+  if (!template.generationContext) {
+    throw new Error("That campaign has no generationContext to clone - pick one created via the normal flow");
+  }
+
+  const created = await prisma.campaign.create({
+    data: {
+      accountId: template.accountId,
+      websiteId: template.websiteId,
+      name: `${TIMING_TEST_PREFIX} ${template.name}`.slice(0, 120),
+      type: "FORM",
+      status: "GENERATING",
+      generationStage: "QUEUED",
+      generationContext: template.generationContext as Prisma.InputJsonValue,
+    },
+    select: { id: true },
+  });
+
+  await inngest.send({
+    name: "campaign.generate",
+    data: { campaignId: created.id, enqueuedAt: Date.now() },
+  });
+  return { campaignId: created.id };
+}
+
+export type TimedGenerationStatus = {
+  status: string;
+  generationStage: string | null;
+  lastError: string | null;
+  trace: GenTimingResult["recent"][number] | null;
+};
+
+/** Polled by the client while a timed generation runs. */
+export async function timedGenerationStatus(campaignId: string): Promise<TimedGenerationStatus> {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    select: { status: true, generationStage: true, lastError: true },
+  });
+  if (!campaign) throw new Error("Timing campaign not found");
+
+  const row = await prisma.generationTrace.findFirst({
+    where: { campaignId },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return {
+    status: campaign.status,
+    generationStage: campaign.generationStage,
+    lastError: campaign.lastError,
+    trace: row
+      ? {
+          campaignId: row.campaignId,
+          round: row.round,
+          kind: row.kind,
+          succeeded: row.succeeded,
+          createdAt: row.createdAt.toISOString(),
+          queueMs: row.queueMs,
+          initializeMs: row.initializeMs,
+          aiThinkingMs: row.aiThinkingMs,
+          structuringMs: row.structuringMs,
+          savingMs: row.savingMs,
+          totalMs: row.totalMs,
+        }
+      : null,
+  };
+}
+
+/** Hard-deletes a timing-test throwaway campaign. Refuses anything else. */
+export async function deleteTestCampaign(campaignId: string): Promise<{ deleted: boolean }> {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    select: { name: true },
+  });
+  if (!campaign) return { deleted: false };
+  if (!campaign.name.startsWith(TIMING_TEST_PREFIX)) {
+    throw new Error("Refusing to delete a campaign that is not a timing-test probe");
+  }
+  await prisma.campaign.delete({ where: { id: campaignId } });
+  return { deleted: true };
+}
+
+// ─── Generation timing (history) ─────────────────────────────────────────────
 
 export type GenTimingResult = {
   summary: ReturnType<typeof summarizeTraces>;

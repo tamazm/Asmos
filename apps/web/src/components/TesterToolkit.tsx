@@ -26,6 +26,17 @@ const INTENT_PROFILES: Record<string, Record<Intent, number>> = {
   "High intent": { browsing: 35, high_intent: 50, exit: 15 },
 };
 
+const TAB_HELP: Record<Tab, string> = {
+  traffic:
+    "Fire realistic fake traffic at a campaign's live variants and watch the bandit + knockout react. Set a base conversion rate and a hidden winner, then run. 'Clear simulated data' removes it all afterwards.",
+  diversity:
+    "Check whether generated popups stay different or repeat themselves. Structural check is free; the AI copy slider makes real generation calls (shows the estimated cost).",
+  timing:
+    "Time a real, fresh generation end-to-end. Pick a campaign to copy settings from — a throwaway campaign is generated and timed (queue → AI thinking → saving), then you can delete it.",
+  inject:
+    "The old quick-and-dirty tool: dump N impressions with a flat 20% conversion onto one variant, or manually trigger a knockout.",
+};
+
 // Superadmin-only floating dev panel. Only ever mounted when the server has
 // already confirmed the current user is a superadmin (see layout.tsx) - this
 // component does no auth checking of its own, the API route does.
@@ -56,6 +67,10 @@ export function TesterToolkit() {
   // Diversity
   const [diversityN, setDiversityN] = useState(100);
   const [aiSampleCount, setAiSampleCount] = useState(0);
+
+  // Timing (live)
+  const [timedCampaignId, setTimedCampaignId] = useState<string | null>(null);
+  const [timedStatus, setTimedStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open || fetchedCampaigns) return;
@@ -96,6 +111,58 @@ export function TesterToolkit() {
       if (!res.ok) throw new Error(data.error ?? "Request failed");
       setResult(data);
       router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // Kick a real fresh generation and poll its trace until it lands.
+  async function runTimedGeneration() {
+    if (!campaignId) return;
+    setBusy("timedgen");
+    setError(null);
+    setResult(null);
+    setTimedCampaignId(null);
+    setTimedStatus("Starting…");
+    try {
+      const startRes = await fetch("/api/testing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run_timed_generation", campaignId }),
+      });
+      const startData = await startRes.json().catch(() => ({}));
+      if (!startRes.ok) throw new Error(startData.error ?? "Failed to start");
+      const testId: string = startData.campaignId;
+      setTimedCampaignId(testId);
+
+      const startedAt = Date.now();
+      // Poll for up to 3 minutes; generation is async via Inngest.
+      while (Date.now() - startedAt < 180_000) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const sRes = await fetch("/api/testing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "timed_generation_status", campaignId: testId }),
+        });
+        const sData = await sRes.json().catch(() => ({}));
+        if (!sRes.ok) throw new Error(sData.error ?? "Status check failed");
+        setTimedStatus(
+          sData.trace
+            ? "Done"
+            : `${sData.status}${sData.generationStage ? ` · ${sData.generationStage}` : ""}…`,
+        );
+        if (sData.trace) {
+          setResult(sData.trace);
+          break;
+        }
+        if (sData.status === "FAILED") {
+          setError(`Generation failed: ${sData.lastError ?? "unknown"}`);
+          setResult(sData);
+          break;
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -157,10 +224,14 @@ export function TesterToolkit() {
         ))}
       </div>
 
-      {/* Campaign selector — shared by every tab except diversity's synthetic mode */}
-      {tab !== "timing" && (
+      <p className="text-[11px] leading-snug text-[color:var(--color-text-secondary)]">{TAB_HELP[tab]}</p>
+
+      {/* Campaign selector — shared by every tab */}
+      {(
         <div className="flex flex-col gap-1.5">
-          <label className="text-xs font-medium text-[color:var(--color-text-secondary)]">Campaign</label>
+          <label className="text-xs font-medium text-[color:var(--color-text-secondary)]">
+            {tab === "timing" ? "Campaign to clone (generation template)" : "Campaign"}
+          </label>
           {loadingCampaigns ? (
             <p className="text-xs text-[color:var(--color-text-secondary)]">Loading campaigns…</p>
           ) : campaigns.length === 0 ? (
@@ -275,16 +346,37 @@ export function TesterToolkit() {
       {/* ── TIMING ── */}
       {tab === "timing" && (
         <div className="flex flex-col gap-2.5">
-          <p className="text-xs text-[color:var(--color-text-secondary)]">
-            Per-stage timing across recent generations (queue wait, initialize, AI thinking, saving).
-          </p>
+          <button
+            type="button"
+            disabled={busy !== null || !campaignId}
+            onClick={runTimedGeneration}
+            className="rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {busy === "timedgen" ? "Generating & timing…" : "Time a fresh generation"}
+          </button>
+          {busy === "timedgen" && timedStatus && (
+            <p className="text-xs text-[color:var(--color-text-secondary)]">{timedStatus}</p>
+          )}
+          {timedCampaignId && busy !== "timedgen" && (
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={async () => {
+                await call("deltest", { action: "delete_test_campaign", campaignId: timedCampaignId });
+                setTimedCampaignId(null);
+              }}
+              className="rounded-lg border border-[color:var(--color-border)] px-4 py-2 text-xs font-semibold text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)] disabled:opacity-60"
+            >
+              {busy === "deltest" ? "Deleting…" : "Delete this test campaign"}
+            </button>
+          )}
           <button
             type="button"
             disabled={busy !== null}
-            onClick={() => call("timing", { action: "gen_timing" })}
-            className="rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+            onClick={() => call("timing", { action: "gen_timing", campaignId: campaignId || undefined })}
+            className="text-left text-[11px] font-medium text-[color:var(--color-text-secondary)] underline underline-offset-2 hover:text-[color:var(--color-text-primary)]"
           >
-            {busy === "timing" ? "Loading…" : "Load generation timing"}
+            or show p50/p95 across recent real generations →
           </button>
         </div>
       )}
@@ -328,11 +420,49 @@ export function TesterToolkit() {
       )}
 
       {error && <p className="text-xs text-red-600">{error}</p>}
-      {result != null && (
+      {isTrace(result) && <TimingReadout trace={result} />}
+      {result != null && !isTrace(result) && (
         <pre className="max-h-64 overflow-auto rounded-lg bg-[color:var(--color-surface-sunken)] p-2 text-[10px] leading-tight text-[color:var(--color-text-primary)]">
           {JSON.stringify(result, null, 2)}
         </pre>
       )}
+    </div>
+  );
+}
+
+type Trace = {
+  queueMs: number | null;
+  initializeMs: number | null;
+  aiThinkingMs: number | null;
+  savingMs: number | null;
+  totalMs: number | null;
+  succeeded?: boolean;
+};
+
+function isTrace(r: unknown): r is Trace {
+  return typeof r === "object" && r !== null && "aiThinkingMs" in r && "totalMs" in r;
+}
+
+function TimingReadout({ trace }: { trace: Trace }) {
+  const ms = (v: number | null) => (typeof v === "number" ? `${(v / 1000).toFixed(1)}s` : "—");
+  const rows: [string, number | null][] = [
+    ["Queue wait", trace.queueMs],
+    ["Initialize", trace.initializeMs],
+    ["AI thinking", trace.aiThinkingMs],
+    ["Saving", trace.savingMs],
+  ];
+  return (
+    <div className="flex flex-col gap-1 rounded-lg bg-[color:var(--color-surface-sunken)] p-2.5 text-xs">
+      {rows.map(([label, v]) => (
+        <div key={label} className="flex items-center justify-between">
+          <span className="text-[color:var(--color-text-secondary)]">{label}</span>
+          <span className="font-mono font-medium text-[color:var(--color-text-primary)]">{ms(v)}</span>
+        </div>
+      ))}
+      <div className="mt-1 flex items-center justify-between border-t border-[color:var(--color-border)] pt-1">
+        <span className="font-semibold text-[color:var(--color-text-primary)]">Total</span>
+        <span className="font-mono font-semibold text-[color:var(--color-text-primary)]">{ms(trace.totalMs)}</span>
+      </div>
     </div>
   );
 }
