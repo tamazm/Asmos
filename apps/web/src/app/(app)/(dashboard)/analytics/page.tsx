@@ -86,7 +86,7 @@ export default async function AnalyticsPage() {
   const isShopifyLinked = Boolean(shopifyShop);
 
   const campaigns = await prisma.campaign.findMany({
-    where: { accountId: account.id },
+    where: { accountId: account.id, status: { not: "ARCHIVED" } },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -134,7 +134,7 @@ export default async function AnalyticsPage() {
 
   const grouped = await prisma.campaignEvent.groupBy({
     by: ["variantId", "type"],
-    where: { variant: { campaign: { accountId: account.id } } },
+    where: { variant: { campaign: { accountId: account.id, status: { not: "ARCHIVED" } } } },
     _count: { _all: true },
   });
 
@@ -151,12 +151,12 @@ export default async function AnalyticsPage() {
   }
 
   const emailsCaptured = await prisma.lead.count({
-    where: { variant: { campaign: { accountId: account.id } }, email: { not: null } },
+    where: { variant: { campaign: { accountId: account.id, status: { not: "ARCHIVED" } } }, email: { not: null } },
   });
 
   const attributedLeads = await prisma.lead.findMany({
     where: {
-      variant: { campaign: { accountId: account.id } },
+      variant: { campaign: { accountId: account.id, status: { not: "ARCHIVED" } } },
       firstOrderId: { not: null },
     },
     select: {
@@ -176,7 +176,7 @@ export default async function AnalyticsPage() {
   // Funnel totals across all campaigns
   const funnelGrouped = await prisma.campaignEvent.groupBy({
     by: ["type"],
-    where: { variant: { campaign: { accountId: account.id } } },
+    where: { variant: { campaign: { accountId: account.id, status: { not: "ARCHIVED" } } } },
     _count: { _all: true },
   });
   const funnelCounts: Record<string, number> = {};

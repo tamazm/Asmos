@@ -159,12 +159,12 @@ export async function PATCH(
   return Response.json({ campaign: updated });
 }
 
-// Deletes a campaign - a real row delete only when there's genuinely nothing
-// to lose (no leads captured, no events recorded on any of its variants);
-// otherwise archives it (status: ARCHIVED) so it disappears from the
-// campaigns list and is never served, without cascading away a merchant's
-// real captured leads/analytics. See the CampaignStatus.ARCHIVED comment in
-// schema.prisma.
+export const MEANINGFUL_IMPRESSION_THRESHOLD = 50;
+
+// Deletes a campaign - a real row delete unless it has reached meaningful
+// traffic (at least 50 impressions); in that case it is archived (status: ARCHIVED)
+// so it disappears from the campaigns list and is never served, without cascading
+// away real merchant analytics.
 export async function DELETE(
   _request: Request,
   ctx: RouteContext<"/api/campaigns/[id]">,
@@ -184,12 +184,14 @@ export async function DELETE(
     return Response.json({ error: "Campaign not found" }, { status: 404 });
   }
 
-  const [leadCount, eventCount] = await Promise.all([
-    prisma.lead.count({ where: { variant: { campaignId: id } } }),
-    prisma.campaignEvent.count({ where: { variant: { campaignId: id } } }),
-  ]);
+  const impressionCount = await prisma.campaignEvent.count({
+    where: {
+      variant: { campaignId: id },
+      type: "IMPRESSION",
+    },
+  });
 
-  if (leadCount === 0 && eventCount === 0) {
+  if (impressionCount < MEANINGFUL_IMPRESSION_THRESHOLD) {
     await prisma.campaign.delete({ where: { id: campaign.id } });
     return Response.json({ ok: true, mode: "deleted" });
   }

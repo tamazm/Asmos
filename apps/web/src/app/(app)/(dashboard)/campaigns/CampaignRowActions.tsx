@@ -31,7 +31,7 @@ export function CampaignRowActions({
   async function handleDelete() {
     if (
       !window.confirm(
-        "Delete this popup? If it has captured leads or recorded events, it'll be archived (hidden, stops running) so that data isn't lost. Otherwise it's removed entirely. This can't be undone.",
+        "Delete this popup? If it has 50 or more impressions, it'll be archived (hidden, stops running) so that meaningful data isn't lost. Otherwise it's removed entirely. This can't be undone.",
       )
     ) {
       return;

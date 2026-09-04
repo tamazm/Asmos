@@ -26,6 +26,7 @@ export async function GET(request: Request) {
   const campaigns = await prisma.campaign.findMany({
     where: {
       accountId: account.id,
+      status: { not: "ARCHIVED" },
       ...(campaignId ? { id: campaignId } : {}),
     },
     include: {
