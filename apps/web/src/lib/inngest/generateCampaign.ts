@@ -20,6 +20,7 @@ import { brandTokensFromStoreProfile, computedStylesFromStoreProfile } from "@/l
 import type { CampaignGenerationStageCode } from "@/lib/campaignGenerationStages";
 import { generateCouponCode } from "@/lib/reward";
 import { emitIntegrationEvent } from "@/lib/integrations/emit";
+import { analyzeCampaignStore } from "@/lib/inngest/analyzeCampaignStore";
 import {
   MAX_CODES_PER_GENERATE_REQUEST,
   MAX_COUPON_CODES_PER_ACCOUNT,
@@ -169,10 +170,15 @@ export const generateCampaign = inngest.createFunction(
     const round = campaign.tournamentRound;
 
     try {
-      const { message, timings } = await runGeneration(
+      const generationContext = await analyzeCampaignStore(
         step,
         campaignId,
         campaign.generationContext as Record<string, unknown> | null,
+      );
+      const { message, timings } = await runGeneration(
+        step,
+        campaignId,
+        generationContext,
         campaign.website?.storeProfile ?? null,
         campaign.account.industry,
       );
@@ -269,11 +275,11 @@ async function runGeneration(
     const contextStyles = context.computedStyles as ComputedStyles | undefined;
     // The account's own industry (explicitly chosen in onboarding/Settings -
     // durable, correct) wins over context.industry, which is only whatever
-    // NewCampaignForm.tsx's own fresh /api/analyze call at campaign-creation
-    // time happened to guess - and that call can fail outright (a Cloudflare-
-    // protected store, for instance), landing on null and silently discarding
-    // an industry the merchant deliberately picked. Same class of bug as the
-    // brandColor fallback this account/context split fixed for colour.
+    // the background store-analysis step happened to infer - and that pass can
+    // fall back to heuristics for a Cloudflare-protected store, for instance,
+    // landing on a generic value and silently discarding an industry the
+    // merchant deliberately picked. Same class of bug as the brandColor
+    // fallback this account/context split fixed for colour.
     const industry = accountIndustry ?? (typeof context.industry === "string" ? context.industry : undefined);
 
     const brandTokens = await brandTokensFromAnalyzeResult({

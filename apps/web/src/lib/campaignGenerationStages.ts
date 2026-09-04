@@ -18,9 +18,14 @@ export const CAMPAIGN_GENERATION_STAGES = [
     description: "Waiting for a generation slot to open up…",
   },
   {
+    code: "ANALYZING",
+    label: "Analyzing your store",
+    description: "Reading your site, products, branding, images, and existing popup…",
+  },
+  {
     code: "AI_THINKING",
     label: "AI is thinking",
-    description: "Analyzing your brand, store, and past results to plan the popup…",
+    description: "Using the store analysis and past results to plan the popup…",
   },
   {
     code: "STRUCTURING",

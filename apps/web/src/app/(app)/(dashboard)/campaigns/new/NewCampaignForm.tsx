@@ -92,14 +92,14 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
     setPhase("analyzing");
 
     try {
-      // Step 1: Analyze the store URL
-      const resAnalyze = await fetch(`/api/analyze?url=${encodeURIComponent(normalized)}`);
-      if (!resAnalyze.ok) {
-        throw new Error("Could not analyze store. Please check the URL and try again.");
+      const customName = campaignName.trim();
+      let domain = "My Store";
+      try {
+        domain = new URL(normalized).hostname.replace(/^www\./, "");
+      } catch {
+        // The background analyzer will report a useful error for an invalid URL.
       }
-      const result = await resAnalyze.json();
-
-      const name = campaignName.trim() || `${result.storeName ?? "My Store"}: Email Capture`;
+      const name = customName || `${domain}: Email Capture`;
 
       // Personalization inputs (see the "Personalize your popup" section
       // below) - undefined/omitted when left at their defaults, so
@@ -116,7 +116,9 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
                 .filter(Boolean),
             };
 
-      // Step 2: Create the campaign immediately with GENERATING status
+      // Create the durable campaign first. Store analysis is intentionally the
+      // first Inngest generation step, so this request and redirect never wait
+      // on Browserless or multiple vision-model calls.
       const resCreate = await fetch("/api/campaigns", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -124,7 +126,9 @@ export function NewCampaignForm({ defaultUrl }: { defaultUrl: string }) {
           name,
           status: "GENERATING",
           generationContext: {
-            ...result,
+            storeUrl: normalized,
+            analysisPending: true,
+            autoName: !customName,
             goal,
             discountPreference,
             maxDiscountPercent:

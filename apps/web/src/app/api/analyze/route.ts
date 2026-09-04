@@ -851,6 +851,19 @@ async function handler(req: NextRequest) {
     return cors(NextResponse.json({ error: "Missing url param" }, { status: 400 }));
   }
 
+  return cors(NextResponse.json(await analyzeStore(url)));
+}
+
+/**
+ * Run the full store analysis without an HTTP round trip.
+ *
+ * The public analyzer route and campaign-generation workflow share this core
+ * so campaign creation can return immediately while the same high-quality
+ * screenshot, DOM, catalogue, and vision analysis continues durably in
+ * Inngest. Callers are responsible for authentication/rate limiting.
+ */
+export async function analyzeStore(url: string): Promise<Record<string, unknown>> {
+
   // Normalize URL
   let normalizedUrl = url.trim();
   if (!normalizedUrl.startsWith("http://") && !normalizedUrl.startsWith("https://")) {
@@ -873,7 +886,7 @@ async function handler(req: NextRequest) {
   if (!screenshotBase64) {
     // No screenshot - use heuristics
     const result = await heuristicAnalysis(normalizedUrl);
-    return cors(NextResponse.json({ ...result, storeUrl: normalizedUrl }));
+    return { ...result, storeUrl: normalizedUrl };
   }
 
   // 2. AI analysis - Bedrock → Anthropic → Gemini → heuristic (CRO pass)
@@ -895,7 +908,7 @@ async function handler(req: NextRequest) {
   if (!aiResult) {
     // All AI failed - return heuristics but include screenshot
     const heuristic = await heuristicAnalysis(normalizedUrl);
-    return cors(NextResponse.json({ ...heuristic, screenshotBase64, storeUrl: normalizedUrl }));
+    return { ...heuristic, screenshotBase64, storeUrl: normalizedUrl };
   }
 
   // ── 3. MEASURE, then judge ────────────────────────────────────────────────
@@ -1110,7 +1123,7 @@ async function handler(req: NextRequest) {
     console.warn("[analyze] store profile persist failed:", e);
   }
 
-  return cors(NextResponse.json({
+  return {
     ...aiResult,
     storeName: decodeEntities(aiResult.storeName ?? ""),
     // The generic bucket no longer masquerades as a finding. Downstream reads
@@ -1131,6 +1144,6 @@ async function handler(req: NextRequest) {
     storeProfile,
     offerRecommendation,
     extractionSources: sources,
-  }));
+  };
 }
 
