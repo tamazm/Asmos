@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { updatePlanTier, updateAIGenerationsCount } from "@/app/(dashboard)/admin/actions";
+import { updatePlanTier, updateAIGenerationsCount } from "@/app/(app)/(dashboard)/admin/actions";
 import type { PlanTier } from ".prisma/client";
 import { AI_GENERATION_LIMITS } from "@/lib/limits";
 

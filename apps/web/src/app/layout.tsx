@@ -1,25 +1,15 @@
 import type { Metadata } from "next";
-import { Geist } from "next/font/google";
-import { Barlow_Condensed } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
-import { Suspense } from "react";
-import { PostHogProvider } from "@/lib/posthog";
-import { PostHogPageView } from "@/components/PostHogPageView";
-import { JsonLd } from "@/components/seo/JsonLd";
-import { organizationJsonLd } from "@/lib/seo";
 import { SITE_URL } from "@/lib/site";
 import "./globals.css";
 
-const geist = Geist({
-  variable: "--font-geist",
-  subsets: ["latin"],
-});
-
-const barlowCondensed = Barlow_Condensed({
-  variable: "--font-barlow-condensed",
-  subsets: ["latin"],
-  weight: ["600", "700", "800", "900"],
-});
+// Minimal root layout — the ONLY <html>/<body> in the app, shared by every
+// route. It intentionally carries no providers, analytics, or web fonts so the
+// embedded Shopify app (/shopify-admin), which sits directly under this root,
+// stays as light as possible (its App Store LCP gate is < 2.5s). Everything that
+// needs Clerk, PostHog, or the brand fonts lives under the (app) route group,
+// which adds them in its own nested layout (see src/app/(app)/layout.tsx).
+// Fonts are declared there, so next/font only preloads them for (app) routes —
+// never for the embed.
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -37,18 +27,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" className={`${geist.variable} ${barlowCondensed.variable} h-full antialiased`}>
-        <body className="min-h-full flex flex-col">
-          <JsonLd data={organizationJsonLd()} />
-          <PostHogProvider>
-            <Suspense fallback={null}>
-              <PostHogPageView />
-            </Suspense>
-            {children}
-          </PostHogProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en" className="h-full antialiased">
+      <body className="min-h-full flex flex-col">{children}</body>
+    </html>
   );
 }
