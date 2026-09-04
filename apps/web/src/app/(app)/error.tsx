@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { logSystemError } from "./actions/logError";
+import { logSystemError } from "@/app/actions/logError";
 
 export default function GlobalError({
   error,

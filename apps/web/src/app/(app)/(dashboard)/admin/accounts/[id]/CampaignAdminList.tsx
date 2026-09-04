@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
-import { deleteCampaign, retryCampaign } from "@/app/(dashboard)/superadmin/actions";
+import { deleteCampaign, retryCampaign } from "@/app/(app)/(dashboard)/superadmin/actions";
 
 type VariantStats = Record<string, number>;
 

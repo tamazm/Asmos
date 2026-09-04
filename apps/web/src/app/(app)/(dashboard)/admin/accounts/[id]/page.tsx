@@ -13,7 +13,7 @@ import {
 } from "@/lib/limits";
 import { AccountControls } from "./AccountControls";
 import { CampaignAdminList } from "./CampaignAdminList";
-import { RewardsBoard, type RewardRow } from "@/app/(dashboard)/rewards/RewardsBoard";
+import { RewardsBoard, type RewardRow } from "@/app/(app)/(dashboard)/rewards/RewardsBoard";
 
 // Per-account detail view for superadmins: everything about one merchant in
 // one place - team, websites, plan/generation controls, and every campaign
