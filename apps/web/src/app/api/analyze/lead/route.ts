@@ -2,31 +2,50 @@ import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-// Called from the embeddable widget (public/embed/analyze.html), which is
-// loaded on arbitrary third-party origins - see the matching comment on
-// /api/analyze/route.ts. Unlike that GET endpoint, this one is a POST sent
-// with a JSON body, which is not a CORS-"simple" request - the browser
-// preflights it with OPTIONS first and checks Allow-Methods/Allow-Headers
-// too, not just Allow-Origin, so all three need to be set here.
-function cors<T extends NextResponse>(res: T): T {
-  res.headers.set("Access-Control-Allow-Origin", "*");
+const ALLOWED_ORIGINS = new Set([
+  "https://asmos.io",
+  "https://app.asmos.io",
+]);
+
+function allowedOrigin(req: NextRequest): string | null {
+  const origin = req.headers.get("origin");
+  return origin && ALLOWED_ORIGINS.has(origin) ? origin : null;
+}
+
+// Echo only the verified origin. `Vary: Origin` prevents a CDN from serving
+// one domain's CORS response to the other domain (or to an unapproved one).
+function cors<T extends NextResponse>(res: T, origin: string): T {
+  res.headers.set("Access-Control-Allow-Origin", origin);
   res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.headers.set("Access-Control-Allow-Headers", "Content-Type");
+  res.headers.set("Vary", "Origin");
   return res;
 }
 
-export async function OPTIONS() { return cors(new NextResponse(null, { status: 204 })); }
+function forbiddenOrigin() {
+  const response = NextResponse.json({ error: "Forbidden origin" }, { status: 403 });
+  response.headers.set("Vary", "Origin");
+  return response;
+}
+
+export async function OPTIONS(req: NextRequest) {
+  const origin = allowedOrigin(req);
+  return origin ? cors(new NextResponse(null, { status: 204 }), origin) : forbiddenOrigin();
+}
 
 export async function POST(req: NextRequest) {
+  const origin = allowedOrigin(req);
+  if (!origin) return forbiddenOrigin();
+
   try {
     const body = await req.json();
     const { email, storeUrl, storeName, industry, score, grade, gradeLabel, topIssue, topFindings } = body;
 
     if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return cors(NextResponse.json({ error: "Invalid email" }, { status: 400 }));
+      return cors(NextResponse.json({ error: "Invalid email" }, { status: 400 }), origin);
     }
     if (!storeUrl || typeof storeUrl !== "string") {
-      return cors(NextResponse.json({ error: "Missing storeUrl" }, { status: 400 }));
+      return cors(NextResponse.json({ error: "Missing storeUrl" }, { status: 400 }), origin);
     }
 
     // Upsert - don't create duplicates for same email + store
@@ -90,10 +109,40 @@ export async function POST(req: NextRequest) {
       }
     });
 
-    return cors(NextResponse.json({ ok: true, id: lead.id }));
+    // Notify the internal sales channel independently from report delivery.
+    // A Discord outage must never delay or fail lead capture/email delivery.
+    after(async () => {
+      try {
+        const { sendAnalyzeLeadToDiscord } = await import("@/lib/analyzeLeadDiscord");
+        await sendAnalyzeLeadToDiscord({
+          leadId: lead.id,
+          email: lead.email,
+          storeName: lead.storeName,
+          storeUrl: lead.storeUrl,
+          industry: lead.industry,
+          score: lead.score,
+          grade: lead.grade,
+          gradeLabel: typeof gradeLabel === "string" ? gradeLabel : null,
+          topIssue: typeof topIssue === "string" ? topIssue : null,
+          topFindings: Array.isArray(topFindings)
+            ? topFindings
+                .filter((f): f is { label: string; headline: string } =>
+                  Boolean(f && typeof f.label === "string" && typeof f.headline === "string"),
+                )
+                .slice(0, 3)
+            : [],
+          origin,
+          capturedAt: lead.createdAt,
+        });
+      } catch (err) {
+        console.error("[analyze/lead] Failed to send Discord notification:", err);
+      }
+    });
+
+    return cors(NextResponse.json({ ok: true, id: lead.id }), origin);
   } catch (e) {
     console.error("[analyze/lead] Failed to save lead:", e);
     // Don't fail the UX - return ok so the frontend flow continues
-    return cors(NextResponse.json({ ok: true, saved: false }));
+    return cors(NextResponse.json({ ok: true, saved: false }), origin);
   }
 }
