@@ -418,7 +418,10 @@ export async function fetchAccountPrior(accountId: string, excludeCampaignId?: s
  * belongs to. No-op if a winner has already been declared (human override
  * always wins) or the campaign only has one live variant.
  */
-export async function recomputeCampaignAllocation(variantId: string) {
+export async function recomputeCampaignAllocation(
+  variantId: string,
+  opts: { force?: boolean } = {},
+) {
   const variant = await prisma.variant.findUnique({
     where: { id: variantId },
     select: { campaignId: true },
@@ -440,8 +443,12 @@ export async function recomputeCampaignAllocation(variantId: string) {
   // An explicit stamp. Reading max(variants.updatedAt) meant that once the
   // allocation stopped changing, no row was written, the clock stopped
   // advancing, and every single subsequent event ran the full Monte Carlo.
+  // The traffic simulator (superadmin Tester Toolkit) runs many waves inside a
+  // single sub-second request, so every wave after the first would be throttled
+  // out. `force` bypasses the throttle for that path only; every production
+  // caller leaves it at the default and keeps the 30s guard.
   const last = campaign.allocationComputedAt?.getTime() ?? 0;
-  if (Date.now() - last < RECOMPUTE_THROTTLE_MS) return;
+  if (!opts.force && Date.now() - last < RECOMPUTE_THROTTLE_MS) return;
 
   const arms = await fetchArms(campaign.id);
   if (arms.length < 2) return;

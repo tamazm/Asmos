@@ -131,9 +131,19 @@ export const generateCampaign = inngest.createFunction(
   { id: "generate-campaign", triggers: { event: "campaign.generate" }, retries: 0 },
   async ({ event, step }) => {
     const { campaignId } = event.data;
+    // Stamped by the caller at inngest.send time. Read inside the first step
+    // (below) so queue latency is memoized once and survives Inngest's
+    // per-step handler replays.
+    const enqueuedAt =
+      typeof event.data.enqueuedAt === "number" ? event.data.enqueuedAt : null;
 
-    const campaign = await step.run("fetch-campaign", async () => {
-      return prisma.campaign.findUnique({
+    // Durations are captured INSIDE each step.run (which executes exactly once)
+    // rather than from wall-clock marks in the handler body, because Inngest
+    // re-invokes the handler once per step and replays completed steps from
+    // memo - so a Date.now() taken in the body would be re-read every replay.
+    const fetched = await step.run("fetch-campaign", async () => {
+      const start = Date.now();
+      const c = await prisma.campaign.findUnique({
         where: { id: campaignId, status: "GENERATING" },
         include: {
           variants: true,
@@ -146,18 +156,38 @@ export const generateCampaign = inngest.createFunction(
           account: { select: { industry: true } },
         },
       });
+      return {
+        c,
+        initializeMs: Date.now() - start,
+        queueMs: enqueuedAt !== null ? Math.max(0, start - enqueuedAt) : null,
+      };
     });
 
+    const campaign = fetched.c;
     if (!campaign) return { message: "Skipping" };
 
+    const round = campaign.tournamentRound;
+
     try {
-      return await runGeneration(
+      const { message, timings } = await runGeneration(
         step,
         campaignId,
         campaign.generationContext as Record<string, unknown> | null,
         campaign.website?.storeProfile ?? null,
         campaign.account.industry,
       );
+      await writeGenerationTrace(step, {
+        campaignId,
+        round,
+        succeeded: true,
+        queueMs: fetched.queueMs,
+        initializeMs: fetched.initializeMs,
+        aiThinkingMs: timings.aiThinkingMs,
+        structuringMs: null,
+        savingMs: timings.savingMs,
+        totalMs: fetched.initializeMs + timings.aiThinkingMs + timings.savingMs,
+      });
+      return { message };
     } catch (err) {
       const message = err instanceof Error ? err.message : "Generation failed for an unknown reason";
       console.error(`[generateCampaign] campaign ${campaignId} failed:`, err);
@@ -172,13 +202,52 @@ export const generateCampaign = inngest.createFunction(
         where: { id: campaignId },
         data: { status: "FAILED", lastError: message },
       });
+      await writeGenerationTrace(step, {
+        campaignId,
+        round,
+        succeeded: false,
+        queueMs: fetched.queueMs,
+        initializeMs: fetched.initializeMs,
+        aiThinkingMs: null,
+        structuringMs: null,
+        savingMs: null,
+        totalMs: null,
+      });
       return { message: "Generation failed", error: message };
     }
   },
 );
 
+// Writes one GenerationTrace row for a completed (or failed) generation. Wrapped
+// in its own step so it is durable and idempotent across Inngest replays, and
+// best-effort: a failed trace write must never turn a good generation into a
+// failed one. structuringMs is currently null - STRUCTURING and SAVING both
+// happen inside the save-variants step, so savingMs covers both.
+async function writeGenerationTrace(
+  step: any,
+  data: {
+    campaignId: string;
+    round: number;
+    succeeded: boolean;
+    queueMs: number | null;
+    initializeMs: number | null;
+    aiThinkingMs: number | null;
+    structuringMs: number | null;
+    savingMs: number | null;
+    totalMs: number | null;
+  },
+) {
+  await step.run("write-generation-trace", async () => {
+    await prisma.generationTrace
+      .create({ data: { ...data, kind: "generate" } })
+      .catch((err: unknown) => console.error("[generateCampaign] trace write failed:", err));
+    return { ok: true };
+  });
+}
+
 async function runGeneration(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Inngest's step-tools type is generated per-call-site and not easily named standalone; this is an internal helper, not a public API.
+  // Inngest's step-tools type is generated per-call-site and not easily named
+  // standalone; this is an internal helper, not a public API.
   step: any,
   campaignId: string,
   context: Record<string, unknown> | null,
@@ -276,7 +345,8 @@ async function runGeneration(
     // and still one unit of the account's AI generation budget.
     const VARIANT_COUNT = 2;
 
-    const output: PopupGenerationOutput = await step.run("generate-ai", async () => {
+    const genResult = await step.run("generate-ai", async () => {
+      const aiStart = Date.now();
       const goal = (context.goal as "EMAIL" | "DISCOUNT" | "BOTH") ?? "BOTH";
 
       const campaignRow = await prisma.campaign.findUnique({
@@ -321,12 +391,16 @@ async function runGeneration(
         testingMode: "explore",
         novelty,
       });
-      return generatePopupWithVariants(input, briefs);
+      const output = await generatePopupWithVariants(input, briefs);
+      return { output, aiThinkingMs: Date.now() - aiStart };
     });
+    const output: PopupGenerationOutput = genResult.output;
+    const aiThinkingMs = genResult.aiThinkingMs;
 
     await setStage(campaignId, "STRUCTURING");
 
-    await step.run("save-variants", async () => {
+    const saveResult = await step.run("save-variants", async () => {
+      const saveStart = Date.now();
       const goal = (context.goal as "EMAIL" | "DISCOUNT" | "BOTH") ?? "BOTH";
       const newVariants = [
         {
@@ -473,7 +547,12 @@ async function runGeneration(
         // into a failed campaign or make the merchant retry generation.
         console.error("[integrations] generated campaign.activated emit failed", err);
       }
+
+      return { savingMs: Date.now() - saveStart };
     });
 
-    return { message: "Campaign generated" };
+    return {
+      message: "Campaign generated",
+      timings: { aiThinkingMs, savingMs: saveResult.savingMs },
+    };
 }

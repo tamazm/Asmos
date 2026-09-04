@@ -183,7 +183,7 @@ export async function POST(request: Request) {
     try {
       await inngest.send({
         name: "campaign.generate",
-        data: { campaignId: created.id },
+        data: { campaignId: created.id, enqueuedAt: Date.now() },
       });
     } catch (err) {
       console.error("[campaigns/route] inngest.send failed for campaign.generate", err);

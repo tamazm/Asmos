@@ -93,7 +93,7 @@ export async function getOrCreateAccount() {
       try {
         await inngest.send({
           name: "campaign.generate",
-          data: { campaignId: campaign.id },
+          data: { campaignId: campaign.id, enqueuedAt: Date.now() },
         });
       } catch (err) {
         console.error("[account] inngest.send failed for campaign.generate", err);

@@ -293,9 +293,10 @@ model Campaign {
   // Null while queued/unset or once generation leaves the GENERATING state.
   generationStage   String?
 
-  variants Variant[]         @relation("CampaignVariants")
-  insights CampaignInsight[]
-  rewards  RewardRule[]
+  variants         Variant[]          @relation("CampaignVariants")
+  insights         CampaignInsight[]
+  rewards          RewardRule[]
+  generationTraces GenerationTrace[]
 
   // Explicit stamp for the bandit's recompute throttle. It used to infer this
   // from max(variants.updatedAt), so once the allocation stabilised no row was
@@ -497,6 +498,35 @@ model CampaignInsight {
   summary          String @db.Text
   suggestedVariant Json?
 
+  createdAt DateTime @default(now())
+
+  @@index([campaignId, createdAt])
+}
+
+// Per-generation timing breakdown for the superadmin Tester Toolkit's
+// "generation analytics" tool. One row per generation (or knockout) run,
+// written best-effort at the end of the Inngest job - a failed trace write
+// must never fail generation itself. Powers the p50/p95-per-stage view that
+// answers "where does generation time actually go: queue, AI thinking, etc."
+model GenerationTrace {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  round Int
+  kind  String // "generate" | "knockout"
+
+  // Milliseconds per pipeline boundary. Nullable because a run can fail
+  // partway (leaving later stages unmeasured) and queueMs is only known when
+  // the triggering event carried an enqueuedAt stamp.
+  queueMs       Int? // enqueue -> function start
+  initializeMs  Int? // fetch-campaign
+  aiThinkingMs  Int? // the generate-ai model step
+  structuringMs Int?
+  savingMs      Int?
+  totalMs       Int?
+
+  succeeded Boolean  @default(true)
   createdAt DateTime @default(now())
 
   @@index([campaignId, createdAt])
