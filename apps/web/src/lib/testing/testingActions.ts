@@ -44,6 +44,46 @@ import {
   existingPopupFromAnalyzeResult,
   fetchNoveltyMemory,
 } from "@/lib/popupGeneration";
+import { renderPopupTemplate } from "@/lib/templates";
+
+/**
+ * Turns a generated popup spec into the same self-contained HTML the widget
+ * ships, so the Tester dashboard can render it in an iframe instead of dumping
+ * JSON. Mirrors the mapping generateCampaign.ts uses when it persists a variant.
+ */
+// PopupSpec is a broad generated shape; we read a known subset defensively.
+function renderSpecToHtml(spec: any): string {
+  try {
+    return renderPopupTemplate(spec?.template_id, {
+      headline: spec?.headline,
+      subhead: spec?.subhead,
+      cta: spec?.cta,
+      primaryColor: spec?.design_tokens?.palette?.[0],
+      couponCode: spec?.coupon_code,
+      goal: "BOTH",
+      layoutStyle: spec?.layout_style,
+      imageUrl: spec?.image_url,
+      dna: spec?.dna,
+      brandFonts: spec?.design_tokens,
+      palette: spec?.design_tokens?.palette,
+      discountPercent: spec?.discount_percent,
+      redirectUrl: null,
+      captureFields: ["email"],
+    });
+  } catch (err) {
+    console.error("[testing] renderSpecToHtml failed", err);
+    return "";
+  }
+}
+
+export type RenderedPopup = {
+  generatedCode: string;
+  headline: string;
+  subhead: string;
+  cta: string;
+  primaryColor: string;
+  testAxis?: string | null;
+};
 
 // The account's real novelty lookback is 15 (NOVELTY_LOOKBACK in
 // popupGeneration.ts); mirror it so the harness measures the same avoid-window
@@ -59,12 +99,23 @@ type WaveResult = {
   allocation: { id: string; name: string; trafficPercent: number }[];
 };
 
+export type TrafficSimVariant = RenderedPopup & {
+  id: string;
+  name: string;
+  trafficPercent: number;
+  impressions: number;
+  submissions: number;
+  cvr: number;
+  isWinner: boolean;
+};
+
 export type TrafficSimResult = {
   campaignId: string;
   trueWinnerId: string | null;
   totalImpressions: number;
   totalSubmissions: number;
   waves: WaveResult[];
+  variants: TrafficSimVariant[];
   srm: { chiSquare: number; mismatch: boolean; total: number };
   knockoutTriggered: boolean;
 };
@@ -153,6 +204,53 @@ export async function runTrafficSimulation(
     })),
   );
 
+  // Per-variant rendered popups + their measured stats (sim events only), so
+  // the dashboard shows the actual popups competing rather than a table.
+  const submissionCounts = await prisma.campaignEvent.groupBy({
+    by: ["variantId"],
+    where: {
+      variantId: { in: finalArms.map((a) => a.id) },
+      type: "SUBMISSION",
+      details: { path: ["sim"], equals: true },
+    },
+    _count: { _all: true },
+  });
+  const simSubmissionsById = new Map(submissionCounts.map((s) => [s.variantId, s._count._all]));
+  const simImpressionCounts = await prisma.campaignEvent.groupBy({
+    by: ["variantId"],
+    where: {
+      variantId: { in: finalArms.map((a) => a.id) },
+      type: "IMPRESSION",
+      details: { path: ["sim"], equals: true },
+    },
+    _count: { _all: true },
+  });
+  const simImpressionsById = new Map(simImpressionCounts.map((s) => [s.variantId, s._count._all]));
+
+  const variantRows = await prisma.variant.findMany({
+    where: { id: { in: finalArms.map((a) => a.id) } },
+    select: { id: true, name: true, trafficPercent: true, generatedCode: true, design: true },
+  });
+  const variants: TrafficSimVariant[] = variantRows.map((v) => {
+    const design = (v.design ?? {}) as { headline?: string; ctaText?: string; primaryColor?: string };
+    const impressions = simImpressionsById.get(v.id) ?? 0;
+    const submissions = simSubmissionsById.get(v.id) ?? 0;
+    return {
+      id: v.id,
+      name: v.name,
+      trafficPercent: v.trafficPercent,
+      impressions,
+      submissions,
+      cvr: impressions > 0 ? submissions / impressions : 0,
+      isWinner: v.id === trueWinnerId,
+      generatedCode: v.generatedCode ?? "",
+      headline: design.headline ?? v.name,
+      subhead: "",
+      cta: design.ctaText ?? "",
+      primaryColor: design.primaryColor ?? "#111827",
+    };
+  });
+
   let knockoutTriggered = false;
   if (triggerKnockout) {
     await inngest
@@ -169,6 +267,7 @@ export async function runTrafficSimulation(
     totalImpressions,
     totalSubmissions,
     waves,
+    variants,
     srm: { chiSquare: srm.chiSquare, mismatch: srm.mismatch, total: srm.total },
     knockoutTriggered,
   };
@@ -208,6 +307,8 @@ export type DiversityResult = {
   structural: ReturnType<typeof structuralStats>;
   knobs: Record<string, KnobCoverage>;
   copy: (ReturnType<typeof copyStats> & { generationErrors: number }) | null;
+  /** Real rendered popups from the AI tier - the whole point of the visual page. */
+  popups: RenderedPopup[];
   aiCallsRequested: number;
 };
 
@@ -261,6 +362,7 @@ export async function runDiversityAnalysis(opts: {
 
   // ── Tier B: copy (real AI) ──
   let copy: DiversityResult["copy"] = null;
+  const popups: RenderedPopup[] = [];
   const aiCalls = Math.max(0, Math.floor(opts.aiSampleCount));
   if (aiCalls > 0) {
     const { industry, domain, accountId } = await resolveDiversityContext(opts.campaignId);
@@ -301,6 +403,13 @@ export async function runDiversityAnalysis(opts: {
             subhead: String(spec.subhead ?? ""),
             cta: String(spec.cta ?? ""),
           });
+          popups.push({
+            generatedCode: renderSpecToHtml(spec),
+            headline: String(spec.headline ?? ""),
+            subhead: String(spec.subhead ?? ""),
+            cta: String(spec.cta ?? ""),
+            primaryColor: String(spec.design_tokens?.palette?.[0] ?? "#111827"),
+          });
         }
       } catch (err) {
         generationErrors += 1;
@@ -311,7 +420,7 @@ export async function runDiversityAnalysis(opts: {
     copy = { ...copyStats(samples), generationErrors };
   }
 
-  return { n, structural, knobs, copy, aiCallsRequested: aiCalls };
+  return { n, structural, knobs, copy, popups, aiCallsRequested: aiCalls };
 }
 
 async function resolveDiversityContext(
@@ -388,6 +497,7 @@ export type TimedGenerationStatus = {
   generationStage: string | null;
   lastError: string | null;
   trace: GenTimingResult["recent"][number] | null;
+  popups: RenderedPopup[];
 };
 
 /** Polled by the client while a timed generation runs. */
@@ -403,7 +513,29 @@ export async function timedGenerationStatus(campaignId: string): Promise<TimedGe
     orderBy: { createdAt: "desc" },
   });
 
+  // Once it's produced popups, hand them back so the page renders what was
+  // actually generated alongside the timing breakdown.
+  let popups: RenderedPopup[] = [];
+  if (campaign.status === "ACTIVE") {
+    const vs = await prisma.variant.findMany({
+      where: { campaignId, status: "ACTIVE" },
+      select: { name: true, generatedCode: true, design: true },
+      orderBy: { createdAt: "asc" },
+    });
+    popups = vs.map((v) => {
+      const design = (v.design ?? {}) as { headline?: string; body?: string; ctaText?: string; primaryColor?: string };
+      return {
+        generatedCode: v.generatedCode ?? "",
+        headline: design.headline ?? v.name,
+        subhead: design.body ?? "",
+        cta: design.ctaText ?? "",
+        primaryColor: design.primaryColor ?? "#111827",
+      };
+    });
+  }
+
   return {
+    popups,
     status: campaign.status,
     generationStage: campaign.generationStage,
     lastError: campaign.lastError,

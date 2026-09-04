@@ -18,7 +18,6 @@ export function DashboardShell({
   displayName,
   imageUrl,
   children,
-  testerToolkit,
 }: {
   businessName?: string;
   isSuperadmin: boolean;
@@ -28,7 +27,6 @@ export function DashboardShell({
   displayName: string;
   imageUrl?: string | null;
   children: React.ReactNode;
-  testerToolkit?: React.ReactNode;
 }) {
   const [navOpen, setNavOpen] = useState(false);
 
@@ -114,7 +112,6 @@ export function DashboardShell({
         {/* Page content */}
         <main className="flex-1 min-h-0 overflow-x-hidden overflow-y-auto px-3 py-4 sm:px-4 sm:py-6 lg:px-6">{children}</main>
       </div>
-      {testerToolkit}
     </div>
   );
 }

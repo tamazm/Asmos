@@ -16,7 +16,7 @@ import type { SimConfig, Device, Intent } from "@/lib/testing/trafficSim";
 
 // Superadmin-only test harness for the knockout/bandit + generation systems -
 // lets you skip the real-world wait for impressions to accumulate and probe
-// generation diversity/timing. See components/TesterToolkit.tsx for the UI.
+// generation diversity/timing. See components/admin/TesterDashboard.tsx for the UI.
 // Every action below is gated by requireSuperadmin(); the client component does
 // no auth of its own.
 async function requireSuperadmin() {

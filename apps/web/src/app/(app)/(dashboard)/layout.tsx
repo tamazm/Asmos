@@ -4,7 +4,6 @@ import { getOrCreateAccount } from "@/lib/account";
 import { authProtect, currentUser } from "@/lib/auth-adapter";
 import { prisma } from "@/lib/prisma";
 import { isSuperadminEmail } from "@/lib/superadmin";
-import { TesterToolkit } from "@/components/TesterToolkit";
 
 export default async function DashboardLayout({
   children,
@@ -53,7 +52,6 @@ export default async function DashboardLayout({
       userVerified={verifiedSites > 0}
       displayName={displayName}
       imageUrl={imageUrl}
-      testerToolkit={isSuperadmin ? <TesterToolkit /> : null}
     >
       {children}
     </DashboardShell>

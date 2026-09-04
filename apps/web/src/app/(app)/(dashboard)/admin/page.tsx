@@ -67,6 +67,9 @@ export default async function AdminDashboardPage() {
         title="Superadmin Dashboard"
         actions={
           <div className="flex items-center gap-2">
+            <Link href="/admin/tester" className="rounded-lg bg-[color:var(--color-primary)] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity">
+              🧪 Tester →
+            </Link>
             <Link href="/admin/learned-patterns" className="rounded-lg bg-[color:var(--color-primary-light)] px-4 py-2 text-sm font-semibold text-[color:var(--color-primary)] hover:opacity-90 transition-opacity">
               Learned Patterns →
             </Link>
