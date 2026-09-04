@@ -19,6 +19,14 @@ import {
   listTimingRuns,
   deleteTimingRun,
   clearTimingRuns,
+  initializeKnockoutSandbox,
+  stepKnockoutTournament,
+  fastForwardCurrentRound,
+  fastForwardFullTournament,
+  stepLiveCampaignKnockout,
+  resetLiveCampaignKnockout,
+  type KnockoutSimState,
+  type KnockoutSimConfig,
 } from "@/lib/testing/testingActions";
 import type { SimConfig, Device, Intent } from "@/lib/testing/trafficSim";
 
@@ -52,13 +60,21 @@ type Body = {
     | "list_timing_runs"
     | "delete_timing_run"
     | "clear_timing_runs"
-    | "delete_test_campaign";
+    | "delete_test_campaign"
+    | "init_knockout_sandbox"
+    | "step_knockout_sandbox"
+    | "ff_knockout_round"
+    | "ff_knockout_tournament"
+    | "step_live_knockout"
+    | "reset_live_knockout";
   variantId?: string;
   mockCount?: number;
   campaignId?: string;
   runId?: string;
   page?: number;
   pageSize?: number;
+  knockoutConfig?: KnockoutSimConfig;
+  knockoutState?: KnockoutSimState;
   sim?: Partial<{
     volume: number;
     baseCvr: number;
@@ -201,6 +217,66 @@ export async function POST(request: Request) {
     } catch (err) {
       return Response.json(
         { error: err instanceof Error ? err.message : "Delete failed" },
+        { status: 400 },
+      );
+    }
+  }
+
+  // ── Knockout Tournament Simulator Actions ──
+  if (body.action === "init_knockout_sandbox") {
+    const state = initializeKnockoutSandbox(body.knockoutConfig);
+    return Response.json({ ok: true, state });
+  }
+
+  if (body.action === "step_knockout_sandbox") {
+    if (!body.knockoutState) {
+      return Response.json({ error: "knockoutState is required" }, { status: 400 });
+    }
+    const state = stepKnockoutTournament(body.knockoutState, body.knockoutConfig);
+    return Response.json({ ok: true, state });
+  }
+
+  if (body.action === "ff_knockout_round") {
+    if (!body.knockoutState) {
+      return Response.json({ error: "knockoutState is required" }, { status: 400 });
+    }
+    const state = fastForwardCurrentRound(body.knockoutState, body.knockoutConfig);
+    return Response.json({ ok: true, state });
+  }
+
+  if (body.action === "ff_knockout_tournament") {
+    if (!body.knockoutState) {
+      return Response.json({ error: "knockoutState is required" }, { status: 400 });
+    }
+    const state = fastForwardFullTournament(body.knockoutState, body.knockoutConfig);
+    return Response.json({ ok: true, state });
+  }
+
+  if (body.action === "step_live_knockout") {
+    if (!body.campaignId) {
+      return Response.json({ error: "campaignId is required" }, { status: 400 });
+    }
+    try {
+      const result = await stepLiveCampaignKnockout(body.campaignId, body.knockoutConfig);
+      return Response.json({ ok: true, step: result });
+    } catch (err) {
+      return Response.json(
+        { error: err instanceof Error ? err.message : "Live knockout step failed" },
+        { status: 400 },
+      );
+    }
+  }
+
+  if (body.action === "reset_live_knockout") {
+    if (!body.campaignId) {
+      return Response.json({ error: "campaignId is required" }, { status: 400 });
+    }
+    try {
+      const result = await resetLiveCampaignKnockout(body.campaignId);
+      return Response.json({ ok: true, ...result });
+    } catch (err) {
+      return Response.json(
+        { error: err instanceof Error ? err.message : "Reset live knockout failed" },
         { status: 400 },
       );
     }

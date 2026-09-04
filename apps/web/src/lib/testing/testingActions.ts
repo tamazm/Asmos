@@ -9,7 +9,22 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from ".prisma/client";
 import { inngest } from "@/lib/inngest/client";
-import { recomputeCampaignAllocation, detectSampleRatioMismatch } from "@/lib/bandit";
+import { recomputeCampaignAllocation, detectSampleRatioMismatch, probabilityBest, type Arm } from "@/lib/bandit";
+import {
+  initializeKnockoutSandbox,
+  stepKnockoutTournament,
+  fastForwardCurrentRound,
+  fastForwardFullTournament,
+  type KnockoutSimState,
+  type KnockoutSimConfig,
+  type SimulatedKnockoutVariant,
+  type KnockoutRoundState,
+  type KnockoutLogEntry,
+  KNOCKOUT_ELIMINATION_THRESHOLD,
+  KNOCKOUT_ELIMINATION_STRIKES,
+  KNOCKOUT_MIN_IMPRESSIONS,
+  KNOCKOUT_MIN_SUCCESSES,
+} from "@/lib/testing/knockoutSim";
 import {
   planWave,
   splitVolumeIntoWaves,
@@ -885,3 +900,272 @@ export async function getGenTimingSummary(
     })),
   };
 }
+
+// ─── Knockout Tournament Simulator Actions ───────────────────────────────────
+
+export {
+  initializeKnockoutSandbox,
+  stepKnockoutTournament,
+  fastForwardCurrentRound,
+  fastForwardFullTournament,
+  type KnockoutSimState,
+  type KnockoutSimConfig,
+  type SimulatedKnockoutVariant,
+  type KnockoutRoundState,
+  type KnockoutLogEntry,
+};
+
+export type LiveKnockoutStepResult = {
+  campaignId: string;
+  round: number;
+  message: string;
+  actionTaken: "none" | "strike" | "elimination" | "round_advanced";
+  variants: {
+    id: string;
+    name: string;
+    status: string;
+    impressions: number;
+    submissions: number;
+    conversionRate: number;
+    trafficPercent: number;
+    eliminationStrikes: number;
+    pBest: number;
+    isControl: boolean;
+  }[];
+};
+
+export async function stepLiveCampaignKnockout(
+  campaignId: string,
+  config: KnockoutSimConfig = {},
+): Promise<LiveKnockoutStepResult> {
+  const campaign = await prisma.campaign.findUnique({
+    where: { id: campaignId },
+    include: { variants: true },
+  });
+  if (!campaign) throw new Error("Campaign not found");
+
+  const currentRound = campaign.tournamentRound;
+  const roundVariants = campaign.variants.filter((v) => v.tournamentRound === currentRound);
+  const activeVariants = roundVariants.filter((v) => v.status === "ACTIVE");
+
+  if (activeVariants.length <= 1) {
+    if (activeVariants.length === 1) {
+      const winner = activeVariants[0];
+      const nextRound = currentRound + 1;
+      await prisma.$transaction([
+        prisma.campaign.update({
+          where: { id: campaign.id },
+          data: { tournamentRound: nextRound },
+        }),
+        prisma.variant.update({
+          where: { id: winner.id },
+          data: { tournamentRound: nextRound, isControl: true },
+        }),
+        prisma.variant.create({
+          data: {
+            campaignId: campaign.id,
+            name: `Challenger B (R${nextRound})`,
+            status: "ACTIVE",
+            trafficPercent: 33,
+            tournamentRound: nextRound,
+            isControl: false,
+          },
+        }),
+        prisma.variant.create({
+          data: {
+            campaignId: campaign.id,
+            name: `Challenger C (R${nextRound})`,
+            status: "ACTIVE",
+            trafficPercent: 33,
+            tournamentRound: nextRound,
+            isControl: false,
+          },
+        }),
+      ]);
+
+      const refreshed = await prisma.variant.findMany({
+        where: { campaignId: campaign.id, tournamentRound: nextRound },
+      });
+
+      return {
+        campaignId,
+        round: nextRound,
+        message: `Round ${currentRound} complete! ${winner.name} won and advanced to Round ${nextRound} as Control. 2 new Challengers spawned.`,
+        actionTaken: "round_advanced",
+        variants: refreshed.map((v) => ({
+          id: v.id,
+          name: v.name,
+          status: v.status,
+          impressions: 0,
+          submissions: 0,
+          conversionRate: 0,
+          trafficPercent: v.trafficPercent,
+          eliminationStrikes: 0,
+          pBest: 0.33,
+          isControl: v.isControl,
+        })),
+      };
+    }
+
+    throw new Error("No active variants to evaluate");
+  }
+
+  // Simulate a wave of impressions
+  const volume = config.impressionsPerStep ?? 1500;
+  const baseCvr = config.baseCvr ?? 0.04;
+  const winnerLift = 1 + (config.winnerLiftPct ?? 60) / 100;
+
+  const winnerId = activeVariants[0].id;
+  const simEvents: SimEvent[] = [];
+
+  for (let i = 0; i < volume; i++) {
+    const randArm = activeVariants[Math.floor(Math.random() * activeVariants.length)];
+    simEvents.push({
+      variantId: randArm.id,
+      type: "IMPRESSION",
+      device: "mobile",
+      intent: "browsing",
+    });
+
+    const isWinner = randArm.id === winnerId;
+    const cvr = isWinner ? baseCvr * winnerLift : baseCvr;
+    if (Math.random() < cvr) {
+      simEvents.push({
+        variantId: randArm.id,
+        type: "SUBMISSION",
+        device: "mobile",
+        intent: "browsing",
+      });
+    }
+  }
+
+  await prisma.campaignEvent.createMany({ data: toSimEventRows(simEvents) });
+
+  // Read observed stats
+  const [imprs, subs] = await Promise.all([
+    prisma.campaignEvent.groupBy({
+      by: ["variantId"],
+      where: { variantId: { in: activeVariants.map((a) => a.id) }, type: "IMPRESSION" },
+      _count: { _all: true },
+    }),
+    prisma.campaignEvent.groupBy({
+      by: ["variantId"],
+      where: { variantId: { in: activeVariants.map((a) => a.id) }, type: "SUBMISSION" },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const imprMap = new Map(imprs.map((r) => [r.variantId, r._count._all]));
+  const subMap = new Map(subs.map((r) => [r.variantId, r._count._all]));
+
+  const arms: Arm[] = activeVariants.map((v) => ({
+    id: v.id,
+    impressions: imprMap.get(v.id) ?? 0,
+    submissions: subMap.get(v.id) ?? 0,
+  }));
+
+  const pBestMap = probabilityBest(arms);
+  let actionTaken: LiveKnockoutStepResult["actionTaken"] = "none";
+  let message = `Simulated ${volume.toLocaleString()} impressions across active variants.`;
+
+  const totalImpr = arms.reduce((s, a) => s + a.impressions, 0);
+  const totalSub = arms.reduce((s, a) => s + a.submissions, 0);
+
+  if (totalImpr >= KNOCKOUT_MIN_IMPRESSIONS && totalSub >= KNOCKOUT_MIN_SUCCESSES) {
+    const underperformers = activeVariants
+      .filter((v) => (pBestMap[v.id] ?? 0) < KNOCKOUT_ELIMINATION_THRESHOLD)
+      .sort((a, b) => (pBestMap[a.id] ?? 0) - (pBestMap[b.id] ?? 0));
+
+    if (underperformers.length > 0) {
+      const target = underperformers[0];
+      const strikes = target.eliminationStrikes + 1;
+
+      if (strikes >= KNOCKOUT_ELIMINATION_STRIKES) {
+        await prisma.variant.update({
+          where: { id: target.id },
+          data: { status: "ELIMINATED", trafficPercent: 0, eliminationStrikes: 0 },
+        });
+        actionTaken = "elimination";
+        message = `🚫 ${target.name} received Strike 2/2 (P(best) = ${((pBestMap[target.id] ?? 0) * 100).toFixed(2)}%) and was ELIMINATED!`;
+      } else {
+        await prisma.$transaction([
+          prisma.variant.update({
+            where: { id: target.id },
+            data: { eliminationStrikes: strikes },
+          }),
+          prisma.variant.updateMany({
+            where: { campaignId, tournamentRound: currentRound, status: "ACTIVE", id: { not: target.id } },
+            data: { eliminationStrikes: 0 },
+          }),
+        ]);
+        actionTaken = "strike";
+        message = `⚠️ ${target.name} received Strike 1/2 (P(best) = ${((pBestMap[target.id] ?? 0) * 100).toFixed(2)}%).`;
+      }
+    }
+  }
+
+  await recomputeCampaignAllocation(activeVariants[0].id, { force: true }).catch(() => {});
+
+  const updatedVariants = await prisma.variant.findMany({
+    where: { campaignId, tournamentRound: currentRound },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return {
+    campaignId,
+    round: currentRound,
+    message,
+    actionTaken,
+    variants: updatedVariants.map((v) => {
+      const im = imprMap.get(v.id) ?? 0;
+      const su = subMap.get(v.id) ?? 0;
+      return {
+        id: v.id,
+        name: v.name,
+        status: v.status,
+        impressions: im,
+        submissions: su,
+        conversionRate: im > 0 ? Number(((su / im) * 100).toFixed(2)) : 0,
+        trafficPercent: v.trafficPercent,
+        eliminationStrikes: v.eliminationStrikes,
+        pBest: Number((pBestMap[v.id] ?? 0).toFixed(4)),
+        isControl: v.isControl,
+      };
+    }),
+  };
+}
+
+export async function resetLiveCampaignKnockout(
+  campaignId: string,
+): Promise<{ removedEvents: number; resetVariants: number }> {
+  const variants = await prisma.variant.findMany({ where: { campaignId }, select: { id: true } });
+  const ids = variants.map((v) => v.id);
+
+  const delEvents = await prisma.campaignEvent.deleteMany({
+    where: { variantId: { in: ids }, details: { path: ["sim"], equals: true } },
+  });
+
+  await prisma.variant.deleteMany({
+    where: {
+      campaignId,
+      OR: [{ name: { startsWith: "Challenger " } }, { tournamentRound: { gt: 1 } }],
+    },
+  });
+
+  const upd = await prisma.variant.updateMany({
+    where: { campaignId },
+    data: { status: "ACTIVE", eliminationStrikes: 0, tournamentRound: 1 },
+  });
+
+  await prisma.campaign.update({
+    where: { id: campaignId },
+    data: { tournamentRound: 1 },
+  });
+
+  if (ids.length > 0) {
+    await recomputeCampaignAllocation(ids[0], { force: true }).catch(() => {});
+  }
+
+  return { removedEvents: delEvents.count, resetVariants: upd.count };
+}
+

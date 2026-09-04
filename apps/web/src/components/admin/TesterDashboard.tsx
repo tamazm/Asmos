@@ -11,13 +11,15 @@ import type {
   RenderedPopup,
   TimedGenerationStatus,
   TimingRunDTO,
+  KnockoutSimState,
+  LiveKnockoutStepResult,
 } from "@/lib/testing/testingActions";
 
 const TIMING_PAGE_SIZE = 10;
 const DIVERSITY_PAGE_SIZE = 10;
 
 type CampaignOption = { id: string; name: string; variants: { id: string; name: string }[] };
-type Tab = "traffic" | "diversity" | "timing";
+type Tab = "traffic" | "knockout" | "diversity" | "timing";
 type DiversityGoal = "BOTH" | "EMAIL" | "DISCOUNT" | "MIXED";
 
 const GOAL_OPTIONS: { id: DiversityGoal; label: string; hint: string }[] = [
@@ -39,7 +41,8 @@ const INTENT_PROFILES: Record<string, Record<Intent, number>> = {
 };
 
 const TABS: { id: Tab; label: string; blurb: string }[] = [
-  { id: "traffic", label: "Traffic", blurb: "Fire realistic fake traffic at a campaign's live popups and watch the bandit + knockout react." },
+  { id: "traffic", label: "Traffic", blurb: "Fire realistic fake traffic at a campaign's live popups and watch the bandit react." },
+  { id: "knockout", label: "Knockout tournament", blurb: "Fast-forward the tournament bracket: simulate traffic waves, posterior win probabilities, strikes, eliminations, and round progressions in real time." },
   { id: "diversity", label: "Diversity", blurb: "Do generated popups stay different or repeat? Structural check is free; the AI slider renders real popups." },
   { id: "timing", label: "Generation timing", blurb: "Time a real, fresh generation end-to-end and see the popup it produced." },
 ];
@@ -82,6 +85,17 @@ export function TesterDashboard() {
   const [runsPage, setRunsPage] = useState(0);
   const [runsLoading, setRunsLoading] = useState(false);
 
+  // Knockout Simulator
+  const [knockoutMode, setKnockoutMode] = useState<"sandbox" | "live">("sandbox");
+  const [knockoutVariantsCount, setKnockoutVariantsCount] = useState(4);
+  const [knockoutBaseCvr, setKnockoutBaseCvr] = useState(4);
+  const [knockoutWinnerLift, setKnockoutWinnerLift] = useState(60);
+  const [knockoutStepVolume, setKnockoutStepVolume] = useState(1500);
+  const [knockoutMaxRounds, setKnockoutMaxRounds] = useState(3);
+  const [knockoutState, setKnockoutState] = useState<KnockoutSimState | null>(null);
+  const [liveStepResult, setLiveStepResult] = useState<LiveKnockoutStepResult | null>(null);
+  const knockoutLoadedRef = useRef(false);
+
   useEffect(() => {
     fetch("/api/campaigns")
       .then((r) => r.json())
@@ -108,6 +122,10 @@ export function TesterDashboard() {
       diversityRunsLoadedRef.current = true;
       loadDiversityRuns(0);
     }
+    if (next === "knockout" && !knockoutLoadedRef.current) {
+      knockoutLoadedRef.current = true;
+      initKnockoutSandbox();
+    }
   }
 
   async function post<T>(payload: Record<string, unknown>): Promise<T> {
@@ -119,6 +137,145 @@ export function TesterDashboard() {
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error ?? "Request failed");
     return data as T;
+  }
+
+  async function initKnockoutSandbox(
+    count = knockoutVariantsCount,
+    cvr = knockoutBaseCvr,
+    lift = knockoutWinnerLift,
+    maxR = knockoutMaxRounds,
+  ) {
+    setBusy("initknockout");
+    setError(null);
+    try {
+      const data = await post<{ ok: boolean; state: KnockoutSimState }>({
+        action: "init_knockout_sandbox",
+        knockoutConfig: {
+          startingVariants: count,
+          baseCvr: cvr / 100,
+          winnerLiftPct: lift,
+          maxRounds: maxR,
+          impressionsPerStep: knockoutStepVolume,
+        },
+      });
+      setKnockoutState(data.state);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to initialize sandbox");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function stepKnockoutSandbox() {
+    if (!knockoutState) return;
+    setBusy("stepknockout");
+    setError(null);
+    try {
+      const data = await post<{ ok: boolean; state: KnockoutSimState }>({
+        action: "step_knockout_sandbox",
+        knockoutState,
+        knockoutConfig: {
+          baseCvr: knockoutBaseCvr / 100,
+          winnerLiftPct: knockoutWinnerLift,
+          impressionsPerStep: knockoutStepVolume,
+          maxRounds: knockoutMaxRounds,
+        },
+      });
+      setKnockoutState(data.state);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to step knockout");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function ffKnockoutRound() {
+    if (!knockoutState) return;
+    setBusy("ffround");
+    setError(null);
+    try {
+      const data = await post<{ ok: boolean; state: KnockoutSimState }>({
+        action: "ff_knockout_round",
+        knockoutState,
+        knockoutConfig: {
+          baseCvr: knockoutBaseCvr / 100,
+          winnerLiftPct: knockoutWinnerLift,
+          impressionsPerStep: knockoutStepVolume,
+          maxRounds: knockoutMaxRounds,
+        },
+      });
+      setKnockoutState(data.state);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to fast-forward round");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function ffKnockoutTournament() {
+    if (!knockoutState) return;
+    setBusy("fftournament");
+    setError(null);
+    try {
+      const data = await post<{ ok: boolean; state: KnockoutSimState }>({
+        action: "ff_knockout_tournament",
+        knockoutState,
+        knockoutConfig: {
+          baseCvr: knockoutBaseCvr / 100,
+          winnerLiftPct: knockoutWinnerLift,
+          impressionsPerStep: knockoutStepVolume,
+          maxRounds: knockoutMaxRounds,
+        },
+      });
+      setKnockoutState(data.state);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to fast-forward tournament");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function stepLiveKnockout() {
+    if (!campaignId) return;
+    setBusy("steplive");
+    setError(null);
+    try {
+      const data = await post<{ ok: boolean; step: LiveKnockoutStepResult }>({
+        action: "step_live_knockout",
+        campaignId,
+        knockoutConfig: {
+          baseCvr: knockoutBaseCvr / 100,
+          winnerLiftPct: knockoutWinnerLift,
+          impressionsPerStep: knockoutStepVolume,
+        },
+      });
+      setLiveStepResult(data.step);
+      setNotice(data.step.message);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to step live knockout");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function resetLiveKnockout() {
+    if (!campaignId) return;
+    setBusy("resetlive");
+    setError(null);
+    try {
+      const data = await post<{ ok: boolean; removedEvents: number; resetVariants: number }>({
+        action: "reset_live_knockout",
+        campaignId,
+      });
+      setLiveStepResult(null);
+      setNotice(`Reset complete: removed ${data.removedEvents.toLocaleString()} simulated events and restored ${data.resetVariants} variants.`);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to reset live knockout");
+    } finally {
+      setBusy(null);
+    }
   }
 
   async function runTraffic() {
@@ -339,9 +496,8 @@ export function TesterDashboard() {
       </div>
       {activeBlurb && <p className="text-sm text-[color:var(--color-text-secondary)]">{activeBlurb}</p>}
 
-      {/* Campaign selector — not shown for Diversity, which generates
-          standalone tester popups with no brand context. */}
-      {tab !== "diversity" && (
+      {/* Campaign selector — not shown for Diversity, or Sandbox Knockout */}
+      {tab !== "diversity" && (tab !== "knockout" || knockoutMode === "live") && (
         <Card>
           <div className="flex flex-col gap-1.5">
             <Label>{tab === "timing" ? "Campaign to clone (generation template)" : "Campaign"}</Label>
@@ -382,6 +538,33 @@ export function TesterDashboard() {
           intentProfile={intentProfile} setIntentProfile={setIntentProfile}
           busy={busy} campaignId={campaignId}
           onRun={runTraffic} onClear={clearSim} result={trafficResult}
+        />
+      )}
+
+      {tab === "knockout" && (
+        <KnockoutSection
+          mode={knockoutMode}
+          setMode={setKnockoutMode}
+          variantsCount={knockoutVariantsCount}
+          setVariantsCount={setKnockoutVariantsCount}
+          baseCvr={knockoutBaseCvr}
+          setBaseCvr={setKnockoutBaseCvr}
+          winnerLift={knockoutWinnerLift}
+          setWinnerLift={setKnockoutWinnerLift}
+          stepVolume={knockoutStepVolume}
+          setStepVolume={setKnockoutStepVolume}
+          maxRounds={knockoutMaxRounds}
+          setMaxRounds={setKnockoutMaxRounds}
+          busy={busy}
+          campaignId={campaignId}
+          state={knockoutState}
+          liveStepResult={liveStepResult}
+          onInitSandbox={() => initKnockoutSandbox()}
+          onStepSandbox={stepKnockoutSandbox}
+          onFfRound={ffKnockoutRound}
+          onFfTournament={ffKnockoutTournament}
+          onStepLive={stepLiveKnockout}
+          onResetLive={resetLiveKnockout}
         />
       )}
 
@@ -499,6 +682,554 @@ function VariantCard({
               <div key={i} className="flex-1 rounded-sm bg-[color:var(--color-primary)]" style={{ height: `${Math.max(4, v)}%`, opacity: 0.35 + 0.65 * (i / Math.max(1, series.length - 1)) }} title={`Wave ${i + 1}: ${v}%`} />
             ))}
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Knockout Tournament Section ─────────────────────────────────────────────
+
+function KnockoutSection(p: {
+  mode: "sandbox" | "live";
+  setMode: (m: "sandbox" | "live") => void;
+  variantsCount: number;
+  setVariantsCount: (n: number) => void;
+  baseCvr: number;
+  setBaseCvr: (n: number) => void;
+  winnerLift: number;
+  setWinnerLift: (n: number) => void;
+  stepVolume: number;
+  setStepVolume: (n: number) => void;
+  maxRounds: number;
+  setMaxRounds: (n: number) => void;
+  busy: string | null;
+  campaignId: string;
+  state: KnockoutSimState | null;
+  liveStepResult: LiveKnockoutStepResult | null;
+  onInitSandbox: () => void;
+  onStepSandbox: () => void;
+  onFfRound: () => void;
+  onFfTournament: () => void;
+  onStepLive: () => void;
+  onResetLive: () => void;
+}) {
+  const isSandbox = p.mode === "sandbox";
+  const state = p.state;
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Mode Switcher */}
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => p.setMode("sandbox")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+            isSandbox
+              ? "bg-[color:var(--color-primary)] text-white shadow-sm"
+              : "border border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
+          }`}
+        >
+          <span>🧪 Sandbox Tournament</span>
+          <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">Fast-Forward & Safe</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => p.setMode("live")}
+          className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition-all ${
+            !isSandbox
+              ? "bg-[color:var(--color-primary)] text-white shadow-sm"
+              : "border border-[color:var(--color-border)] bg-[color:var(--color-surface)] text-[color:var(--color-text-secondary)] hover:text-[color:var(--color-text-primary)]"
+          }`}
+        >
+          <span>🎯 Live Campaign Mode</span>
+          <span className="rounded-full bg-amber-500/20 text-amber-600 px-2 py-0.5 text-[10px] font-bold">Database</span>
+        </button>
+      </div>
+
+      {/* Configuration Card */}
+      <Card>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[color:var(--color-border)] pb-3">
+            <div>
+              <h3 className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+                {isSandbox ? "Tournament Simulation Parameters" : "Live Campaign Knockout Parameters"}
+              </h3>
+              <p className="text-xs text-[color:var(--color-text-secondary)]">
+                {isSandbox
+                  ? "Simulate multi-round tournament progression, Thompson posteriors, strikes, and eliminations in memory."
+                  : "Step through knockout rounds on an actual database campaign with real-time posterior evaluation and full rewind."}
+              </p>
+            </div>
+            {isSandbox && (
+              <GhostButton
+                disabled={p.busy !== null}
+                onClick={p.onInitSandbox}
+              >
+                {p.busy === "initknockout" ? "Resetting…" : "Reset / New Bracket ↺"}
+              </GhostButton>
+            )}
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {isSandbox && (
+              <Slider
+                label={`Contenders: ${p.variantsCount} variants`}
+                min={3}
+                max={8}
+                step={1}
+                value={p.variantsCount}
+                onChange={p.setVariantsCount}
+              />
+            )}
+            <Slider
+              label={`Base CVR: ${p.baseCvr}%`}
+              min={1}
+              max={15}
+              step={1}
+              value={p.baseCvr}
+              onChange={p.setBaseCvr}
+            />
+            <Slider
+              label={`Winner Lift: +${p.winnerLift}%`}
+              min={20}
+              max={200}
+              step={10}
+              value={p.winnerLift}
+              onChange={p.setWinnerLift}
+            />
+            <Slider
+              label={`Batch volume: ${p.stepVolume.toLocaleString()} impr.`}
+              min={500}
+              max={5000}
+              step={250}
+              value={p.stepVolume}
+              onChange={p.setStepVolume}
+            />
+            {isSandbox && (
+              <Slider
+                label={`Max tournament rounds: ${p.maxRounds}`}
+                min={2}
+                max={5}
+                step={1}
+                value={p.maxRounds}
+                onChange={p.setMaxRounds}
+              />
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            {isSandbox ? (
+              <>
+                <PrimaryButton
+                  disabled={p.busy !== null || !state || state.isFinished}
+                  onClick={p.onStepSandbox}
+                >
+                  {p.busy === "stepknockout" ? (
+                    <span className="flex items-center gap-1.5"><Spinner /> Stepping…</span>
+                  ) : (
+                    "Step Next Evaluation ⚡"
+                  )}
+                </PrimaryButton>
+
+                <button
+                  type="button"
+                  disabled={p.busy !== null || !state || state.isFinished}
+                  onClick={p.onFfRound}
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {p.busy === "ffround" ? (
+                    <span className="flex items-center gap-1.5"><Spinner /> Fast-Forwarding…</span>
+                  ) : (
+                    "Fast-Forward Round ⏩"
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  disabled={p.busy !== null || !state || state.isFinished}
+                  onClick={p.onFfTournament}
+                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+                >
+                  {p.busy === "fftournament" ? (
+                    <span className="flex items-center gap-1.5"><Spinner /> Simulating Tournament…</span>
+                  ) : (
+                    "Fast-Forward Tournament 🚀"
+                  )}
+                </button>
+              </>
+            ) : (
+              <>
+                <PrimaryButton
+                  disabled={p.busy !== null || !p.campaignId}
+                  onClick={p.onStepLive}
+                >
+                  {p.busy === "steplive" ? (
+                    <span className="flex items-center gap-1.5"><Spinner /> Evaluating Live…</span>
+                  ) : (
+                    "Step Next Live Evaluation ⚡"
+                  )}
+                </PrimaryButton>
+
+                <ConfirmButton
+                  label="Reset / Rewind Live Campaign ↺"
+                  confirmLabel="Confirm Rewind (Wipes Sim Events & Restores Variants)"
+                  tone="danger"
+                  busy={p.busy === "resetlive"}
+                  disabled={p.busy !== null || !p.campaignId}
+                  onConfirm={p.onResetLive}
+                />
+              </>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* Status Summary & Tree View for Sandbox */}
+      {isSandbox && state && (
+        <>
+          {/* Status banner */}
+          <div
+            className={`flex flex-wrap items-center justify-between gap-4 rounded-xl border p-4 shadow-sm ${
+              state.isFinished
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : state.rounds[state.currentRound - 1]?.isComplete
+                  ? "border-blue-200 bg-blue-50 text-blue-900"
+                  : "border-amber-200 bg-amber-50 text-amber-900"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">
+                {state.isFinished ? "🎉" : state.rounds[state.currentRound - 1]?.isComplete ? "🏆" : "⚔️"}
+              </span>
+              <div>
+                <p className="text-sm font-bold">
+                  {state.isFinished
+                    ? "Tournament Complete — Grand Champion Crowned!"
+                    : state.rounds[state.currentRound - 1]?.isComplete
+                      ? `Round ${state.currentRound} Complete! Ready to advance.`
+                      : `Round ${state.currentRound} Tournament in Progress`}
+                </p>
+                <p className="text-xs opacity-80">
+                  {state.isFinished
+                    ? `Champion won after ${state.maxRounds} rounds of intense sequential testing.`
+                    : "Variants receive strikes when P(best) drops below 2.00%. 2 consecutive strikes eliminate an underperformer."}
+                </p>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <p className="text-xs font-semibold uppercase tracking-wider opacity-75">Simulated Traffic</p>
+              <p className="text-sm font-bold tabular-nums">
+                {state.totalImpressions.toLocaleString()} impr. · {state.totalSubmissions.toLocaleString()} conv.
+              </p>
+            </div>
+          </div>
+
+          {/* Visual Tournament Bracket */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-[color:var(--color-text-primary)]">
+                Knockout Bracket Tree ({state.rounds.length} Round{state.rounds.length === 1 ? "" : "s"})
+              </h3>
+              <span className="text-xs text-[color:var(--color-text-secondary)]">
+                Elimination Threshold: <b>&lt; 2.00% P(best)</b> · Strikes needed: <b>2</b>
+              </span>
+            </div>
+
+            <div className="flex gap-6 overflow-x-auto pb-4">
+              {state.rounds.map((round) => (
+                <KnockoutRoundColumn
+                  key={round.roundNumber}
+                  round={round}
+                  isCurrentRound={round.roundNumber === state.currentRound}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Audit Timeline / Event Log */}
+          <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between border-b border-[color:var(--color-border)] pb-2">
+              <h4 className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+                Tournament Audit Log ({state.logs.length} events)
+              </h4>
+              <span className="text-xs text-[color:var(--color-text-secondary)]">Chronological progression</span>
+            </div>
+
+            <div className="max-h-64 flex flex-col gap-2 overflow-y-auto pr-1">
+              {state.logs.map((log) => (
+                <div
+                  key={log.id}
+                  className={`flex items-start gap-2.5 rounded-lg p-2 text-xs ${
+                    log.type === "elimination"
+                      ? "bg-red-50 text-red-900 border border-red-200"
+                      : log.type === "strike"
+                        ? "bg-amber-50 text-amber-900 border border-amber-200"
+                        : log.type === "winner"
+                          ? "bg-emerald-50 text-emerald-900 border border-emerald-200"
+                          : log.type === "advance"
+                            ? "bg-purple-50 text-purple-900 border border-purple-200"
+                            : "bg-[color:var(--color-surface-sunken)] text-[color:var(--color-text-secondary)]"
+                  }`}
+                >
+                  <span className="font-mono text-[10px] opacity-75 shrink-0">
+                    [R{log.round}]
+                  </span>
+                  <p className="flex-1 font-medium">{log.message}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Live Campaign Mode Status & Variants */}
+      {!isSandbox && (
+        <div className="flex flex-col gap-4">
+          {p.liveStepResult ? (
+            <div className="rounded-xl border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-5 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+                    Round {p.liveStepResult.round} Live Variants
+                  </h4>
+                  <p className="text-xs text-[color:var(--color-text-secondary)]">
+                    {p.liveStepResult.message}
+                  </p>
+                </div>
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                  Action: {p.liveStepResult.actionTaken}
+                </span>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {p.liveStepResult.variants.map((v) => (
+                  <div
+                    key={v.id}
+                    className={`rounded-xl border p-4 ${
+                      v.status === "ELIMINATED"
+                        ? "border-red-200 bg-red-50/50 opacity-60"
+                        : "border-[color:var(--color-border)] bg-[color:var(--color-surface)]"
+                    }`}
+                  >
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="truncate text-sm font-bold text-[color:var(--color-text-primary)]">
+                        {v.name}
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                          v.status === "ELIMINATED"
+                            ? "bg-red-100 text-red-700"
+                            : v.eliminationStrikes > 0
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-emerald-100 text-emerald-800"
+                        }`}
+                      >
+                        {v.status === "ELIMINATED"
+                          ? "ELIMINATED"
+                          : v.eliminationStrikes > 0
+                            ? `Strike ${v.eliminationStrikes}/2`
+                            : "ACTIVE"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                      <div className="rounded bg-[color:var(--color-surface-sunken)] p-1.5">
+                        <p className="font-bold text-[color:var(--color-text-primary)]">{v.conversionRate}%</p>
+                        <p className="text-[10px] text-[color:var(--color-text-secondary)]">CVR</p>
+                      </div>
+                      <div className="rounded bg-[color:var(--color-surface-sunken)] p-1.5">
+                        <p className="font-bold text-[color:var(--color-text-primary)]">{v.impressions.toLocaleString()}</p>
+                        <p className="text-[10px] text-[color:var(--color-text-secondary)]">Impr.</p>
+                      </div>
+                      <div className="rounded bg-[color:var(--color-surface-sunken)] p-1.5">
+                        <p className="font-bold text-[color:var(--color-text-primary)]">{v.trafficPercent}%</p>
+                        <p className="text-[10px] text-[color:var(--color-text-secondary)]">Traffic</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="text-[color:var(--color-text-secondary)]">P(best)</span>
+                        <span className={`font-bold ${v.pBest < 0.02 ? "text-red-600" : "text-emerald-600"}`}>
+                          {(v.pBest * 100).toFixed(1)}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
+                        <div
+                          className={`h-full ${v.pBest < 0.02 ? "bg-red-500" : "bg-emerald-500"}`}
+                          style={{ width: `${Math.min(100, Math.max(2, v.pBest * 100))}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-dashed border-[color:var(--color-border)] p-8 text-center text-sm text-[color:var(--color-text-secondary)]">
+              Click &ldquo;Step Next Live Evaluation&rdquo; above to run simulated traffic and posterior evaluation on the selected campaign.
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KnockoutRoundColumn({
+  round,
+  isCurrentRound,
+}: {
+  round: KnockoutSimState["rounds"][number];
+  isCurrentRound: boolean;
+}) {
+  return (
+    <div className={`flex min-w-[280px] max-w-[320px] flex-1 flex-col gap-3 rounded-2xl border p-4 shadow-sm ${
+      isCurrentRound
+        ? "border-[color:var(--color-primary)] bg-[color:var(--color-surface)] ring-1 ring-[color:var(--color-primary)]/20"
+        : "border-[color:var(--color-border)] bg-[color:var(--color-surface)]"
+    }`}>
+      <div className="flex items-center justify-between border-b border-[color:var(--color-border)] pb-2.5">
+        <div>
+          <h4 className="text-sm font-bold text-[color:var(--color-text-primary)]">{round.title}</h4>
+          <p className="text-[11px] text-[color:var(--color-text-secondary)]">
+            {round.isComplete ? "Round finalized" : "Current active round"}
+          </p>
+        </div>
+        {round.isComplete ? (
+          <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200">
+            ✓ Complete
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700 ring-1 ring-blue-200 animate-pulse">
+            <span className="h-1.5 w-1.5 rounded-full bg-blue-600" /> Live
+          </span>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-2.5">
+        {round.variants.map((v) => (
+          <KnockoutVariantPill key={v.id} variant={v} isWinner={round.winnerId === v.id} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function KnockoutVariantPill({
+  variant,
+  isWinner,
+}: {
+  variant: KnockoutSimState["rounds"][number]["variants"][number];
+  isWinner: boolean;
+}) {
+  const isEliminated = variant.status === "ELIMINATED";
+  const hasStrike = variant.eliminationStrikes > 0 && !isEliminated;
+
+  return (
+    <div
+      className={`relative flex flex-col gap-2 rounded-xl border p-3 transition-all ${
+        isWinner
+          ? "border-emerald-300 bg-emerald-50/60 shadow-sm"
+          : isEliminated
+            ? "border-gray-200 bg-gray-50/70 opacity-50"
+            : hasStrike
+              ? "border-amber-300 bg-amber-50/40"
+              : "border-[color:var(--color-border)] bg-[color:var(--color-surface)] hover:border-[color:var(--color-primary)]"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 min-w-0">
+          <span
+            className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white shadow-xs"
+            style={{ backgroundColor: variant.color }}
+          >
+            {variant.initials}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-xs font-bold text-[color:var(--color-text-primary)]">
+              {variant.name}
+            </p>
+            <p className="truncate text-[10px] text-[color:var(--color-text-secondary)]">
+              {variant.headline}
+            </p>
+          </div>
+        </div>
+
+        {/* Status Badges */}
+        <div className="shrink-0">
+          {isWinner ? (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
+              🏆 Winner
+            </span>
+          ) : isEliminated ? (
+            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold text-red-700">
+              🚫 Out
+            </span>
+          ) : hasStrike ? (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800 animate-pulse">
+              ⚠️ Strike 1/2
+            </span>
+          ) : variant.isControl ? (
+            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-bold text-gray-700">
+              Control
+            </span>
+          ) : (
+            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-700">
+              {variant.trafficPercent}% share
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Metrics Row */}
+      <div className="grid grid-cols-3 gap-1.5 rounded-lg bg-[color:var(--color-surface-sunken)] p-1.5 text-center">
+        <div>
+          <p className="text-xs font-bold tabular-nums text-[color:var(--color-text-primary)]">
+            {variant.conversionRate}%
+          </p>
+          <p className="text-[9px] text-[color:var(--color-text-secondary)]">CVR</p>
+        </div>
+        <div>
+          <p className="text-xs font-bold tabular-nums text-[color:var(--color-text-primary)]">
+            {variant.impressions.toLocaleString()}
+          </p>
+          <p className="text-[9px] text-[color:var(--color-text-secondary)]">Visitors</p>
+        </div>
+        <div>
+          <p className="text-xs font-bold tabular-nums text-[color:var(--color-text-primary)]">
+            {variant.submissions.toLocaleString()}
+          </p>
+          <p className="text-[9px] text-[color:var(--color-text-secondary)]">Conversions</p>
+        </div>
+      </div>
+
+      {/* Posterior Probability Bar */}
+      <div className="pt-0.5">
+        <div className="flex items-center justify-between text-[10px] mb-1">
+          <span className="text-[color:var(--color-text-secondary)]">
+            Win Posterior P(best)
+          </span>
+          <span className={`font-mono font-bold ${variant.pBest < 0.02 && !isEliminated ? "text-amber-600" : "text-[color:var(--color-text-primary)]"}`}>
+            {(variant.pBest * 100).toFixed(1)}%
+          </span>
+        </div>
+        <div className="relative h-2 w-full overflow-hidden rounded-full bg-[color:var(--color-surface-sunken)]">
+          {/* Danger zone threshold mark at 2% */}
+          <div className="absolute top-0 bottom-0 left-[2%] w-0.5 bg-red-400 z-10" title="Elimination Threshold (2.0%)" />
+          <div
+            className={`h-full transition-all duration-300 ${
+              isWinner
+                ? "bg-emerald-500"
+                : variant.pBest < 0.02
+                  ? "bg-red-500"
+                  : "bg-[color:var(--color-primary)]"
+            }`}
+            style={{ width: `${Math.min(100, Math.max(isEliminated ? 0 : 2, variant.pBest * 100))}%` }}
+          />
         </div>
       </div>
     </div>
