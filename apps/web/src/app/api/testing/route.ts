@@ -3,10 +3,19 @@ import { isSuperadminEmail } from "@/lib/superadmin";
 import { prisma } from "@/lib/prisma";
 import { inngest } from "@/lib/inngest/client";
 import { recomputeCampaignAllocation } from "@/lib/bandit";
+import {
+  runTrafficSimulation,
+  clearSimData,
+  runDiversityAnalysis,
+  getGenTimingSummary,
+} from "@/lib/testing/testingActions";
+import type { SimConfig, Device, Intent } from "@/lib/testing/trafficSim";
 
-// Superadmin-only test harness for the knockout/bandit system - lets you
-// skip the real-world wait for impressions to accumulate. See
-// components/TesterToolkit.tsx for the UI.
+// Superadmin-only test harness for the knockout/bandit + generation systems -
+// lets you skip the real-world wait for impressions to accumulate and probe
+// generation diversity/timing. See components/TesterToolkit.tsx for the UI.
+// Every action below is gated by requireSuperadmin(); the client component does
+// no auth of its own.
 async function requireSuperadmin() {
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress;
@@ -15,6 +24,36 @@ async function requireSuperadmin() {
   }
 }
 
+type Body = {
+  action?:
+    | "inject"
+    | "trigger_knockout"
+    | "simulate_traffic"
+    | "clear_sim_data"
+    | "analyze_diversity"
+    | "gen_timing";
+  variantId?: string;
+  mockCount?: number;
+  campaignId?: string;
+  sim?: Partial<{
+    volume: number;
+    baseCvr: number;
+    winnerLiftPct: number;
+    trueWinnerId: string;
+    fastDismissRate: number;
+    deviceMix: Record<Device, number>;
+    intentMix: Record<Intent, number>;
+    waves: number;
+  }>;
+  diversity?: { n?: number; aiSampleCount?: number };
+};
+
+const clamp = (v: unknown, lo: number, hi: number, fallback: number): number => {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(hi, Math.max(lo, n));
+};
+
 export async function POST(request: Request) {
   try {
     await requireSuperadmin();
@@ -22,12 +61,66 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 403 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as {
-    action?: "inject" | "trigger_knockout";
-    variantId?: string;
-    mockCount?: number;
-  };
+  const body = (await request.json().catch(() => ({}))) as Body;
 
+  // ── Diversity + timing: campaign-optional, handle before the variant gate ──
+  if (body.action === "analyze_diversity") {
+    const result = await runDiversityAnalysis({
+      n: clamp(body.diversity?.n, 2, 500, 100),
+      aiSampleCount: clamp(body.diversity?.aiSampleCount, 0, 50, 0),
+      campaignId: body.campaignId,
+    });
+    return Response.json({ ok: true, diversity: result });
+  }
+
+  if (body.action === "gen_timing") {
+    const result = await getGenTimingSummary(body.campaignId);
+    return Response.json({ ok: true, timing: result });
+  }
+
+  // ── Campaign-scoped simulation ──
+  if (body.action === "simulate_traffic" || body.action === "clear_sim_data") {
+    let campaignId = body.campaignId;
+    if (!campaignId && body.variantId) {
+      const v = await prisma.variant.findUnique({
+        where: { id: body.variantId },
+        select: { campaignId: true },
+      });
+      campaignId = v?.campaignId;
+    }
+    if (!campaignId) {
+      return Response.json({ error: "campaignId (or variantId) is required" }, { status: 400 });
+    }
+
+    if (body.action === "clear_sim_data") {
+      const { removed } = await clearSimData(campaignId);
+      return Response.json({ ok: true, removed });
+    }
+
+    const config: SimConfig = {
+      seed: Math.floor(Math.random() * 2 ** 31),
+      volume: clamp(body.sim?.volume, 10, 100_000, 2000),
+      baseCvr: clamp(body.sim?.baseCvr, 0.001, 0.5, 0.04),
+      winnerLiftPct: clamp(body.sim?.winnerLiftPct, 0, 500, 50),
+      trueWinnerId: body.sim?.trueWinnerId,
+      fastDismissRate: clamp(body.sim?.fastDismissRate, 0, 1, 0.2),
+      deviceMix: body.sim?.deviceMix ?? { mobile: 60, desktop: 35, tablet: 5 },
+      intentMix: body.sim?.intentMix ?? { browsing: 60, high_intent: 25, exit: 15 },
+      waves: clamp(body.sim?.waves, 1, 50, 5),
+    };
+
+    try {
+      const result = await runTrafficSimulation(campaignId, config);
+      return Response.json({ ok: true, simulation: result });
+    } catch (err) {
+      return Response.json(
+        { error: err instanceof Error ? err.message : "Simulation failed" },
+        { status: 400 },
+      );
+    }
+  }
+
+  // ── Legacy variant-scoped actions (inject / trigger_knockout) ──
   if (!body.variantId) {
     return Response.json({ error: "variantId is required" }, { status: 400 });
   }

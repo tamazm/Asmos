@@ -126,7 +126,7 @@ export async function POST(request: Request): Promise<Response> {
   });
 
   try {
-    await inngest.send({ name: "campaign.generate", data: { campaignId: campaign.id } });
+    await inngest.send({ name: "campaign.generate", data: { campaignId: campaign.id, enqueuedAt: Date.now() } });
   } catch (err) {
     console.error("[shopify/admin/campaigns] inngest.send failed", err);
     await prisma.campaign
