@@ -561,6 +561,38 @@ model TesterTimingRun {
   @@index([createdAt])
 }
 
+// Durable log of a superadmin Tester Toolkit diversity analysis run.
+// Powers the Diversity generation history.
+model TesterDiversityRun {
+  id                  String   @id @default(cuid())
+  n                   Int
+  aiCallsRequested    Int
+  goal                String
+
+  // Structural metrics
+  uniqueRate          Float
+  meanNearestNeighbor Float
+  minNearestNeighbor  Float
+  tooClosePairRate    Float
+  exactCollisions     Int
+
+  // Knob coverage breakdown: Record<string, KnobCoverage>
+  knobs               Json
+
+  // Copy repetition stats if AI popups were generated: CopyStats & { generationErrors: number }
+  copy                Json?
+
+  // Rendered popups array: RenderedPopup[]
+  popups              Json
+
+  succeeded           Boolean  @default(true)
+  errorMessage        String?  @db.Text
+
+  createdAt           DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // A Shopify shop that has installed the app. accountId is unique - one
 // Account per shop; the tenant is auto-provisioned on first install, no
 // Clerk sign-up involved (this is what "well integrated app" requires).

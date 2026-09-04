@@ -605,6 +605,116 @@ export async function deleteTestCampaign(campaignId: string): Promise<{ deleted:
   return { deleted: true };
 }
 
+// ─── Diversity history (durable runs) ────────────────────────────────────────
+
+export type DiversityRunDTO = {
+  id: string;
+  n: number;
+  aiCallsRequested: number;
+  goal: string;
+  uniqueRate: number;
+  meanNearestNeighbor: number;
+  minNearestNeighbor: number;
+  tooClosePairRate: number;
+  exactCollisions: number;
+  knobs: Record<string, KnobCoverage>;
+  copy: (ReturnType<typeof copyStats> & { generationErrors: number }) | null;
+  popups: RenderedPopup[];
+  succeeded: boolean;
+  errorMessage: string | null;
+  createdAt: string;
+};
+
+function toDiversityRunDTO(r: {
+  id: string;
+  n: number;
+  aiCallsRequested: number;
+  goal: string;
+  uniqueRate: number;
+  meanNearestNeighbor: number;
+  minNearestNeighbor: number;
+  tooClosePairRate: number;
+  exactCollisions: number;
+  knobs: unknown;
+  copy: unknown;
+  popups: unknown;
+  succeeded: boolean;
+  errorMessage: string | null;
+  createdAt: Date;
+}): DiversityRunDTO {
+  return {
+    id: r.id,
+    n: r.n,
+    aiCallsRequested: r.aiCallsRequested,
+    goal: r.goal,
+    uniqueRate: r.uniqueRate,
+    meanNearestNeighbor: r.meanNearestNeighbor,
+    minNearestNeighbor: r.minNearestNeighbor,
+    tooClosePairRate: r.tooClosePairRate,
+    exactCollisions: r.exactCollisions,
+    knobs: (r.knobs ?? {}) as Record<string, KnobCoverage>,
+    copy: (r.copy ?? null) as DiversityRunDTO["copy"],
+    popups: Array.isArray(r.popups) ? (r.popups as RenderedPopup[]) : [],
+    succeeded: r.succeeded,
+    errorMessage: r.errorMessage,
+    createdAt: r.createdAt.toISOString(),
+  };
+}
+
+export async function saveDiversityRun(
+  result: DiversityResult,
+  meta?: { succeeded?: boolean; errorMessage?: string },
+): Promise<DiversityRunDTO> {
+  const row = await prisma.testerDiversityRun.create({
+    data: {
+      n: result.n,
+      aiCallsRequested: result.aiCallsRequested,
+      goal: result.goal,
+      uniqueRate: result.structural.uniqueRate,
+      meanNearestNeighbor: result.structural.meanNearestNeighbor,
+      minNearestNeighbor: result.structural.minNearestNeighbor,
+      tooClosePairRate: result.structural.tooClosePairRate,
+      exactCollisions: result.structural.exactCollisions,
+      knobs: result.knobs as unknown as Prisma.InputJsonValue,
+      copy: (result.copy ? result.copy : undefined) as unknown as Prisma.InputJsonValue | undefined,
+      popups: result.popups as unknown as Prisma.InputJsonValue,
+      succeeded: meta?.succeeded ?? true,
+      errorMessage: meta?.errorMessage ?? null,
+    },
+  });
+  return toDiversityRunDTO(row);
+}
+
+/** One page of diversity-run history, newest first, plus the total for numbering. */
+export async function listDiversityRuns(opts: {
+  page?: number;
+  pageSize?: number;
+}): Promise<{ runs: DiversityRunDTO[]; total: number; page: number; pageSize: number }> {
+  const pageSize = Math.max(1, Math.min(50, Math.floor(opts.pageSize ?? 10)));
+  const page = Math.max(0, Math.floor(opts.page ?? 0));
+  const [rows, total] = await Promise.all([
+    prisma.testerDiversityRun.findMany({
+      orderBy: { createdAt: "desc" },
+      skip: page * pageSize,
+      take: pageSize,
+    }),
+    prisma.testerDiversityRun.count(),
+  ]);
+  return { runs: rows.map(toDiversityRunDTO), total, page, pageSize };
+}
+
+/** Deletes a single logged diversity run. */
+export async function deleteDiversityRun(id: string): Promise<{ deleted: boolean }> {
+  await prisma.testerDiversityRun.delete({ where: { id } }).catch(() => {});
+  return { deleted: true };
+}
+
+/** Clears the entire diversity-run history. */
+export async function clearDiversityRuns(): Promise<{ removed: number }> {
+  const { count } = await prisma.testerDiversityRun.deleteMany({});
+  return { removed: count };
+}
+
 // ─── Timing history (durable runs) ───────────────────────────────────────────
 
 export type TimingRunDTO = {

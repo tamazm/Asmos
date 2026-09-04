@@ -7,6 +7,10 @@ import {
   runTrafficSimulation,
   clearSimData,
   runDiversityAnalysis,
+  saveDiversityRun,
+  listDiversityRuns,
+  deleteDiversityRun,
+  clearDiversityRuns,
   getGenTimingSummary,
   runTimedGeneration,
   timedGenerationStatus,
@@ -38,6 +42,9 @@ type Body = {
     | "simulate_traffic"
     | "clear_sim_data"
     | "analyze_diversity"
+    | "list_diversity_runs"
+    | "delete_diversity_run"
+    | "clear_diversity_runs"
     | "gen_timing"
     | "run_timed_generation"
     | "timed_generation_status"
@@ -94,7 +101,26 @@ export async function POST(request: Request) {
       campaignId: body.campaignId,
       goal,
     });
-    return Response.json({ ok: true, diversity: result });
+    const run = await saveDiversityRun(result);
+    return Response.json({ ok: true, diversity: result, run });
+  }
+
+  if (body.action === "list_diversity_runs") {
+    const result = await listDiversityRuns({ page: body.page, pageSize: body.pageSize });
+    return Response.json({ ok: true, ...result });
+  }
+
+  if (body.action === "delete_diversity_run") {
+    if (!body.runId) {
+      return Response.json({ error: "runId is required" }, { status: 400 });
+    }
+    const result = await deleteDiversityRun(body.runId);
+    return Response.json({ ok: true, ...result });
+  }
+
+  if (body.action === "clear_diversity_runs") {
+    const result = await clearDiversityRuns();
+    return Response.json({ ok: true, ...result });
   }
 
   if (body.action === "gen_timing") {

@@ -7,12 +7,14 @@ import type { Device, Intent } from "@/lib/testing/trafficSim";
 import type {
   TrafficSimResult,
   DiversityResult,
+  DiversityRunDTO,
   RenderedPopup,
   TimedGenerationStatus,
   TimingRunDTO,
 } from "@/lib/testing/testingActions";
 
 const TIMING_PAGE_SIZE = 10;
+const DIVERSITY_PAGE_SIZE = 10;
 
 type CampaignOption = { id: string; name: string; variants: { id: string; name: string }[] };
 type Tab = "traffic" | "diversity" | "timing";
@@ -67,6 +69,10 @@ export function TesterDashboard() {
   const [aiSampleCount, setAiSampleCount] = useState(0);
   const [diversityGoal, setDiversityGoal] = useState<DiversityGoal>("BOTH");
   const [diversityResult, setDiversityResult] = useState<DiversityResult | null>(null);
+  const [diversityRuns, setDiversityRuns] = useState<DiversityRunDTO[]>([]);
+  const [diversityRunsTotal, setDiversityRunsTotal] = useState(0);
+  const [diversityRunsPage, setDiversityRunsPage] = useState(0);
+  const [diversityRunsLoading, setDiversityRunsLoading] = useState(false);
 
   // Timing
   const [timedStatus, setTimedStatus] = useState<string | null>(null);
@@ -88,14 +94,19 @@ export function TesterDashboard() {
       .finally(() => setLoadingCampaigns(false));
   }, []);
 
-  // Load timing history the first time the Generation-timing tab is opened
+  // Load history the first time a tab is opened
   // (triggered from the tab button's onClick, not an effect).
   const runsLoadedRef = useRef(false);
+  const diversityRunsLoadedRef = useRef(false);
   function openTab(next: Tab) {
     setTab(next);
     if (next === "timing" && !runsLoadedRef.current) {
       runsLoadedRef.current = true;
       loadRuns(0);
+    }
+    if (next === "diversity" && !diversityRunsLoadedRef.current) {
+      diversityRunsLoadedRef.current = true;
+      loadDiversityRuns(0);
     }
   }
 
@@ -159,13 +170,59 @@ export function TesterDashboard() {
     setNotice(null);
     setDiversityResult(null);
     try {
-      const data = await post<{ diversity: DiversityResult }>({
+      const data = await post<{ diversity: DiversityResult; run?: DiversityRunDTO }>({
         action: "analyze_diversity",
         // No campaignId: Diversity generates standalone tester popups with no
         // brand context, so it never reads or mutates a real campaign.
         diversity: { n: diversityN, aiSampleCount, goal: diversityGoal },
       });
       setDiversityResult(data.diversity);
+      await loadDiversityRuns(0);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function loadDiversityRuns(page = diversityRunsPage) {
+    setDiversityRunsLoading(true);
+    try {
+      const data = await post<{ runs: DiversityRunDTO[]; total: number; page: number }>({
+        action: "list_diversity_runs",
+        page,
+        pageSize: DIVERSITY_PAGE_SIZE,
+      });
+      setDiversityRuns(data.runs);
+      setDiversityRunsTotal(data.total);
+      setDiversityRunsPage(data.page);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load diversity history");
+    } finally {
+      setDiversityRunsLoading(false);
+    }
+  }
+
+  async function deleteDiversityRun(id: string) {
+    setBusy("deldiversityrun");
+    try {
+      await post({ action: "delete_diversity_run", runId: id });
+      const remaining = diversityRunsTotal - 1;
+      const lastPage = Math.max(0, Math.ceil(remaining / DIVERSITY_PAGE_SIZE) - 1);
+      await loadDiversityRuns(Math.min(diversityRunsPage, lastPage));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function clearDiversityRuns() {
+    setBusy("cleardiversityruns");
+    try {
+      const data = await post<{ removed: number }>({ action: "clear_diversity_runs" });
+      setNotice(`Cleared ${data.removed} logged diversity run${data.removed === 1 ? "" : "s"}.`);
+      await loadDiversityRuns(0);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -334,6 +391,11 @@ export function TesterDashboard() {
           aiSampleCount={aiSampleCount} setAiSampleCount={setAiSampleCount}
           diversityGoal={diversityGoal} setDiversityGoal={setDiversityGoal}
           busy={busy} onRun={runDiversity} result={diversityResult}
+          runs={diversityRuns} runsTotal={diversityRunsTotal}
+          runsPage={diversityRunsPage} runsLoading={diversityRunsLoading}
+          pageSize={DIVERSITY_PAGE_SIZE}
+          onLoadRuns={loadDiversityRuns} onDeleteRun={deleteDiversityRun}
+          onClearRuns={clearDiversityRuns}
         />
       )}
 
@@ -452,8 +514,13 @@ function DiversitySection(p: {
   aiSampleCount: number; setAiSampleCount: (v: number) => void;
   diversityGoal: DiversityGoal; setDiversityGoal: (v: DiversityGoal) => void;
   busy: string | null; onRun: () => void; result: DiversityResult | null;
+  runs: DiversityRunDTO[]; runsTotal: number; runsPage: number; runsLoading: boolean;
+  pageSize: number;
+  onLoadRuns: (page: number) => void; onDeleteRun: (id: string) => void; onClearRuns: () => void;
 }) {
   const aiOff = p.aiSampleCount === 0;
+  const pageCount = Math.max(1, Math.ceil(p.runsTotal / p.pageSize));
+
   return (
     <>
       <Card>
@@ -511,8 +578,18 @@ function DiversitySection(p: {
         </div>
       </Card>
 
+      {/* Just-completed run (immediate feedback before scrolling history) */}
       {p.result && (
         <>
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+              Latest run result
+            </h3>
+            <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+              Just completed · logged to history below
+            </span>
+          </div>
+
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatTile label="Unique structures" value={pct(p.result.structural.uniqueRate)} tone={p.result.structural.uniqueRate > 0.9 ? "ok" : "warn"} />
             <StatTile label="Mean neighbour dist." value={p.result.structural.meanNearestNeighbor.toFixed(2)} />
@@ -560,7 +637,200 @@ function DiversitySection(p: {
           )}
         </>
       )}
+
+      {/* Durable history of generations */}
+      <div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-[color:var(--color-text-primary)]">
+            Generation diversity history{p.runsTotal > 0 && ` · ${p.runsTotal} run${p.runsTotal === 1 ? "" : "s"}`}
+          </h3>
+          {p.runsTotal > 0 && (
+            <ConfirmButton
+              label="Clear ALL"
+              confirmLabel="Delete all history?"
+              busy={p.busy === "cleardiversityruns"}
+              disabled={p.busy !== null}
+              onConfirm={p.onClearRuns}
+              tone="danger"
+            />
+          )}
+        </div>
+
+        {p.runsLoading && p.runs.length === 0 ? (
+          <Card><div className="flex items-center gap-2 text-sm text-[color:var(--color-text-secondary)]"><Spinner /> Loading history…</div></Card>
+        ) : p.runs.length === 0 ? (
+          <Card><p className="text-sm text-[color:var(--color-text-secondary)]">No diversity runs logged yet. Run an analysis above to start the log.</p></Card>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {p.runs.map((run, i) => (
+              <DiversityRunRow
+                key={run.id}
+                run={run}
+                runNumber={p.runsTotal - (p.runsPage * p.pageSize + i)}
+                busy={p.busy}
+                onDelete={() => p.onDeleteRun(run.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        {pageCount > 1 && (
+          <div className="mt-3 flex items-center justify-center gap-3">
+            <GhostButton disabled={p.busy !== null || p.runsPage <= 0} onClick={() => p.onLoadRuns(p.runsPage - 1)}>
+              ← Newer
+            </GhostButton>
+            <span className="text-xs text-[color:var(--color-text-secondary)]">
+              Page {p.runsPage + 1} of {pageCount}
+            </span>
+            <GhostButton disabled={p.busy !== null || p.runsPage >= pageCount - 1} onClick={() => p.onLoadRuns(p.runsPage + 1)}>
+              Older →
+            </GhostButton>
+          </div>
+        )}
+      </div>
     </>
+  );
+}
+
+function DiversityRunRow({
+  run,
+  runNumber,
+  busy,
+  onDelete,
+}: {
+  run: DiversityRunDTO;
+  runNumber: number;
+  busy: string | null;
+  onDelete: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const goalOpt = GOAL_OPTIONS.find((g) => g.id === run.goal);
+  const hasPopups = run.popups && run.popups.length > 0;
+
+  return (
+    <Card>
+      <div className="flex flex-col gap-3">
+        {/* Header row: Run #x, date+timestamp, goal, tags, actions */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-md bg-[color:var(--color-surface-sunken)] px-2 py-0.5 text-xs font-bold text-[color:var(--color-text-primary)]">
+              Run #{runNumber}
+            </span>
+            <span className="text-xs font-medium text-[color:var(--color-text-secondary)]">
+              {formatTimestamp(run.createdAt)}
+            </span>
+            <span className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
+              {goalOpt?.label ?? run.goal}
+            </span>
+            <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-[11px] font-semibold text-purple-700">
+              {hasPopups ? `${run.popups.length} AI popups` : `${run.n} structural variants`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setExpanded((v) => !v)}
+              className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] px-2.5 py-1 text-xs font-medium text-[color:var(--color-text-primary)] hover:bg-[color:var(--color-surface-sunken)]"
+            >
+              {expanded ? "Hide details ▲" : hasPopups ? `View details & popups (${run.popups.length}) ▼` : "View details ▼"}
+            </button>
+            <ConfirmButton
+              label="Delete"
+              confirmLabel="Confirm delete?"
+              busy={busy === "deldiversityrun"}
+              disabled={busy !== null}
+              onConfirm={onDelete}
+              tone="danger"
+              small
+            />
+          </div>
+        </div>
+
+        {/* Quick summary strip */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[color:var(--color-text-secondary)]">
+          <span>Unique: <b className={run.uniqueRate > 0.9 ? "text-emerald-600" : "text-amber-600"}>{pct(run.uniqueRate)}</b></span>
+          <span>Mean dist: <b className="text-[color:var(--color-text-primary)]">{run.meanNearestNeighbor.toFixed(2)}</b></span>
+          <span>Too-similar: <b className={run.tooClosePairRate < 0.05 ? "text-emerald-600" : "text-amber-600"}>{pct(run.tooClosePairRate)}</b></span>
+          <span>Clones: <b className={run.exactCollisions === 0 ? "text-emerald-600" : "text-amber-600"}>{run.exactCollisions}</b></span>
+          {run.copy && (
+            <>
+              <span>Headline overlap: <b className={run.copy.maxHeadlineSimilarity < 0.5 ? "text-emerald-600" : "text-amber-600"}>{pct(run.copy.maxHeadlineSimilarity)}</b></span>
+              <span>Exact dupes: <b className={run.copy.exactHeadlineDupes === 0 ? "text-emerald-600" : "text-amber-600"}>{run.copy.exactHeadlineDupes}</b></span>
+            </>
+          )}
+        </div>
+
+        {/* First popup preview thumbnail preview if collapsed and has popups */}
+        {!expanded && hasPopups && (
+          <div className="mt-1 flex items-center gap-3 overflow-hidden rounded-lg bg-[color:var(--color-surface-sunken)] p-2">
+            <div className="h-14 w-20 shrink-0 overflow-hidden rounded border border-[color:var(--color-border)]">
+              <PopupFrame code={run.popups[0].generatedCode} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-xs font-semibold text-[color:var(--color-text-primary)]">
+                {run.popups[0].headline || "Generated popup"}
+              </p>
+              <p className="truncate text-[11px] text-[color:var(--color-text-secondary)]">
+                {run.popups.length === 1 ? run.popups[0].subhead : `+ ${run.popups.length - 1} more popup${run.popups.length > 2 ? "s" : ""} in this run · click View details & popups to inspect all`}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Expanded full details */}
+        {expanded && (
+          <div className="mt-3 flex flex-col gap-4 border-t border-[color:var(--color-border)] pt-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <MiniStat label="Unique structures" value={pct(run.uniqueRate)} />
+              <MiniStat label="Mean neighbour dist" value={run.meanNearestNeighbor.toFixed(2)} />
+              <MiniStat label="Too-similar pairs" value={pct(run.tooClosePairRate)} />
+              <MiniStat label="Exact clones" value={String(run.exactCollisions)} />
+            </div>
+
+            {/* Knobs */}
+            {run.knobs && Object.keys(run.knobs).length > 0 && (
+              <div className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface-sunken)] p-3">
+                <h4 className="mb-2 text-xs font-semibold text-[color:var(--color-text-primary)]">
+                  Design knob coverage
+                </h4>
+                <div className="grid gap-2.5 sm:grid-cols-2">
+                  {Object.entries(run.knobs).map(([knob, cov]) => (
+                    <div key={knob}>
+                      <div className="mb-1 flex items-center justify-between text-[11px]">
+                        <span className="font-medium text-[color:var(--color-text-primary)]">{knob}</span>
+                        <span className="text-[color:var(--color-text-secondary)]">top: {cov.topValue} ({pct(cov.topShare)})</span>
+                      </div>
+                      <ProgressBar value={cov.coverage} tone={cov.coverage >= 0.66 ? "ok" : "warn"} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Copy stats */}
+            {run.copy && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <MiniStat label="Exact headline dupes" value={String(run.copy.exactHeadlineDupes)} />
+                <MiniStat label="Max headline overlap" value={pct(run.copy.maxHeadlineSimilarity)} />
+                <MiniStat label="Subhead restates" value={pct(run.copy.subheadRestateRate)} />
+                <MiniStat label="Banned openers" value={pct(run.copy.bannedOpenerRate)} />
+              </div>
+            )}
+
+            {/* Popups */}
+            {hasPopups && (
+              <div>
+                <h4 className="mb-2 text-xs font-semibold text-[color:var(--color-text-primary)]">
+                  Generated popups ({run.popups.length})
+                </h4>
+                <PopupGrid popups={run.popups} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
