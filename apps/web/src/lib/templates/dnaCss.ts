@@ -690,7 +690,17 @@ export function sharedComponentCss(dna: PopupDna): string {
     #asmosPopupOverlay .asmos-dismiss,
     #asmosPopupOverlay .asmos-field-label,
     #asmosPopupOverlay .asmos-code > span {
-      overflow-wrap: anywhere;
+      /* break-word, not anywhere: anywhere offers a break opportunity between
+         every pair of characters, not just at word boundaries - the headline
+         and sub below also carry text-wrap: balance/pretty, and a balancer
+         given a per-character break point will happily cut mid-word if that
+         makes two lines look more equal in width, which is what produced
+         headlines like "Example Heade" / "r" (a single orphaned trailing
+         letter). break-word only allows a mid-word split as a last resort,
+         when a single word is itself too wide to fit the container at all -
+         still guards against a long URL or an unbroken brand name overflowing,
+         without ever cutting an otherwise-fitting word for cosmetic balance. */
+      overflow-wrap: break-word;
     }
     #asmosPopupOverlay .asmos-headline {
       font-family: var(--asmos-font-display);
