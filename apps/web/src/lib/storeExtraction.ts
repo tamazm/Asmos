@@ -1,3 +1,5 @@
+import { COOKIE_CONSENT_RUNTIME } from "./cookieConsent";
+
 /**
  * lib/storeExtraction.ts
  *
@@ -79,6 +81,16 @@ export type DomExtraction = {
   signals: Record<SignalKey, boolean> | null;
   platform: "shopify" | "woocommerce" | "custom" | null;
   currency: string | null;
+  screenshotBase64: string | null;
+  pageDescription: string;
+  ogImage: string;
+  pageBrandColor: string | null;
+  productTitles: string[];
+  timings: {
+    navigationMs: number;
+    extractionMs: number;
+    screenshotMs: number;
+  } | null;
 };
 
 export type CatalogueSummary = {
@@ -97,7 +109,7 @@ export type CatalogueSummary = {
 
 // ─── 1. Catalogue ────────────────────────────────────────────────────────────
 
-const CATALOGUE_TIMEOUT_MS = 7000;
+const CATALOGUE_TIMEOUT_MS = 1200;
 const MAX_PRODUCTS = 250;
 
 async function getJson(url: string, timeoutMs = CATALOGUE_TIMEOUT_MS): Promise<unknown | null> {
@@ -155,8 +167,8 @@ type ShopifyProduct = {
   variants?: { price?: string; compare_at_price?: string | null }[];
 };
 
-async function fetchShopifyCatalogue(origin: string): Promise<CatalogueSummary | null> {
-  const data = (await getJson(`${origin}/products.json?limit=${MAX_PRODUCTS}`)) as
+async function fetchShopifyCatalogue(origin: string, timeoutMs = CATALOGUE_TIMEOUT_MS): Promise<CatalogueSummary | null> {
+  const data = (await getJson(`${origin}/products.json?limit=${MAX_PRODUCTS}`, timeoutMs)) as
     | { products?: ShopifyProduct[] }
     | null;
   const products = data?.products;
@@ -206,8 +218,8 @@ type WooProduct = {
   prices?: { price?: string; currency_code?: string; currency_minor_unit?: number };
 };
 
-async function fetchWooCatalogue(origin: string): Promise<CatalogueSummary | null> {
-  const data = (await getJson(`${origin}/wp-json/wc/store/v1/products?per_page=100`)) as
+async function fetchWooCatalogue(origin: string, timeoutMs = CATALOGUE_TIMEOUT_MS): Promise<CatalogueSummary | null> {
+  const data = (await getJson(`${origin}/wp-json/wc/store/v1/products?per_page=100`, timeoutMs)) as
     | WooProduct[]
     | null;
   if (!Array.isArray(data) || data.length === 0) return null;
@@ -304,14 +316,21 @@ async function fetchJsonLdCatalogue(html: string): Promise<CatalogueSummary | nu
  * store exposes nothing - in which case the caller should say so rather than
  * inventing a category.
  */
-export async function fetchCatalogue(storeUrl: string, html = ""): Promise<CatalogueSummary | null> {
+export async function fetchCatalogue(
+  storeUrl: string,
+  html = "",
+  timeoutMs = CATALOGUE_TIMEOUT_MS,
+): Promise<CatalogueSummary | null> {
   let origin: string;
   try { origin = new URL(storeUrl).origin; } catch { return null; }
 
-  const shopify = await fetchShopifyCatalogue(origin);
+  // Platform probes are independent. Running them together avoids paying a
+  // full failed-Shopify timeout before trying WooCommerce.
+  const [shopify, woo] = await Promise.all([
+    fetchShopifyCatalogue(origin, timeoutMs),
+    fetchWooCatalogue(origin, timeoutMs),
+  ]);
   if (shopify) return shopify;
-
-  const woo = await fetchWooCatalogue(origin);
   if (woo) return woo;
 
   if (html) {
@@ -335,16 +354,51 @@ export async function fetchCatalogue(storeUrl: string, html = ""): Promise<Catal
  */
 export const DOM_EXTRACTION_FN = `
 export default async function ({ page, context }) {
-  const { url } = context;
-  await page.goto(url, { waitUntil: "networkidle2", timeout: 25000 });
-  // Give lazy hero imagery and webfonts a beat, but not long enough for the
-  // store's own popup to take over the viewport.
-  await new Promise((r) => setTimeout(r, 1200));
+  const {
+    url,
+    navigationTimeoutMs = 2200,
+    visualReadyTimeoutMs = 1200,
+    triggerWaitMs = 250,
+    screenshotQuality = 72,
+  } = context;
+  const navigationStarted = Date.now();
+  await page.setViewport({ width: 1280, height: 900 });
+  try {
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: navigationTimeoutMs });
+  } catch (error) {
+    // A navigation timeout often leaves a perfectly usable partially-loaded
+    // DOM. Preserve that extraction instead of discarding the whole result.
+    const hasDocument = await page.evaluate(() => Boolean(document.body));
+    if (!hasDocument) throw error;
+  }
+  const navigationMs = Date.now() - navigationStarted;
+  try { await page.waitForSelector("body", { timeout: 200 }); } catch {}
+  const extractionStarted = Date.now();
 
   const POPUP_SELECTOR =
-    "[class*='modal'][class*='open'], [class*='popup']:not([hidden]), [role='dialog'], [class*='newsletter'][class*='modal']";
+    "[class*='modal'][class*='open'], [class*='popup']:not([hidden]), [role='dialog'], [aria-modal='true'], " +
+    "[class*='newsletter'][class*='modal'], [class*='klaviyo'], [id*='klaviyo'], [class*='privy'], [id*='privy'], " +
+    "[class*='justuno'], [id*='justuno'], [class*='wisepops'], [id*='wisepops'], [class*='omnisend'], [id*='omnisend']";
+
+  // Remove the consent gate before measuring page styles or looking for a
+  // marketing popup. A second pass handles CMPs that swap panels after click.
+  const dismissCookieNotices = async () => {
+    await page.evaluate(() => {
+      ${COOKIE_CONSENT_RUNTIME}
+      return asDismissCookieNotices();
+    });
+    // Let click handlers and synchronous DOM replacement settle without a
+    // fixed timer on the request's critical path.
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await page.evaluate(() => {
+      ${COOKIE_CONSENT_RUNTIME}
+      return asDismissCookieNotices();
+    });
+  };
+  await dismissCookieNotices();
 
   const data = await page.evaluate((POPUP_SELECTOR) => {
+    ${COOKIE_CONSENT_RUNTIME}
     const cs = (el) => (el ? getComputedStyle(el) : null);
     const txt = (el) => (el && el.textContent ? el.textContent.trim().slice(0, 300) : null);
 
@@ -384,10 +438,23 @@ export default async function ({ page, context }) {
       document.querySelector("header [class*='logo'] img, [class*='logo'] img, header a[href='/'] img, header img") ||
       null;
 
-    const popupEl = document.querySelector(POPUP_SELECTOR);
+    const popupEl = [...document.querySelectorAll(POPUP_SELECTOR)]
+      .filter((el) => asVisible(el) && !asIsCookieNotice(el))
+      .sort((a, b) => {
+        const ar = a.getBoundingClientRect(), br = b.getBoundingClientRect();
+        return (br.width * br.height) - (ar.width * ar.height);
+      })[0] || null;
 
     const currencyMeta =
       document.querySelector("meta[property='product:price:currency'], meta[itemprop='priceCurrency']");
+    const meta = (name) => {
+      const el = document.querySelector('meta[name="' + name + '"], meta[property="' + name + '"]');
+      return el ? el.getAttribute("content") || "" : "";
+    };
+    const pageBrandColor = meta("theme-color");
+    const productTitles = [...document.querySelectorAll(
+      "[class*='product'] h2, [class*='product'] h3, [class*='card'] h2, [class*='card'] h3, [itemprop='name']"
+    )].map((el) => (el.textContent || "").trim()).filter(Boolean).slice(0, 24);
 
     return {
       displayFont: cs(h1) ? cs(h1).fontFamily : null,
@@ -411,8 +478,54 @@ export default async function ({ page, context }) {
         : document.querySelector("[class*='woocommerce'], body.woocommerce") ? "woocommerce"
         : "custom",
       currency: currencyMeta ? currencyMeta.getAttribute("content") : null,
+      pageDescription: meta("description"),
+      ogImage: meta("og:image"),
+      pageBrandColor: /^#[0-9a-f]{3,8}$/i.test(pageBrandColor) ? pageBrandColor : null,
+      productTitles,
     };
   }, POPUP_SELECTOR);
+
+  // DOMContentLoaded is too early for modern storefronts: hero images, web
+  // fonts, and entrance transitions frequently finish on the next few paints.
+  // Wait adaptively for the visible viewport to become presentable, with a
+  // strict ceiling so a broken image or perpetual animation cannot hold the
+  // analysis open.
+  try {
+    await page.waitForFunction(() => {
+      const visibleImages = [...document.images].filter((image) => {
+        const rect = image.getBoundingClientRect();
+        return rect.width > 40 && rect.height > 40 && rect.bottom > 0 && rect.top < window.innerHeight;
+      });
+      const imagesReady = visibleImages.every((image) => image.complete && image.naturalWidth > 0);
+      const fontsReady = !document.fonts || document.fonts.status === "loaded";
+      const navigation = performance.getEntriesByType("navigation")[0];
+      const domReadyAt = navigation && "domContentLoadedEventEnd" in navigation
+        ? navigation.domContentLoadedEventEnd
+        : 0;
+      const hasHadPaintTime = performance.now() - domReadyAt >= 700;
+      const hasFiniteEntranceAnimation = typeof document.getAnimations === "function" &&
+        document.getAnimations().some((animation) => {
+          if (animation.playState !== "running") return false;
+          const timing = animation.effect && animation.effect.getComputedTiming
+            ? animation.effect.getComputedTiming()
+            : null;
+          return Boolean(timing && timing.iterations !== Infinity && Number(timing.endTime) <= 2000);
+        });
+      return document.readyState === "complete" && imagesReady && fontsReady &&
+        hasHadPaintTime && !hasFiniteEntranceAnimation;
+    }, { timeout: visualReadyTimeoutMs, polling: 100 });
+  } catch {}
+
+  // Capture the requested report image while the page is still at the top.
+  // The CRO pass below scrolls and fires synthetic triggers; taking the image
+  // first both preserves the storefront hero and keeps capture ahead of the
+  // least-essential work in this bounded Browserless session.
+  const screenshotStarted = Date.now();
+  let screenshotBase64 = null;
+  try {
+    screenshotBase64 = await page.screenshot({ encoding: "base64", type: "jpeg", quality: screenshotQuality, fullPage: false });
+  } catch {}
+  const screenshotMs = Date.now() - screenshotStarted;
 
   // ── CRO signal pass ──────────────────────────────────────────────────────
   // Real proof, not a guess: query the live rendered DOM and window globals
@@ -422,19 +535,35 @@ export default async function ({ page, context }) {
   // listen for and check whether a popup demonstrably appeared *because of
   // it* - the one signal a screenshot or a static fetch can never answer.
   const popupAtLoad = data.popupPresent;
-  await new Promise((r) => setTimeout(r, 3500));
+  const waitForPossiblePopup = async () => {
+    try {
+      await page.waitForFunction((selector) => [...document.querySelectorAll(selector)].some((el) => {
+        const rect = el.getBoundingClientRect();
+        const style = getComputedStyle(el);
+        return rect.width > 0 && rect.height > 0 && style.display !== "none" && style.visibility !== "hidden";
+      }), { timeout: triggerWaitMs, polling: 50 }, POPUP_SELECTOR);
+    } catch {}
+  };
+  await waitForPossiblePopup();
+  await dismissCookieNotices();
+
+  // Scroll after consent dismissal so below-the-fold trigger libraries get a
+  // real chance to open their marketing popup, then search again.
+  await page.evaluate(() => window.scrollTo(0, Math.max(document.body.scrollHeight * 0.65, window.innerHeight)));
+  await waitForPossiblePopup();
+  await dismissCookieNotices();
 
   const preTrigger = await page.evaluate((POPUP_SELECTOR) => {
-    const visible = (el) => {
-      if (!el) return false;
-      const r = el.getBoundingClientRect();
-      return r.width > 0 && r.height > 0 && el.offsetParent !== null;
-    };
+    ${COOKIE_CONSENT_RUNTIME}
+    const visible = (el) => asVisible(el);
     const anyVisible = (sel) => [...document.querySelectorAll(sel)].some(visible);
     const bodyText = (document.body.innerText || "").toLowerCase();
+    const popupEl = [...document.querySelectorAll(POPUP_SELECTOR)]
+      .filter((el) => visible(el) && !asIsCookieNotice(el))[0] || null;
 
     return {
-      popupPresent: !!document.querySelector(POPUP_SELECTOR),
+      popupPresent: !!popupEl,
+      popupSelector: popupEl ? (popupEl.className || popupEl.id || popupEl.tagName) : null,
       emailCapture:
         anyVisible("input[type=email]") ||
         anyVisible("[class*='klaviyo-form'], [class*='privy'], [id*='mc_embed_signup'], [class*='omnisend']"),
@@ -462,27 +591,43 @@ export default async function ({ page, context }) {
   await page.evaluate(() => {
     document.dispatchEvent(new MouseEvent("mouseout", { clientY: -10, relatedTarget: null, bubbles: true }));
   });
-  await new Promise((r) => setTimeout(r, 700));
+  await waitForPossiblePopup();
+  await dismissCookieNotices();
 
-  const popupAfterTrigger = await page.evaluate((POPUP_SELECTOR) => !!document.querySelector(POPUP_SELECTOR), POPUP_SELECTOR);
+  const popupAfterTrigger = await page.evaluate((POPUP_SELECTOR) => {
+    ${COOKIE_CONSENT_RUNTIME}
+    const popupEl = [...document.querySelectorAll(POPUP_SELECTOR)]
+      .filter((el) => asVisible(el) && !asIsCookieNotice(el))[0] || null;
+    return {
+      present: !!popupEl,
+      selector: popupEl ? (popupEl.className || popupEl.id || popupEl.tagName) : null,
+    };
+  }, POPUP_SELECTOR);
 
   const signals = {
-    popup: popupAtLoad || preTrigger.popupPresent || popupAfterTrigger,
+    popup: popupAtLoad || preTrigger.popupPresent || popupAfterTrigger.present,
     emailCapture: preTrigger.emailCapture,
     socialProof: preTrigger.socialProof,
     urgency: preTrigger.urgencyText,
     // Only true if no popup was already up and one demonstrably appeared
     // right after the simulated exit gesture - otherwise a load-triggered
     // or timed popup would get misattributed to exit-intent.
-    exitIntent: !preTrigger.popupPresent && popupAfterTrigger,
+    exitIntent: !preTrigger.popupPresent && popupAfterTrigger.present,
     stickyBar: preTrigger.stickyBar,
     liveChat: preTrigger.liveChat,
   };
 
+  const extractionMs = Date.now() - extractionStarted;
+
   return {
     data: {
       ...data,
-      detectedPopup: { present: signals.popup, selector: data.popupSelector },
+      screenshotBase64,
+      timings: { navigationMs, extractionMs, screenshotMs },
+      detectedPopup: {
+        present: signals.popup,
+        selector: data.popupSelector || preTrigger.popupSelector || popupAfterTrigger.selector,
+      },
       signals,
     },
     type: "application/json",
@@ -511,6 +656,17 @@ export function normalizeDomExtraction(raw: unknown): DomExtraction | null {
         .filter((c) => typeof c.color === "string" && typeof c.area === "number")
         .map((c) => ({ color: c.color as string, area: c.area as number }))
     : [];
+  const timingsRaw = d.timings as Record<string, unknown> | null | undefined;
+  const timings = timingsRaw &&
+    typeof timingsRaw.navigationMs === "number" &&
+    typeof timingsRaw.extractionMs === "number" &&
+    typeof timingsRaw.screenshotMs === "number"
+    ? {
+        navigationMs: timingsRaw.navigationMs,
+        extractionMs: timingsRaw.extractionMs,
+        screenshotMs: timingsRaw.screenshotMs,
+      }
+    : null;
   return {
     displayFont: str(d.displayFont),
     bodyFont: str(d.bodyFont),
@@ -527,6 +683,14 @@ export function normalizeDomExtraction(raw: unknown): DomExtraction | null {
     signals: normalizeSignals(d.signals),
     platform: (str(d.platform) as DomExtraction["platform"]) ?? null,
     currency: str(d.currency),
+    screenshotBase64: str(d.screenshotBase64),
+    pageDescription: str(d.pageDescription) ?? "",
+    ogImage: str(d.ogImage) ?? "",
+    pageBrandColor: str(d.pageBrandColor),
+    productTitles: Array.isArray(d.productTitles)
+      ? (d.productTitles as unknown[]).filter((title): title is string => typeof title === "string")
+      : [],
+    timings,
   };
 }
 

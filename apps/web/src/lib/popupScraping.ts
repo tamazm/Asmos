@@ -1,3 +1,5 @@
+import { COOKIE_CONSENT_RUNTIME, looksLikeCookieConsentPayload } from "./cookieConsent";
+
 /**
  * lib/popupScraping.ts
  *
@@ -306,12 +308,26 @@ export function normalizePopupScrapeResult(raw: unknown): PopupScrapeResult {
   if (!raw || typeof raw !== "object") return empty;
   const d = raw as Record<string, unknown>;
   const str = (v: unknown): string | null => (typeof v === "string" && v.length > 0 ? v : null);
+  const selector = str(d.selector);
+  const html = str(d.html);
+  const design = normalizeDesign(d.design);
+  const isConsent = looksLikeCookieConsentPayload([
+    selector,
+    html,
+    design.headline,
+    design.subhead,
+    design.ctaText,
+  ]);
+  // POPUP_SCRAPE_FN always returns HTML for a real marketing popup. Requiring
+  // it here prevents an unrelated full-page screenshot (or malformed remote
+  // response) from ever being promoted into the popup library.
+  const present = Boolean(d.present) && Boolean(html) && !isConsent;
   return {
-    present: Boolean(d.present),
-    selector: str(d.selector),
-    html: str(d.html),
-    design: normalizeDesign(d.design),
-    screenshot: str(d.screenshot),
+    present,
+    selector: present ? selector : null,
+    html: present ? html : null,
+    design: present ? design : EMPTY_DESIGN,
+    screenshot: present ? str(d.screenshot) : null,
     industrySignal: typeof d.industrySignal === "string" ? d.industrySignal : "",
   };
 }
@@ -349,46 +365,41 @@ export default async function ({ page, context }) {
       .join(" . ");
   });
 
-  // Give delay-triggered popups a chance to appear on their own.
-  await new Promise((r) => setTimeout(r, 2000));
+  // Consent gates must be gone before any marketing-popup trigger is tested.
+  // Run twice because some CMPs replace the first panel with a second one.
+  const dismissCookieNotices = async () => {
+    await page.evaluate(() => {
+      ${COOKIE_CONSENT_RUNTIME}
+      return asDismissCookieNotices();
+    });
+    await new Promise((r) => setTimeout(r, 500));
+    await page.evaluate(() => {
+      ${COOKIE_CONSENT_RUNTIME}
+      return asDismissCookieNotices();
+    });
+  };
+  await dismissCookieNotices();
 
-  // Best-effort exit-intent simulation - most popup SDKs listen for the
+  // Search window 1: delayed popups after consent dismissal.
+  await new Promise((r) => setTimeout(r, 2000));
+  await dismissCookieNotices();
+
+  // Search window 2: scroll-triggered popups.
+  await page.evaluate(() => window.scrollTo(0, Math.max(document.body.scrollHeight * 0.65, window.innerHeight)));
+  await new Promise((r) => setTimeout(r, 1000));
+  await dismissCookieNotices();
+
+  // Search window 3: exit-intent popups. Most popup SDKs listen for the
   // cursor leaving the top of the viewport. Not guaranteed to fire every
-  // vendor's trigger, but zero-cost to try before giving up.
+  // vendor's trigger, but it is safe to try before giving up.
   await page.evaluate(() => {
     document.dispatchEvent(new MouseEvent("mouseout", { clientY: -10, bubbles: true }));
   });
   await new Promise((r) => setTimeout(r, 1500));
+  await dismissCookieNotices();
 
   const data = await page.evaluate(() => {
-    const isVisible = (el) => {
-      const r = el.getBoundingClientRect();
-      if (r.width < 40 || r.height < 40) return false;
-      const s = getComputedStyle(el);
-      return s.display !== "none" && s.visibility !== "hidden" && Number(s.opacity) !== 0;
-    };
-
-    // Cookie/consent banners match the same broad selectors below (they're
-    // built as modals/dialogs too) and are usually the first thing to appear,
-    // so without this they'd routinely win the "largest visible candidate"
-    // sort ahead of the actual marketing popup. Filtered on two signals: the
-    // major consent platforms' own container names, and - since plenty of
-    // sites hand-roll their own banner with no telltale class - the
-    // boilerplate language every cookie notice uses regardless of markup.
-    const isCookieNotice = (el) => {
-      const identity = ((el.className || "") + " " + (el.id || "")).toLowerCase();
-      if (
-        /cookie|consent|gdpr|ccpa|onetrust|cookiebot|osano|trustarc|quantcast|cookielaw|termly|cookieyes|iubenda|didomi|usercentrics|cmpbox|cky-|termsfeed|cookieconsent|civiccookie/i.test(
-          identity,
-        )
-      ) {
-        return true;
-      }
-      const text = (el.textContent || "").slice(0, 300).toLowerCase();
-      return /we use cookies|this (site|website) uses cookies|cookie (policy|settings|preferences)|manage (your )?(cookie|privacy) preferences|accept all cookies|reject all cookies/.test(
-        text,
-      );
-    };
+    ${COOKIE_CONSENT_RUNTIME}
 
     // Generic containers (most vendors' own class/id naming contains one of
     // these words, or uses the proper ARIA role) plus a growing list of named
@@ -414,7 +425,7 @@ export default async function ({ page, context }) {
       "[class*='sleeknote'], [id*='sleeknote'], [class*='optimonk'], [id*='optimonk'], " +
       "[class*='picreel'], [id*='picreel'], [class*='adoric'], [id*='adoric'], " +
       "[class*='convertflow'], [id*='convertflow'], [class*='bounceexchange'], [id*='bounceexchange']"
-    )].filter(isVisible).filter((el) => !isCookieNotice(el));
+    )].filter((el) => asVisible(el, 40)).filter((el) => !asIsCookieNotice(el));
 
     // Prefer the largest visible candidate among what's left.
     const popupEl = candidates.sort((a, b) => {
