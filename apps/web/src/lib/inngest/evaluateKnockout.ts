@@ -282,6 +282,17 @@ export const evaluateKnockout = inngest.createFunction(
       },
     });
 
+    // Real product photos are a stable fact about the store (the catalogue
+    // doesn't reshuffle round to round the way the control's own design
+    // does), so - unlike existingPopup above, which is about the pre-Asmos
+    // popup and only ever matters for round one - this stays available for
+    // every knockout round. Same source order as brandTokens above.
+    const contextProductImages = (campaign.generationContext as { storeProfile?: { productImages?: unknown } } | null)
+      ?.storeProfile?.productImages;
+    const productImages =
+      storeProfile?.productImages ??
+      (Array.isArray(contextProductImages) ? contextProductImages.filter((u): u is string => typeof u === "string") : []);
+
     const numToGenerate = Math.min(slotsAvailable, 2);
 
     const placeholders = await step.run("create-placeholders", async () => {
@@ -350,6 +361,7 @@ export const evaluateKnockout = inngest.createFunction(
           offerPreference: { type: offerPreferenceType, fixedPrizeDescription },
           testingMode: baseBrief ? "exploit" : "explore",
           novelty,
+          productImages,
         });
         return generatePopupWithVariants(input, briefs);
       });

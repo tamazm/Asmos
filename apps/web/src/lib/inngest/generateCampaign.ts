@@ -299,6 +299,16 @@ async function runGeneration(
       popup: context.popup as { found: boolean; description: string } | undefined,
     });
 
+    // Same source order as brandTokens/computedStyles above: the persisted
+    // store profile (durable, from analysis time) first, generationContext's
+    // own copy as fallback for a campaign created before that row existed.
+    const contextStoreProfile = context.storeProfile as { productImages?: unknown } | undefined;
+    const productImages =
+      storeProfile?.productImages ??
+      (Array.isArray(contextStoreProfile?.productImages)
+        ? contextStoreProfile.productImages.filter((u): u is string => typeof u === "string")
+        : []);
+
     const category = industry ?? "Ecommerce / Retail";
     const storeUrl = typeof context.storeUrl === "string" ? context.storeUrl : "unknown.com";
     let domain = storeUrl;
@@ -396,6 +406,7 @@ async function runGeneration(
         offerPreference: { type: offerPreferenceType, fixedPrizeDescription },
         testingMode: "explore",
         novelty,
+        productImages,
       });
       const output = await generatePopupWithVariants(input, briefs);
       return { output, aiThinkingMs: Date.now() - aiStart };

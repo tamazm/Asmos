@@ -30,6 +30,7 @@ import {
   type SignalKey,
 } from "@/lib/storeExtraction";
 import { upsertStoreProfile } from "@/lib/storeProfile";
+import { POPUP_SCRAPE_FN, normalizePopupScrapeResult, type PopupScrapeResult } from "@/lib/popupScraping";
 
 const BROWSERLESS_TOKEN = process.env.BROWSERLESS_TOKEN ?? "";
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY ?? "";
@@ -197,6 +198,46 @@ async function extractDom(url: string): Promise<DomExtraction | null> {
     return normalizeDomExtraction(body?.data ?? body);
   } catch (e) {
     console.warn("[analyze] Browserless /function error:", e);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Real popup capture via Browserless - reuses POPUP_SCRAPE_FN verbatim, the
+// exact same self-contained function that builds the competitor PopupPart
+// library (see lib/popupScraping.ts and lib/inngest/scrapePopupBatch.ts). It
+// navigates on its own, waits for delay-triggered popups, best-effort
+// simulates exit-intent, and - if it finds anything popup-shaped - reads its
+// real computed styles (colors, fonts, button shape, corner radius) directly
+// off the element. This is what makes IMPROVE_EXISTING mode ground itself in
+// what the merchant's popup actually looks like, not a vision model's guess
+// at it from a static screenshot.
+//
+// A third independent Browserless session alongside takeScreenshot/extractDom
+// - deliberately not sharing one with either, since POPUP_SCRAPE_FN does its
+// own navigation and exit-intent simulation, which would otherwise disturb
+// the page state either of those two are reading. Kicked off in parallel with
+// them (see analyzeStore below) so the extra session doesn't add net latency.
+// ---------------------------------------------------------------------------
+async function scrapeOwnPopup(url: string): Promise<PopupScrapeResult | null> {
+  if (!BROWSERLESS_TOKEN) return null;
+  try {
+    const res = await fetch(BROWSERLESS_FUNCTION_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: POPUP_SCRAPE_FN, context: { url } }),
+      // Mirrors extractDom's budget: 25s navigation inside the function plus
+      // ~3.5s of deliberate waiting (delay-triggered popup + exit-intent sim).
+      signal: AbortSignal.timeout(45000),
+    });
+    if (!res.ok) {
+      console.warn("[analyze] popup scrape failed:", res.status, (await res.text()).slice(0, 200));
+      return null;
+    }
+    const body = await res.json();
+    return normalizePopupScrapeResult(body?.data ?? body);
+  } catch (e) {
+    console.warn("[analyze] popup scrape error:", e);
     return null;
   }
 }
@@ -879,6 +920,9 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
   // there's no unhandled-rejection risk from not awaiting them there.
   const domPromise = extractDom(normalizedUrl);
   const brandMetaPromise = extractBrandMeta(normalizedUrl);
+  // Same reasoning - a third independent Browserless session, also safe to
+  // abandon on the early-return below (scrapeOwnPopup never rejects either).
+  const popupScrapePromise = scrapeOwnPopup(normalizedUrl);
 
   // 1. Screenshot
   const screenshotBase64 = await takeScreenshot(normalizedUrl);
@@ -934,6 +978,7 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
   const cataloguePromise = fetchCatalogue(normalizedUrl, rawHtml);
 
   const dom = await domPromise; // usually already resolved by this point
+  const popupScrape = await popupScrapePromise; // same
 
   // ── Ground the found/missing checklist in what we can actually verify ─────
   // The AI's screenshot narrative above is not trustworthy for this: asked
@@ -1068,15 +1113,34 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
       "the store's own product photography, keyed to the brand palette",
   };
 
-  const existingPopup = brandTokensResult?.existing_popup ?? {
-    captured: dom?.detectedPopup?.present ?? aiResult.popup?.found ?? false,
+  // Confidence order, same convention as the rest of this function: the real
+  // DOM scrape of the merchant's own popup (actual computed styles, actual
+  // copy, not a guess) outranks the CRO checklist's presence check, which
+  // outranks the vision model's guess at the whole thing from a screenshot.
+  const visionGuess = brandTokensResult?.existing_popup ?? null;
+  const popupCaptured = popupScrape?.present || dom?.detectedPopup?.present || aiResult.popup?.found || false;
+
+  const existingPopup = {
+    captured: popupCaptured,
     screenshot_url: null,
-    extracted_copy: { headline: "", subhead: "", cta: "" },
+    extracted_copy: popupScrape?.present
+      ? {
+          headline: popupScrape.design.headline ?? "",
+          subhead: popupScrape.design.subhead ?? "",
+          cta: popupScrape.design.ctaText ?? "",
+        }
+      : visionGuess?.extracted_copy ?? { headline: "", subhead: "", cta: "" },
     extracted_structure: {
-      trigger_guess: aiResult.popup?.found ? "unknown" : "none",
-      fields: aiResult.popup?.found ? ["email"] : [],
-      layout: aiResult.popup?.description ?? "none",
+      trigger_guess: visionGuess?.extracted_structure?.trigger_guess ?? (popupCaptured ? "unknown" : "none"),
+      fields: visionGuess?.extracted_structure?.fields ?? (popupCaptured ? ["email"] : []),
+      layout: popupScrape?.present
+        ? popupScrape.design.layout ?? popupScrape.design.template ?? "unknown"
+        : visionGuess?.extracted_structure?.layout ?? aiResult.popup?.description ?? "none",
     },
+    // Real getComputedStyle values off the merchant's own popup element - see
+    // scrapeOwnPopup above. Null when no popup was found on the page at all,
+    // or when Browserless found one but the DOM read itself came back empty.
+    measured_design: popupScrape?.present ? popupScrape.design : null,
   };
 
   const computedStyles = {

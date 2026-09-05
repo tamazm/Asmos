@@ -107,6 +107,14 @@ export async function POST(req: NextRequest) {
 
   const category = industry ?? "Ecommerce / Retail";
 
+  // Real product photos, scraped at analysis time (see fetchCatalogue in
+  // storeExtraction.ts) - nested under storeProfile in the analyze result
+  // this route is called with, same shape sessionStorage's asmos_analyze_result
+  // already carries.
+  const productImages = Array.isArray((body.storeProfile as { productImages?: unknown } | undefined)?.productImages)
+    ? ((body.storeProfile as { productImages: unknown[] }).productImages.filter((u): u is string => typeof u === "string"))
+    : [];
+
   const input = buildPopupInput({
     domain,
     category,
@@ -117,6 +125,7 @@ export async function POST(req: NextRequest) {
     variantCount: 0,       // baseline only for the teaser
     multivariate: false,
     testingMode: "explore",
+    productImages,
   });
 
   // Seeded on the domain, so this teaser is stable for a given store across

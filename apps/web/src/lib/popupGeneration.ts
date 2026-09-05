@@ -24,6 +24,7 @@ import {
   type ButtonPartStyle,
   type CardPartStyle,
   type ImagePartStyle,
+  type ScrapedPopupDesign,
   type TypographyPartStyle,
 } from "@/lib/popupScraping";
 import type { PopupPartRole } from ".prisma/client";
@@ -88,6 +89,16 @@ export type ExistingPopupExtracted = {
   screenshot_url: string | null;
   extracted_copy: { headline: string; subhead: string; cta: string };
   extracted_structure: { trigger_guess: string; fields: string[]; layout: string };
+  /**
+   * Real `getComputedStyle` values read directly off the merchant's own
+   * popup element (see scrapeOwnPopup in api/analyze/route.ts, which reuses
+   * POPUP_SCRAPE_FN - the same Browserless function that builds the
+   * competitor PopupPart library) - not a vision model's guess. Null when no
+   * popup was found, or when the DOM scrape itself failed and only the
+   * lighter screenshot-based guess above is available. IMPROVE_EXISTING mode
+   * treats this as ground truth, same as brand_tokens.
+   */
+  measured_design: ScrapedPopupDesign | null;
 };
 
 export type ComputedStyles = {
@@ -159,6 +170,18 @@ export type PopupGenerationInput = {
     category: string;
     screenshot_urls: string[];
     computed_styles: ComputedStyles;
+    /**
+     * Real photos of this store's own products (Shopify /products.json,
+     * WooCommerce Store API, or a scraped og:image fallback - see
+     * fetchCatalogue in storeExtraction.ts and productImages on
+     * StoreProfile). Capped before it reaches here (see buildPopupInput).
+     * Unlike imageLibrary.ts's stock photos, these need no hand-written
+     * description to be judged relevant - they're this exact store's own
+     * merchandise, so there's no cross-store mismatch to guard against, only
+     * "does a product shot fit this brief at all" (same call the model
+     * already makes for the stock library).
+     */
+    product_images: string[];
   };
   existing_popup: ExistingPopupExtracted;
   brand_tokens: BrandTokens;
@@ -342,6 +365,12 @@ MODE DETECTION
 
 IMPROVE_EXISTING
 - Treat existing_popup as ground truth for current brand voice and layout. Do not redesign from scratch.
+- When existing_popup.measured_design is present, it was read directly off the merchant's live popup
+  (real computed colors, fonts, button shape, corner radius, density, image position) - it is fact, not
+  a guess, and carries the same weight as brand_tokens. Set card_part_id/typography_part_id/button_part_id/
+  image_part_id to whichever candidate in the menus below is closest to these measured values, and set dna
+  fields (corner_radius, button_shape, button_fill, density, image_treatment) to match measured_design
+  directly wherever you have not diagnosed that specific lever as weak.
 - Diagnose weaknesses against these levers, ranked by typical conversion impact, highest first:
   (1) trigger type/timing, (2) field count/friction, (3) offer framing and copy,
   (4) visual hierarchy, (5) micro-details (button size, color, corner radius).
@@ -480,10 +509,16 @@ structurally clone any of them. This is a hard requirement, not a stylistic pref
 a merchant who sees the same popup twice concludes the AI does nothing.
 
 IMAGERY
-- Set \`image_url\` to ONE exact URL from the library below. Each entry lists what is
+- \`input.store.product_images\` (when non-empty) are real photos of THIS store's own products,
+  scraped from their own catalogue. Prefer one of these over the stock library below whenever a
+  product shot fits the brief - a real product beats a generic stock photo every time, and unlike
+  the stock library these need no category match: they are already this exact store's own merchandise.
+  Copy the URL byte-for-byte from that list. Only fall back to the stock library or null when
+  product_images is empty or none of the photos fit the brief.
+- Otherwise, set \`image_url\` to ONE exact URL from the library below. Each entry lists what is
   actually IN the photograph - choose on the description, not on the category heading.
   Do not invent an Unsplash URL - a fabricated photo ID will 404, and any URL not in
-  this list is discarded server-side.
+  product_images or this list is discarded server-side.
 - Set it to null when the brief's \`dna.image_treatment\` is "none".
 - **Default to null.** An image is only worth including when the photo's own subject
   would look deliberate on this specific store's site. A picture that merely shares a
@@ -1140,6 +1175,7 @@ export function buildPopupInput(opts: {
   };
   testingMode?: "explore" | "exploit";
   novelty?: { recentHeadlines?: string[]; recentFingerprints?: string[] };
+  productImages?: string[];
 }): PopupGenerationInput {
   return {
     store: {
@@ -1147,6 +1183,10 @@ export function buildPopupInput(opts: {
       category: opts.category,
       screenshot_urls: [],
       computed_styles: opts.computedStyles,
+      // Capped well below the 16 fetchCatalogue/storeProfile can carry - the
+      // model only needs a few real options, not the whole catalogue, and
+      // every URL in this list is duplicated verbatim into the prompt.
+      product_images: (opts.productImages ?? []).filter(Boolean).slice(0, 8),
     },
     existing_popup: opts.existingPopup,
     brand_tokens: opts.brandTokens,
@@ -1588,21 +1628,26 @@ function applyBriefs(output: PopupGenerationOutput, briefs: GenerationBriefs): P
 }
 
 /**
- * Drops any image that isn't from our own curated library.
+ * Drops any image that isn't from our own curated library or this specific
+ * store's own scraped product photos.
  *
  * `image_url` is typed as a free string in the tool schema, so nothing stopped
  * the model returning a hallucinated photo ID (404s on the merchant's site) or
  * a URL recalled from training - uncurated, and quite possibly carrying text or
  * a percentage burned into the pixels. That last case is the one that bit:
  * imagery is generated independently of copy, so a photo with "50%" in it will
- * happily sit above a 10% offer.
+ * happily sit above a 10% offer. `validProductImages` is exactly the list this
+ * call's own `input.store.product_images` offered the model - not a global
+ * allowlist, so a URL scraped for a *different* store can never leak in here.
  *
  * When the URL is rejected the popup renders with no image at all rather than
  * substituting a stock fallback, so image_treatment is forced to "none" to keep
  * the spec internally consistent.
  */
-function sanitizeSpecImage(spec: PopupSpec): PopupSpec {
-  if (spec.image_url === null || isLibraryImage(spec.image_url)) return spec;
+function sanitizeSpecImage(spec: PopupSpec, validProductImages: readonly string[]): PopupSpec {
+  if (spec.image_url === null || isLibraryImage(spec.image_url) || validProductImages.includes(spec.image_url)) {
+    return spec;
+  }
   console.warn(`[popupGeneration] discarding off-library image_url: ${spec.image_url}`);
   return {
     ...spec,
@@ -1612,16 +1657,16 @@ function sanitizeSpecImage(spec: PopupSpec): PopupSpec {
 }
 
 /** Normalizes every spec's DNA so downstream renderers never see a partial. */
-function normalizeOutputDna(output: PopupGenerationOutput): PopupGenerationOutput {
+function normalizeOutputDna(output: PopupGenerationOutput, validProductImages: readonly string[]): PopupGenerationOutput {
   return {
     ...output,
     baseline: {
       ...output.baseline,
-      spec: sanitizeSpecImage({ ...output.baseline.spec, dna: normalizeDna(output.baseline.spec.dna) }),
+      spec: sanitizeSpecImage({ ...output.baseline.spec, dna: normalizeDna(output.baseline.spec.dna) }, validProductImages),
     },
     variants: output.variants.map((v) => ({
       ...v,
-      spec: sanitizeSpecImage({ ...v.spec, dna: normalizeDna(v.spec.dna) }),
+      spec: sanitizeSpecImage({ ...v.spec, dna: normalizeDna(v.spec.dna) }, validProductImages),
     })),
   };
 }
@@ -1724,7 +1769,7 @@ export async function generatePopupWithVariants(
         spec: applyPartSelection(v.spec, resolvePartSelection(v.spec, partCandidateMaps)),
       })),
     };
-    return applyContentGuardrails(normalizeOutputDna(designed), maxDiscountPercent);
+    return applyContentGuardrails(normalizeOutputDna(designed, input.store.product_images), maxDiscountPercent);
   };
 
   // Provider priority: Bedrock (AWS) → Anthropic direct → Gemini
@@ -2135,7 +2180,10 @@ export function existingPopupFromAnalyzeResult(result: {
   existingPopup?: ExistingPopupExtracted;
   popup?: { found: boolean; description: string };
 }): ExistingPopupExtracted {
-  if (result.existingPopup) return result.existingPopup;
+  // Defensive against a value cached before measured_design existed (old
+  // sessionStorage blob, an older Variant.popupSpec snapshot) - degrades to
+  // null rather than passing `undefined` through as if it were a real field.
+  if (result.existingPopup) return { ...result.existingPopup, measured_design: result.existingPopup.measured_design ?? null };
   const captured = result.popup?.found ?? false;
   return {
     captured,
@@ -2146,5 +2194,6 @@ export function existingPopupFromAnalyzeResult(result: {
       fields: captured ? ["email"] : [],
       layout: captured ? result.popup?.description ?? "unknown" : "none",
     },
+    measured_design: null,
   };
 }
