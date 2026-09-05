@@ -17,6 +17,9 @@ describe("store analysis fast path", () => {
     expect(DOM_EXTRACTION_FN).toContain("logo:");
     expect(DOM_EXTRACTION_FN).toContain("productImages");
     expect(DOM_EXTRACTION_FN).toContain("detectedPopup");
+    expect(DOM_EXTRACTION_FN).toContain("visualReadyTimeoutMs");
+    expect(DOM_EXTRACTION_FN).toContain("document.fonts.status");
+    expect(DOM_EXTRACTION_FN).toContain("image.complete");
     expect(DOM_EXTRACTION_FN.indexOf("page.screenshot")).toBeLessThan(
       DOM_EXTRACTION_FN.indexOf("window.scrollTo"),
     );
@@ -40,10 +43,11 @@ describe("store analysis fast path", () => {
     expect(analyzeStoreSource).toContain("settleWithin(");
   });
 
-  it("budgets 7.5 seconds for a screenshot-backed free report and emits stage timings", () => {
-    expect(routeSource).toContain("ANALYZE_RESPONSE_BUDGET_MS = 7500");
-    expect(routeSource).toContain("maxBrowserMs: 4600");
-    expect(routeSource).toContain("navigationTimeoutMs: 3000");
+  it("budgets eight seconds for a visually ready, screenshot-backed free report", () => {
+    expect(routeSource).toContain("ANALYZE_RESPONSE_BUDGET_MS = 8000");
+    expect(routeSource).toContain("maxBrowserMs: 5200");
+    expect(routeSource).toContain("navigationTimeoutMs: 2600");
+    expect(routeSource).toContain("visualReadyTimeoutMs: 1200");
     expect(routeSource).toContain("screenshotQuality: 82");
     expect(routeSource).toContain("aiMaxTokens: 1700");
     for (const stage of ["navigationMs", "extractionMs", "aiMs", "catalogueMs", "databaseMs"]) {

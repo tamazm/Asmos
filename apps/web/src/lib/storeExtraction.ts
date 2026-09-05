@@ -357,6 +357,7 @@ export default async function ({ page, context }) {
   const {
     url,
     navigationTimeoutMs = 2200,
+    visualReadyTimeoutMs = 1200,
     triggerWaitMs = 250,
     screenshotQuality = 72,
   } = context;
@@ -483,6 +484,37 @@ export default async function ({ page, context }) {
       productTitles,
     };
   }, POPUP_SELECTOR);
+
+  // DOMContentLoaded is too early for modern storefronts: hero images, web
+  // fonts, and entrance transitions frequently finish on the next few paints.
+  // Wait adaptively for the visible viewport to become presentable, with a
+  // strict ceiling so a broken image or perpetual animation cannot hold the
+  // analysis open.
+  try {
+    await page.waitForFunction(() => {
+      const visibleImages = [...document.images].filter((image) => {
+        const rect = image.getBoundingClientRect();
+        return rect.width > 40 && rect.height > 40 && rect.bottom > 0 && rect.top < window.innerHeight;
+      });
+      const imagesReady = visibleImages.every((image) => image.complete && image.naturalWidth > 0);
+      const fontsReady = !document.fonts || document.fonts.status === "loaded";
+      const navigation = performance.getEntriesByType("navigation")[0];
+      const domReadyAt = navigation && "domContentLoadedEventEnd" in navigation
+        ? navigation.domContentLoadedEventEnd
+        : 0;
+      const hasHadPaintTime = performance.now() - domReadyAt >= 700;
+      const hasFiniteEntranceAnimation = typeof document.getAnimations === "function" &&
+        document.getAnimations().some((animation) => {
+          if (animation.playState !== "running") return false;
+          const timing = animation.effect && animation.effect.getComputedTiming
+            ? animation.effect.getComputedTiming()
+            : null;
+          return Boolean(timing && timing.iterations !== Infinity && Number(timing.endTime) <= 2000);
+        });
+      return document.readyState === "complete" && imagesReady && fontsReady &&
+        hasHadPaintTime && !hasFiniteEntranceAnimation;
+    }, { timeout: visualReadyTimeoutMs, polling: 100 });
+  } catch {}
 
   // Capture the requested report image while the page is still at the top.
   // The CRO pass below scrolls and fires synthetic triggers; taking the image

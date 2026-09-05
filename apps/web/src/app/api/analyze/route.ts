@@ -158,6 +158,7 @@ const BROWSERLESS_FUNCTION_URL = `https://production-sfo.browserless.io/function
 
 type BrowserAnalysisOptions = {
   navigationTimeoutMs: number;
+  visualReadyTimeoutMs: number;
   triggerWaitMs: number;
   screenshotQuality: number;
 };
@@ -166,8 +167,9 @@ async function extractDom(
   url: string,
   timeoutMs = 3000,
   browserOptions: BrowserAnalysisOptions = {
-    navigationTimeoutMs: 2200,
-    triggerWaitMs: 250,
+    navigationTimeoutMs: 2600,
+    visualReadyTimeoutMs: 1200,
+    triggerWaitMs: 125,
     screenshotQuality: 72,
   },
 ): Promise<DomExtraction | null> {
@@ -708,19 +710,24 @@ export async function OPTIONS() { return cors(new NextResponse(null, { status: 2
 // The free report deliberately favors a complete screenshot-backed result over
 // the old sub-four-second target. Real storefronts commonly spend 2-3 seconds
 // in navigation alone, before DOM extraction and JPEG capture can begin.
-const ANALYZE_RESPONSE_BUDGET_MS = 7500;
+const ANALYZE_RESPONSE_BUDGET_MS = 8000;
 const CAMPAIGN_ANALYSIS_BUDGET_MS = 7500;
 export type StoreAnalysisMode = "fast" | "campaign";
 
 const ANALYSIS_PRESETS = {
   fast: {
     totalBudgetMs: ANALYZE_RESPONSE_BUDGET_MS,
-    maxBrowserMs: 4600,
+    maxBrowserMs: 5200,
     catalogueTimeoutMs: 2500,
-    catalogueJoinMs: 700,
+    catalogueJoinMs: 800,
     aiReserveMs: 150,
     aiMaxTokens: 1700,
-    browser: { navigationTimeoutMs: 3000, triggerWaitMs: 200, screenshotQuality: 82 },
+    browser: {
+      navigationTimeoutMs: 2600,
+      visualReadyTimeoutMs: 1200,
+      triggerWaitMs: 125,
+      screenshotQuality: 82,
+    },
   },
   campaign: {
     totalBudgetMs: CAMPAIGN_ANALYSIS_BUDGET_MS,
@@ -729,7 +736,12 @@ const ANALYSIS_PRESETS = {
     catalogueJoinMs: 900,
     aiReserveMs: 200,
     aiMaxTokens: 1700,
-    browser: { navigationTimeoutMs: 3500, triggerWaitMs: 650, screenshotQuality: 82 },
+    browser: {
+      navigationTimeoutMs: 3500,
+      visualReadyTimeoutMs: 1200,
+      triggerWaitMs: 650,
+      screenshotQuality: 82,
+    },
   },
 } as const;
 const recentAnalyzeDurations: number[] = [];
