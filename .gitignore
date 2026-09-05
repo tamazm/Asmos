@@ -2,3 +2,6 @@
 # not something the parent repo should track (a gitlink accidentally slipped
 # into main once already; this prevents a repeat).
 .claude/worktrees/
+
+# Local session learnings (see archive skill); never ship with the app.
+.archive/

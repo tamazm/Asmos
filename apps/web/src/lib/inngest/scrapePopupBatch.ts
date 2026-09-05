@@ -11,7 +11,6 @@ import {
   type ImagePartStyle,
   type TypographyPartStyle,
 } from "@/lib/popupScraping";
-import { takePageScreenshot, extractColorsFromScreenshot } from "@/lib/screenshotColors";
 import type { Prisma } from ".prisma/client";
 
 // Scraped popup design library - see lib/popupScraping.ts and
@@ -69,31 +68,12 @@ export const scrapePopupBatch = inngest.createFunction(
           const body = await res.json();
           const result = normalizePopupScrapeResult(body?.data ?? body);
 
-          // The page loaded fine but our DOM selectors found no popup -
-          // rather than waste the scrape, fall back to a plain screenshot
-          // and pull a colour signal out of it algorithmically (colorthief,
-          // no AI vision call). Can't recover structure/copy/fonts this way
-          // - a flat image has no DOM - only colour, so this fills in just
-          // that much and leaves everything else null.
-          let present = result.present;
-          let design = result.design;
-          let screenshot = result.screenshot;
-          if (!present) {
-            const pageShot = await takePageScreenshot(url, BROWSERLESS_TOKEN);
-            if (pageShot) {
-              const colors = await extractColorsFromScreenshot(pageShot);
-              if (colors.palette.length > 0) {
-                present = true;
-                screenshot = pageShot;
-                design = {
-                  ...design,
-                  palette: colors.palette,
-                  accentColor: colors.accentColor,
-                  backgroundColor: colors.backgroundColor,
-                };
-              }
-            }
-          }
+          // A page screenshot is never evidence of a popup. In particular,
+          // promoting its colours into a positive row could turn a normal
+          // page or a consent-only page into a false marketing-popup result.
+          const present = result.present;
+          const design = result.design;
+          const screenshot = result.screenshot;
 
           // Explicit segment (typed or pasted as "url, industry") always wins;
           // otherwise auto-assign from the page's own title/meta description
@@ -102,10 +82,7 @@ export const scrapePopupBatch = inngest.createFunction(
 
           const { card, typography, button, image } = designToParts(design);
           // Only create a part when its role actually has a measured signal -
-          // otherwise the fallback-screenshot path above (which only fills in
-          // colour, never fonts/button shape/image) would insert empty
-          // TYPOGRAPHY/BUTTON/IMAGE placeholders that add nothing to the
-          // candidate pool generation later picks from.
+          // Empty roles add nothing to the candidate pool generation uses.
           const parts: { role: "CARD" | "TYPOGRAPHY" | "BUTTON" | "IMAGE"; style: Prisma.InputJsonValue }[] = [];
           if (card.backgroundColor || card.cornerRadius) {
             parts.push({ role: "CARD", style: card satisfies CardPartStyle as Prisma.InputJsonValue });

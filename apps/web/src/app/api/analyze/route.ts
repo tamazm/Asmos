@@ -32,8 +32,9 @@ import {
 import { upsertStoreProfile } from "@/lib/storeProfile";
 
 const BROWSERLESS_TOKEN = process.env.BROWSERLESS_TOKEN ?? "";
+// Used only as a failure fallback in the protected campaign preset. The
+// public fast analyzer deliberately invokes no more than one AI provider.
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY ?? "";
-const GEMINI_KEY = process.env.GEMINI_API_KEY ?? "";
 const AWS_REGION = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "eu-central-1";
 
 // This endpoint backs the embeddable widget (public/embed/analyze.html),
@@ -46,8 +47,6 @@ function cors<T extends NextResponse>(res: T): T {
 
 // Bedrock model - Claude Haiku 4.5 via cross-region inference profile
 const BEDROCK_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0";
-
-const BROWSERLESS_URL = `https://production-sfo.browserless.io/screenshot?token=${BROWSERLESS_TOKEN}`;
 
 // ---------------------------------------------------------------------------
 // HTML entity decoder
@@ -72,6 +71,12 @@ interface CheckItem {
   description: string;
 }
 
+interface ExistingPopupResult {
+  captured: boolean;
+  extracted_copy: { headline: string; subhead: string; cta: string };
+  extracted_structure: { trigger_guess: string; fields: string[]; layout: string };
+}
+
 interface CROResult {
   popup: CheckItem;
   emailCapture: CheckItem;
@@ -87,6 +92,14 @@ interface CROResult {
   verdict: string;
   storeName: string;
   industry: string;
+  category?: string;
+  subcategories?: string[];
+  audience?: string;
+  brand_voice?: string;
+  value_props?: string[];
+  signature_detail?: string;
+  imagery_style?: string;
+  existing_popup?: ExistingPopupResult;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,62 +123,29 @@ Analyze the provided website screenshot and return ONLY valid JSON (no markdown,
   "topIssue": "No email capture - visitors leave with no way to re-engage",
   "verdict": "Decent social proof but hemorrhaging leads with no popup or email capture.",
   "storeName": "Brand Name",
-  "industry": "Ecommerce / Retail"
+  "industry": "Ecommerce / Retail",
+  "category": "specific products sold, never Ecommerce/Retail/Shopify",
+  "subcategories": ["2-5 specific product lines"],
+  "audience": "specific buyer group",
+  "brand_voice": "one concrete sentence describing how this store talks",
+  "value_props": ["up to 4 claims actually visible on the page"],
+  "signature_detail": "one distinctive visual or verbal detail, or empty string",
+  "imagery_style": "minimal | editorial | product-forward | lifestyle | luxury",
+  "existing_popup": {
+    "captured": false,
+    "extracted_copy": { "headline": "", "subhead": "", "cta": "" },
+    "extracted_structure": { "trigger_guess": "none", "fields": [], "layout": "" }
+  }
 }
 
 Scoring (points per found element): popup=20, emailCapture=15, socialProof=20, urgency=15, exitIntent=10, stickyBar=10, liveChat=10.
 Grade scale: 90+=A+, 85+=A, 80+=A-, 77+=B+, 73+=B, 70+=B-, 67+=C+, 63+=C, 60+=C-, 57+=D+, 53+=D, 50+=D-, <50=F.
-Be blunt and specific. If you see a Klaviyo/Privy/Omnisend popup, name it. If you see star ratings, name them.`;
+Be blunt and specific. If you see a Klaviyo/Privy/Omnisend popup, name it. If you see star ratings, name them.
+For category, audience, voice, value_props, signature_detail, and imagery_style, make grounded judgments from the screenshot and supplied DOM evidence. Use empty strings/arrays when evidence is insufficient. Do not guess colours or fonts: the DOM measures those.`;
 
 // ---------------------------------------------------------------------------
-// Screenshot via Browserless
-// ---------------------------------------------------------------------------
-async function takeScreenshot(url: string): Promise<string | null> {
-  if (!BROWSERLESS_TOKEN) {
-    console.log("[analyze] No BROWSERLESS_TOKEN set, skipping screenshot");
-    return null;
-  }
-
-  try {
-    const res = await fetch(BROWSERLESS_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        url,
-        options: {
-          fullPage: false,
-          type: "jpeg",
-          quality: 75,
-        },
-        waitForTimeout: 4000,
-        gotoOptions: { waitUntil: "networkidle2", timeout: 15000 },
-        viewport: { width: 1280, height: 900 },
-      }),
-      signal: AbortSignal.timeout(25000),
-    });
-
-    if (!res.ok) {
-      const body = await res.text();
-      console.error("[analyze] Browserless error:", res.status, body.slice(0, 200));
-      return null;
-    }
-
-    const buf = await res.arrayBuffer();
-    if (buf.byteLength < 1000) {
-      console.error("[analyze] Browserless returned suspiciously small response:", buf.byteLength, "bytes");
-      return null;
-    }
-
-    console.log("[analyze] Screenshot taken:", buf.byteLength, "bytes");
-    return Buffer.from(buf).toString("base64");
-  } catch (e) {
-    console.error("[analyze] Browserless fetch failed:", e);
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// DOM extraction via Browserless /function
+// One Browserless session: navigation, DOM, popup, logo, colours, product
+// images, metadata, and screenshot are all returned by this /function call.
 //
 // We were already paying for a headless browser and only asking it for a
 // photograph. Everything the vision pass below was guessing at - the display
@@ -175,18 +155,28 @@ async function takeScreenshot(url: string): Promise<string | null> {
 // ---------------------------------------------------------------------------
 const BROWSERLESS_FUNCTION_URL = `https://production-sfo.browserless.io/function?token=${BROWSERLESS_TOKEN}`;
 
-async function extractDom(url: string): Promise<DomExtraction | null> {
+type BrowserAnalysisOptions = {
+  navigationTimeoutMs: number;
+  triggerWaitMs: number;
+  screenshotQuality: number;
+};
+
+async function extractDom(
+  url: string,
+  timeoutMs = 3000,
+  browserOptions: BrowserAnalysisOptions = {
+    navigationTimeoutMs: 2200,
+    triggerWaitMs: 250,
+    screenshotQuality: 72,
+  },
+): Promise<DomExtraction | null> {
   if (!BROWSERLESS_TOKEN) return null;
   try {
     const res = await fetch(BROWSERLESS_FUNCTION_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: DOM_EXTRACTION_FN, context: { url } }),
-      // 25s navigation budget inside DOM_EXTRACTION_FN plus ~4.2s of
-      // deliberate waiting for the CRO signal pass (letting delayed
-      // popups/bars/chat mount, then the exit-intent trigger) - give it
-      // real headroom rather than aborting our own request out from under it.
-      signal: AbortSignal.timeout(45000),
+      body: JSON.stringify({ code: DOM_EXTRACTION_FN, context: { url, ...browserOptions } }),
+      signal: AbortSignal.timeout(Math.max(250, timeoutMs)),
     });
     if (!res.ok) {
       console.warn("[analyze] Browserless /function failed:", res.status, (await res.text()).slice(0, 200));
@@ -204,13 +194,18 @@ async function extractDom(url: string): Promise<DomExtraction | null> {
 // ---------------------------------------------------------------------------
 // AI analysis - Bedrock (primary)
 // ---------------------------------------------------------------------------
-async function analyzeWithBedrock(base64Jpeg: string): Promise<CROResult | null> {
+async function analyzeWithBedrock(
+  base64Jpeg: string,
+  evidence = "",
+  abortSignal?: AbortSignal,
+  maxTokens = 1200,
+): Promise<CROResult | null> {
   try {
     const client = new BedrockRuntimeClient({ region: AWS_REGION });
 
     const body = JSON.stringify({
       anthropic_version: "bedrock-2023-05-31",
-      max_tokens: 1024,
+      max_tokens: maxTokens,
       system: SYSTEM_PROMPT,
       messages: [
         {
@@ -226,7 +221,7 @@ async function analyzeWithBedrock(base64Jpeg: string): Promise<CROResult | null>
             },
             {
               type: "text",
-              text: "Analyze this website screenshot. Return only JSON with no markdown fences.",
+              text: "Analyze this website screenshot and DOM evidence. Return only JSON with no markdown fences.\n\n" + evidence,
             },
           ],
         },
@@ -240,7 +235,9 @@ async function analyzeWithBedrock(base64Jpeg: string): Promise<CROResult | null>
       accept: "application/json",
     });
 
-    const response = await client.send(command);
+    const response = abortSignal
+      ? await client.send(command, { abortSignal })
+      : await client.send(command);
     const responseBody = JSON.parse(new TextDecoder().decode(response.body));
     const text: string = responseBody.content?.[0]?.text ?? "";
     console.log("[analyze] Bedrock raw response:", text.slice(0, 200));
@@ -250,113 +247,6 @@ async function analyzeWithBedrock(base64Jpeg: string): Promise<CROResult | null>
     console.error("[analyze] Bedrock failed:", msg);
     return null;
   }
-}
-
-// ---------------------------------------------------------------------------
-// AI analysis - Anthropic API direct (fallback 1)
-// ---------------------------------------------------------------------------
-async function analyzeWithAnthropic(base64Jpeg: string): Promise<CROResult | null> {
-  if (!ANTHROPIC_KEY) return null;
-
-  try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "x-api-key": ANTHROPIC_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5",
-        max_tokens: 1024,
-        system: SYSTEM_PROMPT,
-        messages: [
-          {
-            role: "user",
-            content: [
-              {
-                type: "image",
-                source: { type: "base64", media_type: "image/jpeg", data: base64Jpeg },
-              },
-              {
-                type: "text",
-                text: "Analyze this website screenshot. Return only JSON with no markdown fences.",
-              },
-            ],
-          },
-        ],
-      }),
-      signal: AbortSignal.timeout(30000),
-    });
-
-    if (!res.ok) {
-      console.error("[analyze] Anthropic API error:", res.status);
-      return null;
-    }
-
-    const data = await res.json();
-    const text: string = data.content?.[0]?.text ?? "";
-    return parseJSON(text);
-  } catch (e) {
-    console.error("[analyze] Anthropic API failed:", e);
-    return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// AI analysis - Gemini Flash (fallback 2)
-// ---------------------------------------------------------------------------
-async function analyzeWithGemini(base64Jpeg: string): Promise<CROResult | null> {
-  if (!GEMINI_KEY) return null;
-
-  // Try models in order until one works
-  const models = ["gemini-3.6-flash", "gemini-3.5-flash-lite"];
-
-  for (const model of models) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  { inline_data: { mime_type: "image/jpeg", data: base64Jpeg } },
-                  { text: SYSTEM_PROMPT + "\n\nAnalyze this screenshot. Return only JSON with no markdown fences." },
-                ],
-              },
-            ],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 1024 },
-          }),
-          signal: AbortSignal.timeout(30000),
-        }
-      );
-
-      if (res.status === 429) {
-        console.warn("[analyze] Gemini", model, "rate limited, trying next...");
-        continue;
-      }
-
-      if (!res.ok) {
-        console.error("[analyze] Gemini", model, "error:", res.status);
-        continue;
-      }
-
-      const data = await res.json();
-      const text: string = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-      const result = parseJSON(text);
-      if (result) {
-        console.log("[analyze] Gemini success with model:", model);
-        return result;
-      }
-    } catch (e) {
-      console.error("[analyze] Gemini", model, "failed:", e);
-    }
-  }
-
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -718,11 +608,7 @@ interface BrandTokensResult {
     imagery_style: string;
     signature_element_suggestion: string;
   };
-  existing_popup: {
-    captured: boolean;
-    extracted_copy: { headline: string; subhead: string; cta: string };
-    extracted_structure: { trigger_guess: string; fields: string[]; layout: string };
-  };
+  existing_popup: ExistingPopupResult;
 }
 
 async function extractBrandTokens(
@@ -818,9 +704,133 @@ export async function GET(req: NextRequest) { return handler(req); }
 export async function POST(req: NextRequest) { return handler(req); }
 export async function OPTIONS() { return cors(new NextResponse(null, { status: 204 })); }
 
+const ANALYZE_RESPONSE_BUDGET_MS = 3850;
+const CAMPAIGN_ANALYSIS_BUDGET_MS = 7500;
+export type StoreAnalysisMode = "fast" | "campaign";
+
+const ANALYSIS_PRESETS = {
+  fast: {
+    totalBudgetMs: ANALYZE_RESPONSE_BUDGET_MS,
+    maxBrowserMs: 2900,
+    catalogueTimeoutMs: 1200,
+    catalogueJoinMs: 150,
+    aiReserveMs: 120,
+    aiMaxTokens: 1200,
+    browser: { navigationTimeoutMs: 2200, triggerWaitMs: 250, screenshotQuality: 72 },
+  },
+  campaign: {
+    totalBudgetMs: CAMPAIGN_ANALYSIS_BUDGET_MS,
+    maxBrowserMs: 4800,
+    catalogueTimeoutMs: 2500,
+    catalogueJoinMs: 900,
+    aiReserveMs: 200,
+    aiMaxTokens: 1700,
+    browser: { navigationTimeoutMs: 3500, triggerWaitMs: 650, screenshotQuality: 82 },
+  },
+} as const;
+const recentAnalyzeDurations: number[] = [];
+
+type AnalyzeTimings = {
+  navigationMs: number;
+  extractionMs: number;
+  screenshotMs: number;
+  aiMs: number;
+  catalogueMs: number;
+  databaseMs: number;
+  totalMs: number;
+};
+
+async function settleWithin<T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> {
+  if (timeoutMs <= 0) return fallback;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((resolve) => { timer = setTimeout(() => resolve(fallback), timeoutMs); }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function analyzeWithAnthropicUnified(
+  base64Jpeg: string,
+  evidence: string,
+  abortSignal: AbortSignal,
+  maxTokens: number,
+): Promise<CROResult | null> {
+  if (!ANTHROPIC_KEY) return null;
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "x-api-key": ANTHROPIC_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "claude-haiku-4-5",
+        max_tokens: maxTokens,
+        system: SYSTEM_PROMPT,
+        messages: [{
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: "image/jpeg", data: base64Jpeg } },
+            { type: "text", text: "Analyze this website screenshot and DOM evidence. Return only JSON.\n\n" + evidence },
+          ],
+        }],
+      }),
+      signal: abortSignal,
+    });
+    if (!response.ok) return null;
+    const body = await response.json();
+    return parseJSON(body.content?.[0]?.text ?? "");
+  } catch (error) {
+    if (!abortSignal.aborted) console.warn("[analyze] campaign Anthropic fallback failed:", error);
+    return null;
+  }
+}
+
+function domBasedCro(
+  normalizedUrl: string,
+  signals: Record<SignalKey, boolean>,
+  dom: DomExtraction | null,
+): CROResult {
+  let overallScore = 0;
+  for (const key of Object.keys(SCORE_MAP) as SignalKey[]) if (signals[key]) overallScore += SCORE_MAP[key];
+  const { grade, gradeLabel } = gradeFromScore(overallScore);
+  const missing = (Object.keys(signals) as SignalKey[]).find((key) => !signals[key]);
+  let hostname = "Store";
+  try { hostname = new URL(normalizedUrl).hostname.replace(/^www\./, "").split(".")[0]; } catch {}
+  const check = (key: SignalKey): CheckItem => ({
+    found: signals[key],
+    description: signals[key] ? SIGNAL_FOUND_DESCRIPTIONS[key] : "None detected",
+  });
+  return {
+    popup: check("popup"), emailCapture: check("emailCapture"), socialProof: check("socialProof"),
+    urgency: check("urgency"), exitIntent: check("exitIntent"), stickyBar: check("stickyBar"), liveChat: check("liveChat"),
+    overallScore, grade, gradeLabel,
+    topIssue: missing ? `No ${SIGNAL_LABELS[missing]} detected - this is the biggest gap.` : "Store looks reasonably well-optimized.",
+    verdict: `Score ${overallScore}/100 based on live DOM signals.`,
+    storeName: dom?.h1 || hostname.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    industry: "Ecommerce / Retail",
+  };
+}
+
+function recordAnalyzeDuration(totalMs: number) {
+  recentAnalyzeDurations.push(totalMs);
+  if (recentAnalyzeDurations.length > 100) recentAnalyzeDurations.shift();
+  const sorted = [...recentAnalyzeDurations].sort((a, b) => a - b);
+  const percentile = (p: number) => sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * p) - 1)] ?? totalMs;
+  return { sampleSize: sorted.length, medianMs: percentile(0.5), p95Ms: percentile(0.95) };
+}
+
 async function handler(req: NextRequest) {
+  const requestStartedAt = Date.now();
+  let rateLimitDatabaseMs = 0;
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
   if (ip !== "unknown") {
+    const databaseStartedAt = Date.now();
     const rateLimit = await prisma.rateLimit.upsert({
       where: { ip },
       update: {},
@@ -840,6 +850,7 @@ async function handler(req: NextRequest) {
         data: { count: { increment: 1 } }
       });
     }
+    rateLimitDatabaseMs = Date.now() - databaseStartedAt;
   }
 
   let url: string | null = req.nextUrl.searchParams.get("url");
@@ -851,7 +862,25 @@ async function handler(req: NextRequest) {
     return cors(NextResponse.json({ error: "Missing url param" }, { status: 400 }));
   }
 
-  return cors(NextResponse.json(await analyzeStore(url)));
+  const result = await analyzeStore(url, {
+    mode: "fast",
+    deadlineAt: requestStartedAt + ANALYZE_RESPONSE_BUDGET_MS,
+    databaseMs: rateLimitDatabaseMs,
+  });
+  const timing = (result.analysisTimingMs ?? {}) as Record<string, unknown>;
+  const response = cors(NextResponse.json({ ...result, analysisTimingMs: timing }));
+  const totalMs = Date.now() - requestStartedAt;
+  const distribution = recordAnalyzeDuration(totalMs);
+  response.headers.set("X-Analyze-Duration-Ms", String(totalMs));
+  response.headers.set(
+    "Server-Timing",
+    ["navigation", "extraction", "ai", "catalogue", "database"]
+      .map((key) => `${key};dur=${Number(timing[`${key}Ms`] ?? 0)}`)
+      .concat(`total;dur=${totalMs}`)
+      .join(", "),
+  );
+  console.info("[analyze:timing]", JSON.stringify({ ...timing, totalMs, ...distribution }));
+  return response;
 }
 
 /**
@@ -862,7 +891,23 @@ async function handler(req: NextRequest) {
  * screenshot, DOM, catalogue, and vision analysis continues durably in
  * Inngest. Callers are responsible for authentication/rate limiting.
  */
-export async function analyzeStore(url: string): Promise<Record<string, unknown>> {
+export async function analyzeStore(
+  url: string,
+  options: { mode?: StoreAnalysisMode; deadlineAt?: number; databaseMs?: number } = {},
+): Promise<Record<string, unknown>> {
+  const analysisStartedAt = Date.now();
+  const mode = options.mode ?? "fast";
+  const preset = ANALYSIS_PRESETS[mode];
+  const deadlineAt = options.deadlineAt ?? analysisStartedAt + preset.totalBudgetMs;
+  const timings: AnalyzeTimings = {
+    navigationMs: 0,
+    extractionMs: 0,
+    screenshotMs: 0,
+    aiMs: 0,
+    catalogueMs: 0,
+    databaseMs: options.databaseMs ?? 0,
+    totalMs: 0,
+  };
 
   // Normalize URL
   let normalizedUrl = url.trim();
@@ -877,38 +922,83 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
   // in flight and abandon on the early-return below: both catch their own
   // errors internally and never reject (see their definitions above), so
   // there's no unhandled-rejection risk from not awaiting them there.
-  const domPromise = extractDom(normalizedUrl);
-  const brandMetaPromise = extractBrandMeta(normalizedUrl);
-
-  // 1. Screenshot
-  const screenshotBase64 = await takeScreenshot(normalizedUrl);
-
-  if (!screenshotBase64) {
-    // No screenshot - use heuristics
-    const result = await heuristicAnalysis(normalizedUrl);
-    return { ...result, storeUrl: normalizedUrl };
-  }
+  const catalogueStartedAt = Date.now();
+  let catalogueFinished = false;
+  const cataloguePromise = fetchCatalogue(normalizedUrl, "", preset.catalogueTimeoutMs).finally(() => {
+    catalogueFinished = true;
+    timings.catalogueMs = Date.now() - catalogueStartedAt;
+  });
+  const browserBudgetMs = Math.max(250, Math.min(preset.maxBrowserMs, deadlineAt - Date.now() - 700));
+  const browserStartedAt = Date.now();
+  const dom = await extractDom(normalizedUrl, browserBudgetMs, preset.browser);
+  timings.navigationMs = dom?.timings?.navigationMs ?? (Date.now() - browserStartedAt);
+  timings.extractionMs = dom?.timings?.extractionMs ?? 0;
+  timings.screenshotMs = dom?.timings?.screenshotMs ?? 0;
+  const screenshotBase64 = dom?.screenshotBase64 ?? null;
 
   // 2. AI analysis - Bedrock → Anthropic → Gemini → heuristic (CRO pass)
-  let aiResult: CROResult | null = null;
-  let analysisSource: "bedrock" | "anthropic" | "gemini" | "heuristic" = "bedrock";
+  const catalogue: CatalogueSummary | null = await settleWithin(
+    cataloguePromise,
+    Math.max(0, Math.min(preset.catalogueJoinMs, deadlineAt - Date.now() - 500)),
+    null,
+  );
+  if (!catalogueFinished) timings.catalogueMs = Date.now() - catalogueStartedAt;
 
-  aiResult = await analyzeWithBedrock(screenshotBase64);
+  const htmlBrandColor = dom?.pageBrandColor ?? null;
+  const ogImage = dom?.ogImage ?? "";
+  const description = dom?.pageDescription ?? "";
+  const fontStack: string[] = [];
+  const commonBorderRadius = dom?.borderRadius ?? "8px";
+  const rawHtml = "";
+  const signals: Record<SignalKey, boolean> = dom?.signals ?? detectSignalsFromHtml(rawHtml);
+  const fallbackResult = domBasedCro(normalizedUrl, signals, dom);
 
-  if (!aiResult) {
-    aiResult = await analyzeWithAnthropic(screenshotBase64);
-    analysisSource = "anthropic";
-  }
+  const evidence = [
+    `Store URL: ${normalizedUrl}`,
+    dom?.h1 ? `Page headline: ${dom.h1}` : null,
+    dom?.heroText ? `Hero copy: ${dom.heroText}` : null,
+    description ? `Meta description: ${description}` : null,
+    dom?.productTitles.length ? `Visible products: ${dom.productTitles.join(", ")}` : null,
+    catalogue ? `Catalogue:\n${catalogueForPrompt(catalogue)}` : null,
+  ].filter((line) => line !== null).join("\n");
 
-  if (!aiResult) {
-    aiResult = await analyzeWithGemini(screenshotBase64);
-    analysisSource = "gemini";
-  }
-
-  if (!aiResult) {
-    // All AI failed - return heuristics but include screenshot
-    const heuristic = await heuristicAnalysis(normalizedUrl);
-    return { ...heuristic, screenshotBase64, storeUrl: normalizedUrl };
+  let aiResult: CROResult = fallbackResult;
+  let analysisSource: "bedrock" | "anthropic" | "dom" = "dom";
+  if (screenshotBase64 && deadlineAt - Date.now() > 200) {
+    const aiStartedAt = Date.now();
+    const controller = new AbortController();
+    const aiBudgetMs = Math.max(1, deadlineAt - Date.now() - preset.aiReserveMs);
+    const abortTimer = setTimeout(() => controller.abort(), aiBudgetMs);
+    let modelResult = await settleWithin(
+      analyzeWithBedrock(screenshotBase64, evidence, controller.signal, preset.aiMaxTokens),
+      aiBudgetMs,
+      null,
+    );
+    let modelSource: "bedrock" | "anthropic" = "bedrock";
+    // Protected campaign analysis gets one failure-only fallback. The public
+    // fast path still makes no more than one AI request.
+    if (!modelResult && mode === "campaign" && !controller.signal.aborted) {
+      const fallbackBudgetMs = Math.max(0, deadlineAt - Date.now() - preset.aiReserveMs);
+      if (fallbackBudgetMs > 200) {
+        modelResult = await settleWithin(
+          analyzeWithAnthropicUnified(
+            screenshotBase64,
+            evidence,
+            controller.signal,
+            preset.aiMaxTokens,
+          ),
+          fallbackBudgetMs,
+          null,
+        );
+        modelSource = "anthropic";
+      }
+    }
+    clearTimeout(abortTimer);
+    timings.aiMs = Date.now() - aiStartedAt;
+    if (modelResult) {
+      aiResult = modelResult;
+      analysisSource = modelSource;
+    }
   }
 
   // ── 3. MEASURE, then judge ────────────────────────────────────────────────
@@ -924,17 +1014,6 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
   // fetch just below can start the moment it's ready instead of waiting for
   // whichever of the two happens to be slower - dom (a full browser session)
   // usually is, and catalogue never needed it in the first place.
-  const brandMeta = await brandMetaPromise;
-  const { brandColor: htmlBrandColor, logoUrl: ogImage, description, fontStack, commonBorderRadius, rawHtml } =
-    brandMeta;
-
-  // Depends only on brandMeta.rawHtml, just resolved above - started here
-  // rather than at its old call site further down, so it overlaps with `dom`
-  // (still in flight since before the screenshot) instead of stacking after it.
-  const cataloguePromise = fetchCatalogue(normalizedUrl, rawHtml);
-
-  const dom = await domPromise; // usually already resolved by this point
-
   // ── Ground the found/missing checklist in what we can actually verify ─────
   // The AI's screenshot narrative above is not trustworthy for this: asked
   // whether an exit-intent popup exists, a vision model has nothing to look
@@ -952,7 +1031,6 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
   // Browserless wasn't available for this request - a static fetch of the
   // page's own HTML, so it can still see script tags and copy, just nothing
   // that only exists after JS runs.
-  const signals: Record<SignalKey, boolean> = dom?.signals ?? detectSignalsFromHtml(rawHtml);
   (Object.keys(signals) as SignalKey[]).forEach((key) => {
     const found = signals[key];
     const keepAiDescription = found && aiResult[key]?.found && aiResult[key]?.description;
@@ -974,8 +1052,6 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
   aiResult.topIssue = missingSignal
     ? `No ${SIGNAL_LABELS[missingSignal]} detected - this is the biggest gap.`
     : "Store looks reasonably well-optimized.";
-
-  const catalogue: CatalogueSummary | null = await cataloguePromise;
 
   const sources: Provenance = {};
   const note = (field: string, source: Provenance[string]["source"], confidence: number) => {
@@ -1018,19 +1094,16 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
   if (dom?.logo) note("logoUrl", "dom", 0.9);
 
   // ── The judgment pass ─────────────────────────────────────────────────────
-  const evidence = [
-    `Store URL: ${normalizedUrl}`,
-    dom?.h1 ? `Page headline: ${dom.h1}` : null,
-    dom?.heroText ? `Hero copy: ${dom.heroText}` : null,
-    description ? `Meta description: ${description}` : null,
-    "",
-    "CATALOGUE:",
-    catalogueForPrompt(catalogue),
-  ]
-    .filter((l) => l !== null)
-    .join("\n");
-
-  const brandTokensResult = await extractBrandTokens(screenshotBase64, evidence);
+  const brandTokensResult = analysisSource !== "dom" ? {
+    category: aiResult.category,
+    subcategories: aiResult.subcategories,
+    audience: aiResult.audience,
+    brand_voice: aiResult.brand_voice,
+    value_props: aiResult.value_props,
+    signature_detail: aiResult.signature_detail,
+    imagery_style: aiResult.imagery_style,
+    existing_popup: aiResult.existing_popup,
+  } : null;
 
   // The model's own category is only trusted when it is not a platform bucket.
   // The old schema example literally showed "Ecommerce / Retail", and an example
@@ -1064,12 +1137,15 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
     imagery_style: brandTokensResult?.imagery_style ?? (productImages.length ? "product-forward" : "minimal"),
     signature_element_suggestion:
       brandTokensResult?.signature_detail ||
-      brandTokensResult?.brand_tokens?.signature_element_suggestion ||
       "the store's own product photography, keyed to the brand palette",
   };
 
-  const existingPopup = brandTokensResult?.existing_popup ?? {
-    captured: dom?.detectedPopup?.present ?? aiResult.popup?.found ?? false,
+  const measuredPopupPresent = dom?.detectedPopup?.present ?? aiResult.popup?.found ?? false;
+  const existingPopup = measuredPopupPresent && brandTokensResult?.existing_popup ? {
+    ...brandTokensResult.existing_popup,
+    captured: true,
+  } : {
+    captured: measuredPopupPresent,
     screenshot_url: null,
     extracted_copy: { headline: "", subhead: "", cta: "" },
     extracted_structure: {
@@ -1112,16 +1188,26 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
   // Persist against the Website when one exists for this URL. Pre-auth analyses
   // have no Website row yet; the onboarding step picks the profile up from the
   // response and writes it once the account is created.
-  try {
-    const website = await prisma.website.findFirst({
-      where: { url: normalizedUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") },
-      select: { id: true },
-    });
-    if (website) await upsertStoreProfile({ websiteId: website.id, ...storeProfile });
-  } catch (e) {
-    // Persistence is an enhancement, never a reason to fail the analysis.
-    console.warn("[analyze] store profile persist failed:", e);
+  const databaseBudgetMs = Math.max(0, Math.min(150, deadlineAt - Date.now() - 25));
+  if (databaseBudgetMs >= 25) {
+    const databaseStartedAt = Date.now();
+    const persist = (async () => {
+      try {
+        const website = await prisma.website.findFirst({
+          where: { url: normalizedUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") },
+          select: { id: true },
+        });
+        if (website) await upsertStoreProfile({ websiteId: website.id, ...storeProfile });
+      } catch (e) {
+        // Persistence is an enhancement, never a reason to fail the analysis.
+        console.warn("[analyze] store profile persist failed:", e);
+      }
+    })();
+    await settleWithin<void>(persist, databaseBudgetMs, undefined);
+    timings.databaseMs += Date.now() - databaseStartedAt;
   }
+
+  timings.totalMs = Date.now() - analysisStartedAt;
 
   return {
     ...aiResult,
@@ -1136,6 +1222,7 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
     storeUrl: normalizedUrl,
     screenshotBase64,
     analysisSource,
+    analysisMode: mode,
     // ── New fields for popup generation engine ──
     brandTokens,
     existingPopup,
@@ -1144,6 +1231,12 @@ export async function analyzeStore(url: string): Promise<Record<string, unknown>
     storeProfile,
     offerRecommendation,
     extractionSources: sources,
+    analysisTimingMs: timings,
   };
+}
+
+/** Richer, still bounded analysis for authenticated popup generation. */
+export function analyzeStoreForCampaign(url: string): Promise<Record<string, unknown>> {
+  return analyzeStore(url, { mode: "campaign" });
 }
 

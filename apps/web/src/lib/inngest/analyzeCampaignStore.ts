@@ -1,5 +1,5 @@
 import type { Prisma } from ".prisma/client";
-import { analyzeStore } from "@/app/api/analyze/route";
+import { analyzeStoreForCampaign } from "@/app/api/analyze/route";
 import { prisma } from "@/lib/prisma";
 
 type StepRunner = {
@@ -7,9 +7,9 @@ type StepRunner = {
 };
 
 /**
- * Enrich a newly created campaign with the same full store analysis used by
- * /api/analyze, but inside the durable generation workflow instead of before
- * the browser can navigate to the campaign page.
+ * Enrich a newly created campaign with the higher-fidelity protected analysis
+ * preset, inside the durable generation workflow instead of before the browser
+ * can navigate to the campaign page.
  */
 export async function analyzeCampaignStore(
   step: StepRunner,
@@ -35,7 +35,7 @@ export async function analyzeCampaignStore(
       });
 
     const startedAt = Date.now();
-    const rawAnalysis = await analyzeStore(storeUrl);
+    const rawAnalysis = await analyzeStoreForCampaign(storeUrl);
 
     // The screenshot is useful to the analyzer's vision calls but not to popup
     // generation afterward. Keeping its base64 bytes out of Prisma and Inngest

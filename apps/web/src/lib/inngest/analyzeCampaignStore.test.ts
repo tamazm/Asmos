@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  analyzeStore: vi.fn(),
+  analyzeStoreForCampaign: vi.fn(),
   campaignUpdate: vi.fn(),
 }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/app/api/analyze/route", () => ({ analyzeStore: mocks.analyzeStore }));
+vi.mock("@/app/api/analyze/route", () => ({ analyzeStoreForCampaign: mocks.analyzeStoreForCampaign }));
 vi.mock("@/lib/prisma", () => ({
   prisma: { campaign: { update: mocks.campaignUpdate } },
 }));
@@ -17,7 +17,7 @@ describe("analyzeCampaignStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.campaignUpdate.mockResolvedValue({ id: "camp_1" });
-    mocks.analyzeStore.mockResolvedValue({
+    mocks.analyzeStoreForCampaign.mockResolvedValue({
       storeName: "Acme",
       analysisSource: "bedrock",
       screenshotBase64: "large-temporary-image",
@@ -40,7 +40,7 @@ describe("analyzeCampaignStore", () => {
     const result = await analyzeCampaignStore(step, "camp_1", context);
 
     expect(step.run).toHaveBeenCalledWith("analyze-store", expect.any(Function));
-    expect(mocks.analyzeStore).toHaveBeenCalledWith("https://acme.test");
+    expect(mocks.analyzeStoreForCampaign).toHaveBeenCalledWith("https://acme.test");
     expect(mocks.campaignUpdate).toHaveBeenNthCalledWith(1, {
       where: { id: "camp_1" },
       data: { generationStage: "ANALYZING" },
@@ -70,7 +70,7 @@ describe("analyzeCampaignStore", () => {
     await expect(analyzeCampaignStore(step, "camp_1", context)).resolves.toBe(context);
 
     expect(step.run).not.toHaveBeenCalled();
-    expect(mocks.analyzeStore).not.toHaveBeenCalled();
+    expect(mocks.analyzeStoreForCampaign).not.toHaveBeenCalled();
     expect(mocks.campaignUpdate).not.toHaveBeenCalled();
   });
 });
