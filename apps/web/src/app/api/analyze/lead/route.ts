@@ -7,6 +7,36 @@ const ALLOWED_ORIGINS = new Set([
   "https://app.asmos.io",
 ]);
 
+const REPORT_SIGNAL_KEYS = new Set([
+  "popup",
+  "emailCapture",
+  "socialProof",
+  "urgency",
+  "exitIntent",
+  "stickyBar",
+  "liveChat",
+]);
+
+function sanitizeAuditSignals(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((signal): signal is { key: string; found: boolean; description?: string } =>
+      Boolean(
+        signal &&
+        typeof signal.key === "string" &&
+        REPORT_SIGNAL_KEYS.has(signal.key) &&
+        typeof signal.found === "boolean" &&
+        (signal.description === undefined || typeof signal.description === "string"),
+      ),
+    )
+    .slice(0, REPORT_SIGNAL_KEYS.size)
+    .map((signal) => ({
+      key: signal.key,
+      found: signal.found,
+      description: signal.description?.slice(0, 500) ?? null,
+    }));
+}
+
 function allowedOrigin(req: NextRequest): string | null {
   const origin = req.headers.get("origin");
   return origin && ALLOWED_ORIGINS.has(origin) ? origin : null;
@@ -39,7 +69,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { email, storeUrl, storeName, industry, score, grade, gradeLabel, topIssue, topFindings } = body;
+    const { email, storeUrl, storeName, industry, score, grade, gradeLabel, topIssue, topFindings, auditSignals } = body;
 
     if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return cors(NextResponse.json({ error: "Invalid email" }, { status: 400 }), origin);
@@ -103,6 +133,7 @@ export async function POST(req: NextRequest) {
                 )
                 .slice(0, 3)
             : [],
+          auditSignals: sanitizeAuditSignals(auditSignals),
         });
       } catch (err) {
         console.error("[analyze/lead] Failed to send report email:", err);

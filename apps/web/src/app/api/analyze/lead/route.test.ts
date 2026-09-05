@@ -42,6 +42,10 @@ const validBody = {
   industry: "Apparel",
   score: 72,
   grade: "B-",
+  auditSignals: [
+    { key: "socialProof", found: false, description: "No visible reviews" },
+    { key: "unknownSignal", found: false, description: "Ignore me" },
+  ],
 };
 
 function postRequest(origin?: string) {
@@ -121,6 +125,13 @@ describe("/api/analyze/lead origin allowlist", () => {
     await Promise.all(mocks.afterCallbacks.map((callback) => callback()));
 
     expect(mocks.sendReportEmail).toHaveBeenCalledOnce();
+    expect(mocks.sendReportEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auditSignals: [
+          { key: "socialProof", found: false, description: "No visible reviews" },
+        ],
+      }),
+    );
     expect(mocks.sendAnalyzeLeadToDiscord).toHaveBeenCalledWith(
       expect.objectContaining({
         leadId: "lead_1",

@@ -263,6 +263,16 @@ export default function AnalyzeResultsPage() {
           industry: result.industry,
           score: result.score,
           grade: result.grade,
+          gradeLabel: result.gradeLabel,
+          topIssue: result.topIssue,
+          auditSignals: CHECK_META.map((item) => {
+            const check = getCheck(result, item.key);
+            return {
+              key: item.key,
+              found: check.found,
+              description: check.description,
+            };
+          }),
         }),
       }).catch(() => {});
     }

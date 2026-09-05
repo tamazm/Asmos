@@ -604,6 +604,14 @@
             grade: lastResult.grade,
             gradeLabel: lastResult.gradeLabel,
             topIssue: lastResult.topIssue,
+            auditSignals: CHECKS.map(function (entry) {
+              var item = lastResult[entry[0]] || {};
+              return {
+                key: entry[0],
+                found: !!item.found,
+                description: item.description || "",
+              };
+            }),
           }),
         })
           .then(function () {
