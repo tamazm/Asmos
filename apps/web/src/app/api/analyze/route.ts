@@ -32,8 +32,9 @@ import {
 import { upsertStoreProfile } from "@/lib/storeProfile";
 
 const BROWSERLESS_TOKEN = process.env.BROWSERLESS_TOKEN ?? "";
-// Used only as a failure fallback in the protected campaign preset. The
-// public fast analyzer deliberately invokes no more than one AI provider.
+// Used only as a failure fallback. The public analyzer normally makes one AI
+// request; a second provider is attempted only when the primary fails and the
+// request still has time left inside its bounded response budget.
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY ?? "";
 const AWS_REGION = process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? "eu-central-1";
 
@@ -704,19 +705,22 @@ export async function GET(req: NextRequest) { return handler(req); }
 export async function POST(req: NextRequest) { return handler(req); }
 export async function OPTIONS() { return cors(new NextResponse(null, { status: 204 })); }
 
-const ANALYZE_RESPONSE_BUDGET_MS = 3850;
+// The free report deliberately favors a complete screenshot-backed result over
+// the old sub-four-second target. Real storefronts commonly spend 2-3 seconds
+// in navigation alone, before DOM extraction and JPEG capture can begin.
+const ANALYZE_RESPONSE_BUDGET_MS = 7500;
 const CAMPAIGN_ANALYSIS_BUDGET_MS = 7500;
 export type StoreAnalysisMode = "fast" | "campaign";
 
 const ANALYSIS_PRESETS = {
   fast: {
     totalBudgetMs: ANALYZE_RESPONSE_BUDGET_MS,
-    maxBrowserMs: 2900,
-    catalogueTimeoutMs: 1200,
-    catalogueJoinMs: 150,
-    aiReserveMs: 120,
-    aiMaxTokens: 1200,
-    browser: { navigationTimeoutMs: 2200, triggerWaitMs: 250, screenshotQuality: 72 },
+    maxBrowserMs: 4600,
+    catalogueTimeoutMs: 2500,
+    catalogueJoinMs: 700,
+    aiReserveMs: 150,
+    aiMaxTokens: 1700,
+    browser: { navigationTimeoutMs: 3000, triggerWaitMs: 200, screenshotQuality: 82 },
   },
   campaign: {
     totalBudgetMs: CAMPAIGN_ANALYSIS_BUDGET_MS,
@@ -975,9 +979,10 @@ export async function analyzeStore(
       null,
     );
     let modelSource: "bedrock" | "anthropic" = "bedrock";
-    // Protected campaign analysis gets one failure-only fallback. The public
-    // fast path still makes no more than one AI request.
-    if (!modelResult && mode === "campaign" && !controller.signal.aborted) {
+    // Both presets get one failure-only fallback when there is still budget.
+    // This keeps the public report detailed when Bedrock has a transient error
+    // without adding a second request to the healthy path.
+    if (!modelResult && !controller.signal.aborted) {
       const fallbackBudgetMs = Math.max(0, deadlineAt - Date.now() - preset.aiReserveMs);
       if (fallbackBudgetMs > 200) {
         modelResult = await settleWithin(

@@ -17,6 +17,9 @@ describe("store analysis fast path", () => {
     expect(DOM_EXTRACTION_FN).toContain("logo:");
     expect(DOM_EXTRACTION_FN).toContain("productImages");
     expect(DOM_EXTRACTION_FN).toContain("detectedPopup");
+    expect(DOM_EXTRACTION_FN.indexOf("page.screenshot")).toBeLessThan(
+      DOM_EXTRACTION_FN.indexOf("window.scrollTo"),
+    );
     expect(analyzeStoreSource.match(/extractDom\(/g)).toHaveLength(1);
     expect(routeSource).not.toContain("/screenshot?token=");
   });
@@ -27,17 +30,22 @@ describe("store analysis fast path", () => {
     expect(DOM_EXTRACTION_FN).toContain("waitForPossiblePopup");
   });
 
-  it("makes at most one AI request from analyzeStore and has a DOM fallback", () => {
+  it("uses one primary AI request, one failure-only fallback, and a DOM fallback", () => {
     expect(analyzeStoreSource.match(/analyzeWithBedrock\(/g)).toHaveLength(1);
     expect(analyzeStoreSource).not.toContain("analyzeWithAnthropic(");
     expect(analyzeStoreSource).not.toContain("analyzeWithGemini(");
     expect(analyzeStoreSource).not.toContain("extractBrandTokens(");
+    expect(analyzeStoreSource).toContain("analyzeWithAnthropicUnified(");
     expect(analyzeStoreSource).toContain("domBasedCro(");
     expect(analyzeStoreSource).toContain("settleWithin(");
   });
 
-  it("enforces a sub-four-second response budget and emits stage timings", () => {
-    expect(routeSource).toContain("ANALYZE_RESPONSE_BUDGET_MS = 3850");
+  it("budgets 7.5 seconds for a screenshot-backed free report and emits stage timings", () => {
+    expect(routeSource).toContain("ANALYZE_RESPONSE_BUDGET_MS = 7500");
+    expect(routeSource).toContain("maxBrowserMs: 4600");
+    expect(routeSource).toContain("navigationTimeoutMs: 3000");
+    expect(routeSource).toContain("screenshotQuality: 82");
+    expect(routeSource).toContain("aiMaxTokens: 1700");
     for (const stage of ["navigationMs", "extractionMs", "aiMs", "catalogueMs", "databaseMs"]) {
       expect(routeSource).toContain(stage);
     }
@@ -52,7 +60,6 @@ describe("store analysis fast path", () => {
     expect(routeSource).toContain("triggerWaitMs: 650");
     expect(routeSource).toContain("screenshotQuality: 82");
     expect(routeSource).toContain("aiMaxTokens: 1700");
-    expect(routeSource).toContain('mode === "campaign"');
     expect(routeSource).toContain("analyzeWithAnthropicUnified(");
   });
 });

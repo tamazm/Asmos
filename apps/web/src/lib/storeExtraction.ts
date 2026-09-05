@@ -484,6 +484,17 @@ export default async function ({ page, context }) {
     };
   }, POPUP_SELECTOR);
 
+  // Capture the requested report image while the page is still at the top.
+  // The CRO pass below scrolls and fires synthetic triggers; taking the image
+  // first both preserves the storefront hero and keeps capture ahead of the
+  // least-essential work in this bounded Browserless session.
+  const screenshotStarted = Date.now();
+  let screenshotBase64 = null;
+  try {
+    screenshotBase64 = await page.screenshot({ encoding: "base64", type: "jpeg", quality: screenshotQuality, fullPage: false });
+  } catch {}
+  const screenshotMs = Date.now() - screenshotStarted;
+
   // ── CRO signal pass ──────────────────────────────────────────────────────
   // Real proof, not a guess: query the live rendered DOM and window globals
   // for each signal (this catches a JS-injected widget a plain HTML fetch
@@ -575,12 +586,6 @@ export default async function ({ page, context }) {
   };
 
   const extractionMs = Date.now() - extractionStarted;
-  const screenshotStarted = Date.now();
-  let screenshotBase64 = null;
-  try {
-    screenshotBase64 = await page.screenshot({ encoding: "base64", type: "jpeg", quality: screenshotQuality, fullPage: false });
-  } catch {}
-  const screenshotMs = Date.now() - screenshotStarted;
 
   return {
     data: {
