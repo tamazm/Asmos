@@ -73,7 +73,7 @@ export const CLOSE_AFFORDANCES = ["x_corner", "x_outside", "text_link", "both"] 
  * still test a quiet design against a loud one. What's gone is the possibility
  * of drawing "no design at all" by accident.
  */
-export const ART_DIRECTIONS = ["editorial", "bold", "glass"] as const;
+export const ART_DIRECTIONS = ["editorial", "bold", "glass", "playful", "luxury"] as const;
 export const TYPE_PAIRINGS = ["editorial", "bold", "geometric", "grotesque", "brand", "system"] as const;
 export const ELEVATIONS = ["flat", "raised", "floating"] as const;
 export const SURFACE_TREATMENTS = ["plain", "paper", "glow", "block", "mesh"] as const;

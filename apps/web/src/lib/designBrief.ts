@@ -266,6 +266,62 @@ const ART_PRESETS: Record<ArtDirection, ArtPreset> = {
     maxSupporting: 2,
   },
 
+  // Sticker logic: bright, rounded, centred, a little bouncy. The energy a
+  // consumer/DTC or kids' brand has and the other three schools don't - none
+  // of editorial/bold/glass will ever draw a pill radius AND a saturated
+  // block surface AND a real product photo at once, and that combination is
+  // exactly what "fun" looks like.
+  playful: {
+    typePairings: { geometric: 5, grotesque: 3, brand: 2 },
+    elevation: "raised",
+    surfaces: { block: 6, mesh: 4 },
+    themes: { light: 9, brand: 1, dark: 0 },
+    radii: ["rounded", "pill"],
+    buttonShapes: ["pill", "rounded"],
+    buttonFills: { solid: 9, outline: 1, dark: 0 },
+    densities: ["compact", "regular"],
+    typeScales: ["medium", "large"],
+    // A badge has a centre. Playful is the second school (with glass) willing
+    // to centre by default rather than treating it as the exception.
+    leftAxisOdds: 0.35,
+    colorUsages: ["saturated", "duo_accent"],
+    heroOfferOdds: 0.5,
+    // Real photography reads as approachable here, not stocky - a hand
+    // holding the product, not a moody duotone. Tinted keeps the brand
+    // palette present when there's no usable photo.
+    imageStyles: ["photo", "tinted"],
+    maxSupporting: 2,
+  },
+
+  // Quiet-luxury logic: the opposite instinct from every school above. Where
+  // bold makes the discount the whole poster, luxury barely mentions it -
+  // color_usage is the ONE place "accent_only" is the right call rather than
+  // the generic-popup default it usually is, because restraint said once, on
+  // purpose, is the entire brief. No pill radius, no saturated colour, almost
+  // never a hero numeral: the things that read as "sale" are exactly what
+  // this school exists to avoid.
+  luxury: {
+    typePairings: { grotesque: 5, editorial: 4, brand: 2 },
+    elevation: "flat",
+    surfaces: { plain: 7, paper: 3 },
+    // The one school evenly split between light and dark by design - both are
+    // legitimate premium looks (paper-white restraint, or black-box restraint)
+    // and neither should dominate the draw the way it does elsewhere.
+    themes: { light: 5, dark: 5, brand: 0 },
+    radii: ["sharp", "soft"],
+    buttonShapes: ["rect", "rounded"],
+    // Almost never the brand's own saturated colour as a filled button - that
+    // reads as a sale banner. An outline or a near-ink button is what a brand
+    // that isn't trying to convince you looks like.
+    buttonFills: { outline: 6, dark: 4, solid: 0 },
+    densities: ["airy"],
+    typeScales: ["small", "medium"],
+    leftAxisOdds: 0.4,
+    colorUsages: ["accent_only"],
+    heroOfferOdds: 0.05,
+    imageStyles: ["mono", "duotone"],
+    maxSupporting: 1,
+  },
 };
 
 // ─── The brief ───────────────────────────────────────────────────────────────
@@ -777,6 +833,10 @@ const ART_DIRECTION_BRIEF: Record<ArtDirection, string> = {
     "poster. The discount NUMBER is the hero and the type is enormous, so the headline must be 3-5 words maximum and read as a statement, not a sentence. Uppercase-friendly. Blunt",
   glass:
     "modern software. Warm, plain-spoken, a little generous. Short sentences. Sounds like a helpful product, not a promotion",
+  playful:
+    "a brand you'd actually text back. Upbeat and a little cheeky, but never juvenile - no baby-talk, no excess exclamation. Says the deal plainly and moves on rather than over-explaining it",
+  luxury:
+    "quiet confidence, said once and left alone. No hype words, no urgency language, no exclamation marks. Speaks the way a brand that doesn't need to convince you would - understated and precise, never apologetic about how little it's saying",
 };
 
 /**

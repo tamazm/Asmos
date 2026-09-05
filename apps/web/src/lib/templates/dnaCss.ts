@@ -179,6 +179,18 @@ function themeColors(dna: PopupDna, accent: string): ThemeColors {
           field: "rgba(245,240,232,0.05)",
         };
       }
+      if (art === "luxury") {
+        // The black-box half of luxury's even light/dark split - premium
+        // packaging black, not the cooler near-black the generic dark theme
+        // uses below, and a warm off-white ink to match.
+        return {
+          bg: "#0A0A09",
+          fg: "#F5F3EE",
+          muted: "rgba(245,243,238,0.58)",
+          border: "rgba(245,243,238,0.14)",
+          field: "rgba(245,243,238,0.05)",
+        };
+      }
       return {
         bg: "#111114",
         fg: "#f5f5f7",
@@ -225,6 +237,30 @@ function themeColors(dna: PopupDna, accent: string): ThemeColors {
           muted: "#6B6B85",
           border: "#E6E6F0",
           field: "#FAFAFF",
+        };
+      }
+      if (art === "playful") {
+        // Warm cream, not sterile white - cheerful without tipping into a
+        // saturated background that would fight the accent block/mesh surface
+        // treatment for attention.
+        return {
+          bg: "#FFFBF2",
+          fg: "#231F16",
+          muted: "#8A7F66",
+          border: "#F2E9D2",
+          field: "#FFFFFF",
+        };
+      }
+      if (art === "luxury") {
+        // The paper-white half of luxury's even light/dark split - cooler and
+        // quieter than editorial's warm paper; restraint reads as neutral,
+        // not cozy.
+        return {
+          bg: "#FAFAF9",
+          fg: "#0F0F0E",
+          muted: "#6E6B64",
+          border: "#E5E3DE",
+          field: "#FAFAF9",
         };
       }
       return {
@@ -750,10 +786,14 @@ export function sharedComponentCss(dna: PopupDna): string {
       gap: 2px;
       margin: 0 0 var(--asmos-space-tight);
       font-family: var(--asmos-font-display);
-      font-weight: ${dna.art_direction === "editorial" ? 500 : 800};
+      font-weight: ${dna.art_direction === "editorial" || dna.art_direction === "luxury" ? 500 : 800};
       line-height: 0.82;
       letter-spacing: -0.05em;
-      color: ${dna.art_direction === "bold" ? "var(--asmos-fg)" : "var(--asmos-accent)"};
+      /* luxury draws a hero offer only 5% of the time (heroOfferOdds), but
+         when it does, a saturated accent-coloured numeral would fight the
+         whole point of accent_only - render it in ink like bold's numeral,
+         not in colour. */
+      color: ${dna.art_direction === "bold" || dna.art_direction === "luxury" ? "var(--asmos-fg)" : "var(--asmos-accent)"};
       font-variant-numeric: lining-nums tabular-nums;
     }
     #asmosPopupOverlay .asmos-offer-value {
@@ -834,7 +874,8 @@ export function sharedComponentCss(dna: PopupDna): string {
       ${
         dna.form_layout === "inline"
           ? "flex: 0 0 auto;"
-          : dna.text_align === "left" && (dna.art_direction === "editorial" || dna.art_direction === "bold")
+          : dna.text_align === "left" &&
+            (dna.art_direction === "editorial" || dna.art_direction === "bold" || dna.art_direction === "luxury")
           ? "width: auto; align-self: flex-start;"
           : "width: 100%;"
       }
